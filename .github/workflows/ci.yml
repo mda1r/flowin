@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexuspos
+          POSTGRES_PASSWORD: nexuspos_dev
+          POSTGRES_DB: nexuspos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: nexuspos
+          RABBITMQ_DEFAULT_PASS: nexuspos_dev
+          RABBITMQ_DEFAULT_VHOST: nexuspos
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore NexusPOS.sln
+
+      - name: Build
+        run: dotnet build NexusPOS.sln --no-restore --configuration Release
+
+      - name: Run unit tests
+        run: >
+          dotnet test tests/unit/NexusPOS.SharedKernel.UnitTests/NexusPOS.SharedKernel.UnitTests.csproj
+          --no-build --configuration Release
+          --logger "trx;LogFileName=unit-results.xml"
+          --collect:"XPlat Code Coverage"
+
+      - name: Run architecture tests
+        run: >
+          dotnet test tests/architecture/NexusPOS.ArchitectureTests/NexusPOS.ArchitectureTests.csproj
+          --no-build --configuration Release
+          --logger "trx;LogFileName=arch-results.xml"
+
+      - name: Run integration tests
+        env:
+          ConnectionStrings__PostgreSQL: "Host=localhost;Port=5432;Database=nexuspos_test;Username=nexuspos;Password=nexuspos_dev"
+          ConnectionStrings__Redis: "localhost:6379"
+          RabbitMQ__Host: localhost
+          RabbitMQ__Username: nexuspos
+          RabbitMQ__Password: nexuspos_dev
+          RabbitMQ__VirtualHost: nexuspos
+        run: >
+          dotnet test tests/integration/NexusPOS.Api.IntegrationTests/NexusPOS.Api.IntegrationTests.csproj
+          --no-build --configuration Release
+          --logger "trx;LogFileName=integration-results.xml"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: "**/*-results.xml"
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore NexusPOS.sln
+
+      - name: NuGet Audit (High + Critical)
+        run: dotnet list NexusPOS.sln package --vulnerable --include-transitive 2>&1 | tee /tmp/audit.txt; grep -i "high\|critical" /tmp/audit.txt && exit 1 || exit 0

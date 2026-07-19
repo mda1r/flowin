@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <AssemblyName>NexusPOS.Api</AssemblyName>
+    <RootNamespace>NexusPOS.Api</RootNamespace>
+    <Description>NexusPOS API Host — entry point for the modular monolith</Description>
+    <UserSecretsId>nexuspos-api-secrets</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- SharedKernel -->
+    <ProjectReference Include="..\NexusPOS.SharedKernel\NexusPOS.SharedKernel.csproj" />
+
+    <!-- All Modules -->
+    <ProjectReference Include="..\Modules\IAM\NexusPOS.IAM\NexusPOS.IAM.csproj" />
+    <ProjectReference Include="..\Modules\Organization\NexusPOS.Organization\NexusPOS.Organization.csproj" />
+    <ProjectReference Include="..\Modules\Catalog\NexusPOS.Catalog\NexusPOS.Catalog.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\NexusPOS.Inventory\NexusPOS.Inventory.csproj" />
+    <ProjectReference Include="..\Modules\POS\NexusPOS.POS\NexusPOS.POS.csproj" />
+    <ProjectReference Include="..\Modules\Sales\NexusPOS.Sales\NexusPOS.Sales.csproj" />
+    <ProjectReference Include="..\Modules\Purchasing\NexusPOS.Purchasing\NexusPOS.Purchasing.csproj" />
+    <ProjectReference Include="..\Modules\CRM\NexusPOS.CRM\NexusPOS.CRM.csproj" />
+    <ProjectReference Include="..\Modules\Finance\NexusPOS.Finance\NexusPOS.Finance.csproj" />
+    <ProjectReference Include="..\Modules\Restaurant\NexusPOS.Restaurant\NexusPOS.Restaurant.csproj" />
+    <ProjectReference Include="..\Modules\Hotel\NexusPOS.Hotel\NexusPOS.Hotel.csproj" />
+    <ProjectReference Include="..\Modules\Gaming\NexusPOS.Gaming\NexusPOS.Gaming.csproj" />
+    <ProjectReference Include="..\Modules\SuperAdmin\NexusPOS.SuperAdmin\NexusPOS.SuperAdmin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Enrichers.Environment" />
+    <PackageReference Include="Serilog.Enrichers.Thread" />
+    <PackageReference Include="Serilog.Enrichers.Process" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="MassTransit.RabbitMQ" />
+    <PackageReference Include="MassTransit.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <PackageReference Include="Elastic.Clients.Elasticsearch" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" />
+    <PackageReference Include="AspNetCore.HealthChecks.RabbitMQ" />
+    <PackageReference Include="AspNetCore.HealthChecks.Elasticsearch" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+    <PackageReference Include="Scrutor" />
+  </ItemGroup>
+
+</Project>

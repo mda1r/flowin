@@ -1,0 +1,52 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+*.DotSettings
+TestResults/
+coverage/
+*.coverage
+*.opencover.xml
+
+## Build
+artifacts/
+publish/
+*.nupkg
+
+## Secrets — NEVER commit
+*.env
+.env.*
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json.example
+secrets/
+*.pfx
+*.p12
+*.pem
+*.key
+
+## Docker
+.docker/
+
+## Node (frontend)
+node_modules/
+dist/
+.next/
+.nuxt/
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Logs
+logs/
+*.log
+
+## Rider / VSCode
+.idea/
+.vscode/
+*.editorconfig.bak

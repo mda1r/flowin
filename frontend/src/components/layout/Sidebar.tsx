@@ -1,0 +1,202 @@
+import { useEffect } from 'react'
+import { Link, useRouterState } from '@tanstack/react-router'
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  Warehouse,
+  Users,
+  TrendingUp,
+  ShoppingBag,
+  DollarSign,
+  UtensilsCrossed,
+  Hotel,
+  Gamepad2,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  Languages,
+  UserCog,
+  GitBranch,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/authStore'
+import { useI18n } from '@/i18n'
+import type { BusinessType } from '@/types/api'
+
+/* business-type accent identity, injected as CSS variables on :root */
+const BUSINESS_ACCENTS: Record<BusinessType, { accent: string; glow: string }> = {
+  Restaurant:  { accent: '#FF6B35', glow: 'rgba(255,107,53,0.35)' },
+  Hotel:       { accent: '#1E40AF', glow: 'rgba(30,64,175,0.35)' },
+  Gaming:      { accent: '#7C3AED', glow: 'rgba(124,58,237,0.45)' },
+  Supermarket: { accent: '#059669', glow: 'rgba(5,150,105,0.35)' },
+  Retail:      { accent: '#BE185D', glow: 'rgba(190,24,93,0.35)' },
+  Cafe:        { accent: '#92400E', glow: 'rgba(146,64,14,0.35)' },
+}
+
+interface NavItem {
+  labelKey: string
+  to: string
+  icon: React.ReactNode
+  roles?: string[]
+}
+
+const ALL_NAV_ITEMS: NavItem[] = [
+  { labelKey: 'dashboard', to: '/', icon: <LayoutDashboard className="h-5 w-5" /> },
+  { labelKey: 'pos', to: '/pos', icon: <ShoppingCart className="h-5 w-5" /> },
+  { labelKey: 'products', to: '/products', icon: <Package className="h-5 w-5" /> },
+  { labelKey: 'inventory', to: '/inventory', icon: <Warehouse className="h-5 w-5" /> },
+  { labelKey: 'customers', to: '/customers', icon: <Users className="h-5 w-5" /> },
+  { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-5 w-5" /> },
+  { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-5 w-5" /> },
+  { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-5 w-5" /> },
+  { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-5 w-5" /> },
+  { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-5 w-5" /> },
+  { labelKey: 'gaming', to: '/gaming', icon: <Gamepad2 className="h-5 w-5" /> },
+  { labelKey: 'users', to: '/users', icon: <UserCog className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
+]
+
+const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
+  Hotel:       ['/', '/pos', '/customers', '/sales', '/finance', '/hotel', '/users', '/branches'],
+  Gaming:      ['/', '/pos', '/customers', '/sales', '/finance', '/gaming', '/users', '/branches'],
+  Restaurant:  ['/', '/pos', '/customers', '/sales', '/finance', '/restaurant', '/users', '/branches'],
+  Supermarket: ['/', '/pos', '/products', '/inventory', '/customers', '/sales', '/purchasing', '/finance', '/users', '/branches'],
+  Retail:      ['/', '/pos', '/products', '/inventory', '/customers', '/sales', '/purchasing', '/finance', '/users', '/branches'],
+  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/finance', '/restaurant', '/users', '/branches'],
+}
+
+function getNavItems(businessType: BusinessType | undefined, role: string | undefined): NavItem[] {
+  const baseItems = businessType
+    ? (() => {
+        const allowed = new Set(BUSINESS_TYPE_ROUTES[businessType] ?? [])
+        return ALL_NAV_ITEMS.filter((item) => allowed.has(item.to))
+      })()
+    : ALL_NAV_ITEMS
+
+  return baseItems.filter((item) => !item.roles || (role && item.roles.includes(role)))
+}
+
+interface SidebarProps {
+  collapsed: boolean
+  onToggle: () => void
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { pathname } = useRouterState({ select: (s) => s.location })
+  const { user, logout } = useAuthStore()
+  const { t, lang, setLang } = useI18n()
+
+  // inject the business-type accent identity globally
+  useEffect(() => {
+    const identity = user?.businessType ? BUSINESS_ACCENTS[user.businessType] : BUSINESS_ACCENTS.Hotel
+    document.documentElement.style.setProperty('--accent', identity.accent)
+    document.documentElement.style.setProperty('--glow', identity.glow)
+  }, [user?.businessType])
+
+  const navItems = getNavItems(user?.businessType, user?.role)
+
+  const initials = user
+    ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim() || '؟'
+    : '؟'
+
+  return (
+    <aside
+      className={cn(
+        'sidebar-3d relative z-20 flex h-screen flex-col transition-all duration-spring ease-spring',
+        collapsed ? 'w-16' : 'w-60',
+      )}
+    >
+      {/* Logo */}
+      <div className="flex h-16 items-center justify-between border-b px-4" style={{ borderColor: 'var(--card-border)' }}>
+        {!collapsed && (
+          <span className="logo-3d select-none text-xl font-extrabold tracking-tight">flowin</span>
+        )}
+        <button
+          onClick={onToggle}
+          className="card-3d card-3d-lift ms-auto rounded-lg p-1.5 text-gray-400"
+          aria-label={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
+        >
+          <ChevronLeft
+            className={cn('h-4 w-4 transition-transform duration-spring ease-spring', collapsed && 'rotate-180')}
+          />
+        </button>
+      </div>
+
+      {/* Nav */}
+      <nav className="scene-3d flex-1 overflow-y-auto py-4">
+        <ul className={cn('space-y-1 px-2', collapsed && 'flex flex-col items-center space-y-2')}>
+          {navItems.map((item) => {
+            const isActive = item.to === '/' ? pathname === '/' : pathname.startsWith(item.to)
+            const label = t.nav[item.labelKey as keyof typeof t.nav]
+            return (
+              <li key={item.to} className={cn(collapsed && 'w-auto')}>
+                <Link
+                  to={item.to}
+                  className={cn(
+                    'nav-item',
+                    isActive && 'nav-item-active',
+                    collapsed && 'h-10 w-10 justify-center rounded-full px-0 py-0',
+                  )}
+                  title={collapsed ? label : undefined}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  {!collapsed && <span>{label}</span>}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t p-3" style={{ borderColor: 'var(--card-border)' }}>
+        {!collapsed && user && (
+          <div className="card-3d mb-3 flex items-center gap-3 p-3">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+              style={{
+                background: 'linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 55%, black))',
+                boxShadow: '0 3px 0 rgba(0,0,0,0.3), 0 0 14px var(--glow)',
+              }}
+            >
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {user.firstName} {user.lastName}
+              </p>
+              <p className="truncate text-xs text-gray-500">{user.email}</p>
+            </div>
+          </div>
+        )}
+        <div className={cn('flex gap-1', collapsed ? 'flex-col items-center' : 'flex-wrap')}>
+          <button
+            onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+            className="nav-item !px-2 !py-2 text-xs"
+            title={lang === 'ar' ? 'English' : 'عربي'}
+          >
+            <span className="nav-icon"><Languages className="h-4 w-4" /></span>
+            {!collapsed && (lang === 'ar' ? 'EN' : 'عر')}
+          </button>
+          <Link
+            to="/settings"
+            className="nav-item !px-2 !py-2 text-sm"
+            title={collapsed ? t.nav.settings : undefined}
+          >
+            <span className="nav-icon"><Settings className="h-4 w-4" /></span>
+            {!collapsed && t.nav.settings}
+          </Link>
+          <button
+            onClick={logout}
+            className="nav-item !px-2 !py-2 text-sm"
+            title={collapsed ? t.nav.logout : undefined}
+          >
+            <span className="nav-icon"><LogOut className="h-4 w-4" /></span>
+            {!collapsed && t.nav.logout}
+          </button>
+        </div>
+      </div>
+    </aside>
+  )
+}

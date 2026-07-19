@@ -1,0 +1,111 @@
+{
+  "vhosts": [
+    { "name": "nexuspos" }
+  ],
+  "users": [
+    {
+      "name": "nexuspos",
+      "password_hash": "placeholder-will-be-overridden-by-env",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
+  "permissions": [
+    {
+      "user": "nexuspos",
+      "vhost": "nexuspos",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "nexuspos.events",
+      "vhost": "nexuspos",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "nexuspos.events.dlx",
+      "vhost": "nexuspos",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "nexuspos.loyalty.sale-completed",
+      "vhost": "nexuspos",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-dead-letter-exchange": "nexuspos.events.dlx"
+      }
+    },
+    {
+      "name": "nexuspos.finance.sale-completed",
+      "vhost": "nexuspos",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-dead-letter-exchange": "nexuspos.events.dlx"
+      }
+    },
+    {
+      "name": "nexuspos.inventory.goods-received",
+      "vhost": "nexuspos",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-dead-letter-exchange": "nexuspos.events.dlx"
+      }
+    },
+    {
+      "name": "nexuspos.dead-letter",
+      "vhost": "nexuspos",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "nexuspos.events",
+      "vhost": "nexuspos",
+      "destination": "nexuspos.loyalty.sale-completed",
+      "destination_type": "queue",
+      "routing_key": "nexuspos.pos.sale.completed.*"
+    },
+    {
+      "source": "nexuspos.events",
+      "vhost": "nexuspos",
+      "destination": "nexuspos.finance.sale-completed",
+      "destination_type": "queue",
+      "routing_key": "nexuspos.pos.sale.completed.*"
+    },
+    {
+      "source": "nexuspos.events",
+      "vhost": "nexuspos",
+      "destination": "nexuspos.inventory.goods-received",
+      "destination_type": "queue",
+      "routing_key": "nexuspos.purchasing.goods.received.*"
+    },
+    {
+      "source": "nexuspos.events.dlx",
+      "vhost": "nexuspos",
+      "destination": "nexuspos.dead-letter",
+      "destination_type": "queue",
+      "routing_key": "#"
+    }
+  ]
+}

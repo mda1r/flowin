@@ -1,0 +1,6 @@
+# Test project overrides — inherits root .editorconfig
+[*.cs]
+# xUnit test methods use Underscore_Convention — suppress CA1707 for member naming
+dotnet_diagnostic.CA1707.severity = none
+# Test methods don't need braces on simple returns
+dotnet_diagnostic.IDE0011.severity = suggestion

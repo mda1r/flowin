@@ -1,0 +1,225 @@
+name: nexuspos
+
+services:
+
+  # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexuspos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nexuspos
+      POSTGRES_USER: nexuspos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-NexusPOS_Dev_2026!}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexuspos -d nexuspos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nexuspos-net
+
+  # ── Redis 7 ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: nexuspos-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-NexusPOS_Redis_2026!}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-NexusPOS_Redis_2026!}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexuspos-net
+
+  # ── RabbitMQ 3.13 ───────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: nexuspos-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: nexuspos
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-NexusPOS_MQ_2026!}
+      RABBITMQ_DEFAULT_VHOST: nexuspos
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./infra/docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./infra/docker/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - nexuspos-net
+
+  # ── Elasticsearch 8 ─────────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: nexuspos-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.name=nexuspos-cluster
+      - node.name=nexuspos-node-1
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s | grep -q 'status'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - nexuspos-net
+
+  # ── MinIO (S3-compatible) ────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: nexuspos-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: nexuspos
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-NexusPOS_MinIO_2026!}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - nexuspos-net
+
+  # ── Jaeger (Distributed Tracing) ─────────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: nexuspos-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    networks:
+      - nexuspos-net
+
+  # ── Prometheus ───────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: nexuspos-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - nexuspos-net
+
+  # ── Grafana ──────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: nexuspos-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - nexuspos-net
+
+  # ── NexusPOS API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: src/NexusPOS.Api/Dockerfile
+      target: development
+    container_name: nexuspos-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=nexuspos;Username=nexuspos;Password=${POSTGRES_PASSWORD:-NexusPOS_Dev_2026!}
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-NexusPOS_Redis_2026!}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=nexuspos
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD:-NexusPOS_MQ_2026!}
+      - RabbitMQ__VirtualHost=nexuspos
+      - Elasticsearch__Url=http://elasticsearch:9200
+      - OpenTelemetry__Endpoint=http://jaeger:4317
+      - Storage__Endpoint=http://minio:9000
+      - Storage__AccessKey=nexuspos
+      - Storage__SecretKey=${MINIO_PASSWORD:-NexusPOS_MinIO_2026!}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - nexuspos-net
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  elasticsearch_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  nexuspos-net:
+    driver: bridge
