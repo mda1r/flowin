@@ -59,15 +59,15 @@ RUN dotnet publish "src/NexusPOS.Api/NexusPOS.Api.csproj" \
     --no-build \
     /p:UseAppHost=false
 
-# ── Stage 4: Final production image ──────────────────────────────────────────
-FROM base AS production
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "NexusPOS.Api.dll"]
-
-# ── Stage 5: Development (with hot reload) ───────────────────────────────────
+# ── Stage 4: Development (with hot reload) ───────────────────────────────────
 FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS development
 WORKDIR /app
 ENV ASPNETCORE_ENVIRONMENT=Development
 ENV DOTNET_WATCH_SUPPRESS_MSBUILD_INCREMENTALISM=true
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "watch", "--project", "src/NexusPOS.Api", "run", "--urls", "http://+:8080"]
+
+# ── Stage 5: Final production image ──────────────────────────────────────────
+FROM base AS production
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "NexusPOS.Api.dll"]
