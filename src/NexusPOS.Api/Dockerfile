@@ -2,28 +2,19 @@
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
 WORKDIR /app
 EXPOSE 8080
-
-# Security: run as non-root user
 ENV ASPNETCORE_HTTP_PORTS=8080
 
-RUN addgroup -S nexuspos && adduser -S nexuspos -G nexuspos
-USER nexuspos
-
-# ── Stage 2: Build ────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
+# ── Stage 2: Restore + Build + Publish ────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS publish
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copy solution and project files first for layer caching
 COPY ["NexusPOS.sln", "."]
 COPY ["Directory.Build.props", "."]
 COPY ["Directory.Packages.props", "."]
 
-# API and SharedKernel
 COPY ["src/NexusPOS.Api/NexusPOS.Api.csproj", "src/NexusPOS.Api/"]
 COPY ["src/NexusPOS.SharedKernel/NexusPOS.SharedKernel.csproj", "src/NexusPOS.SharedKernel/"]
-
-# All module projects
 COPY ["src/Modules/IAM/NexusPOS.IAM/NexusPOS.IAM.csproj", "src/Modules/IAM/NexusPOS.IAM/"]
 COPY ["src/Modules/Organization/NexusPOS.Organization/NexusPOS.Organization.csproj", "src/Modules/Organization/NexusPOS.Organization/"]
 COPY ["src/Modules/Catalog/NexusPOS.Catalog/NexusPOS.Catalog.csproj", "src/Modules/Catalog/NexusPOS.Catalog/"]
@@ -40,34 +31,17 @@ COPY ["src/Modules/SuperAdmin/NexusPOS.SuperAdmin/NexusPOS.SuperAdmin.csproj", "
 
 RUN dotnet restore "src/NexusPOS.Api/NexusPOS.Api.csproj"
 
-# Copy full source
 COPY . .
-
-RUN dotnet build "src/NexusPOS.Api/NexusPOS.Api.csproj" \
-    -c $BUILD_CONFIGURATION \
-    -o /app/build \
-    --no-restore
-
-# ── Stage 3: Publish ──────────────────────────────────────────────────────────
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
 
 RUN dotnet publish "src/NexusPOS.Api/NexusPOS.Api.csproj" \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \
     --no-restore \
-    --no-build \
     /p:UseAppHost=false
 
-# ── Stage 4: Development (with hot reload) ───────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS development
-WORKDIR /app
-ENV ASPNETCORE_ENVIRONMENT=Development
-ENV DOTNET_WATCH_SUPPRESS_MSBUILD_INCREMENTALISM=true
-EXPOSE 8080
-ENTRYPOINT ["dotnet", "watch", "--project", "src/NexusPOS.Api", "run", "--urls", "http://+:8080"]
-
-# ── Stage 5: Final production image ──────────────────────────────────────────
+# ── Stage 3: Final production image ───────────────────────────────────────────
 FROM base AS production
+RUN addgroup -S nexuspos && adduser -S nexuspos -G nexuspos
 COPY --from=publish /app/publish .
+USER nexuspos
 ENTRYPOINT ["dotnet", "NexusPOS.Api.dll"]
