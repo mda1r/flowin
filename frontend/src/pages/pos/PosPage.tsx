@@ -31,10 +31,10 @@ export function POSPage() {
   }
 }
 
-/* emerald retail accent scoped to this page */
+/* indigo retail accent scoped to this page */
 const RETAIL_ACCENT: React.CSSProperties = {
-  '--accent': '#059669',
-  '--glow': 'rgba(5,150,105,0.35)',
+  '--accent': '#4F46E5',
+  '--glow': 'rgba(79,70,229,0.4)',
 } as React.CSSProperties
 
 function RetailPosPage() {

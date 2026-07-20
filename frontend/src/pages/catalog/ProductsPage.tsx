@@ -202,7 +202,7 @@ export function ProductsPage() {
   const products: ProductResponse[] = data?.data ?? []
 
   return (
-    <div>
+    <div className="page-fade">
       <PageHeader
         title="المنتجات"
         description="إدارة كتالوج المنتجات"
@@ -235,9 +235,9 @@ export function ProductsPage() {
           </div>
 
           {isLoading ? (
-            <div className="space-y-3 p-4">
+            <div className="space-y-2 p-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-14 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+                <div key={i} className="skeleton h-14" style={{ animationDelay: `${i * 80}ms` }} />
               ))}
             </div>
           ) : products.length === 0 ? (
@@ -249,12 +249,15 @@ export function ProductsPage() {
                 const isExpanded = expanded === product.id
                 return (
                   <div key={product.id}>
-                    <div className="flex w-full items-center gap-4 px-4 py-3">
+                    <div className="row-hover flex w-full items-center gap-4 px-4 py-3">
                       <button
                         onClick={() => setExpanded(isExpanded ? null : product.id)}
                         className="flex flex-1 items-center gap-4 text-left"
                       >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-lg dark:bg-blue-900/30">
+                        <div
+                          className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
+                          style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)' }}
+                        >
                           {product.name[0]}
                         </div>
                         <div className="flex-1 min-w-0">

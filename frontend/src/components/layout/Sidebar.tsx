@@ -29,9 +29,19 @@ const BUSINESS_ACCENTS: Record<BusinessType, { accent: string; glow: string }> =
   Restaurant:  { accent: '#FF6B35', glow: 'rgba(255,107,53,0.35)' },
   Hotel:       { accent: '#1E40AF', glow: 'rgba(30,64,175,0.35)' },
   Gaming:      { accent: '#7C3AED', glow: 'rgba(124,58,237,0.45)' },
-  Supermarket: { accent: '#059669', glow: 'rgba(5,150,105,0.35)' },
+  Supermarket: { accent: '#4F46E5', glow: 'rgba(79,70,229,0.4)' },
   Retail:      { accent: '#BE185D', glow: 'rgba(190,24,93,0.35)' },
   Cafe:        { accent: '#92400E', glow: 'rgba(146,64,14,0.35)' },
+}
+
+/* themed identity chip shown under the brand name */
+const BUSINESS_META: Record<BusinessType, { emoji: string; ar: string; en: string }> = {
+  Restaurant:  { emoji: '🍽️', ar: 'مطعم',       en: 'Restaurant' },
+  Hotel:       { emoji: '🏨', ar: 'فندق',        en: 'Hotel' },
+  Gaming:      { emoji: '🎮', ar: 'صالة ألعاب',  en: 'Gaming Lounge' },
+  Supermarket: { emoji: '🛒', ar: 'سوبر ماركت',  en: 'Supermarket' },
+  Retail:      { emoji: '🛍️', ar: 'متجر تجزئة', en: 'Retail Store' },
+  Cafe:        { emoji: '☕', ar: 'مقهى',        en: 'Cafe' },
 }
 
 interface NavItem {
@@ -107,20 +117,45 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? 'w-16' : 'w-60',
       )}
     >
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b px-4" style={{ borderColor: 'var(--card-border)' }}>
-        {!collapsed && (
-          <span className="logo-3d select-none text-xl font-extrabold tracking-tight">flowin</span>
+      {/* Logo — breathing glow mark + business identity chip */}
+      <div
+        className={cn('border-b px-4', collapsed ? 'flex h-16 items-center justify-center' : 'py-3.5')}
+        style={{ borderColor: 'var(--card-border)' }}
+      >
+        <div className="flex items-center justify-between">
+          {!collapsed && (
+            <div className="flex items-center gap-2.5">
+              <div
+                className="logo-breathe flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  background: 'linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 55%, black))',
+                  boxShadow: '0 3px 0 rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
+                }}
+                aria-hidden="true"
+              >
+                <ShoppingCart className="h-4 w-4 text-white" />
+              </div>
+              <span className="logo-3d logo-breathe select-none text-xl font-extrabold tracking-tight">
+                flowin
+              </span>
+            </div>
+          )}
+          <button
+            onClick={onToggle}
+            className="card-3d card-3d-lift ms-auto rounded-lg p-1.5 text-gray-400"
+            aria-label={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
+          >
+            <ChevronLeft
+              className={cn('h-4 w-4 transition-transform duration-spring ease-spring', collapsed && 'rotate-180')}
+            />
+          </button>
+        </div>
+        {!collapsed && user?.businessType && (
+          <span className="biz-badge mt-2.5">
+            <span aria-hidden="true">{BUSINESS_META[user.businessType].emoji}</span>
+            {lang === 'ar' ? BUSINESS_META[user.businessType].ar : BUSINESS_META[user.businessType].en}
+          </span>
         )}
-        <button
-          onClick={onToggle}
-          className="card-3d card-3d-lift ms-auto rounded-lg p-1.5 text-gray-400"
-          aria-label={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
-        >
-          <ChevronLeft
-            className={cn('h-4 w-4 transition-transform duration-spring ease-spring', collapsed && 'rotate-180')}
-          />
-        </button>
       </div>
 
       {/* Nav */}
@@ -134,12 +169,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 <Link
                   to={item.to}
                   className={cn(
-                    'nav-item',
+                    'nav-item relative',
                     isActive && 'nav-item-active',
                     collapsed && 'h-10 w-10 justify-center rounded-full px-0 py-0',
                   )}
                   title={collapsed ? label : undefined}
                 >
+                  {isActive && !collapsed && <span className="nav-accent-bar" aria-hidden="true" />}
                   <span className="nav-icon">{item.icon}</span>
                   {!collapsed && <span>{label}</span>}
                 </Link>

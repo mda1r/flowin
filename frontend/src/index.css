@@ -67,7 +67,7 @@
   body {
     @apply min-h-screen text-gray-900 antialiased dark:text-gray-100;
     font-family: 'Segoe UI', Tahoma, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-    background: radial-gradient(120% 90% at 50% 0%, #f8fafc 0%, #eff6ff 100%) fixed;
+    background: radial-gradient(ellipse 130% 55% at 50% -5%, color-mix(in srgb, var(--accent) 6%, #f8fafc) 0%, #f8fafc 55%, #fff 100%) fixed;
   }
 
   .dark body,
@@ -187,17 +187,210 @@
   }
 }
 
+/* organic drift — 5 asymmetric waypoints so motion never reads as a loop */
 @keyframes float-drift {
   0%,
   100% {
     transform: translate3d(0, 0, 0) rotateX(18deg) rotateY(-12deg) rotateZ(0deg);
   }
-  33% {
-    transform: translate3d(14px, -22px, 40px) rotateX(28deg) rotateY(8deg) rotateZ(6deg);
+  18% {
+    transform: translate3d(12px, -16px, 34px) rotateX(26deg) rotateY(2deg) rotateZ(4deg);
   }
-  66% {
-    transform: translate3d(-10px, 12px, -30px) rotateX(8deg) rotateY(-24deg) rotateZ(-5deg);
+  39% {
+    transform: translate3d(22px, -4px, 54px) rotateX(20deg) rotateY(17deg) rotateZ(9deg);
   }
+  61% {
+    transform: translate3d(4px, 15px, 8px) rotateX(9deg) rotateY(-3deg) rotateZ(1deg);
+  }
+  82% {
+    transform: translate3d(-15px, 5px, -28px) rotateX(5deg) rotateY(-23deg) rotateZ(-7deg);
+  }
+}
+
+/* gentle bobbing for emoji particles (2D flavor of float-drift) */
+@keyframes float-bob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--bob-tilt, -4deg)) scale(1);
+  }
+  22% {
+    transform: translate3d(10px, -20px, 0) rotate(calc(var(--bob-tilt, -4deg) + 7deg)) scale(1.05);
+  }
+  47% {
+    transform: translate3d(19px, -7px, 0) rotate(calc(var(--bob-tilt, -4deg) + 12deg)) scale(1.02);
+  }
+  71% {
+    transform: translate3d(3px, 13px, 0) rotate(var(--bob-tilt, -4deg)) scale(0.96);
+  }
+  88% {
+    transform: translate3d(-12px, 4px, 0) rotate(calc(var(--bob-tilt, -4deg) - 8deg)) scale(1.03);
+  }
+}
+
+/* circular orbit — element revolves around its origin, staying upright */
+@keyframes orbit {
+  from {
+    transform: rotate(0deg) translateX(var(--orbit-radius, 60px)) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--orbit-radius, 60px)) rotate(-360deg);
+  }
+}
+
+/* slow clockwise spin (paired with counter-spin for layered rings) */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* reverse spin for accent rings */
+@keyframes counter-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* blob shape morphing (paint-only: border-radius + transform) */
+@keyframes morph {
+  0%,
+  100% {
+    border-radius: 42% 58% 61% 39% / 45% 43% 57% 55%;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  28% {
+    border-radius: 58% 42% 39% 61% / 55% 61% 39% 45%;
+    transform: translate3d(2%, -4%, 0) rotate(7deg) scale(1.06);
+  }
+  56% {
+    border-radius: 39% 61% 50% 50% / 61% 39% 55% 45%;
+    transform: translate3d(-3%, 3%, 0) rotate(-5deg) scale(0.95);
+  }
+  81% {
+    border-radius: 52% 48% 63% 37% / 40% 56% 44% 60%;
+    transform: translate3d(1%, 2%, 0) rotate(3deg) scale(1.02);
+  }
+}
+
+/* particles that rise from the bottom edge and fade out */
+@keyframes particle-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.5);
+  }
+  12% {
+    opacity: var(--particle-alpha, 0.45);
+  }
+  75% {
+    opacity: calc(var(--particle-alpha, 0.45) * 0.55);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--rise-x, 12px), calc(-1 * var(--rise-h, 55vh)), 0) scale(1.15);
+  }
+}
+
+/* staggered page entrances — slide up + fade in */
+@keyframes entrance-slide {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* sidebar active-item accent bar sliding in */
+@keyframes nav-bar-in {
+  from {
+    transform: translateY(-50%) scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(-50%) scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* breathing glow (sidebar logo, live elements) */
+@keyframes breathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 8px var(--glow));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 20px var(--glow));
+    transform: scale(1.025);
+  }
+}
+
+/* expanding ping ring for live badges */
+@keyframes live-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  75%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* sheen stripe sweep across a button face */
+@keyframes sheen-sweep {
+  from {
+    transform: translateX(-160%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(360%) skewX(-18deg);
+  }
+}
+
+@keyframes sheen-sweep-rtl {
+  from {
+    transform: translateX(160%) skewX(18deg);
+  }
+  to {
+    transform: translateX(-360%) skewX(18deg);
+  }
+}
+
+/* SVG sparkline draw-on (pathLength=1 based) */
+@keyframes dash-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* rotating conic angle for the glow button border */
+@keyframes glow-angle-spin {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+/* holographic rainbow shimmer sweep */
+@keyframes holo-sweep {
+  from {
+    transform: translateX(-70%) rotate(8deg);
+  }
+  to {
+    transform: translateX(70%) rotate(8deg);
+  }
+}
+
+/* registered custom property so the conic border angle can animate */
+@property --glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
 
 @layer components {
@@ -218,11 +411,11 @@
     box-shadow:
       0 1px 0 var(--rim-3d) inset,
       0 0 0 1px var(--edge-3d),
-      0 4px 16px var(--shadow-mid),
-      0 16px 48px var(--shadow-far);
+      0 3px 10px var(--shadow-mid),
+      0 10px 28px var(--shadow-far);
     transition:
-      transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-      box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .card-3d-lift:hover {
@@ -536,8 +729,439 @@
     box-shadow:
       0 0 32px var(--glow),
       inset 0 1px 0 var(--rim-3d);
-    animation: float-drift 14s ease-in-out infinite;
+    animation: float-drift var(--drift-dur, 14s) ease-in-out infinite;
     pointer-events: none;
+    will-change: transform;
+  }
+
+  /* floating themed emoji particle (login backdrop) */
+  .float-emoji {
+    position: absolute;
+    line-height: 1;
+    user-select: none;
+    pointer-events: none;
+    opacity: var(--emoji-alpha, 0.5);
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.25)) drop-shadow(0 0 18px var(--glow)) saturate(1.15);
+    animation: float-bob var(--drift-dur, 13s) ease-in-out var(--drift-delay, 0s) infinite;
+    will-change: transform;
+  }
+
+  /* soft morphing ambient blob (deep background) */
+  .morph-blob {
+    position: absolute;
+    background: radial-gradient(
+      circle at 32% 28%,
+      color-mix(in srgb, var(--accent) 34%, transparent),
+      color-mix(in srgb, var(--accent) 10%, transparent) 55%,
+      transparent 75%
+    );
+    filter: blur(46px);
+    opacity: 0.55;
+    animation: morph var(--morph-dur, 18s) ease-in-out infinite;
+    pointer-events: none;
+    will-change: transform, border-radius;
+  }
+
+  /* parallax wrapper layers (mouse-driven, CSS-var powered) */
+  .parallax-layer {
+    position: absolute;
+    inset: 0;
+    transform: translate3d(
+      calc(var(--par-x, 0) * var(--par-depth, 14px)),
+      calc(var(--par-y, 0) * var(--par-depth, 14px)),
+      0
+    );
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+    will-change: transform;
+    pointer-events: none;
+  }
+
+  /* ---------- particles, orbits, entrances ---------- */
+
+  .particle {
+    position: absolute;
+    bottom: -10px;
+    width: var(--particle-size, 5px);
+    height: var(--particle-size, 5px);
+    border-radius: 9999px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--glow);
+    opacity: 0;
+    animation: particle-rise var(--rise-dur, 12s) linear var(--rise-delay, 0s) infinite;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  .orbit-ring {
+    position: absolute;
+    border-radius: 9999px;
+    border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+    animation: spin-slow var(--orbit-dur, 16s) linear infinite;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  .orbit-ring-reverse {
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+    animation: counter-spin var(--orbit-dur, 22s) linear infinite;
+  }
+
+  .orbit-dot {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--glow), 0 0 22px var(--glow);
+    animation: orbit var(--orbit-dur, 10s) linear infinite;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  /* staggered entrance helpers — apply to siblings for a cinematic cascade */
+  .entrance-1,
+  .entrance-2,
+  .entrance-3,
+  .entrance-4,
+  .entrance-5 {
+    animation: entrance-slide 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  }
+
+  .entrance-1 { animation-delay: 0.05s; }
+  .entrance-2 { animation-delay: 0.16s; }
+  .entrance-3 { animation-delay: 0.27s; }
+  .entrance-4 { animation-delay: 0.38s; }
+  .entrance-5 { animation-delay: 0.5s; }
+
+  /* ---------- shimmer / glow buttons ---------- */
+
+  /* sheen stripe that sweeps across on hover (RTL aware) */
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset-block: -20%;
+    inset-inline-start: 0;
+    width: 34%;
+    background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+    transform: translateX(-160%) skewX(-18deg);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .btn-shimmer:hover::after {
+    animation: sheen-sweep 0.85s cubic-bezier(0.3, 0.6, 0.35, 1);
+  }
+
+  [dir='rtl'] .btn-shimmer::after {
+    transform: translateX(160%) skewX(18deg);
+  }
+
+  [dir='rtl'] .btn-shimmer:hover::after {
+    animation: sheen-sweep-rtl 0.85s cubic-bezier(0.3, 0.6, 0.35, 1);
+  }
+
+  /* animated conic border gradient + inner glow (Button variant="glow") */
+  .btn-glow-anim {
+    position: relative;
+    border: 1px solid transparent;
+    color: var(--accent);
+    font-weight: 600;
+    background:
+      linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
+      conic-gradient(
+          from var(--glow-angle),
+          var(--accent) 0%,
+          color-mix(in srgb, var(--accent) 18%, transparent) 22%,
+          var(--accent) 48%,
+          color-mix(in srgb, var(--accent) 18%, transparent) 74%,
+          var(--accent) 100%
+        )
+        border-box;
+    box-shadow:
+      inset 0 0 16px color-mix(in srgb, var(--accent) 16%, transparent),
+      0 0 16px var(--glow);
+    animation: glow-angle-spin 3.2s linear infinite;
+    transition: box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s;
+  }
+
+  .btn-glow-anim:hover:not(:disabled) {
+    filter: brightness(1.07);
+    box-shadow:
+      inset 0 0 24px color-mix(in srgb, var(--accent) 26%, transparent),
+      0 0 32px var(--glow);
+  }
+
+  .btn-glow-anim:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99);
+  }
+
+  /* ---------- holographic card (Card variant="holographic") ---------- */
+
+  .card-holo {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .card-holo::after {
+    content: '';
+    position: absolute;
+    inset: -45%;
+    background: linear-gradient(
+      115deg,
+      transparent 24%,
+      rgba(255, 64, 129, 0.09) 36%,
+      rgba(64, 224, 255, 0.1) 46%,
+      rgba(255, 235, 59, 0.08) 55%,
+      rgba(156, 64, 255, 0.09) 64%,
+      transparent 78%
+    );
+    transform: translateX(-70%) rotate(8deg);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 1;
+    will-change: transform, opacity;
+  }
+
+  .card-holo:hover::after {
+    opacity: 1;
+    animation: holo-sweep 1.6s cubic-bezier(0.3, 0.6, 0.35, 1) infinite;
+  }
+
+  /* ---------- live badge pulse dot ---------- */
+
+  .live-dot {
+    position: relative;
+    display: inline-flex;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-inline-end: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .live-dot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: currentColor;
+  }
+
+  .live-dot-ping {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: live-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    will-change: transform, opacity;
+  }
+
+  /* ---------- floating-label input (Input floating) ---------- */
+
+  .float-field {
+    position: relative;
+  }
+
+  .float-field .input-float {
+    display: block;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--card-border);
+    background: var(--color-surface);
+    padding: 1.35rem 0.85rem 0.45rem;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.1),
+      inset 0 -1px 0 var(--rim-3d);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .dark .float-field .input-float,
+  [data-theme='dark'] .float-field .input-float {
+    box-shadow:
+      inset 0 2px 6px rgba(0, 0, 0, 0.4),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .float-field .input-float:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.12),
+      0 0 0 3px var(--glow);
+  }
+
+  .float-field .input-float::placeholder {
+    color: transparent;
+    transition: color 0.25s ease 0.05s;
+  }
+
+  .float-field .input-float:focus::placeholder {
+    color: #9ca3af;
+  }
+
+  .float-label {
+    position: absolute;
+    inset-inline-start: 0.85rem;
+    top: 0.95rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    pointer-events: none;
+    transform-origin: top left;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s;
+    will-change: transform;
+  }
+
+  [dir='rtl'] .float-label {
+    transform-origin: top right;
+  }
+
+  .float-field .input-float:focus ~ .float-label,
+  .float-field .input-float:not(:placeholder-shown) ~ .float-label {
+    transform: translateY(-0.68rem) scale(0.72);
+    color: var(--accent);
+  }
+
+  .float-field .input-float-error {
+    border-color: rgba(239, 68, 68, 0.75);
+  }
+
+  .float-field .input-float-error:focus {
+    border-color: #ef4444;
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.12),
+      0 0 0 3px rgba(239, 68, 68, 0.25);
+  }
+
+  .float-field .input-float-error ~ .float-label {
+    color: #ef4444;
+  }
+
+  /* ---------- sidebar identity & nav polish ---------- */
+
+  .logo-breathe {
+    animation: breathe 3.8s ease-in-out infinite;
+    will-change: transform, filter;
+  }
+
+  /* business-type identity chip */
+  .biz-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 9999px;
+    padding: 0.18rem 0.65rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    box-shadow:
+      0 0 14px var(--glow),
+      inset 0 1px 0 var(--rim-3d);
+  }
+
+  /* active nav accent bar — slides in vertically, logical-start anchored */
+  .nav-accent-bar {
+    position: absolute;
+    inset-inline-start: -1px;
+    top: 50%;
+    width: 3px;
+    height: 62%;
+    border-radius: 9999px;
+    background: var(--accent);
+    box-shadow:
+      0 0 8px var(--glow),
+      0 0 20px var(--glow);
+    transform: translateY(-50%);
+    animation: nav-bar-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    pointer-events: none;
+  }
+
+  /* forward micro-translate on hover (mirrors in RTL) */
+  .nav-item:hover:not(.nav-item-active) {
+    transform: translateX(3px);
+  }
+
+  [dir='rtl'] .nav-item:hover:not(.nav-item-active) {
+    transform: translateX(-3px);
+  }
+
+  /* ---------- dashboard accents ---------- */
+
+  /* accent gradient hairline across a KPI card top */
+  .kpi-topbar {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 3px;
+    border-start-start-radius: 1rem;
+    border-start-end-radius: 1rem;
+    background: linear-gradient(
+      90deg,
+      var(--kpi-color, var(--accent)),
+      color-mix(in srgb, var(--kpi-color, var(--accent)) 30%, transparent) 60%,
+      transparent
+    );
+    box-shadow: 0 0 12px color-mix(in srgb, var(--kpi-color, var(--accent)) 45%, transparent);
+    pointer-events: none;
+  }
+
+  [dir='rtl'] .kpi-topbar {
+    background: linear-gradient(
+      -90deg,
+      var(--kpi-color, var(--accent)),
+      color-mix(in srgb, var(--kpi-color, var(--accent)) 30%, transparent) 60%,
+      transparent
+    );
+  }
+
+  /* sparkline draw-on (requires pathLength={1} on the SVG path) */
+  .spark-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: dash-draw 1.5s cubic-bezier(0.3, 0.6, 0.35, 1) 0.35s both;
+  }
+
+  /* ---------- row hover (list and table rows) ---------- */
+
+  .row-hover {
+    transition: background-color 0.14s ease;
+  }
+
+  .row-hover:hover {
+    background-color: color-mix(in srgb, var(--accent) 5%, var(--color-surface));
+  }
+
+  /* ---------- improved skeleton (accent-tinted shimmer) ---------- */
+
+  .skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 4%, var(--surface-3d)) 25%,
+      color-mix(in srgb, var(--accent) 10%, var(--surface-3d)) 50%,
+      color-mix(in srgb, var(--accent) 4%, var(--surface-3d)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* ---------- smooth page wrapper ---------- */
+
+  .page-fade {
+    animation: entrance-slide 0.4s cubic-bezier(0.22, 1.2, 0.36, 1) both;
   }
 
   /* ---------- legacy component classes (kept for other pages) ---------- */
@@ -559,7 +1183,8 @@
   }
 
   .btn-primary {
-    @apply btn bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600;
+    @apply btn text-white hover:brightness-110 active:brightness-95;
+    background: var(--accent);
   }
 
   .btn-secondary {
@@ -624,14 +1249,37 @@
   .btn-3d:hover:not(:disabled),
   .btn-3d:active:not(:disabled),
   .nav-item:hover .nav-icon,
+  .nav-item:hover:not(.nav-item-active),
+  [dir='rtl'] .nav-item:hover:not(.nav-item-active),
   .tab-3d-idle:hover {
     transform: none !important;
   }
 
   .float-shape,
+  .float-emoji,
+  .morph-blob,
+  .particle,
+  .orbit-ring,
+  .orbit-ring-reverse,
+  .orbit-dot,
   .scan-beam,
   .neon-border,
-  .danger-glow {
+  .danger-glow,
+  .logo-breathe,
+  .btn-glow-anim,
+  .btn-shimmer:hover::after,
+  [dir='rtl'] .btn-shimmer:hover::after,
+  .card-holo:hover::after,
+  .live-dot-ping {
+    animation: none !important;
+  }
+
+  .parallax-layer {
+    transform: none !important;
+  }
+
+  .spark-draw {
+    stroke-dashoffset: 0;
     animation: none !important;
   }
 }

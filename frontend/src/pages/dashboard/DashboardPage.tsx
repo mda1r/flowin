@@ -230,7 +230,7 @@ export function DashboardPage() {
       : FALLBACK_AVG
 
   return (
-    <div className="relative min-h-full">
+    <div className="page-fade relative min-h-full">
       {/* ambient drifting particle field */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         {PARTICLES.map((p, i) => (
