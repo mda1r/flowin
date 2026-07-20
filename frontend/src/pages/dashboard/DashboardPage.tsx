@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { ordersApi } from '@/api/orders'
+import type { OrderResponse } from '@/types/api'
 import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
 
@@ -200,7 +201,7 @@ export function DashboardPage() {
   })
 
   const ordersRaw = recentOrders?.data
-  const orders = Array.isArray(ordersRaw) ? ordersRaw : ((ordersRaw as any)?.items ?? [])
+  const orders: OrderResponse[] = Array.isArray(ordersRaw) ? ordersRaw : ((ordersRaw as any)?.items ?? [])
   const todayRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
   const alerts = alertsData?.data
 
