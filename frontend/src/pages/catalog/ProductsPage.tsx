@@ -99,7 +99,7 @@ export function ProductsPage() {
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
-        type: 'Goods',
+        type: 'Standard',
         taxClass: 'Standard',
         trackInventory: data.trackInventory,
         sku: data.sku,
