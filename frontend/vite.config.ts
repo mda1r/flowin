@@ -22,8 +22,9 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:5229',
+        target: 'https://flowin-production-46b8.up.railway.app',
         changeOrigin: true,
+        secure: true,
       },
     },
   },

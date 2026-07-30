@@ -21,6 +21,7 @@ public static class InventoryServiceExtensions
         });
 
         services.AddScoped<IStockItemRepository, StockItemRepository>();
+        services.AddScoped<IStockCountRepository, StockCountRepository>();
 
         return services;
     }

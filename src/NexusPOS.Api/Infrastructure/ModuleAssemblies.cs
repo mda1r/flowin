@@ -20,5 +20,6 @@ internal static class ModuleAssemblies
         typeof(NexusPOS.Hotel.HotelModule).Assembly,
         typeof(NexusPOS.Gaming.GamingModule).Assembly,
         typeof(NexusPOS.SuperAdmin.SuperAdminModule).Assembly,
+        typeof(NexusPOS.Zatca.ZatcaModule).Assembly,
     ];
 }

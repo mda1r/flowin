@@ -18,6 +18,8 @@ import {
   Languages,
   UserCog,
   GitBranch,
+  ClipboardList,
+  Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -56,6 +58,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'pos', to: '/pos', icon: <ShoppingCart className="h-5 w-5" /> },
   { labelKey: 'products', to: '/products', icon: <Package className="h-5 w-5" /> },
   { labelKey: 'inventory', to: '/inventory', icon: <Warehouse className="h-5 w-5" /> },
+  { labelKey: 'stockCount', to: '/stock-counts', icon: <ClipboardList className="h-5 w-5" /> },
   { labelKey: 'customers', to: '/customers', icon: <Users className="h-5 w-5" /> },
   { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-5 w-5" /> },
   { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-5 w-5" /> },
@@ -63,17 +66,18 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-5 w-5" /> },
   { labelKey: 'gaming', to: '/gaming', icon: <Gamepad2 className="h-5 w-5" /> },
+  { labelKey: 'zatca', to: '/settings/zatca', icon: <Shield className="h-5 w-5" /> },
   { labelKey: 'users', to: '/users', icon: <UserCog className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
 ]
 
 const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
-  Hotel:       ['/', '/pos', '/customers', '/sales', '/finance', '/hotel', '/users', '/branches'],
-  Gaming:      ['/', '/pos', '/customers', '/sales', '/finance', '/gaming', '/users', '/branches'],
-  Restaurant:  ['/', '/pos', '/customers', '/sales', '/finance', '/restaurant', '/users', '/branches'],
-  Supermarket: ['/', '/pos', '/products', '/inventory', '/customers', '/sales', '/purchasing', '/finance', '/users', '/branches'],
-  Retail:      ['/', '/pos', '/products', '/inventory', '/customers', '/sales', '/purchasing', '/finance', '/users', '/branches'],
-  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/finance', '/restaurant', '/users', '/branches'],
+  Hotel:       ['/', '/pos', '/customers', '/sales', '/finance', '/hotel', '/settings/zatca', '/users', '/branches'],
+  Gaming:      ['/', '/pos', '/customers', '/sales', '/finance', '/gaming', '/settings/zatca', '/users', '/branches'],
+  Restaurant:  ['/', '/pos', '/customers', '/sales', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
+  Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
+  Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
+  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
 }
 
 function getNavItems(businessType: BusinessType | undefined, role: string | undefined): NavItem[] {
@@ -162,7 +166,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <nav className="scene-3d flex-1 overflow-y-auto py-4">
         <ul className={cn('space-y-1 px-2', collapsed && 'flex flex-col items-center space-y-2')}>
           {navItems.map((item) => {
-            const isActive = item.to === '/' ? pathname === '/' : pathname.startsWith(item.to)
+            const isActive = item.to === '/'
+              ? pathname === '/'
+              : pathname === item.to || (pathname.startsWith(item.to + '/') && item.to !== '/settings')
             const label = t.nav[item.labelKey as keyof typeof t.nav]
             return (
               <li key={item.to} className={cn(collapsed && 'w-auto')}>

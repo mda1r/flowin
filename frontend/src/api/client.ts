@@ -2,7 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: (() => { const u = import.meta.env.VITE_API_BASE_URL || ''; return u.charCodeAt(0) === 0xFEFF ? u.slice(1) : u; })(),
   headers: { 'Content-Type': 'application/json' },
   timeout: 30_000,
 })

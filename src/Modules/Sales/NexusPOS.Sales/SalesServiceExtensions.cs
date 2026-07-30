@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using NexusPOS.Sales.Application.Services;
 using NexusPOS.Sales.Domain.Repositories;
 using NexusPOS.Sales.Infrastructure.Persistence;
 using NexusPOS.Sales.Infrastructure.Persistence.Repositories;
+using NexusPOS.Sales.Infrastructure.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Sales;
@@ -22,6 +24,7 @@ public static class SalesServiceExtensions
 
         services.AddScoped<ISaleRecordRepository, SaleRecordRepository>();
         services.AddScoped<ISalesSummaryRepository, SalesSummaryRepository>();
+        services.AddScoped<IClaudeApiService, ClaudeApiService>();
 
         return services;
     }

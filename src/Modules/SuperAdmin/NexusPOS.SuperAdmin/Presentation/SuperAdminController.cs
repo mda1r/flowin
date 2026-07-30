@@ -9,6 +9,7 @@ using NexusPOS.SuperAdmin.Application.Commands.CreateSubscriptionPlan;
 using NexusPOS.SuperAdmin.Application.Commands.CreateTenant;
 using NexusPOS.SuperAdmin.Application.Commands.DeleteTenant;
 using NexusPOS.SuperAdmin.Application.Commands.SuspendTenant;
+using NexusPOS.SuperAdmin.Application.Commands.UpdatePlanFeatures;
 using NexusPOS.SuperAdmin.Application.Common;
 using NexusPOS.SuperAdmin.Application.Queries.GetTenant;
 using NexusPOS.SuperAdmin.Application.Queries.ListSubscriptionPlans;
@@ -143,6 +144,19 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
         return result.Match(
             plan => CreatedAtAction(nameof(ListPlans), plan),
             MapErrors);
+    }
+
+    /// <summary>تحديث ميزات خطة الاشتراك</summary>
+    [HttpPut("plans/{planId:guid}/features")]
+    [ProducesResponseType(typeof(SubscriptionPlanResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdatePlanFeatures(
+        Guid planId,
+        [FromBody] UpdatePlanFeaturesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new UpdatePlanFeaturesCommand(planId, request.Features), cancellationToken);
+        return result.Match(Ok, MapErrors);
     }
 
     private IActionResult MapErrors(List<Error> errors)

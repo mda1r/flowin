@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet } from '@tanstack/react-router'
 import { Sidebar } from './Sidebar'
+import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -18,6 +19,7 @@ export function AppLayout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <AiChatDrawer />
     </div>
   )
 }

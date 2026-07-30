@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-type BadgeVariant = 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'purple' | 'orange'
+type BadgeVariant = 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'purple' | 'orange' | 'live'
 
 interface BadgeProps {
   variant?: BadgeVariant
@@ -16,6 +16,8 @@ const variantClasses: Record<BadgeVariant, string> = {
   gray: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
   orange: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  /* live sessions / open tables — pulsing presence dot */
+  live: 'bg-emerald-100 text-emerald-700 shadow-[0_0_12px_rgba(16,185,129,0.35)] dark:bg-emerald-900/40 dark:text-emerald-300',
 }
 
 export function Badge({ variant = 'gray', children, className }: BadgeProps) {
@@ -27,6 +29,11 @@ export function Badge({ variant = 'gray', children, className }: BadgeProps) {
         className,
       )}
     >
+      {variant === 'live' && (
+        <span className="live-dot" aria-hidden="true">
+          <span className="live-dot-ping" />
+        </span>
+      )}
       {children}
     </span>
   )

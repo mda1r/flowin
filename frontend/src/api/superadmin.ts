@@ -41,4 +41,7 @@ export const superAdminApi = {
 
   createPlan: (data: CreateSubscriptionPlanRequest) =>
     apiClient.post<SubscriptionPlanResponse>('/api/v1/superadmin/plans', data),
+
+  updatePlanFeatures: (planId: string, features: string[]) =>
+    apiClient.put<SubscriptionPlanResponse>(`/api/v1/superadmin/plans/${planId}/features`, { features }),
 }

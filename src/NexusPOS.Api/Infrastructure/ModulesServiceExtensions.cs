@@ -11,6 +11,7 @@ using NexusPOS.Purchasing;
 using NexusPOS.Restaurant;
 using NexusPOS.Sales;
 using NexusPOS.SuperAdmin;
+using NexusPOS.Zatca;
 
 namespace NexusPOS.Api.Infrastructure;
 
@@ -33,6 +34,7 @@ internal static class ModulesServiceExtensions
         services.AddHotelModule(configuration);
         services.AddGamingModule(configuration);
         services.AddSuperAdminModule(configuration);
+        services.AddZatcaModule(configuration);
 
         return services;
     }

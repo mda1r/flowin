@@ -22,6 +22,9 @@ import { TenantDetailPage } from '@/pages/admin/TenantDetailPage'
 import { PlansPage } from '@/pages/admin/PlansPage'
 import { UsersPage } from '@/pages/users/UsersPage'
 import { BranchesPage } from '@/pages/branches/BranchesPage'
+import { StockCountPage } from '@/pages/inventory/StockCountPage'
+import { StockCountDetailPage } from '@/pages/inventory/StockCountDetailPage'
+import { ZatcaSettingsPage } from '@/pages/settings/ZatcaSettingsPage'
 
 const rootRoute = createRootRoute()
 
@@ -126,6 +129,24 @@ const branchesRoute = createRoute({
   component: BranchesPage,
 })
 
+const stockCountRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/stock-counts',
+  component: StockCountPage,
+})
+
+const stockCountDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/stock-counts/$sessionId',
+  component: StockCountDetailPage,
+})
+
+const zatcaSettingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/zatca',
+  component: ZatcaSettingsPage,
+})
+
 // ── Admin routes ──────────────────────────────────────────────────────────────
 
 const adminRoute = createRoute({
@@ -203,6 +224,9 @@ const routeTree = rootRoute.addChildren([
     settingsRoute,
     usersRoute,
     branchesRoute,
+    stockCountRoute,
+    stockCountDetailRoute,
+    zatcaSettingsRoute,
   ]),
   adminRoute.addChildren([
     adminDashboardRoute,

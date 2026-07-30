@@ -5,11 +5,36 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
   hint?: string
+  /** floating-label mode: the label sits inside the field and floats up on focus/fill */
+  floating?: boolean
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, className, id, ...props }, ref) => {
+  ({ label, error, hint, floating, className, id, placeholder, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+
+    if (floating && label) {
+      return (
+        <div className="space-y-1">
+          <div className="float-field">
+            <input
+              ref={ref}
+              id={inputId}
+              /* a placeholder must exist for :placeholder-shown to drive the float */
+              placeholder={placeholder ?? ' '}
+              className={cn('input-float', error && 'input-float-error', className)}
+              {...props}
+            />
+            <label htmlFor={inputId} className="float-label">
+              {label}
+            </label>
+          </div>
+          {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+          {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-1">
         {label && (
@@ -23,6 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
+          placeholder={placeholder}
           className={cn(
             'block w-full rounded-lg border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-1',
             error

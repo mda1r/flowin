@@ -68,7 +68,14 @@ internal static class PresentationServiceExtensions
                     ?? ["http://localhost:1420", "http://localhost:3000", "http://localhost:5173", "tauri://localhost"];
 
                 policy
-                    .WithOrigins(allowedOrigins)
+                    .SetIsOriginAllowed(origin =>
+                    {
+                        if (allowedOrigins.Contains(origin)) { return true; }
+                        Uri? uri = Uri.TryCreate(origin, UriKind.Absolute, out Uri? u) ? u : null;
+                        if (uri is null) { return false; }
+                        return uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
+                            || uri.Host.EndsWith(".railway.app", StringComparison.OrdinalIgnoreCase);
+                    })
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();

@@ -21,11 +21,11 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  Owner:      'bg-purple-900/60 text-purple-300',
-  Manager:    'bg-blue-900/60 text-blue-300',
-  Cashier:    'bg-emerald-900/60 text-emerald-300',
-  Accountant: 'bg-amber-900/60 text-amber-300',
-  Staff:      'bg-slate-700 text-slate-300',
+  Owner:      'bg-purple-100 text-purple-700',
+  Manager:    'bg-blue-100 text-blue-700',
+  Cashier:    'bg-emerald-100 text-emerald-700',
+  Accountant: 'bg-amber-100 text-amber-700',
+  Staff:      'bg-gray-100 text-gray-600',
 }
 
 const createSchema = z.object({
@@ -42,7 +42,7 @@ function RoleBadge({ roles }: { roles: string[] }) {
   const top = ['Owner', 'Manager', 'Cashier', 'Accountant', 'Staff'].find((r) => roles.includes(r)) ?? roles[0]
   if (!top) return null
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_COLORS[top] ?? 'bg-slate-700 text-slate-300'}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_COLORS[top] ?? 'bg-gray-100 text-gray-600'}`}>
       {ROLE_LABELS[top] ?? top}
     </span>
   )
@@ -97,11 +97,11 @@ export function UsersPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Users className="h-6 w-6 text-blue-400" />
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Users className="h-6 w-6" style={{ color: 'var(--accent)' }} />
             المستخدمون
           </h1>
-          <p className="mt-1 text-slate-400">{users.length} مستخدم</p>
+          <p className="mt-1 text-gray-500">{users.length} مستخدم</p>
         </div>
         {canManage && (
           <button
@@ -115,44 +115,47 @@ export function UsersPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-800">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-800 bg-slate-900">
+          <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
               {['الاسم', 'البريد الإلكتروني', 'الدور', 'آخر دخول', canManage ? 'حذف' : ''].filter(Boolean).map((h) => (
-                <th key={h} className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <th key={h} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800 bg-slate-900/60">
+          <tbody className="divide-y divide-gray-100">
             {isLoading
               ? Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 4 }).map((_, j) => (
                       <td key={j} className="px-4 py-4">
-                        <div className="h-4 rounded bg-slate-800 animate-pulse" />
+                        <div className="h-4 rounded bg-gray-200 animate-pulse" />
                       </td>
                     ))}
                   </tr>
                 ))
               : users.map((u) => (
-                  <tr key={u.id} className={`hover:bg-slate-800/50 transition-colors ${!u.isActive ? 'opacity-50' : ''}`}>
+                  <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${!u.isActive ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-900/60 text-sm font-bold text-blue-300">
+                        <div
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white"
+                          style={{ background: 'var(--accent)' }}
+                        >
                           {u.firstName[0]}
                         </div>
-                        <span className="font-medium text-white">{u.fullName}</span>
+                        <span className="font-medium text-gray-900">{u.fullName}</span>
                         {u.id === currentUser?.id && (
-                          <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">أنت</span>
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">أنت</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{u.email}</td>
+                    <td className="px-4 py-3 text-gray-600">{u.email}</td>
                     <td className="px-4 py-3"><RoleBadge roles={u.roles} /></td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">
+                    <td className="px-4 py-3 text-gray-400 text-xs">
                       {u.lastLoginAt
                         ? new Date(u.lastLoginAt).toLocaleDateString('ar-SA')
                         : 'لم يسجل دخول'}
@@ -162,7 +165,7 @@ export function UsersPage() {
                         {u.id !== currentUser?.id && (
                           <button
                             onClick={() => setDeleteTarget(u)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-rose-400 transition-colors"
+                            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                             title="حذف"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -175,7 +178,7 @@ export function UsersPage() {
           </tbody>
         </table>
         {!isLoading && users.length === 0 && (
-          <div className="py-16 text-center text-slate-400">لا يوجد مستخدمون</div>
+          <div className="py-16 text-center text-gray-400">لا يوجد مستخدمون</div>
         )}
       </div>
 
@@ -229,10 +232,10 @@ export function UsersPage() {
             </>
           }
         >
-          <p className="text-slate-300 text-sm text-right" dir="rtl">
-            هل أنت متأكد من حذف المستخدم <span className="font-semibold text-white">{deleteTarget.fullName}</span>؟
+          <p className="text-gray-600 text-sm text-right" dir="rtl">
+            هل أنت متأكد من حذف المستخدم <span className="font-semibold text-gray-900">{deleteTarget.fullName}</span>؟
             <br />
-            <span className="text-slate-400">{deleteTarget.email}</span>
+            <span className="text-gray-400">{deleteTarget.email}</span>
           </p>
         </Modal>
       )}

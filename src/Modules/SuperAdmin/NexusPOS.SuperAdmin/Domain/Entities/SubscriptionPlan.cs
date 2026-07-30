@@ -39,4 +39,6 @@ public sealed class SubscriptionPlan
     public void Deactivate() => IsActive = false;
 
     public void Activate() => IsActive = true;
+
+    public void UpdateFeatures(IEnumerable<string> features) => Features = [.. features];
 }

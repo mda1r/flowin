@@ -1,9 +1,22 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Check, X } from 'lucide-react'
+import { Plus, Check, X, SlidersHorizontal, Save } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
-import type { BusinessType } from '@/types/api'
+import type { BusinessType, SubscriptionPlanResponse } from '@/types/api'
+
+const PREDEFINED_FEATURES: { key: string; label: string }[] = [
+  { key: 'stock_count', label: 'الجرد المخزني' },
+  { key: 'zatca_phase1', label: 'زاتكا المرحلة الأولى' },
+  { key: 'zatca_phase2', label: 'زاتكا المرحلة الثانية' },
+  { key: 'ai_assistant', label: 'المساعد الذكي' },
+  { key: 'purchasing', label: 'المشتريات' },
+  { key: 'crm', label: 'إدارة العملاء (CRM)' },
+  { key: 'loyalty', label: 'برنامج الولاء' },
+  { key: 'multi_branch', label: 'تعدد الفروع' },
+  { key: 'advanced_reports', label: 'التقارير المتقدمة' },
+  { key: 'api_access', label: 'واجهة برمجية (API)' },
+]
 
 const BUSINESS_TYPES: { key: BusinessType; label: string; emoji: string }[] = [
   { key: 'Restaurant', label: 'مطعم', emoji: '🍽️' },
@@ -238,32 +251,110 @@ export function PlansPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tabPlans.map((plan) => (
-            <div
-              key={plan.id}
-              className="flex flex-col rounded-xl border border-slate-700 bg-slate-900 p-6"
-            >
-              <div className="mb-4 flex items-start justify-between">
-                <h3 className="text-base font-bold text-white">{plan.name}</h3>
-              </div>
-              <p className="mb-4 text-2xl font-bold text-white">
-                {plan.price.toLocaleString('ar-SA')}
-                <span className="text-sm font-normal text-slate-400"> ر.س / شهر</span>
-              </p>
-              <div className="mb-4 flex gap-4 text-xs text-slate-400">
-                <span>{plan.maxBranches >= 999 ? 'غير محدود' : plan.maxBranches} فروع</span>
-                <span>{plan.maxUsers >= 999 ? 'غير محدود' : plan.maxUsers} مستخدم</span>
-              </div>
-              <ul className="mt-auto space-y-2">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-xs text-slate-300">
-                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <PlanCard key={plan.id} plan={plan} onUpdated={() => qc.invalidateQueries({ queryKey: ['admin', 'plans'] })} />
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdated: () => void }) {
+  const [editingFeatures, setEditingFeatures] = useState(false)
+  const [draftFeatures, setDraftFeatures] = useState<string[]>(plan.features)
+
+  const featureMut = useMutation({
+    mutationFn: (features: string[]) => superAdminApi.updatePlanFeatures(plan.id, features),
+    onSuccess: () => {
+      toast.success('تم تحديث ميزات الخطة', '')
+      setEditingFeatures(false)
+      onUpdated()
+    },
+    onError: () => toast.error('فشل تحديث الميزات', ''),
+  })
+
+  const toggleFeature = (key: string) => {
+    setDraftFeatures(prev =>
+      prev.includes(key) ? prev.filter(f => f !== key) : [...prev, key],
+    )
+  }
+
+  return (
+    <div className="flex flex-col rounded-xl border border-slate-700 bg-slate-900 p-6">
+      <div className="mb-4 flex items-start justify-between">
+        <h3 className="text-base font-bold text-white">{plan.name}</h3>
+        <button
+          onClick={() => { setDraftFeatures(plan.features); setEditingFeatures(v => !v) }}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          title="تعديل الميزات"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </button>
+      </div>
+      <p className="mb-4 text-2xl font-bold text-white">
+        {plan.price.toLocaleString('ar-SA')}
+        <span className="text-sm font-normal text-slate-400"> ر.س / شهر</span>
+      </p>
+      <div className="mb-4 flex gap-4 text-xs text-slate-400">
+        <span>{plan.maxBranches >= 999 ? 'غير محدود' : plan.maxBranches} فروع</span>
+        <span>{plan.maxUsers >= 999 ? 'غير محدود' : plan.maxUsers} مستخدم</span>
+      </div>
+
+      {editingFeatures ? (
+        <div className="mt-auto">
+          <p className="mb-3 text-xs font-medium text-slate-300">الميزات المتاحة</p>
+          <div className="space-y-2">
+            {PREDEFINED_FEATURES.map(f => {
+              const enabled = draftFeatures.includes(f.key)
+              return (
+                <label key={f.key} className="flex cursor-pointer items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleFeature(f.key)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      enabled ? 'bg-blue-600' : 'bg-slate-700'
+                    }`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                      enabled ? '-translate-x-5' : '-translate-x-0.5'
+                    }`} />
+                  </button>
+                  <span className="text-xs text-slate-300">{f.label}</span>
+                </label>
+              )
+            })}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => featureMut.mutate(draftFeatures)}
+              disabled={featureMut.isPending}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {featureMut.isPending ? 'جاري...' : 'حفظ'}
+            </button>
+            <button
+              onClick={() => setEditingFeatures(false)}
+              className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800 transition-colors"
+            >
+              إلغاء
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ul className="mt-auto space-y-2">
+          {plan.features.length === 0 ? (
+            <li className="text-xs text-slate-500">لا توجد ميزات — اضغط ✏️ للإضافة</li>
+          ) : plan.features.map((f) => {
+            const meta = PREDEFINED_FEATURES.find(pf => pf.key === f)
+            return (
+              <li key={f} className="flex items-center gap-2 text-xs text-slate-300">
+                <Check className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
+                {meta ? meta.label : f}
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )

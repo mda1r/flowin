@@ -139,6 +139,44 @@ export interface InventoryAlertsResponse {
   totalAlerts: number
 }
 
+// ── Stock Count ──────────────────────────────────────────────────────────────
+
+export type StockCountType = 'Daily' | 'Monthly' | 'Quarterly' | 'TaxAudit'
+export type StockCountStatus = 'InProgress' | 'Completed' | 'Cancelled'
+
+export interface StockCountItemResponse {
+  id: string
+  stockItemId: string
+  variantId: string
+  systemQuantity: number
+  countedQuantity: number | null
+  difference: number
+  unitCost: number
+  systemValue: number
+  countedValue: number
+  taxAmount: number
+  hasDiscrepancy: boolean
+}
+
+export interface StockCountSessionResponse {
+  id: string
+  branchId: string
+  type: StockCountType
+  status: StockCountStatus
+  periodStart: string
+  periodEnd: string
+  notes: string | null
+  createdAt: string
+  completedAt: string | null
+  totalItems: number
+  countedItems: number
+  discrepancyCount: number
+  totalSystemValue: number
+  totalCountedValue: number
+  totalTaxAmount: number
+  items: StockCountItemResponse[]
+}
+
 // ── POS / Orders ─────────────────────────────────────────────────────────────
 
 export type OrderStatus = 'Open' | 'Completed' | 'Cancelled'

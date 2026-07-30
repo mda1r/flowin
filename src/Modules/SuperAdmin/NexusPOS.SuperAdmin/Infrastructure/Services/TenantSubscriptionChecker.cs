@@ -19,4 +19,16 @@ internal sealed class TenantSubscriptionChecker(SuperAdminDbContext db) : ITenan
 
         return sub?.MaxUsers ?? FreeUserLimit;
     }
+
+    public async Task<IReadOnlyList<string>> GetFeaturesAsync(Guid tenantId, CancellationToken ct)
+    {
+        var features = await db.TenantSubscriptions
+            .AsNoTracking()
+            .Where(s => s.TenantId == tenantId && s.Status == SubscriptionStatus.Active)
+            .OrderByDescending(s => s.ExpiryDate)
+            .Select(s => s.Plan!.Features)
+            .FirstOrDefaultAsync(ct);
+
+        return features ?? [];
+    }
 }

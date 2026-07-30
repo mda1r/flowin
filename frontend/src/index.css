@@ -595,56 +595,55 @@
   /* ---------- sidebar ---------- */
 
   .sidebar-3d {
-    background: var(--glass-bg);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border-inline-end: 1px solid var(--card-border);
-    box-shadow: 6px 0 28px var(--shadow-mid);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border-inline-end: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.05);
   }
 
   [dir='rtl'] .sidebar-3d {
-    box-shadow: -6px 0 28px var(--shadow-mid);
+    box-shadow: -2px 0 16px rgba(0, 0, 0, 0.05);
   }
 
   .nav-item {
     @apply flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium;
-    color: var(--color-text-muted);
-    transform-style: preserve-3d;
+    color: #4b5563;
+    border: 1px solid transparent;
     transition:
-      transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-      box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-      background-color 0.25s,
-      color 0.25s;
+      color 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.2s ease,
+      transform 0.18s cubic-bezier(0.2, 0, 0, 1);
   }
 
   .nav-item:hover {
-    color: var(--color-text);
-    background: var(--surface-3d);
+    color: #111827;
+    background: rgba(0, 0, 0, 0.05);
   }
 
   .nav-icon {
     display: inline-flex;
-    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s;
+    transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), color 0.15s ease;
   }
 
   .nav-item:hover .nav-icon {
-    transform: translateZ(8px) scale(1.08);
-    filter: drop-shadow(0 0 6px var(--glow));
+    transform: scale(1.08);
     color: var(--accent);
   }
 
   .nav-item-active {
     color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    box-shadow:
-      inset 0 1px 3px rgba(0, 0, 0, 0.18),
-      0 0 16px var(--glow);
+    font-weight: 600;
+    background: color-mix(in srgb, var(--accent) 9%, white);
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+    box-shadow: none;
   }
 
   .nav-item-active .nav-icon {
-    transform: translateZ(6px);
-    filter: drop-shadow(0 0 8px var(--glow));
+    transform: none;
+    color: var(--accent);
   }
 
   /* ---------- text depth ---------- */
