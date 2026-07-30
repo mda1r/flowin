@@ -22,6 +22,7 @@ public static class SalesServiceExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSchemaInterceptor>());
         });
 
+        services.AddHttpClient();
         services.AddScoped<ISaleRecordRepository, SaleRecordRepository>();
         services.AddScoped<ISalesSummaryRepository, SalesSummaryRepository>();
         services.AddScoped<IClaudeApiService, ClaudeApiService>();

@@ -29,6 +29,7 @@ using NexusPOS.Purchasing.Infrastructure.Persistence;
 using NexusPOS.Restaurant.Infrastructure.Persistence;
 using NexusPOS.Sales.Infrastructure.Persistence;
 using NexusPOS.SuperAdmin.Infrastructure.Persistence;
+using NexusPOS.Zatca.Infrastructure.Persistence;
 using SuperAdminPlan = NexusPOS.SuperAdmin.Domain.Entities.SubscriptionPlan;
 
 namespace NexusPOS.Api.Infrastructure;
@@ -66,6 +67,7 @@ internal static class DatabaseInitializerExtensions
             await EnsureCreatedAsync<HotelDbContext>(sp, logger);
             await EnsureCreatedAsync<GamingDbContext>(sp, logger);
             await EnsureCreatedAsync<SuperAdminDbContext>(sp, logger);
+            await EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
 
             await ApplySchemaPatches(sp, logger);
             await SeedAdminUserAsync(sp, logger);
