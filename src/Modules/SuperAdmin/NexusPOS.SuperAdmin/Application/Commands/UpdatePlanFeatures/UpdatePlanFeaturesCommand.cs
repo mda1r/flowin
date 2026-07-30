@@ -1,4 +1,3 @@
-using ErrorOr;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.SuperAdmin.Application.Common;
 

@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Zatca.Domain.Entities;
 using NexusPOS.Zatca.Domain.Repositories;
-using NexusPOS.Zatca.Infrastructure.Persistence;
 
 namespace NexusPOS.Zatca.Infrastructure.Persistence.Repositories;
 

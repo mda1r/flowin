@@ -17,7 +17,7 @@ namespace NexusPOS.Zatca.Presentation;
 [Authorize]
 public sealed class ZatcaController(ISender mediator) : ControllerBase
 {
-    private Guid TenantId => Guid.Parse(User.FindFirstValue("tenant_id") ?? Guid.Empty.ToString());
+    private Guid TenantId => Guid.Parse(User.FindFirst("tenant_id")?.Value ?? Guid.Empty.ToString());
 
     /// <summary>جلب فاتورة زاتكا للطلب</summary>
     [HttpGet("branches/{branchId:guid}/orders/{orderId:guid}/zatca-invoice")]
