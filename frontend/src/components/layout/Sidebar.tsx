@@ -196,21 +196,19 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Footer */}
       <div className="border-t p-3" style={{ borderColor: 'var(--card-border)' }}>
         {!collapsed && user && (
-          <div className="card-3d mb-3 flex items-center gap-3 p-3">
+          <div className="sidebar-footer-card mb-3 flex items-center gap-3 rounded-xl p-3">
             <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
               style={{
-                background: 'linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 55%, black))',
-                boxShadow: '0 3px 0 rgba(0,0,0,0.3), 0 0 14px var(--glow)',
+                background: '#62E6C7',
+                color: '#23262D',
               }}
             >
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {user.firstName} {user.lastName}
-              </p>
-              <p className="truncate text-xs text-gray-500">{user.email}</p>
+              <p className="sidebar-username truncate text-sm">{user.firstName} {user.lastName}</p>
+              <p className="sidebar-email truncate text-xs">{user.email}</p>
             </div>
           </div>
         )}
