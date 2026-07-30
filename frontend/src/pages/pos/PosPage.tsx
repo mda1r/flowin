@@ -7,6 +7,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useAuthStore } from '@/stores/authStore'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
+import { zatcaApi } from '@/api/zatca'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
@@ -423,9 +424,16 @@ function ZatcaReceiptModal({
   order: OrderResponse
   onClose: () => void
 }) {
+  const { data: zatcaSettings } = useQuery({
+    queryKey: ['zatca-settings'],
+    queryFn: () => zatcaApi.getSettings(),
+    staleTime: 60_000,
+  })
+  const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
+
   const qrCode = generateZatcaQr({
-    sellerName: 'flowin',
-    vatNumber: '300000000000003',
+    sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
+    vatNumber,
     timestamp: order.completedAt ?? order.createdAt,
     totalWithVat: order.totalAmount,
     vatAmount: order.taxAmount,
@@ -438,7 +446,7 @@ function ZatcaReceiptModal({
         <div className="mb-4 text-center">
           <h2 className="text-emboss text-lg font-bold text-gray-900 dark:text-gray-100">فاتورة ضريبية</h2>
           <p className="logo-3d mt-1 text-sm font-bold">flowin</p>
-          <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: 300000000000003</p>
+          {vatNumber && <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
 
         <div className="mb-4 space-y-2 text-sm">

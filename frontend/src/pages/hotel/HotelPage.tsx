@@ -13,6 +13,7 @@ import { Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { hotelApi } from '@/api/hotel'
+import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -1001,13 +1002,20 @@ function HotelReceiptModal({
   roomNumber: string
   onClose: () => void
 }) {
+  const { data: zatcaSettings } = useQuery({
+    queryKey: ['zatca-settings'],
+    queryFn: () => zatcaApi.getSettings(),
+    staleTime: 60_000,
+  })
+  const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
+
   const subtotal = reservation.totalAmount
   const vat = subtotal * SAUDI_VAT_RATE
   const total = subtotal + vat
 
   const qrCode = generateZatcaQr({
-    sellerName: 'flowin',
-    vatNumber: '300000000000003',
+    sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
+    vatNumber,
     timestamp: reservation.updatedAt,
     totalWithVat: total,
     vatAmount: vat,
@@ -1020,7 +1028,7 @@ function HotelReceiptModal({
         <div className="mb-4 text-center">
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">فاتورة ضريبية</h2>
           <p className="text-xs text-gray-500">flowin</p>
-          <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: 300000000000003</p>
+          {vatNumber && <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
 
         <div className="mb-4 rounded-xl bg-gray-50 p-3 text-sm dark:bg-gray-800">

@@ -14,6 +14,7 @@ import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
 import { restaurantApi } from '@/api/restaurant'
+import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
@@ -763,9 +764,16 @@ function RestaurantReceiptModal({
   order: RestaurantOrderResponse
   onClose: () => void
 }) {
+  const { data: zatcaSettings } = useQuery({
+    queryKey: ['zatca-settings'],
+    queryFn: () => zatcaApi.getSettings(),
+    staleTime: 60_000,
+  })
+  const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
+
   const qrCode = generateZatcaQr({
-    sellerName: 'flowin',
-    vatNumber: '300000000000003',
+    sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
+    vatNumber,
     timestamp: order.paidAt ?? order.createdAt,
     totalWithVat: order.total,
     vatAmount: order.taxAmount,
@@ -778,7 +786,7 @@ function RestaurantReceiptModal({
         <div className="mb-4 text-center">
           <h2 className="text-lg font-bold">فاتورة ضريبية</h2>
           <p className="text-xs text-gray-500">طاولة {order.tableNumber}</p>
-          <p className="text-xs text-gray-500 mt-0.5">flowin — رقم ضريبة القيمة المضافة: 300000000000003</p>
+          {vatNumber && <p className="text-xs text-gray-500 mt-0.5">flowin — رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
         <div className="mb-4 space-y-2 text-sm">
           {order.items.map((item) => (

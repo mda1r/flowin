@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ShoppingCart, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/Button'
@@ -235,7 +235,10 @@ export function LoginPage() {
               {theme ? (
                 <span className="text-2xl leading-none" aria-hidden="true">{theme.emojis[0]}</span>
               ) : (
-                <ShoppingCart className="h-7 w-7 text-white" />
+                <svg viewBox="0 0 28 28" fill="none" className="h-7 w-7" aria-hidden="true">
+                    <circle cx="10" cy="14" r="5.5" stroke="white" strokeWidth="3.5" />
+                    <rect x="18.5" y="6" width="4" height="16" rx="2" fill="white" />
+                  </svg>
               )}
             </div>
           </div>
