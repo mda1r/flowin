@@ -128,19 +128,21 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       >
         <div className="flex items-center justify-between">
           {!collapsed && (
-            <div className="flex items-center gap-2.5">
-              <div
-                className="logo-breathe flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  background: 'linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 55%, black))',
-                  boxShadow: '0 3px 0 rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
-                }}
+            <div className="flex items-center gap-2">
+              <svg
+                viewBox="0 0 48 48"
+                className="logo-breathe h-8 w-8 shrink-0"
+                xmlns="http://www.w3.org/2000/svg"
                 aria-hidden="true"
               >
-                <ShoppingCart className="h-4 w-4 text-white" />
-              </div>
-              <span className="logo-3d logo-breathe select-none text-xl font-extrabold tracking-tight">
-                flowin
+                <circle cx="16" cy="24" r="11.5" fill="none" stroke="#62E6C7" strokeWidth="4.5" strokeLinecap="round" />
+                <rect x="31" y="7" width="8" height="34" rx="4" fill="#62E6C7" />
+              </svg>
+              <span
+                className="select-none text-xl font-extrabold tracking-tight"
+                style={{ color: 'var(--color-text)' }}
+              >
+                flow<span style={{ color: '#62E6C7' }}>I</span>n
               </span>
             </div>
           )}
