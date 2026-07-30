@@ -28,12 +28,12 @@ import type { BusinessType } from '@/types/api'
 
 /* business-type accent identity, injected as CSS variables on :root */
 const BUSINESS_ACCENTS: Record<BusinessType, { accent: string; glow: string }> = {
-  Restaurant:  { accent: '#FF6B35', glow: 'rgba(255,107,53,0.35)' },
-  Hotel:       { accent: '#1E40AF', glow: 'rgba(30,64,175,0.35)' },
-  Gaming:      { accent: '#7C3AED', glow: 'rgba(124,58,237,0.45)' },
-  Supermarket: { accent: '#4F46E5', glow: 'rgba(79,70,229,0.4)' },
-  Retail:      { accent: '#BE185D', glow: 'rgba(190,24,93,0.35)' },
-  Cafe:        { accent: '#92400E', glow: 'rgba(146,64,14,0.35)' },
+  Restaurant:  { accent: '#FF7B5B', glow: 'rgba(255,123,91,0.30)' },
+  Hotel:       { accent: '#62E6C7', glow: 'rgba(98,230,199,0.28)' },
+  Gaming:      { accent: '#A78BFA', glow: 'rgba(167,139,250,0.35)' },
+  Supermarket: { accent: '#34D399', glow: 'rgba(52,211,153,0.30)' },
+  Retail:      { accent: '#F472B6', glow: 'rgba(244,114,182,0.30)' },
+  Cafe:        { accent: '#FBBF24', glow: 'rgba(251,191,36,0.30)' },
 }
 
 /* themed identity chip shown under the brand name */

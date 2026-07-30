@@ -11,85 +11,86 @@
 
 @layer base {
   :root {
-    /* accent — overridden per business type at runtime */
-    --accent: #1e40af;
-    --glow: rgba(30, 64, 175, 0.35);
+    /* flowin brand — mint green accent */
+    --accent: #62E6C7;
+    --glow: rgba(98, 230, 199, 0.28);
 
-    /* 3D surface tokens (light) */
-    --surface-3d: rgba(0, 0, 0, 0.03);
-    --card-border: rgba(0, 0, 0, 0.08);
-    --rim-3d: rgba(255, 255, 255, 0.65);
-    --edge-3d: rgba(0, 0, 0, 0.06);
-    --shadow-mid: rgba(15, 23, 42, 0.1);
-    --shadow-far: rgba(15, 23, 42, 0.08);
-    --glass-bg: rgba(255, 255, 255, 0.72);
-    --grid-line: rgba(30, 64, 175, 0.07);
+    /* surface tokens (light — airy, less heavy) */
+    --surface-3d: rgba(0, 0, 0, 0.02);
+    --card-border: rgba(0, 0, 0, 0.06);
+    --rim-3d: rgba(255, 255, 255, 0.8);
+    --edge-3d: rgba(0, 0, 0, 0.04);
+    --shadow-mid: rgba(15, 23, 42, 0.06);
+    --shadow-far: rgba(15, 23, 42, 0.04);
+    --glass-bg: rgba(255, 255, 255, 0.82);
+    --grid-line: rgba(98, 230, 199, 0.06);
 
-    --color-bg: #f8fafc;
+    --color-bg: #F7F7F5;
     --color-surface: #ffffff;
     --color-border: #e5e7eb;
-    --color-text: #111827;
+    --color-text: #23262D;
     --color-text-muted: #6b7280;
   }
 
   .dark,
   [data-theme='dark'] {
-    /* 3D surface tokens (dark) */
-    --surface-3d: rgba(255, 255, 255, 0.04);
-    --card-border: rgba(255, 255, 255, 0.1);
-    --rim-3d: rgba(255, 255, 255, 0.06);
-    --edge-3d: rgba(0, 0, 0, 0.12);
-    --shadow-mid: rgba(0, 0, 0, 0.28);
-    --shadow-far: rgba(0, 0, 0, 0.18);
-    --glass-bg: rgba(15, 23, 42, 0.72);
-    --grid-line: rgba(148, 163, 184, 0.07);
+    /* surface tokens (dark — graphite family) */
+    --surface-3d: rgba(255, 255, 255, 0.03);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --rim-3d: rgba(255, 255, 255, 0.05);
+    --edge-3d: rgba(0, 0, 0, 0.1);
+    --shadow-mid: rgba(0, 0, 0, 0.22);
+    --shadow-far: rgba(0, 0, 0, 0.14);
+    --glass-bg: rgba(35, 38, 45, 0.82);
+    --grid-line: rgba(98, 230, 199, 0.05);
 
-    --color-bg: #0f172a;
-    --color-surface: #1e293b;
-    --color-border: #2d3144;
-    --color-text: #f3f4f6;
+    --color-bg: #23262D;
+    --color-surface: #2d3038;
+    --color-border: #3a3d46;
+    --color-text: #F7F7F5;
     --color-text-muted: #9ca3af;
   }
 
   @media (prefers-color-scheme: dark) {
     :root:not(.light):not([data-theme='light']) {
-      --surface-3d: rgba(255, 255, 255, 0.04);
-      --card-border: rgba(255, 255, 255, 0.1);
-      --rim-3d: rgba(255, 255, 255, 0.06);
-      --edge-3d: rgba(0, 0, 0, 0.12);
-      --shadow-mid: rgba(0, 0, 0, 0.28);
-      --shadow-far: rgba(0, 0, 0, 0.18);
-      --glass-bg: rgba(15, 23, 42, 0.72);
-      --grid-line: rgba(148, 163, 184, 0.07);
+      --surface-3d: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --rim-3d: rgba(255, 255, 255, 0.05);
+      --edge-3d: rgba(0, 0, 0, 0.1);
+      --shadow-mid: rgba(0, 0, 0, 0.22);
+      --shadow-far: rgba(0, 0, 0, 0.14);
+      --glass-bg: rgba(35, 38, 45, 0.82);
+      --grid-line: rgba(98, 230, 199, 0.05);
     }
   }
 
   body {
-    @apply min-h-screen text-gray-900 antialiased dark:text-gray-100;
-    font-family: 'Segoe UI', Tahoma, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-    background: radial-gradient(ellipse 130% 55% at 50% -5%, color-mix(in srgb, var(--accent) 6%, #f8fafc) 0%, #f8fafc 55%, #fff 100%) fixed;
+    @apply min-h-screen antialiased;
+    font-family: 'Urbanist', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--color-text);
+    background: var(--color-bg) fixed;
   }
 
   .dark body,
   [data-theme='dark'] body {
-    background: radial-gradient(120% 90% at 50% 0%, #1e293b 0%, #0f172a 100%) fixed;
+    background: var(--color-bg) fixed;
   }
 
-  /* 3D grid floor receding toward the horizon */
+  /* subtle grid floor — lighter, less dominant */
   body::before {
     content: '';
     position: fixed;
     inset-inline: -40%;
     bottom: -12vh;
-    height: 55vh;
+    height: 40vh;
     background-image:
       linear-gradient(var(--grid-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 48px 48px;
-    transform: perspective(620px) rotateX(62deg);
+    background-size: 52px 52px;
+    transform: perspective(700px) rotateX(64deg);
     transform-origin: bottom center;
-    -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9) 30%, transparent 95%);
-    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9) 30%, transparent 95%);
+    -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.5) 20%, transparent 90%);
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.5) 20%, transparent 90%);
     pointer-events: none;
     z-index: -1;
   }
