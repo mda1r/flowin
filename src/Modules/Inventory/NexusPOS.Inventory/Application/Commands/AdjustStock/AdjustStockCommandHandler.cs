@@ -32,6 +32,18 @@ internal sealed class AdjustStockCommandHandler(
             return result.Errors;
         }
 
+        if (request.ExpiryDate.HasValue)
+        {
+            stockItem.SetExpiryDate(request.ExpiryDate);
+        }
+
+        if (request.ReorderPoint.HasValue)
+        {
+            stockItem.SetReorderThresholds(
+                request.ReorderPoint.Value,
+                request.ReorderQuantity ?? stockItem.ReorderQuantity);
+        }
+
         stockItemRepository.Update(stockItem);
         await dbContext.SaveChangesAsync(cancellationToken);
 

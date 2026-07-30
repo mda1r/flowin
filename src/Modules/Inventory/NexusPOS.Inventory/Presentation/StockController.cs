@@ -96,7 +96,7 @@ public sealed class StockController(ISender mediator) : ControllerBase
         [FromBody] AdjustStockRequest request,
         CancellationToken cancellationToken)
     {
-        AdjustStockCommand command = new(stockItemId, branchId, request.NewQuantity, request.Reference, request.Notes);
+        AdjustStockCommand command = new(stockItemId, branchId, request.NewQuantity, request.Reference, request.Notes, request.ExpiryDate, request.ReorderPoint, request.ReorderQuantity);
         ErrorOr<StockItemResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);

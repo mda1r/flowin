@@ -19,6 +19,8 @@ import type { StockAlertItemResponse, StockItemResponse } from '@/types/api'
 
 const adjustSchema = z.object({
   newQuantity: z.coerce.number().nonnegative('يجب أن تكون الكمية صفراً أو أكثر'),
+  expiryDate: z.string().optional(),
+  reorderPoint: z.coerce.number().nonnegative().optional(),
   reference: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -118,7 +120,7 @@ export function InventoryPage() {
     queryFn: () => catalogApi.listProducts(),
   })
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<AdjustFormData>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<AdjustFormData>({
     resolver: zodResolver(adjustSchema),
   })
 
@@ -126,6 +128,8 @@ export function InventoryPage() {
     mutationFn: (formData: AdjustFormData) =>
       inventoryApi.adjustStock(branchId!, adjustItem!.id, {
         newQuantity: formData.newQuantity,
+        expiryDate: formData.expiryDate || null,
+        reorderPoint: formData.reorderPoint !== undefined ? formData.reorderPoint : undefined,
         reference: formData.reference,
         notes: formData.notes,
       }),
@@ -160,8 +164,14 @@ export function InventoryPage() {
 
   const openAdjust = (item: StockItemResponse) => {
     setAdjustItem(item)
-    setValue('newQuantity', item.quantity)
-    reset({ newQuantity: item.quantity })
+    const expiryStr = item.expiryDate
+      ? new Date(item.expiryDate).toISOString().split('T')[0]
+      : ''
+    reset({
+      newQuantity: item.quantity,
+      expiryDate: expiryStr,
+      reorderPoint: item.reorderPoint ?? 0,
+    })
   }
 
   const totalAlerts = alerts?.totalAlerts ?? 0
@@ -340,6 +350,18 @@ export function InventoryPage() {
             min="0"
             error={errors.newQuantity?.message}
             {...register('newQuantity')}
+          />
+          <Input
+            label="تاريخ الصلاحية"
+            type="date"
+            {...register('expiryDate')}
+          />
+          <Input
+            label="حد إعادة الطلب (تنبيه نقص المخزون)"
+            type="number"
+            min="0"
+            placeholder="0"
+            {...register('reorderPoint')}
           />
           <Input
             label="المرجع (اختياري)"

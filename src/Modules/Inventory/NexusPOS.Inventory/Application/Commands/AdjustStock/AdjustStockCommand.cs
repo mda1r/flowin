@@ -8,4 +8,7 @@ public sealed record AdjustStockCommand(
     Guid BranchId,
     decimal NewQuantity,
     string? Reference = null,
-    string? Notes = null) : ICommand<StockItemResponse>;
+    string? Notes = null,
+    DateTime? ExpiryDate = null,
+    decimal? ReorderPoint = null,
+    decimal? ReorderQuantity = null) : ICommand<StockItemResponse>;

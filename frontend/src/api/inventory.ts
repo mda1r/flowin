@@ -16,7 +16,7 @@ export const inventoryApi = {
   adjustStock: (
     branchId: string,
     itemId: string,
-    data: { newQuantity: number; reference?: string; notes?: string },
+    data: { newQuantity: number; reference?: string; notes?: string; expiryDate?: string | null; reorderPoint?: number; reorderQuantity?: number },
   ) =>
     apiClient.post<StockItemResponse>(
       `/api/v1/branches/${branchId}/stock/${itemId}/adjust`,
