@@ -115,7 +115,7 @@ export function StockCountDetailPage() {
       <div className="flex flex-col items-center gap-4 py-24 text-gray-400">
         <ClipboardList className="h-12 w-12 opacity-25" />
         <p>لم يتم العثور على الجرد</p>
-        <Button variant="outline" onClick={() => void navigate({ to: '/stock-counts' })}>العودة</Button>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/stock-counts' })}>العودة</Button>
       </div>
     )
   }
@@ -148,7 +148,7 @@ export function StockCountDetailPage() {
           {isActive && (
             <>
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={() => saveMutation.mutate()}
                 disabled={saveMutation.isPending}
               >
@@ -339,7 +339,7 @@ export function StockCountDetailPage() {
           </label>
 
           <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
-            <Button variant="outline" onClick={() => setShowComplete(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowComplete(false)}>إلغاء</Button>
             <Button
               onClick={() => completeMutation.mutate()}
               disabled={completeMutation.isPending}

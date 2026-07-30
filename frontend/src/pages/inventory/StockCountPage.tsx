@@ -118,7 +118,7 @@ export function StockCountPage() {
         <div className="flex flex-col items-center gap-4 py-20 text-gray-400">
           <ClipboardList className="h-14 w-14 opacity-25" />
           <p className="text-base">لا توجد جلسات جرد بعد</p>
-          <Button variant="outline" onClick={() => setShowCreate(true)}>
+          <Button variant="secondary" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
             إنشاء أول جرد
           </Button>
@@ -225,7 +225,7 @@ export function StockCountPage() {
           </div>
 
           <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
-            <Button variant="outline" onClick={() => setShowCreate(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>إلغاء</Button>
             <Button
               onClick={() => createMutation.mutate()}
               disabled={createMutation.isPending || !form.periodStart || !form.periodEnd}
