@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Mint background -->
+  <rect width="512" height="512" rx="112" fill="#62E6C7"/>
+  <!-- OI mark — upper-center -->
+  <circle cx="196" cy="210" r="80" fill="none" stroke="#23262D" stroke-width="42" stroke-linecap="round"/>
+  <rect x="314" y="102" width="58" height="214" rx="29" fill="#23262D"/>
+  <!-- flowin text -->
+  <text
+    x="256"
+    y="388"
+    font-family="'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif"
+    font-size="96"
+    font-weight="900"
+    text-anchor="middle"
+    letter-spacing="-2"
+    fill="#23262D"
+  >flowin</text>
+</svg>
