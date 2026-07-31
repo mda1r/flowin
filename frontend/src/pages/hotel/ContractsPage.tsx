@@ -4,7 +4,7 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  FileText, Plus, Pencil, Printer, CheckSquare, Trash2, PenLine,
+  FileText, Plus, Pencil, Printer, Trash2, PenLine,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
