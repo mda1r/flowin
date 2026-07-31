@@ -23,6 +23,7 @@ public static class PosServiceExtensions
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<PosDbContext>());
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IReturnOrderRepository, ReturnOrderRepository>();
+        services.AddScoped<IShiftRepository, ShiftRepository>();
 
         return services;
     }

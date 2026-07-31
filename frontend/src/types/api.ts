@@ -109,6 +109,30 @@ export interface ProductResponse {
 
 // ── Inventory ────────────────────────────────────────────────────────────────
 
+// ── Shifts ──────────────────────────────────────────────────────────────────
+
+export type ShiftStatus = 'Open' | 'Closed'
+
+export interface ShiftResponse {
+  id: string
+  branchId: string
+  userId: string
+  cashierName: string
+  status: ShiftStatus
+  openingCash: number
+  closingCash: number | null
+  totalSales: number
+  totalCashSales: number
+  totalCardSales: number
+  totalTax: number
+  totalOrders: number
+  expectedCash: number | null
+  cashVariance: number | null
+  notes: string | null
+  openedAt: string
+  closedAt: string | null
+}
+
 export interface StockItemResponse {
   id: string
   variantId: string

@@ -30,4 +30,13 @@ public static class PosErrors
 
     public static readonly Error DuplicateVariant =
         Error.Conflict("POS.DuplicateVariant", "This variant is already on the order.");
+
+    public static readonly Error ShiftNotFound =
+        Error.NotFound("POS.ShiftNotFound", "Shift was not found.");
+
+    public static readonly Error ShiftNotOpen =
+        Error.Conflict("POS.ShiftNotOpen", "Shift is not in an open state.");
+
+    public static readonly Error ShiftAlreadyOpen =
+        Error.Conflict("POS.ShiftAlreadyOpen", "You already have an open shift.");
 }

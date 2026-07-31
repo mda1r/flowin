@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, QrCode, ScanBarcode } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, QrCode, ScanBarcode, Unlock } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { useCartStore } from '@/stores/cartStore'
@@ -16,6 +16,7 @@ import type { ProductResponse, ProductVariantResponse, PaymentMethod, OrderRespo
 import { RestaurantPosPage } from './RestaurantPosPage'
 import { HotelPosPage } from './HotelPosPage'
 import { GamingPosPage } from './GamingPosPage'
+import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -45,6 +46,9 @@ function RetailPosPage() {
   const [showPayment, setShowPayment] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(null)
   const [lastScanned, setLastScanned] = useState<string | null>(null)
+  const [showOpenShift, setShowOpenShift] = useState(false)
+  const [showCloseShift, setShowCloseShift] = useState(false)
+  const { shift } = useShift()
   const { lines, addLine, removeLine, updateQuantity, subtotal, taxAmount, total, clear } = useCartStore()
   const { branchId, tenantId } = useAuthStore()
 
@@ -126,18 +130,29 @@ function RetailPosPage() {
       <PageHeader
         title="نقطة البيع"
         action={
-          <div
-            className={cn(
-              'card-3d flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all',
-              lastScanned ? 'animate-glow-pulse' : 'text-gray-500 dark:text-gray-400',
+          <div className="flex items-center gap-3">
+            {shift ? (
+              <ShiftBadge shift={shift} onCloseShift={() => setShowCloseShift(true)} />
+            ) : (
+              <Button size="sm" onClick={() => setShowOpenShift(true)} className="gap-1.5">
+                <Unlock className="h-3.5 w-3.5" />
+                فتح شفت
+              </Button>
             )}
-            style={lastScanned ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-          >
-            <ScanBarcode className="h-4 w-4" />
-            {lastScanned ? `✓ ${lastScanned}` : 'السكنر جاهز'}
+            <div
+              className={cn(
+                'card-3d flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all',
+                lastScanned ? 'animate-glow-pulse' : 'text-gray-500 dark:text-gray-400',
+              )}
+              style={lastScanned ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+            >
+              <ScanBarcode className="h-4 w-4" />
+              {lastScanned ? `✓ ${lastScanned}` : 'السكنر جاهز'}
+            </div>
           </div>
         }
       />
+      <ShiftGate onOpenShift={() => setShowOpenShift(true)}>
       <div className="flex flex-1 overflow-hidden">
         {/* Product shelf */}
         <div className="flex flex-1 flex-col overflow-hidden border-e" style={{ borderColor: 'var(--card-border)' }}>
@@ -286,6 +301,7 @@ function RetailPosPage() {
           </div>
         </div>
       </div>
+      </ShiftGate>
 
       {/* Payment modal */}
       {showPayment && (
@@ -377,6 +393,12 @@ function RetailPosPage() {
           order={completedOrder}
           onClose={() => setCompletedOrder(null)}
         />
+      )}
+
+      {/* Shift modals */}
+      {showOpenShift && <OpenShiftModal onClose={() => setShowOpenShift(false)} />}
+      {showCloseShift && shift && (
+        <CloseShiftModal shift={shift} onClose={() => setShowCloseShift(false)} />
       )}
     </div>
   )

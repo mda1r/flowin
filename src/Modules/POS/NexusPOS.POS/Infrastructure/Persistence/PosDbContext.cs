@@ -11,6 +11,7 @@ public sealed class PosDbContext(DbContextOptions<PosDbContext> options)
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
     public DbSet<ReturnOrder> ReturnOrders => Set<ReturnOrder>();
     public DbSet<ReturnOrderLine> ReturnOrderLines => Set<ReturnOrderLine>();
+    public DbSet<CashierShift> CashierShifts => Set<CashierShift>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
