@@ -12,6 +12,7 @@ export const en = {
     finance: 'Finance',
     restaurant: 'Restaurant',
     hotel: 'Hotel',
+    hotelContracts: 'Rental Contracts',
     gaming: 'Gaming',
     users: 'Users',
     branches: 'Branches',

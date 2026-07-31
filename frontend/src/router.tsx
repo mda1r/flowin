@@ -12,6 +12,7 @@ import { FinancePage } from '@/pages/finance/FinancePage'
 import { RestaurantPage } from '@/pages/restaurant/RestaurantPage'
 import { KitchenPage } from '@/pages/restaurant/KitchenPage'
 import { HotelPage } from '@/pages/hotel/HotelPage'
+import { ContractsPage } from '@/pages/hotel/ContractsPage'
 import { GamingPage } from '@/pages/gaming/GamingPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { useAuthStore } from '@/stores/authStore'
@@ -103,6 +104,12 @@ const hotelRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/hotel',
   component: HotelPage,
+})
+
+const hotelContractsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/hotel/contracts',
+  component: ContractsPage,
 })
 
 const gamingRoute = createRoute({
@@ -220,6 +227,7 @@ const routeTree = rootRoute.addChildren([
     financeRoute,
     restaurantRoute,
     hotelRoute,
+    hotelContractsRoute,
     gamingRoute,
     settingsRoute,
     usersRoute,

@@ -22,6 +22,7 @@ public static class HotelServiceExtensions
 
         services.AddScoped<IRoomRepository, RoomRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
+        services.AddScoped<IRentalContractRepository, RentalContractRepository>();
 
         return services;
     }

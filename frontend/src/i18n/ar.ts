@@ -13,6 +13,7 @@ export const ar: Translations = {
     finance: 'المالية',
     restaurant: 'المطعم',
     hotel: 'الفندق',
+    hotelContracts: 'عقود الإيجار',
     gaming: 'الألعاب',
     users: 'المستخدمون',
     branches: 'الفروع',

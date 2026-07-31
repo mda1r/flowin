@@ -11,6 +11,7 @@ import {
   DollarSign,
   UtensilsCrossed,
   Hotel,
+  FileText,
   Gamepad2,
   Settings,
   LogOut,
@@ -65,6 +66,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-5 w-5" /> },
   { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-5 w-5" /> },
+  { labelKey: 'hotelContracts', to: '/hotel/contracts', icon: <FileText className="h-5 w-5" /> },
   { labelKey: 'gaming', to: '/gaming', icon: <Gamepad2 className="h-5 w-5" /> },
   { labelKey: 'zatca', to: '/settings/zatca', icon: <Shield className="h-5 w-5" /> },
   { labelKey: 'users', to: '/users', icon: <UserCog className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
@@ -72,7 +74,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
 ]
 
 const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
-  Hotel:       ['/', '/pos', '/customers', '/sales', '/finance', '/hotel', '/settings/zatca', '/users', '/branches'],
+  Hotel:       ['/', '/pos', '/customers', '/sales', '/finance', '/hotel', '/hotel/contracts', '/settings/zatca', '/users', '/branches'],
   Gaming:      ['/', '/pos', '/customers', '/sales', '/finance', '/gaming', '/settings/zatca', '/users', '/branches'],
   Restaurant:  ['/', '/pos', '/customers', '/sales', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
   Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],

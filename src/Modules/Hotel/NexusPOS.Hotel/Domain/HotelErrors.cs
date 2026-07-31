@@ -41,4 +41,14 @@ public static class HotelErrors
 
     public static readonly Error InvalidCheckoutDate =
         Error.Validation("Reservation.InvalidCheckoutDate", "Check-out date must be after check-in date (at least 1 night).");
+
+    // Contract errors
+    public static readonly Error ContractNotFound =
+        Error.NotFound("Contract.NotFound", "Rental contract not found.");
+
+    public static readonly Error ContractAlreadySigned =
+        Error.Conflict("Contract.AlreadySigned", "A signed contract cannot be cancelled.");
+
+    public static readonly Error ContractCancelled =
+        Error.Conflict("Contract.Cancelled", "This contract has been cancelled.");
 }

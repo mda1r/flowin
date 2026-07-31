@@ -493,6 +493,36 @@ export interface RoomResponse {
   activeReservation?: ReservationResponse
 }
 
+// ── Hotel – Rental Contracts ──────────────────────────────────────────────────
+
+export type ContractStatus = 'Draft' | 'Active' | 'Executed' | 'Cancelled'
+
+export interface ContractClauseDto {
+  order: number
+  title: string
+  body: string
+}
+
+export interface RentalContractResponse {
+  id: string
+  branchId: string
+  reservationId: string | null
+  tenantName: string
+  tenantNationalId: string
+  tenantPhone: string
+  roomNumber: string
+  startDate: string
+  endDate: string
+  monthlyRent: number
+  currency: string
+  landlordName: string
+  status: ContractStatus
+  notes: string | null
+  createdAt: string
+  signedAt: string | null
+  clauses: ContractClauseDto[]
+}
+
 // ── SuperAdmin ────────────────────────────────────────────────────────────────
 
 export type SubscriptionStatus = 'Trial' | 'Active' | 'Expired' | 'Suspended'
