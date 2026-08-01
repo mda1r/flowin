@@ -227,8 +227,13 @@ export function ReportsPage() {
 
   const orders = useMemo<OrderResponse[]>(() => {
     const raw = rawOrders?.data
-    return Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
-  }, [rawOrders])
+    const all: OrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    return all.filter(o => {
+      const d = new Date(o.completedAt ?? o.createdAt)
+      const ds = d.toLocaleDateString('en-CA')
+      return ds >= dateFrom && ds <= dateTo
+    })
+  }, [rawOrders, dateFrom, dateTo])
 
   const stats = useMemo(() => computeStats(orders), [orders])
 
