@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock, Unlock, Clock, ShoppingBag, CreditCard, Banknote, TrendingUp, AlertTriangle } from 'lucide-react'
 import { shiftsApi } from '@/api/shifts'
+import { ordersApi } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -9,7 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
 import { logActivity } from '@/lib/activityLog'
-import type { ShiftResponse } from '@/types/api'
+import type { ShiftResponse, OrderResponse } from '@/types/api'
 
 // ── Open Shift Modal ──────────────────────────────────────────────────────────
 
@@ -80,6 +81,26 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Fetch orders placed since shift opened to compute real cash/card sales
+  // (backend may not link orders to shifts correctly)
+  const { data: shiftOrders } = useQuery({
+    queryKey: ['shift-orders', branchId, shift.id, shift.openedAt],
+    queryFn: async () => {
+      const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 200 })
+      const raw: OrderResponse[] = Array.isArray(data) ? data : ((data as any)?.items ?? [])
+      const shiftStart = new Date(shift.openedAt)
+      return raw.filter((o) => new Date(o.completedAt ?? o.createdAt) >= shiftStart)
+    },
+    enabled: !!branchId,
+  })
+
+  const computed = useMemo(() => {
+    const orders = shiftOrders ?? []
+    const cashSales = orders.filter((o) => o.paymentMethod === 'Cash').reduce((s, o) => s + o.total, 0)
+    const cardSales = orders.filter((o) => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.total, 0)
+    return { cashSales, cardSales, totalSales: cashSales + cardSales, totalOrders: orders.length }
+  }, [shiftOrders])
+
   const handleClose = async () => {
     const amount = parseFloat(closingCash) || 0
     setLoading(true)
@@ -92,9 +113,20 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
         category: 'shift',
         action: 'إغلاق الشفت',
-        details: `المبيعات: ${shift.totalSales} ر.س · الطلبات: ${shift.totalOrders}${notes ? ` · ملاحظة: ${notes}` : ''}`,
+        details: `المبيعات: ${computed.totalSales.toFixed(2)} ر.س · الطلبات: ${computed.totalOrders}${notes ? ` · ملاحظة: ${notes}` : ''}`,
         branchId: branchId ?? undefined,
       })
+      // Log deficit separately so admin sees it in activity logs
+      if (variance < 0) {
+        logActivity({
+          userId: user?.id ?? '',
+          userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          category: 'shift',
+          action: '⚠️ عجز في الصندوق',
+          details: `عجز ${Math.abs(variance).toFixed(2)} ر.س — متوقع ${expected.toFixed(2)} · فعلي ${amount.toFixed(2)}`,
+          branchId: branchId ?? undefined,
+        })
+      }
       toast.success('تم إغلاق الشفت بنجاح')
       onClose()
     } catch {
@@ -105,7 +137,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   }
 
   const closing = parseFloat(closingCash) || 0
-  const expected = shift.openingCash + shift.totalCashSales
+  const expected = shift.openingCash + computed.cashSales
   const variance = closing - expected
 
   const duration = () => {
@@ -133,10 +165,10 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       <div className="space-y-4" dir="rtl">
         {/* shift summary */}
         <div className="grid grid-cols-2 gap-3">
-          <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={String(shift.totalOrders)} />
-          <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label="إجمالي المبيعات" value={formatCurrency(shift.totalSales)} />
-          <SummaryCard icon={<Banknote className="h-4 w-4" />} label="مبيعات نقدية" value={formatCurrency(shift.totalCashSales)} />
-          <SummaryCard icon={<CreditCard className="h-4 w-4" />} label="مبيعات بطاقة" value={formatCurrency(shift.totalCardSales)} />
+          <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={String(computed.totalOrders)} />
+          <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label="إجمالي المبيعات" value={formatCurrency(computed.totalSales)} />
+          <SummaryCard icon={<Banknote className="h-4 w-4" />} label="مبيعات نقدية" value={formatCurrency(computed.cashSales)} />
+          <SummaryCard icon={<CreditCard className="h-4 w-4" />} label="مبيعات بطاقة" value={formatCurrency(computed.cardSales)} />
           <SummaryCard icon={<Clock className="h-4 w-4" />} label="مدة الشفت" value={duration()} />
           <SummaryCard icon={<Banknote className="h-4 w-4" />} label="رصيد الفتح" value={formatCurrency(shift.openingCash)} />
         </div>
