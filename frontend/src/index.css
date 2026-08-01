@@ -895,10 +895,18 @@
     will-change: transform;
   }
 
-  .pos-illus > svg {
+  .pos-illus > svg,
+  .pos-illus-static > svg {
     display: block;
     width: 100%;
     height: auto;
+  }
+
+  /* static variant — no float animation, no will-change, no parallax */
+  .pos-illus-static {
+    position: absolute;
+    pointer-events: none;
+    filter: drop-shadow(0 10px 20px rgba(79, 126, 247, 0.18));
   }
 
   /* floating themed emoji particle (login backdrop) */

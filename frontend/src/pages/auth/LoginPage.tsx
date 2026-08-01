@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
@@ -89,8 +89,6 @@ const FLOAT_SLOTS: FloatSlot[] = [
   { top: '4%',  end: '34%',   size: 24, delay: -8.5,  dur: 15, alpha: 0.34, layer: 2, tilt: -3 },
 ]
 
-/* parallax strength per depth layer (px of travel across the viewport) */
-const LAYER_DEPTH: Record<1 | 2 | 3, string> = { 1: '10px', 2: '20px', 3: '34px' }
 
 function slotPosition(slot: { top: string; start?: string; end?: string }): React.CSSProperties {
   return {
@@ -183,31 +181,10 @@ export function LoginPage() {
     return type ? LOGIN_THEMES[type] ?? null : null
   }, [])
 
-  /* mouse-driven parallax: writes CSS vars on the scene, layers consume them */
-  const sceneRef = useRef<HTMLDivElement>(null)
   const logoRef = useRef<HTMLDivElement>(null)
-  const rafRef = useRef(0)
   const timersRef = useRef<number[]>([])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = sceneRef.current
-    if (!el) return
-    const x = e.clientX / window.innerWidth - 0.5
-    const y = e.clientY / window.innerHeight - 0.5
-    cancelAnimationFrame(rafRef.current)
-    rafRef.current = requestAnimationFrame(() => {
-      el.style.setProperty('--par-x', x.toFixed(3))
-      el.style.setProperty('--par-y', y.toFixed(3))
-    })
-  }, [])
-
-  useEffect(
-    () => () => {
-      cancelAnimationFrame(rafRef.current)
-      timersRef.current.forEach((t) => window.clearTimeout(t))
-    },
-    [],
-  )
+  useEffect(() => () => { timersRef.current.forEach((t) => window.clearTimeout(t)) }, [])
 
   const {
     register,
@@ -250,95 +227,58 @@ export function LoginPage() {
 
   return (
     <div
-      ref={sceneRef}
       dir="rtl"
-      onMouseMove={handleMouseMove}
       style={themeVars}
-      className={`scene-3d relative flex min-h-screen items-center justify-center overflow-hidden p-4${
+      className={`relative flex min-h-screen items-center justify-center overflow-hidden p-4${
         phase === 'exit' ? ' login-exit' : ''
       }`}
     >
-      {/* ───── cinematic floating backdrop (parallax depth layers) ───── */}
+      {/* ───── static backdrop + illustrations ───── */}
       <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-        {/* living aurora — two counter-rotating conic veils, deepest layer */}
-        <div className="parallax-layer" style={{ '--par-depth': '4px' } as React.CSSProperties}>
-          <div className="aurora-bg" />
-          <div className="aurora-bg aurora-bg-reverse" />
-        </div>
+        {/* constellation lines */}
+        <svg className="net-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {NET_PATHS.map((points, i) => (
+            <polyline
+              key={i}
+              className={`net-line net-line-${i + 1}`}
+              points={points}
+              pathLength={1}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
 
-        {/* deep ambient morphing blobs */}
-        <div className="parallax-layer" style={{ '--par-depth': '6px' } as React.CSSProperties}>
-          <div
-            className="morph-blob"
-            style={{ width: 440, height: 440, top: '-10%', insetInlineStart: '-8%', '--morph-dur': '21s' } as React.CSSProperties}
-          />
-          <div
-            className="morph-blob"
-            style={{ width: 400, height: 400, bottom: '-12%', insetInlineEnd: '-6%', opacity: 0.42, animationDelay: '-9s', '--morph-dur': '27s' } as React.CSSProperties}
-          />
-        </div>
-
-        {/* constellation — subtle lines drawn between the flank shapes */}
-        <div className="parallax-layer" style={{ '--par-depth': '15px' } as React.CSSProperties}>
-          <svg className="net-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-            {NET_PATHS.map((points, i) => (
-              <polyline
+        {/* illustrations — static, no parallax, no float animation */}
+        {theme
+          ? FLOAT_SLOTS.map((slot, i) => (
+              <span
                 key={i}
-                className={`net-line net-line-${i + 1}`}
-                points={points}
-                pathLength={1}
-                vectorEffect="non-scaling-stroke"
-              />
+                className="float-emoji"
+                style={{
+                  ...slotPosition(slot),
+                  fontSize: slot.size,
+                  '--emoji-alpha': slot.alpha,
+                  '--drift-dur': `${slot.dur}s`,
+                  '--drift-delay': `${slot.delay}s`,
+                  '--bob-tilt': `${slot.tilt}deg`,
+                } as React.CSSProperties}
+              >
+                {theme.emojis[i % theme.emojis.length]}
+              </span>
+            ))
+          : ILLUS_SLOTS.map((slot, i) => (
+              <div
+                key={i}
+                className="pos-illus-static"
+                style={{
+                  ...slotPosition(slot),
+                  width: slot.width,
+                  opacity: slot.alpha,
+                } as React.CSSProperties}
+              >
+                <slot.Comp />
+              </div>
             ))}
-          </svg>
-        </div>
-
-        {/* floating cast: themed emoji, or the 3D isometric POS scene by default */}
-        {([1, 2, 3] as const).map((layer) => (
-          <div
-            key={layer}
-            className="parallax-layer"
-            style={{ '--par-depth': LAYER_DEPTH[layer] } as React.CSSProperties}
-          >
-            {theme
-              ? FLOAT_SLOTS.map((slot, i) =>
-                  slot.layer !== layer ? null : (
-                    <span
-                      key={i}
-                      className="float-emoji"
-                      style={{
-                        ...slotPosition(slot),
-                        fontSize: slot.size,
-                        '--emoji-alpha': slot.alpha,
-                        '--drift-dur': `${slot.dur}s`,
-                        '--drift-delay': `${slot.delay}s`,
-                        '--bob-tilt': `${slot.tilt}deg`,
-                      } as React.CSSProperties}
-                    >
-                      {theme.emojis[i % theme.emojis.length]}
-                    </span>
-                  ),
-                )
-              : ILLUS_SLOTS.map((slot, i) =>
-                  slot.layer !== layer ? null : (
-                    <div
-                      key={i}
-                      className="pos-illus"
-                      style={{
-                        ...slotPosition(slot),
-                        width: slot.width,
-                        opacity: slot.alpha,
-                        '--illus-dur': `${slot.dur}s`,
-                        '--illus-delay': `${slot.delay}s`,
-                        '--illus-tilt': `${slot.tilt}deg`,
-                      } as React.CSSProperties}
-                    >
-                      <slot.Comp />
-                    </div>
-                  ),
-                )}
-          </div>
-        ))}
       </div>
 
       <div className="relative w-full max-w-sm">
