@@ -1,14 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Bot, X, Send, Loader2, Sparkles, TrendingUp, Package,
-  DollarSign, BarChart2, ChevronRight, RefreshCw, Lightbulb,
+  DollarSign, BarChart2, RefreshCw, Lightbulb,
 } from 'lucide-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { aiApi, type AiChatMessage } from '@/api/ai'
-import { salesApi } from '@/api/sales'
-import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
-import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 // ── Quick prompts for each "agent" role ───────────────────────────────────────

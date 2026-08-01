@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/Badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { salesApi } from '@/api/sales'
-import type { OrderResponse, OrderLineResponse } from '@/types/api'
+import type { OrderResponse } from '@/types/api'
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 
