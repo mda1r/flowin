@@ -36,6 +36,7 @@ import { ordersApi } from '@/api/orders'
 import type { OrderResponse, BusinessType, PaymentMethod } from '@/types/api'
 import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
+import { catalogApi } from '@/api/catalog'
 
 /* ────────────────────────────────────────────────────────────────
    animated number counter — snappy ease-out + elastic settle pop.
@@ -620,6 +621,26 @@ export function DashboardPage() {
     refetchInterval: 300_000,
   })
 
+  const { data: productsData } = useQuery({
+    queryKey: ['products-map', tenantId],
+    queryFn: () => catalogApi.listProducts({ pageSize: 500 }),
+    enabled: !!tenantId,
+    staleTime: 10 * 60_000,
+  })
+
+  const variantNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    const raw = productsData?.data
+    const list = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    for (const p of list) {
+      for (const v of p.variants ?? []) {
+        const label = p.variants.length > 1 ? `${p.name} — ${v.name}` : p.name
+        map.set(v.id, label)
+      }
+    }
+    return map
+  }, [productsData])
+
   const orders = useMemo<OrderResponse[]>(() => {
     const raw = recentOrders?.data
     const all: OrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
@@ -933,7 +954,9 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-red-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{a.variantId}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
+                        </p>
                         <p className="text-xs text-gray-500">منتهية الصلاحية · الكمية: {a.quantity}</p>
                       </div>
                     </div>
@@ -953,7 +976,9 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-orange-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{a.variantId}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
+                        </p>
                         <p className="text-xs text-gray-500">تنتهي خلال {a.daysUntilExpiry} أيام · الكمية: {a.quantity}</p>
                       </div>
                     </div>
@@ -973,7 +998,9 @@ export function DashboardPage() {
                         <Package className="h-4 w-4 text-yellow-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{a.variantId}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
+                        </p>
                         <p className="text-xs text-gray-500">الكمية: {a.quantity} · حد الطلب: {a.reorderPoint}</p>
                       </div>
                     </div>
