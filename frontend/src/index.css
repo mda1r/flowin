@@ -11,9 +11,9 @@
 
 @layer base {
   :root {
-    /* flowin brand — mint green accent */
-    --accent: #62E6C7;
-    --glow: rgba(98, 230, 199, 0.28);
+    /* flowin brand — blue accent */
+    --accent: #4F7EF7;
+    --glow: rgba(79, 126, 247, 0.30);
 
     /* surface tokens (light — airy, less heavy) */
     --surface-3d: rgba(0, 0, 0, 0.02);
@@ -23,7 +23,7 @@
     --shadow-mid: rgba(15, 23, 42, 0.06);
     --shadow-far: rgba(15, 23, 42, 0.04);
     --glass-bg: rgba(255, 255, 255, 0.82);
-    --grid-line: rgba(98, 230, 199, 0.06);
+    --grid-line: rgba(79, 126, 247, 0.06);
 
     --color-bg: #F7F7F5;
     --color-surface: #ffffff;
@@ -42,7 +42,7 @@
     --shadow-mid: rgba(0, 0, 0, 0.22);
     --shadow-far: rgba(0, 0, 0, 0.14);
     --glass-bg: rgba(35, 38, 45, 0.82);
-    --grid-line: rgba(98, 230, 199, 0.05);
+    --grid-line: rgba(79, 126, 247, 0.05);
 
     --color-bg: #23262D;
     --color-surface: #2d3038;
@@ -60,13 +60,13 @@
       --shadow-mid: rgba(0, 0, 0, 0.22);
       --shadow-far: rgba(0, 0, 0, 0.14);
       --glass-bg: rgba(35, 38, 45, 0.82);
-      --grid-line: rgba(98, 230, 199, 0.05);
+      --grid-line: rgba(79, 126, 247, 0.05);
     }
   }
 
   body {
     @apply min-h-screen antialiased;
-    font-family: 'Urbanist', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'IBM Plex Sans Arabic', 'Urbanist', 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: var(--color-text);
     background-color: var(--color-bg);
   }

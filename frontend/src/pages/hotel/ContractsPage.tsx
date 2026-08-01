@@ -184,17 +184,23 @@ function printContract(contract: RentalContractResponse) {
     </div>
   </div>
 
-  <script>window.onload = function() { window.print(); }</script>
 </body>
 </html>`
 
-  const win = window.open('', '_blank', 'width=820,height=1120')
-  if (!win) {
-    toast.error('تعذّر الطباعة', 'يرجى السماح بفتح نوافذ منبثقة')
-    return
-  }
-  win.document.write(html)
-  win.document.close()
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0'
+  document.body.appendChild(iframe)
+  iframe.srcdoc = html
+  iframe.addEventListener('load', () => {
+    try {
+      iframe.contentWindow?.focus()
+      iframe.contentWindow?.print()
+    } finally {
+      setTimeout(() => {
+        if (document.body.contains(iframe)) document.body.removeChild(iframe)
+      }, 2000)
+    }
+  })
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────

@@ -11,19 +11,22 @@ import {
   Sun,
   Sunset,
   Moon,
+  Hotel as HotelIcon,
+  FileText,
+  UtensilsCrossed,
+  Gamepad2,
+  ChevronLeft,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { ordersApi } from '@/api/orders'
-import type { OrderResponse } from '@/types/api'
+import type { OrderResponse, BusinessType } from '@/types/api'
 import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
 
 /* ────────────────────────────────────────────────────────────────
-   animated number counter — eases toward the target on mount and
-   whenever the target changes; honors prefers-reduced-motion.
+   animated number counter
    ──────────────────────────────────────────────────────────────── */
 
 function useCountUp(target: number, duration = 1100): number {
@@ -37,21 +40,14 @@ function useCountUp(target: number, duration = 1100): number {
       return
     }
     const from = fromRef.current
-    if (from === target) {
-      setValue(target)
-      return
-    }
+    if (from === target) { setValue(target); return }
     let raf = 0
     const t0 = performance.now()
     const tick = (t: number) => {
       const p = Math.min((t - t0) / duration, 1)
       const eased = 1 - Math.pow(1 - p, 3)
       setValue(from + (target - from) * eased)
-      if (p < 1) {
-        raf = requestAnimationFrame(tick)
-      } else {
-        fromRef.current = target
-      }
+      if (p < 1) { raf = requestAnimationFrame(tick) } else { fromRef.current = target }
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -61,7 +57,7 @@ function useCountUp(target: number, duration = 1100): number {
 }
 
 /* ────────────────────────────────────────────────────────────────
-   pure-SVG sparkline with a draw-on stroke and soft area fill
+   SVG sparkline — draw-on stroke + area fill
    ──────────────────────────────────────────────────────────────── */
 
 function Sparkline({ data, id, className }: { data: number[]; id: string; className?: string }) {
@@ -101,8 +97,7 @@ function Sparkline({ data, id, className }: { data: number[]; id: string; classN
 }
 
 /* ────────────────────────────────────────────────────────────────
-   KPI stat card — count-up value, sparkline, lifted glass surface
-   with an accent hairline across the top.
+   KPI stat card
    ──────────────────────────────────────────────────────────────── */
 
 interface StatCardProps {
@@ -119,19 +114,7 @@ interface StatCardProps {
   entrance: string
 }
 
-function StatCard({
-  title,
-  value,
-  format,
-  change,
-  icon,
-  iconWrap,
-  sparkColor,
-  kpiColor,
-  spark,
-  sparkId,
-  entrance,
-}: StatCardProps) {
+function StatCard({ title, value, format, change, icon, iconWrap, sparkColor, kpiColor, spark, sparkId, entrance }: StatCardProps) {
   const animated = useCountUp(value)
   const fmt = format ?? ((n: number) => String(Math.round(n)))
 
@@ -143,12 +126,12 @@ function StatCard({
       <span className="kpi-topbar" aria-hidden="true" />
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
           <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
             {fmt(animated)}
           </p>
           {change !== undefined && (
-            <div className="mt-1 flex items-center gap-1 text-xs font-medium text-green-600">
+            <div className="mt-1 flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
               <ArrowUpRight className="h-3 w-3" />
               {Math.abs(change)}%
             </div>
@@ -163,27 +146,58 @@ function StatCard({
   )
 }
 
-/* ambient background particles — deterministic layout, transform-only motion */
-const PARTICLES = Array.from({ length: 14 }, (_, i) => ({
-  start: `${(i * 7.3 + 3) % 100}%`,
-  size: 3 + (i % 4),
-  dur: 9 + ((i * 2.7) % 8),
-  delay: -((i * 1.9) % 12),
-  drift: ((i % 5) - 2) * 16,
-  alpha: 0.22 + (i % 3) * 0.12,
-}))
+/* ────────────────────────────────────────────────────────────────
+   business-type quick actions
+   ──────────────────────────────────────────────────────────────── */
 
-const FALLBACK_REVENUE = [4, 6, 5, 8, 7, 10, 9]
-const FALLBACK_ORDERS = [2, 3, 2, 4, 3, 5, 4]
-const FALLBACK_CUSTOMERS = [2, 3, 3, 4, 5, 5, 6]
-const FALLBACK_AVG = [5, 4, 6, 5, 7, 6, 8]
+interface QuickAction {
+  label: string
+  icon: React.ReactNode
+  to: string
+  color: string
+  wrap: string
+}
+
+const QUICK_ACTIONS: Partial<Record<BusinessType, QuickAction[]>> = {
+  Hotel: [
+    { label: 'واجهة الفندق',  icon: <HotelIcon className="h-5 w-5" />, to: '/hotel',           color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'   },
+    { label: 'عقود الإيجار',  icon: <FileText  className="h-5 w-5" />, to: '/hotel/contracts', color: 'text-indigo-600', wrap: 'bg-indigo-50 dark:bg-indigo-900/30' },
+    { label: 'العملاء',        icon: <Users     className="h-5 w-5" />, to: '/customers',       color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'  },
+    { label: 'المخزون',        icon: <Package   className="h-5 w-5" />, to: '/inventory',       color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+  ],
+  Restaurant: [
+    { label: 'طلب جديد',  icon: <ShoppingCart    className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600', wrap: 'bg-blue-50 dark:bg-blue-900/30'  },
+    { label: 'المطعم',    icon: <UtensilsCrossed className="h-5 w-5" />, to: '/restaurant', color: 'text-red-600',  wrap: 'bg-red-50 dark:bg-red-900/30'    },
+    { label: 'العملاء',   icon: <Users           className="h-5 w-5" />, to: '/customers',  color: 'text-green-600', wrap: 'bg-green-50 dark:bg-green-900/30' },
+    { label: 'المخزون',   icon: <Package         className="h-5 w-5" />, to: '/inventory',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+  ],
+  Gaming: [
+    { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',      color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+    { label: 'الألعاب',   icon: <Gamepad2     className="h-5 w-5" />, to: '/gaming',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+    { label: 'العملاء',   icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600', wrap: 'bg-green-50 dark:bg-green-900/30'   },
+    { label: 'المصروفات', icon: <DollarSign   className="h-5 w-5" />, to: '/finance',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+  ],
+}
+
+const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
+  { label: 'بيع جديد',      icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+  { label: 'إضافة منتج',   icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+  { label: 'إضافة عميل',   icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+  { label: 'تسجيل مصروف', icon: <DollarSign   className="h-5 w-5" />, to: '/finance',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+]
+
+const FALLBACK_REVENUE   = [4, 6, 5, 8, 7, 10, 9]
+const FALLBACK_ORDERS    = [2, 3, 2, 4, 3,  5, 4]
+const FALLBACK_CUSTOMERS = [2, 3, 3, 4, 5,  5, 6]
+const FALLBACK_AVG       = [5, 4, 6, 5, 7,  6, 8]
 
 export function DashboardPage() {
   const { user, branchId, tenantId } = useAuthStore()
+  const businessType = user?.businessType as BusinessType | undefined
 
   const { data: recentOrders } = useQuery({
     queryKey: ['orders', branchId, 'recent'],
-    queryFn: () => ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 5 }),
+    queryFn: () => ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 8 }),
     enabled: !!branchId,
   })
 
@@ -209,7 +223,6 @@ export function DashboardPage() {
   const lowStockCount = alerts?.lowStock.length ?? 0
   const hasAlerts = nearExpiryCount > 0 || lowStockCount > 0
 
-  /* greeting changes with the time of day */
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'صباح الخير' : 'مساء الخير'
   const GreetIcon = hour < 12 ? Sun : hour < 18 ? Sunset : Moon
@@ -220,114 +233,89 @@ export function DashboardPage() {
     year: 'numeric',
   }).format(new Date())
 
-  /* sparkline series derived from real orders, with graceful fallbacks */
   const chrono = [...orders].reverse()
   const revenueSpark = chrono.length >= 2 ? chrono.map((o) => o.totalAmount) : FALLBACK_REVENUE
-  const ordersSpark = chrono.length >= 2 ? chrono.map((o) => o.lines.length) : FALLBACK_ORDERS
-  const avgSpark =
-    chrono.length >= 2
-      ? chrono.map((_, i) => chrono.slice(0, i + 1).reduce((s, x) => s + x.totalAmount, 0) / (i + 1))
-      : FALLBACK_AVG
+  const ordersSpark  = chrono.length >= 2 ? chrono.map((o) => o.lines.length) : FALLBACK_ORDERS
+  const avgSpark     = chrono.length >= 2
+    ? chrono.map((_, i) => chrono.slice(0, i + 1).reduce((s, x) => s + x.totalAmount, 0) / (i + 1))
+    : FALLBACK_AVG
+
+  const quickActions = (businessType ? QUICK_ACTIONS[businessType] : null) ?? DEFAULT_QUICK_ACTIONS
 
   return (
-    <div className="page-fade relative min-h-full">
-      {/* ambient drifting particle field */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        {PARTICLES.map((p, i) => (
-          <span
-            key={i}
-            className="particle"
+    <div className="page-fade min-h-full">
+      <div className="space-y-6 p-6">
+
+        {/* ── Hero ──────────────────────────────────────────────────── */}
+        <section
+          className="entrance-1 relative overflow-hidden rounded-2xl p-7"
+          style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 55%, #1e3a8a 100%)' }}
+        >
+          {/* subtle grid overlay */}
+          <div
+            className="pointer-events-none absolute inset-0"
             style={{
-              insetInlineStart: p.start,
-              '--particle-size': `${p.size}px`,
-              '--rise-dur': `${p.dur}s`,
-              '--rise-delay': `${p.delay}s`,
-              '--rise-x': `${p.drift}px`,
-              '--particle-alpha': p.alpha,
-              '--rise-h': '72vh',
-            } as React.CSSProperties}
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
+              backgroundSize: '32px 32px',
+            }}
+            aria-hidden="true"
           />
-        ))}
-      </div>
+          {/* radial glow */}
+          <div
+            className="pointer-events-none absolute -top-20 -end-20 h-64 w-64 rounded-full opacity-20"
+            style={{ background: 'radial-gradient(circle, #93c5fd 0%, transparent 70%)' }}
+            aria-hidden="true"
+          />
 
-      <div className="relative p-6">
-        {/* ───── Today at a glance — hero ───── */}
-        <section className="card-3d entrance-1 relative overflow-hidden p-6">
-          <span className="kpi-topbar" aria-hidden="true" />
-
-          {/* decorative orbital system */}
-          <div className="pointer-events-none absolute -top-8 end-[-28px] hidden sm:block" aria-hidden="true">
-            <div className="relative h-40 w-40">
-              <div className="orbit-ring" style={{ inset: 0, '--orbit-dur': '18s' } as React.CSSProperties} />
-              <div className="orbit-ring orbit-ring-reverse" style={{ inset: 18, '--orbit-dur': '26s' } as React.CSSProperties} />
-              <div
-                className="orbit-dot"
-                style={{ top: '50%', insetInlineStart: '50%', margin: -3.5, '--orbit-radius': '80px', '--orbit-dur': '11s' } as React.CSSProperties}
-              />
-            </div>
-          </div>
-
-          <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div className="relative flex flex-wrap items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2.5">
-                <GreetIcon className="h-6 w-6" style={{ color: 'var(--accent)' }} />
-                <h1 className="text-emboss text-2xl font-extrabold text-gray-900 dark:text-gray-100">
-                  {greeting}
-                  {user?.firstName ? `، ${user.firstName}` : ''}
+                <GreetIcon className="h-6 w-6 text-blue-200" />
+                <h1 className="text-2xl font-extrabold text-white">
+                  {greeting}{user?.firstName ? `، ${user.firstName}` : ''}
                 </h1>
               </div>
-              <p className="mt-1.5 text-sm text-gray-500">
-                {todayLabel} · إليك نظرة سريعة على أداء عملك اليوم
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="tab-3d tab-3d-idle !cursor-default">
-                  إيرادات اليوم: <b className="tabular-nums">{formatCurrency(todayRevenue)}</b>
-                </span>
-                <span className="tab-3d tab-3d-idle !cursor-default">
-                  الطلبات: <b className="tabular-nums">{orders.length}</b>
-                </span>
+              <p className="mt-1.5 text-sm text-blue-200">{todayLabel}</p>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
+                  <p className="text-xs font-medium text-blue-200">إيرادات اليوم</p>
+                  <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{formatCurrency(todayRevenue)}</p>
+                </div>
+                <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
+                  <p className="text-xs font-medium text-blue-200">الطلبات</p>
+                  <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{orders.length}</p>
+                </div>
+                <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
+                  <p className="text-xs font-medium text-blue-200">العملاء</p>
+                  <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{customers?.data?.length ?? 0}</p>
+                </div>
                 {hasAlerts && (
-                  <span className="tab-3d tab-3d-idle !cursor-default !text-orange-600 dark:!text-orange-400">
-                    تنبيهات: <b className="tabular-nums">{nearExpiryCount + lowStockCount}</b>
-                  </span>
+                  <a
+                    href="/inventory"
+                    className="rounded-xl border border-orange-400/40 bg-orange-500/25 px-4 py-2.5 backdrop-blur-sm transition-colors hover:bg-orange-500/35"
+                  >
+                    <p className="text-xs font-medium text-orange-200">تنبيهات</p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-orange-100">
+                      {nearExpiryCount + lowStockCount}
+                    </p>
+                  </a>
                 )}
               </div>
             </div>
+
             <a href="/pos" className="shrink-0">
-              <Button variant="glow" size="lg" className="btn-shimmer rounded-xl">
+              <button className="inline-flex items-center gap-2.5 rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-lg transition-all hover:bg-blue-50 hover:shadow-xl active:scale-95">
                 <ShoppingCart className="h-5 w-5" />
                 بيع جديد
-              </Button>
+              </button>
             </a>
           </div>
         </section>
 
-        {/* Persistent Alert Banner */}
-        {hasAlerts && (
-          <a
-            href="/inventory"
-            className="card-3d entrance-2 mt-6 flex items-center gap-3 border-orange-200 bg-orange-50 px-4 py-3 text-orange-800 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/30"
-          >
-            <AlertTriangle className="h-5 w-5 shrink-0" />
-            <span className="flex-1 text-sm font-medium">
-              {nearExpiryCount > 0 && (
-                <span>
-                  ⚠️ {nearExpiryCount} {nearExpiryCount === 1 ? 'منتج ينتهي صلاحيته' : 'منتجات تنتهي صلاحيتها'} خلال 7 أيام
-                </span>
-              )}
-              {nearExpiryCount > 0 && lowStockCount > 0 && <span className="mx-2">—</span>}
-              {lowStockCount > 0 && (
-                <span>
-                  {lowStockCount} {lowStockCount === 1 ? 'منتج مخزون منخفض' : 'منتجات مخزون منخفض'}
-                </span>
-              )}
-            </span>
-            <span className="shrink-0 text-xs underline">عرض المخزون ←</span>
-          </a>
-        )}
-
-        {/* ───── KPI grid — count-up + sparklines ───── */}
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* ── KPI grid ───────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="إيرادات اليوم"
             value={todayRevenue}
@@ -379,14 +367,111 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Inventory Alerts Widget */}
-        {hasAlerts && (
-          <div className="entrance-4 mt-6">
-            <Card>
-              <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: 'var(--card-border)' }}>
+        {/* ── Main content: orders (2/3) + quick actions (1/3) ──────── */}
+        <div className="entrance-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+          {/* Recent orders */}
+          <div className="lg:col-span-2">
+            <Card variant="holographic">
+              <div
+                className="flex items-center justify-between border-b px-6 py-4"
+                style={{ borderColor: 'var(--card-border)' }}
+              >
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  تنبيهات المخزون
+                  آخر الطلبات المكتملة
                 </h2>
+                <a
+                  href="/sales"
+                  className="flex items-center gap-0.5 text-xs text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  عرض الكل
+                  <ChevronLeft className="h-3 w-3" />
+                </a>
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {orders.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-14 text-center">
+                    <ShoppingCart className="mb-3 h-10 w-10 text-gray-200 dark:text-gray-700" />
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">لا توجد طلبات اليوم</p>
+                    <a href="/pos" className="mt-2 text-xs text-blue-600 hover:underline dark:text-blue-400">
+                      ابدأ أول بيع
+                    </a>
+                  </div>
+                ) : (
+                  orders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between px-6 py-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/30">
+                          <ShoppingCart className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            #{order.id.slice(0, 8).toUpperCase()}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {order.lines.length} {order.lines.length === 1 ? 'منتج' : 'منتجات'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-end">
+                        <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatCurrency(order.totalAmount)}
+                        </p>
+                        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                          مكتمل
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Quick actions */}
+          <div>
+            <Card>
+              <div
+                className="border-b px-6 py-4"
+                style={{ borderColor: 'var(--card-border)' }}
+              >
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">إجراءات سريعة</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3 p-4">
+                {quickActions.map((action) => (
+                  <a
+                    key={action.label}
+                    href={action.to}
+                    className="tilt-card card-3d flex flex-col items-center gap-2.5 rounded-xl p-4 text-center"
+                  >
+                    <div className={cn('rounded-xl p-2.5', action.wrap, action.color)}>
+                      {action.icon}
+                    </div>
+                    <span className="text-xs font-medium leading-tight text-gray-700 dark:text-gray-300">
+                      {action.label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* ── Inventory alerts ────────────────────────────────────────── */}
+        {hasAlerts && (
+          <div className="entrance-5">
+            <Card>
+              <div
+                className="flex items-center justify-between border-b px-6 py-4"
+                style={{ borderColor: 'var(--card-border)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">تنبيهات المخزون</h2>
+                </div>
                 <a href="/inventory" className="text-xs text-blue-600 hover:underline dark:text-blue-400">
                   عرض الكل
                 </a>
@@ -403,9 +488,7 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-red-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {a.variantId}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{a.variantId}</p>
                         <p className="text-xs text-gray-500">منتهية الصلاحية · الكمية: {a.quantity}</p>
                       </div>
                     </div>
@@ -425,12 +508,8 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-orange-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {a.variantId}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          تنتهي خلال {a.daysUntilExpiry} أيام · الكمية: {a.quantity}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{a.variantId}</p>
+                        <p className="text-xs text-gray-500">تنتهي خلال {a.daysUntilExpiry} أيام · الكمية: {a.quantity}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
@@ -449,12 +528,8 @@ export function DashboardPage() {
                         <Package className="h-4 w-4 text-yellow-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {a.variantId}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          الكمية: {a.quantity} · حد الطلب: {a.reorderPoint}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{a.variantId}</p>
+                        <p className="text-xs text-gray-500">الكمية: {a.quantity} · حد الطلب: {a.reorderPoint}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
@@ -467,61 +542,6 @@ export function DashboardPage() {
           </div>
         )}
 
-        {/* Recent completed orders — holographic showcase card */}
-        <div className="entrance-5 mt-6">
-          <Card variant="holographic">
-            <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: 'var(--card-border)' }}>
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                آخر الطلبات المكتملة
-              </h2>
-            </div>
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {orders.length === 0 ? (
-                <p className="px-6 py-10 text-center text-sm text-gray-400">لا توجد طلبات</p>
-              ) : (
-                orders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between px-6 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {order.id.slice(0, 8).toUpperCase()}
-                      </p>
-                      <p className="text-xs text-gray-500">{order.lines.length} منتج</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                        {formatCurrency(order.totalAmount)}
-                      </p>
-                      <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                        مكتمل
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Quick actions — tilting glass tiles */}
-        <div className="entrance-5 mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: 'بيع جديد', icon: <ShoppingCart className="h-6 w-6" />, to: '/pos', color: 'text-blue-600', wrap: 'bg-blue-50 dark:bg-blue-900/30' },
-            { label: 'إضافة منتج', icon: <Package className="h-6 w-6" />, to: '/products', color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
-            { label: 'إضافة عميل', icon: <Users className="h-6 w-6" />, to: '/customers', color: 'text-green-600', wrap: 'bg-green-50 dark:bg-green-900/30' },
-            { label: 'تسجيل مصروف', icon: <DollarSign className="h-6 w-6" />, to: '/finance', color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
-          ].map((action) => (
-            <a
-              key={action.label}
-              href={action.to}
-              className="tilt-card card-3d flex flex-col items-center gap-3 p-5 text-center"
-            >
-              <div className={cn('rounded-xl p-3', action.wrap, action.color)}>{action.icon}</div>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {action.label}
-              </span>
-            </a>
-          ))}
-        </div>
       </div>
     </div>
   )

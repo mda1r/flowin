@@ -30,7 +30,7 @@ import type { BusinessType } from '@/types/api'
 /* business-type accent identity, injected as CSS variables on :root */
 const BUSINESS_ACCENTS: Record<BusinessType, { accent: string; glow: string }> = {
   Restaurant:  { accent: '#FF7B5B', glow: 'rgba(255,123,91,0.30)' },
-  Hotel:       { accent: '#62E6C7', glow: 'rgba(98,230,199,0.28)' },
+  Hotel:       { accent: '#4F7EF7', glow: 'rgba(79,126,247,0.28)' },
   Gaming:      { accent: '#A78BFA', glow: 'rgba(167,139,250,0.35)' },
   Supermarket: { accent: '#34D399', glow: 'rgba(52,211,153,0.30)' },
   Retail:      { accent: '#F472B6', glow: 'rgba(244,114,182,0.30)' },

@@ -48,3 +48,13 @@ export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str
   return str.slice(0, maxLength) + '…'
 }
+
+export function normalizeArabic(text: string): string {
+  return text
+    .replace(/[ً-ٟ]/g, '') // strip tashkeel
+    .replace(/[أإآ]/g, 'ا')           // unify alef variants
+    .replace(/ة/g, 'ه')               // taa marbuta → haa
+    .replace(/ى/g, 'ي')               // alef maqsura → yaa
+    .trim()
+    .toLowerCase()
+}
