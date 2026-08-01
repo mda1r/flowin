@@ -29,6 +29,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
       logActivity({
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        userEmail: user?.email,
         category: 'shift',
         action: 'فتح الشفت',
         details: `رصيد الفتح: ${amount} ر.س`,
@@ -111,18 +112,19 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       logActivity({
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        userEmail: user?.email,
         category: 'shift',
         action: 'إغلاق الشفت',
         details: `المبيعات: ${computed.totalSales.toFixed(2)} ر.س · الطلبات: ${computed.totalOrders}${notes ? ` · ملاحظة: ${notes}` : ''}`,
         branchId: branchId ?? undefined,
       })
-      // Log deficit separately so admin sees it in activity logs
       if (variance < 0) {
         logActivity({
           userId: user?.id ?? '',
           userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          userEmail: user?.email,
           category: 'shift',
-          action: '⚠️ عجز في الصندوق',
+          action: 'عجز في الصندوق',
           details: `عجز ${Math.abs(variance).toFixed(2)} ر.س — متوقع ${expected.toFixed(2)} · فعلي ${amount.toFixed(2)}`,
           branchId: branchId ?? undefined,
         })

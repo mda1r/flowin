@@ -13,6 +13,7 @@ import { Input, Select } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/authStore'
 import { saveUserPermissions, getUserPermissions } from '@/lib/userPermissions'
 import { logActivity } from '@/lib/activityLog'
+import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 
 const ROLE_LABELS: Record<string, string> = {
   Owner: 'مالك',
@@ -99,8 +100,17 @@ function PagePermModal({
   onClose: () => void
 }) {
   const { user: currentUser } = useAuthStore()
+
+  // Filter available pages to only those relevant to this business type
+  const allowedRoutes = currentUser?.businessType
+    ? new Set(BUSINESS_TYPE_ROUTES[currentUser.businessType] ?? [])
+    : new Set(ALL_PAGES.map((p) => p.route))
+  const availablePages = ALL_PAGES.filter((p) => allowedRoutes.has(p.route))
+
   const existing = getUserPermissions(target.id)
-  const defaultSelected = existing ?? ALL_PAGES.map((p) => p.route)
+  const defaultSelected = existing
+    ? existing.filter((r) => allowedRoutes.has(r))
+    : availablePages.map((p) => p.route)
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected))
 
   const toggle = (route: string) => {
@@ -112,7 +122,7 @@ function PagePermModal({
     })
   }
 
-  const selectAll = () => setSelected(new Set(ALL_PAGES.map((p) => p.route)))
+  const selectAll = () => setSelected(new Set(availablePages.map((p) => p.route)))
   const clearAll = () => setSelected(new Set(['/']))
 
   const handleSave = () => {
@@ -121,6 +131,7 @@ function PagePermModal({
     logActivity({
       userId: currentUser?.id ?? '',
       userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
+      userEmail: currentUser?.email,
       category: 'user',
       action: 'تعديل صلاحيات الصفحات',
       details: `${target.fullName} — ${routes.length} صفحة`,
@@ -149,7 +160,7 @@ function PagePermModal({
           <button onClick={clearAll} className="text-gray-400 hover:underline">إلغاء الكل</button>
         </div>
         <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
-          {ALL_PAGES.map((p) => (
+          {availablePages.map((p) => (
             <label
               key={p.route}
               className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition-colors"
@@ -199,6 +210,7 @@ export function UsersPage() {
       logActivity({
         userId: currentUser?.id ?? '',
         userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
+      userEmail: currentUser?.email,
         category: 'user',
         action: 'إضافة مستخدم',
         details: `${res.data.fullName} — ${ROLE_LABELS[res.data.roles[0]] ?? res.data.roles[0]}`,
@@ -220,6 +232,7 @@ export function UsersPage() {
       logActivity({
         userId: currentUser?.id ?? '',
         userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
+      userEmail: currentUser?.email,
         category: 'user',
         action: 'حذف مستخدم',
         details: `${deleted.fullName} — ${deleted.email}`,

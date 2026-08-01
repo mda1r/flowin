@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
 import { getUserPermissions } from '@/lib/userPermissions'
+import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import type { BusinessType } from '@/types/api'
 
 /* business-type accent identity, injected as CSS variables on :root */
@@ -78,14 +79,6 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
 ]
 
-const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
-  Hotel:       ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/hotel', '/hotel/contracts', '/settings/zatca', '/users', '/branches', '/activity-logs'],
-  Gaming:      ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/gaming', '/settings/zatca', '/users', '/branches', '/activity-logs'],
-  Restaurant:  ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches', '/activity-logs'],
-  Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs'],
-  Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs'],
-  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches', '/activity-logs'],
-}
 
 function getNavItems(
   businessType: BusinessType | undefined,

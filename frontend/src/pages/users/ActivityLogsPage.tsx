@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Activity, Trash2, Download, Filter } from 'lucide-react'
-import { readLogs, clearLogs } from '@/lib/activityLog'
+import { Activity, Trash2, Download, Filter, AlertTriangle } from 'lucide-react'
+import { readLogs, clearLogs, resolveDisplayName } from '@/lib/activityLog'
 import type { LogCategory, ActivityLogEntry } from '@/lib/activityLog'
 import { toast } from '@/components/ui/Toast'
 
@@ -192,8 +192,17 @@ export function ActivityLogsPage() {
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                 {logs.map((log) => {
                   const d = new Date(log.timestamp)
+                  const isDeficit = log.action.includes('عجز')
+                  const displayName = resolveDisplayName(log)
                   return (
-                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                    <tr
+                      key={log.id}
+                      className={
+                        isDeficit
+                          ? 'bg-red-50 dark:bg-red-900/15 border-r-4 border-red-500'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors'
+                      }
+                    >
                       <td className="px-4 py-3 tabular-nums text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         <p className="text-xs">{d.toLocaleDateString('ar-SA')}</p>
                         <p className="text-[11px] text-gray-400">{d.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -202,13 +211,11 @@ export function ActivityLogsPage() {
                         <div className="flex items-center gap-2">
                           <div
                             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                            style={{ background: 'var(--accent)' }}
+                            style={{ background: isDeficit ? '#ef4444' : 'var(--accent)' }}
                           >
-                            {(log.userName || '؟')[0]}
+                            {displayName[0]?.toUpperCase() ?? '؟'}
                           </div>
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {log.userName || log.userId.slice(0, 8)}
-                          </span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{displayName}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -216,8 +223,19 @@ export function ActivityLogsPage() {
                           {CATEGORY_LABELS[log.category] ?? log.category}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{log.action}</td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-xs truncate">{log.details ?? '—'}</td>
+                      <td className="px-4 py-3">
+                        {isDeficit ? (
+                          <span className="flex items-center gap-1.5 font-semibold text-red-600 dark:text-red-400">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            {log.action}
+                          </span>
+                        ) : (
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{log.action}</span>
+                        )}
+                      </td>
+                      <td className={`px-4 py-3 max-w-xs truncate ${isDeficit ? 'font-medium text-red-700 dark:text-red-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                        {log.details ?? '—'}
+                      </td>
                     </tr>
                   )
                 })}

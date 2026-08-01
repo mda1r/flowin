@@ -139,6 +139,7 @@ export function InventoryPage() {
       logActivity({
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        userEmail: user?.email,
         category: 'inventory',
         action: 'تعديل المخزون',
         details: `${info?.productName ?? adjustItem?.variantId ?? ''} → كمية جديدة: ${formData.newQuantity}`,

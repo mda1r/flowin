@@ -8,10 +8,18 @@ export interface ActivityLogEntry {
   timestamp: string
   userId: string
   userName: string
+  userEmail?: string
   category: LogCategory
   action: string
   details?: string
   branchId?: string
+}
+
+/** Returns a displayable name, falling back to email then userId prefix */
+export function resolveDisplayName(entry: Pick<ActivityLogEntry, 'userName' | 'userEmail' | 'userId'>): string {
+  if (entry.userName && entry.userName.trim()) return entry.userName.trim()
+  if (entry.userEmail) return entry.userEmail.split('@')[0]
+  return entry.userId.slice(0, 8)
 }
 
 export function logActivity(entry: Omit<ActivityLogEntry, 'id' | 'timestamp'>): void {

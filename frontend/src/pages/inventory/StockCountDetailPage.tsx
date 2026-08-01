@@ -98,6 +98,7 @@ export function StockCountDetailPage() {
       logActivity({
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        userEmail: user?.email,
         category: 'stock-count',
         action: 'إتمام الجرد',
         details: `جلسة ${sessionId.slice(0, 8)} · ${autoAdjust ? 'مع تعديل تلقائي للمخزون' : 'بدون تعديل تلقائي'}`,
