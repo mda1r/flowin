@@ -96,8 +96,8 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
 
   const computed = useMemo(() => {
     const orders = shiftOrders ?? []
-    const cashSales = orders.filter((o) => o.paymentMethod === 'Cash').reduce((s, o) => s + o.total, 0)
-    const cardSales = orders.filter((o) => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.total, 0)
+    const cashSales = orders.filter((o) => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0)
+    const cardSales = orders.filter((o) => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.totalAmount, 0)
     return { cashSales, cardSales, totalSales: cashSales + cardSales, totalOrders: orders.length }
   }, [shiftOrders])
 
