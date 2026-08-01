@@ -10,6 +10,16 @@ import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { toast } from '@/components/ui/Toast'
+import {
+  BarcodeIllus,
+  CashierIllus,
+  CoinStackIllus,
+  CreditCardIllus,
+  PosTerminalIllus,
+  ProductBoxIllus,
+  ReceiptIllus,
+  ShoppingBagIllus,
+} from './loginIllustrations'
 
 const schema = z.object({
   email: z.string().email('يرجى إدخال بريد إلكتروني صحيح'),
@@ -41,9 +51,9 @@ const LOGIN_THEMES: Record<string, LoginTheme> = {
 }
 
 /* ────────────────────────────────────────────────────────────────
-   Floating-element layout — 18 curated slots hugging the edges so
-   the glass card stays readable. layer 1 = far (small, faint, low
-   parallax) … layer 3 = near (large, bold, strong parallax).
+   Floating-emoji layout (themed mode) — 18 curated slots hugging
+   the edges so the glass card stays readable. layer 1 = far (small,
+   faint, low parallax) … layer 3 = near (large, bold, strong).
    ──────────────────────────────────────────────────────────────── */
 
 interface FloatSlot {
@@ -82,15 +92,46 @@ const FLOAT_SLOTS: FloatSlot[] = [
 /* parallax strength per depth layer (px of travel across the viewport) */
 const LAYER_DEPTH: Record<1 | 2 | 3, string> = { 1: '10px', 2: '20px', 3: '34px' }
 
-const SHAPE_RADII = ['9999px', '1.25rem', '0.75rem']
-
-function slotPosition(slot: FloatSlot): React.CSSProperties {
+function slotPosition(slot: { top: string; start?: string; end?: string }): React.CSSProperties {
   return {
     top: slot.top,
     ...(slot.start ? { insetInlineStart: slot.start } : {}),
     ...(slot.end ? { insetInlineEnd: slot.end } : {}),
   }
 }
+
+/* ────────────────────────────────────────────────────────────────
+   3D isometric POS scene (default mode) — a cashier ringing up a
+   sale surrounded by the tools of the trade. Eight hand-placed
+   illustrations flank the glass card; nearer layers are larger,
+   more opaque, and get more parallax + drop-shadow presence.
+   ──────────────────────────────────────────────────────────────── */
+
+interface IllusSlot {
+  Comp: () => React.ReactElement
+  top: string
+  start?: string
+  end?: string
+  width: number
+  layer: 1 | 2 | 3
+  alpha: number
+  dur: number
+  delay: number
+  tilt: number
+}
+
+const ILLUS_SLOTS: IllusSlot[] = [
+  /* start flank (logical inline-start) */
+  { Comp: PosTerminalIllus, top: '30%', start: '3%', width: 230, layer: 3, alpha: 0.95, dur: 9,    delay: 0,    tilt: -2 },
+  { Comp: CashierIllus,     top: '55%', start: '5%', width: 150, layer: 2, alpha: 0.8,  dur: 10,   delay: -3,   tilt: 2 },
+  { Comp: CoinStackIllus,   top: '15%', start: '8%', width: 84,  layer: 2, alpha: 0.8,  dur: 8,    delay: -5,   tilt: -3 },
+  { Comp: ReceiptIllus,     top: '78%', start: '2%', width: 72,  layer: 1, alpha: 0.62, dur: 11,   delay: -2,   tilt: 4 },
+  /* end flank (logical inline-end) */
+  { Comp: CreditCardIllus,  top: '12%', end: '4%',   width: 150, layer: 3, alpha: 0.95, dur: 8.5,  delay: -1.5, tilt: 3 },
+  { Comp: ShoppingBagIllus, top: '45%', end: '3%',   width: 112, layer: 2, alpha: 0.8,  dur: 9.5,  delay: -6,   tilt: -2 },
+  { Comp: BarcodeIllus,     top: '68%', end: '6%',   width: 118, layer: 2, alpha: 0.8,  dur: 10.5, delay: -4,   tilt: 2 },
+  { Comp: ProductBoxIllus,  top: '85%', end: '5%',   width: 88,  layer: 1, alpha: 0.62, dur: 12,   delay: -7,   tilt: -3 },
+]
 
 /* ────────────────────────────────────────────────────────────────
    Constellation network — faint lines linking the float-slot anchor
@@ -252,45 +293,50 @@ export function LoginPage() {
           </svg>
         </div>
 
-        {/* floating particles: themed emoji, or abstract geometry by default */}
+        {/* floating cast: themed emoji, or the 3D isometric POS scene by default */}
         {([1, 2, 3] as const).map((layer) => (
           <div
             key={layer}
             className="parallax-layer"
             style={{ '--par-depth': LAYER_DEPTH[layer] } as React.CSSProperties}
           >
-            {FLOAT_SLOTS.map((slot, i) =>
-              slot.layer !== layer ? null : theme ? (
-                <span
-                  key={i}
-                  className="float-emoji"
-                  style={{
-                    ...slotPosition(slot),
-                    fontSize: slot.size,
-                    '--emoji-alpha': slot.alpha,
-                    '--drift-dur': `${slot.dur}s`,
-                    '--drift-delay': `${slot.delay}s`,
-                    '--bob-tilt': `${slot.tilt}deg`,
-                  } as React.CSSProperties}
-                >
-                  {theme.emojis[i % theme.emojis.length]}
-                </span>
-              ) : (
-                <div
-                  key={i}
-                  className="float-shape"
-                  style={{
-                    ...slotPosition(slot),
-                    width: Math.round(slot.size * 2.8),
-                    height: Math.round(slot.size * 2.8),
-                    borderRadius: SHAPE_RADII[i % SHAPE_RADII.length],
-                    opacity: Math.min(slot.alpha + 0.2, 0.9),
-                    animationDelay: `${slot.delay}s`,
-                    '--drift-dur': `${slot.dur}s`,
-                  } as React.CSSProperties}
-                />
-              ),
-            )}
+            {theme
+              ? FLOAT_SLOTS.map((slot, i) =>
+                  slot.layer !== layer ? null : (
+                    <span
+                      key={i}
+                      className="float-emoji"
+                      style={{
+                        ...slotPosition(slot),
+                        fontSize: slot.size,
+                        '--emoji-alpha': slot.alpha,
+                        '--drift-dur': `${slot.dur}s`,
+                        '--drift-delay': `${slot.delay}s`,
+                        '--bob-tilt': `${slot.tilt}deg`,
+                      } as React.CSSProperties}
+                    >
+                      {theme.emojis[i % theme.emojis.length]}
+                    </span>
+                  ),
+                )
+              : ILLUS_SLOTS.map((slot, i) =>
+                  slot.layer !== layer ? null : (
+                    <div
+                      key={i}
+                      className="pos-illus"
+                      style={{
+                        ...slotPosition(slot),
+                        width: slot.width,
+                        opacity: slot.alpha,
+                        '--illus-dur': `${slot.dur}s`,
+                        '--illus-delay': `${slot.delay}s`,
+                        '--illus-tilt': `${slot.tilt}deg`,
+                      } as React.CSSProperties}
+                    >
+                      <slot.Comp />
+                    </div>
+                  ),
+                )}
           </div>
         ))}
       </div>
