@@ -622,8 +622,13 @@ export function DashboardPage() {
 
   const orders = useMemo<OrderResponse[]>(() => {
     const raw = recentOrders?.data
-    return Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
-  }, [recentOrders])
+    const all: OrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    // Filter client-side by local date — backend may not support dateFrom/dateTo
+    return all.filter(o => {
+      const d = new Date(o.completedAt ?? o.createdAt)
+      return d.toLocaleDateString('en-CA') === today
+    })
+  }, [recentOrders, today])
 
   const todayRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
   const alerts = alertsData?.data

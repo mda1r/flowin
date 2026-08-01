@@ -144,7 +144,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </svg>
               <span
                 className="select-none text-xl font-extrabold tracking-tight"
-                style={{ color: 'var(--color-text)' }}
+                style={{ color: '#ffffff' }}
               >
                 flow<span style={{ color: '#62E6C7' }}>I</span>n
               </span>
