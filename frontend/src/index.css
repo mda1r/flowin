@@ -478,6 +478,115 @@
   }
 }
 
+/* ═══ login cinema — aurora backdrop, constellation, unlock moment ═══ */
+
+/* living aurora — the whole conic veil slowly revolves */
+@keyframes aurora-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* constellation lines breathe between bright and faint */
+@keyframes net-glow {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
+/* inner halo ring breathes on its own, slower tempo than the logo */
+@keyframes halo-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.09);
+    opacity: 1;
+  }
+}
+
+/* focus ring blooms outward once when a field takes focus */
+@keyframes field-aura-pop {
+  0% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 18px transparent;
+  }
+}
+
+/* unlock flash — white radial pulse expanding from the panel center */
+@keyframes unlock-pulse {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+/* logo does a single victory turn with an elastic settle */
+@keyframes logo-spin-lock {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  55% {
+    transform: rotate(360deg) scale(1.18);
+  }
+  74% {
+    transform: rotate(360deg) scale(0.93);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+/* success particles shoot outward radially, shrink, and die */
+@keyframes login-particle-burst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--burst-angle, 0deg)) translateX(0) scale(1);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--burst-angle, 0deg))
+      translateX(var(--burst-dist, 90px)) scale(0.2);
+  }
+}
+
+/* whole page collapses gently toward center as we enter the workspace */
+@keyframes login-exit-wipe {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.93);
+    filter: blur(10px);
+  }
+}
+
 /* registered custom property so the conic border angle can animate */
 @property --glow-angle {
   syntax: '<angle>';
@@ -1407,6 +1516,227 @@
   .row-enter {
     animation: entrance-slide 0.45s cubic-bezier(0.22, 1.2, 0.36, 1) both;
   }
+
+  /* ═══ login cinema — aurora, constellation, and the unlock moment ═══ */
+
+  /* living aurora veil — huge masked conic that slowly revolves.
+     Centered 120vmax square + radial mask so rotation never exposes
+     an edge; only transform animates → composited, cheap. */
+  .aurora-bg {
+    position: absolute;
+    top: 50%;
+    inset-inline-start: 50%;
+    width: 120vmax;
+    height: 120vmax;
+    margin: -60vmax;
+    background: conic-gradient(
+      from 20deg,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 24%,
+      color-mix(in srgb, #62E6C7 15%, transparent) 39%,
+      transparent 56%,
+      color-mix(in srgb, var(--accent) 14%, transparent) 70%,
+      transparent 85%,
+      color-mix(in srgb, var(--accent) 22%, transparent)
+    );
+    -webkit-mask-image: radial-gradient(circle closest-side, #000 24%, transparent 72%);
+    mask-image: radial-gradient(circle closest-side, #000 24%, transparent 72%);
+    filter: blur(52px);
+    opacity: 0.55;
+    animation: aurora-spin 52s linear infinite;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  /* second veil drifts the other way — the two interfere like real aurora */
+  .aurora-bg-reverse {
+    animation-direction: reverse;
+    animation-duration: 76s;
+    animation-delay: -32s;
+    opacity: 0.35;
+  }
+
+  /* constellation network — faint lines linking the floating shapes.
+     Coordinates are authored LTR; mirror the whole SVG in RTL so the
+     lines keep hugging the logically-positioned shapes. */
+  .net-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 0 5px var(--glow));
+    pointer-events: none;
+  }
+
+  [dir='rtl'] .net-svg {
+    transform: scaleX(-1);
+  }
+
+  .net-line {
+    fill: none;
+    stroke: color-mix(in srgb, var(--accent) 42%, transparent);
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    opacity: 0.75;
+    animation:
+      dash-draw 2.6s cubic-bezier(0.3, 0.6, 0.35, 1) 0.9s both,
+      net-glow 7.5s ease-in-out 3.6s infinite;
+    will-change: stroke-dashoffset, opacity;
+  }
+
+  .net-line-2 {
+    animation-delay: 1.25s, 4.4s;
+  }
+
+  .net-line-3 {
+    stroke: color-mix(in srgb, var(--accent) 26%, transparent);
+    animation-delay: 1.6s, 5.2s;
+  }
+
+  /* inner glow ring hugging the logo box, breathing independently */
+  .logo-halo {
+    position: absolute;
+    inset: -6px;
+    border-radius: 1.45rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+    box-shadow:
+      0 0 16px var(--glow),
+      inset 0 0 10px var(--glow);
+    animation: halo-breathe 5.4s ease-in-out infinite;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  /* second orbiter — mint brand dot, wider radius, counter-rotation */
+  .orbit-dot-2 {
+    width: 5px;
+    height: 5px;
+    background: #62E6C7;
+    box-shadow:
+      0 0 8px rgba(98, 230, 199, 0.85),
+      0 0 20px rgba(98, 230, 199, 0.45);
+    animation-direction: reverse;
+  }
+
+  /* ---------- field focus aura ---------- */
+
+  .field-aura {
+    position: relative;
+  }
+
+  /* steady soft glow that swells outward while the field holds focus */
+  .field-aura::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 0.85rem;
+    opacity: 0;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    transition:
+      opacity 0.45s ease,
+      box-shadow 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+    pointer-events: none;
+  }
+
+  .field-aura:focus-within::before {
+    opacity: 1;
+    box-shadow:
+      0 0 22px -2px var(--glow),
+      0 0 52px -6px color-mix(in srgb, var(--glow) 65%, transparent);
+  }
+
+  /* one-shot ring that blooms outward the instant focus lands */
+  .field-aura::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .field-aura:focus-within::after {
+    animation: field-aura-pop 0.55s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+
+  /* ---------- loading shimmer (traveling sheen while submitting) ---------- */
+
+  .btn-shimmer-loading::after {
+    animation: sheen-sweep 1.15s cubic-bezier(0.3, 0.6, 0.35, 1) 0.1s infinite;
+  }
+
+  [dir='rtl'] .btn-shimmer-loading::after {
+    animation: sheen-sweep-rtl 1.15s cubic-bezier(0.3, 0.6, 0.35, 1) 0.1s infinite;
+  }
+
+  /* ---------- the unlock moment ---------- */
+
+  /* white radial flash expanding from the glass panel center */
+  .unlock-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 30;
+  }
+
+  .unlock-overlay::before {
+    content: '';
+    position: absolute;
+    inset: -35%;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.95) 0%,
+      color-mix(in srgb, white 55%, var(--glow)) 38%,
+      transparent 72%
+    );
+    transform: scale(0);
+    animation: unlock-pulse 0.9s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+    will-change: transform, opacity;
+  }
+
+  /* logo victory spin (swapped in for .logo-breathe on success) */
+  .lock-spin {
+    animation: logo-spin-lock 0.9s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+    filter: drop-shadow(0 0 18px var(--glow));
+    will-change: transform;
+  }
+
+  /* burst origin — fixed 0×0 anchor at the logo's viewport position */
+  .login-burst {
+    position: fixed;
+    z-index: 80;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* single radial success particle (angle/distance/color via CSS vars) */
+  .login-particle {
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    border-radius: 9999px;
+    background: var(--burst-color, var(--accent));
+    box-shadow:
+      0 0 10px var(--burst-color, var(--accent)),
+      0 0 22px var(--glow);
+    animation: login-particle-burst var(--burst-dur, 0.8s) cubic-bezier(0.15, 0.55, 0.3, 1) both;
+    will-change: transform, opacity;
+  }
+
+  /* page wipe — scene collapses toward center right before navigate() */
+  .login-exit {
+    animation: login-exit-wipe 0.6s cubic-bezier(0.55, 0.06, 0.35, 1) both;
+    pointer-events: none;
+  }
 }
 
 /* ---------- accessibility: honor reduced motion ---------- */
@@ -1472,5 +1802,28 @@
   .ripple-ink,
   .row-enter {
     animation: none !important;
+  }
+
+  /* login cinema: no aurora spin, no draws, no burst — content just appears */
+  .aurora-bg,
+  .net-line,
+  .logo-halo,
+  .lock-spin,
+  .unlock-overlay::before,
+  .field-aura:focus-within::after,
+  .btn-shimmer-loading::after,
+  [dir='rtl'] .btn-shimmer-loading::after,
+  .login-exit {
+    animation: none !important;
+  }
+
+  .net-line {
+    stroke-dashoffset: 0;
+    opacity: 0.55;
+  }
+
+  .login-burst,
+  .login-particle {
+    display: none !important;
   }
 }

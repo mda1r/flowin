@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -91,11 +92,49 @@ function slotPosition(slot: FloatSlot): React.CSSProperties {
   }
 }
 
+/* ────────────────────────────────────────────────────────────────
+   Constellation network — faint lines linking the float-slot anchor
+   coordinates on either flank (viewBox 0-100, drawn via dash-draw).
+   Authored in LTR coordinates; [dir='rtl'] .net-svg mirrors the SVG
+   so the lines keep hugging the logically-positioned shapes.
+   ──────────────────────────────────────────────────────────────── */
+
+const NET_PATHS = [
+  '6,8 22,16 4,34 5,68 18,84',
+  '92,10 80,24 95,42 94,72 78,86',
+  '22,16 50,5 80,24',
+] as const
+
+/* ────────────────────────────────────────────────────────────────
+   Success burst — 16 radial particles fired from the logo center.
+   Deterministic pseudo-variety (no Math.random → stable renders).
+   ──────────────────────────────────────────────────────────────── */
+
+const BURST_PARTICLES = Array.from({ length: 16 }, (_, i) => ({
+  angle: i * 22.5,
+  dist: 74 + (i % 4) * 20 + ((i * 7) % 13),
+  size: 5 + ((i * 5) % 3) * 2,
+  dur: 0.66 + ((i * 3) % 5) * 0.07,
+}))
+
+const BURST_COLORS = ['var(--accent)', 'color-mix(in srgb, var(--accent) 30%, white)', '#62E6C7']
+
+/* login success sequence:
+   t=0      flash + logo spin-lock + particle burst
+   t=600ms  scene wipe begins (.login-exit)
+   t=1200ms navigate() — wipe just finished */
+type LoginPhase = 'idle' | 'success' | 'exit'
+
+const EXIT_AT_MS = 600
+const NAVIGATE_AT_MS = 1200
+
 export function LoginPage() {
   const navigate = useNavigate()
   const { setTokens, setUser } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [phase, setPhase] = useState<LoginPhase>('idle')
+  const [burst, setBurst] = useState<{ x: number; y: number } | null>(null)
 
   /* theme resolved once from the URL (?type=restaurant|cafe|…) */
   const theme = useMemo<LoginTheme | null>(() => {
@@ -105,7 +144,9 @@ export function LoginPage() {
 
   /* mouse-driven parallax: writes CSS vars on the scene, layers consume them */
   const sceneRef = useRef<HTMLDivElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef(0)
+  const timersRef = useRef<number[]>([])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = sceneRef.current
@@ -119,7 +160,13 @@ export function LoginPage() {
     })
   }, [])
 
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(rafRef.current)
+      timersRef.current.forEach((t) => window.clearTimeout(t))
+    },
+    [],
+  )
 
   const {
     register,
@@ -128,17 +175,27 @@ export function LoginPage() {
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const onSubmit = async (data: FormData) => {
+    if (loading || phase !== 'idle') return
     setLoading(true)
     try {
       const { data: tokens } = await authApi.login(data.email, data.password)
       setTokens(tokens.accessToken, tokens.refreshToken)
       const { data: user } = await authApi.me()
       setUser(user)
-      if (user.role === 'SuperAdmin') {
-        navigate({ to: '/admin' })
-      } else {
-        navigate({ to: '/' })
+      const to = user.role === 'SuperAdmin' ? '/admin' : '/'
+
+      /* reduced motion: skip the ceremony, enter directly */
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        navigate({ to })
+        return
       }
+
+      /* ── the unlock moment: flash → spin → burst → wipe → enter ── */
+      const rect = logoRef.current?.getBoundingClientRect()
+      if (rect) setBurst({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+      setPhase('success')
+      timersRef.current.push(window.setTimeout(() => setPhase('exit'), EXIT_AT_MS))
+      timersRef.current.push(window.setTimeout(() => navigate({ to }), NAVIGATE_AT_MS))
     } catch {
       toast.error('فشل تسجيل الدخول', 'البريد الإلكتروني أو كلمة المرور غير صحيحة')
     } finally {
@@ -156,10 +213,18 @@ export function LoginPage() {
       dir="rtl"
       onMouseMove={handleMouseMove}
       style={themeVars}
-      className="scene-3d relative flex min-h-screen items-center justify-center overflow-hidden p-4"
+      className={`scene-3d relative flex min-h-screen items-center justify-center overflow-hidden p-4${
+        phase === 'exit' ? ' login-exit' : ''
+      }`}
     >
       {/* ───── cinematic floating backdrop (parallax depth layers) ───── */}
       <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+        {/* living aurora — two counter-rotating conic veils, deepest layer */}
+        <div className="parallax-layer" style={{ '--par-depth': '4px' } as React.CSSProperties}>
+          <div className="aurora-bg" />
+          <div className="aurora-bg aurora-bg-reverse" />
+        </div>
+
         {/* deep ambient morphing blobs */}
         <div className="parallax-layer" style={{ '--par-depth': '6px' } as React.CSSProperties}>
           <div
@@ -170,6 +235,21 @@ export function LoginPage() {
             className="morph-blob"
             style={{ width: 400, height: 400, bottom: '-12%', insetInlineEnd: '-6%', opacity: 0.42, animationDelay: '-9s', '--morph-dur': '27s' } as React.CSSProperties}
           />
+        </div>
+
+        {/* constellation — subtle lines drawn between the flank shapes */}
+        <div className="parallax-layer" style={{ '--par-depth': '15px' } as React.CSSProperties}>
+          <svg className="net-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {NET_PATHS.map((points, i) => (
+              <polyline
+                key={i}
+                className={`net-line net-line-${i + 1}`}
+                points={points}
+                pathLength={1}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
         </div>
 
         {/* floating particles: themed emoji, or abstract geometry by default */}
@@ -226,10 +306,18 @@ export function LoginPage() {
               style={{ top: '50%', insetInlineStart: '50%', margin: -3.5, '--orbit-radius': '41px', '--orbit-dur': '9s' } as React.CSSProperties}
             />
             <div
-              className="logo-breathe flex h-14 w-14 items-center justify-center rounded-2xl"
+              className="orbit-dot orbit-dot-2"
+              style={{ top: '50%', insetInlineStart: '50%', margin: -2.5, '--orbit-radius': '55px', '--orbit-dur': '13s' } as React.CSSProperties}
+            />
+            <div className="logo-halo" />
+            <div
+              ref={logoRef}
+              className={`${phase === 'idle' ? 'logo-breathe' : 'lock-spin'} flex h-14 w-14 items-center justify-center rounded-2xl`}
               style={{
-                background: 'linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 55%, black))',
-                boxShadow: '0 5px 0 rgba(0,0,0,0.3), 0 14px 34px var(--glow), inset 0 1px 0 rgba(255,255,255,0.25)',
+                background:
+                  'linear-gradient(140deg, color-mix(in srgb, var(--accent) 58%, white) 0%, var(--accent) 32%, color-mix(in srgb, var(--accent) 60%, black) 74%, color-mix(in srgb, var(--accent) 34%, black) 100%)',
+                boxShadow:
+                  '0 5px 0 rgba(0,0,0,0.3), 0 14px 34px var(--glow), 0 0 44px var(--glow), inset 0 1px 0 rgba(255,255,255,0.3)',
               }}
             >
               {theme ? (
@@ -257,9 +345,12 @@ export function LoginPage() {
         </div>
 
         {/* ───── glass panel ───── */}
-        <div className="glass-panel entrance-3 p-8">
+        <div className="glass-panel entrance-3 relative p-8">
+          {/* unlock flash — mounts on success, radiates from panel center */}
+          {phase !== 'idle' && <div className="unlock-overlay" aria-hidden="true" />}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="entrance-4">
+            <div className="entrance-4 field-aura">
               <Input
                 label="البريد الإلكتروني"
                 type="email"
@@ -271,7 +362,7 @@ export function LoginPage() {
               />
             </div>
 
-            <div className="entrance-4 relative">
+            <div className="entrance-4 field-aura relative">
               <Input
                 label="كلمة المرور"
                 type={showPassword ? 'text' : 'password'}
@@ -281,17 +372,23 @@ export function LoginPage() {
                 floating
                 {...register('password')}
               />
+              {/* eye ↔ eye-off: smooth opacity + scale + tilt crossfade */}
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute end-3 top-4 text-gray-400 transition-colors hover:text-gray-600"
+                className="absolute end-3 top-4 h-4 w-4 text-gray-400 transition-colors hover:text-gray-600"
                 aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                <Eye
+                  className={`absolute inset-0 h-4 w-4 transition-all duration-300 ease-out ${
+                    showPassword ? 'rotate-45 scale-50 opacity-0' : 'rotate-0 scale-100 opacity-100'
+                  }`}
+                />
+                <EyeOff
+                  className={`absolute inset-0 h-4 w-4 transition-all duration-300 ease-out ${
+                    showPassword ? 'rotate-0 scale-100 opacity-100' : '-rotate-45 scale-50 opacity-0'
+                  }`}
+                />
               </button>
             </div>
 
@@ -300,9 +397,12 @@ export function LoginPage() {
                 type="submit"
                 variant="primary"
                 loading={loading}
-                className="btn-3d btn-shimmer mt-3 w-full !bg-[color:var(--accent)] py-2.5 text-base hover:!bg-[color:var(--accent)]"
+                disabled={phase !== 'idle'}
+                className={`btn-3d btn-shimmer mt-3 w-full !bg-[color:var(--accent)] py-2.5 text-base hover:!bg-[color:var(--accent)]${
+                  loading ? ' btn-shimmer-loading' : ''
+                }`}
               >
-                تسجيل الدخول
+                {phase === 'idle' ? 'تسجيل الدخول' : 'أهلاً بك ✓'}
               </Button>
             </div>
           </form>
@@ -312,6 +412,36 @@ export function LoginPage() {
           © 2026 flowin · الإصدار المؤسسي
         </p>
       </div>
+
+      {/* ───── success particle burst (portal → body, above everything) ───── */}
+      {burst &&
+        createPortal(
+          <div
+            className="login-burst"
+            aria-hidden="true"
+            /* measured viewport coords are physical, so left/top is correct
+               in RTL too; themeVars re-applied since body is outside the scene */
+            style={{ left: burst.x, top: burst.y, ...themeVars }}
+          >
+            {BURST_PARTICLES.map((p, i) => (
+              <span
+                key={i}
+                className="login-particle"
+                style={
+                  {
+                    width: p.size,
+                    height: p.size,
+                    '--burst-angle': `${p.angle}deg`,
+                    '--burst-dist': `${p.dist}px`,
+                    '--burst-dur': `${p.dur}s`,
+                    '--burst-color': BURST_COLORS[i % BURST_COLORS.length],
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
