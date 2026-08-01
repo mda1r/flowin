@@ -36,7 +36,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 export function StockCountPage() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, tenantId } = useAuthStore()
   const branchId = user?.branchId ?? ''
   const queryClient = useQueryClient()
 
@@ -62,8 +62,8 @@ export function StockCountPage() {
 
   const { data: products } = useQuery({
     queryKey: ['products-all'],
-    queryFn: () => catalogApi.listProducts({ pageSize: 500 }).then(r => r.data),
-    enabled: showCreate,
+    queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 500 }).then(r => r.data),
+    enabled: showCreate && !!tenantId,
   })
 
   const createMutation = useMutation({

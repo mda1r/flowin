@@ -623,7 +623,7 @@ export function DashboardPage() {
 
   const { data: productsData } = useQuery({
     queryKey: ['products-map', tenantId],
-    queryFn: () => catalogApi.listProducts({ pageSize: 500 }),
+    queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 500 }),
     enabled: !!tenantId,
     staleTime: 10 * 60_000,
   })

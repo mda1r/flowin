@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Activity, Trash2, Download, Filter, AlertTriangle } from 'lucide-react'
 import { readLogs, clearLogs, resolveDisplayName } from '@/lib/activityLog'
 import type { LogCategory, ActivityLogEntry } from '@/lib/activityLog'
+import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 
 const CATEGORY_LABELS: Record<LogCategory, string> = {
@@ -48,6 +49,7 @@ function exportCsv(logs: ActivityLogEntry[]) {
 }
 
 export function ActivityLogsPage() {
+  const { tenantId } = useAuthStore()
   const [filterCategory, setFilterCategory] = useState<LogCategory | 'all'>('all')
   const [filterUser, setFilterUser] = useState('')
   const [filterFrom, setFilterFrom] = useState('')
@@ -55,9 +57,9 @@ export function ActivityLogsPage() {
   const [tick, setTick] = useState(0)
 
   const allLogs = useMemo(
-    () => readLogs(),
+    () => readLogs(tenantId ?? ''),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tick],
+    [tick, tenantId],
   )
 
   const logs = useMemo(() => {
@@ -72,7 +74,7 @@ export function ActivityLogsPage() {
 
   const handleClear = () => {
     if (!window.confirm('هل تريد حذف جميع السجلات؟')) return
-    clearLogs()
+    clearLogs(tenantId ?? '')
     setTick((t) => t + 1)
     toast.success('تم حذف السجلات')
   }

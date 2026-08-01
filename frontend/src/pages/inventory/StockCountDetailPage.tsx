@@ -32,7 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function StockCountDetailPage() {
   const { sessionId } = useParams({ strict: false }) as { sessionId: string }
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, tenantId } = useAuthStore()
   const branchId = user?.branchId ?? ''
   const queryClient = useQueryClient()
 
@@ -48,7 +48,8 @@ export function StockCountDetailPage() {
 
   const { data: products = [] } = useQuery({
     queryKey: ['products-all'],
-    queryFn: () => catalogApi.listProducts({ pageSize: 500 }).then(r => r.data),
+    queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 500 }).then(r => r.data),
+    enabled: !!tenantId,
   })
 
   // Build variant lookup map: variantId → { productName, variantName, sku }
@@ -95,7 +96,7 @@ export function StockCountDetailPage() {
   const completeMutation = useMutation({
     mutationFn: () => stockCountApi.completeSession(branchId, sessionId, autoAdjust),
     onSuccess: res => {
-      logActivity({
+      logActivity(tenantId ?? '', {
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
         userEmail: user?.email,

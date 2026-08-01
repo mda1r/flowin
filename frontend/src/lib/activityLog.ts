@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'nexus_activity_logs'
+const storageKey = (tenantId: string) => `nexus_activity_logs_${tenantId}`
 const MAX_ENTRIES = 1000
 
 export type LogCategory = 'shift' | 'inventory' | 'stock-count' | 'order' | 'user' | 'other'
@@ -22,16 +22,17 @@ export function resolveDisplayName(entry: Pick<ActivityLogEntry, 'userName' | 'u
   return entry.userId.slice(0, 8)
 }
 
-export function logActivity(entry: Omit<ActivityLogEntry, 'id' | 'timestamp'>): void {
-  const logs = readLogs()
+export function logActivity(tenantId: string, entry: Omit<ActivityLogEntry, 'id' | 'timestamp'>): void {
+  const key = storageKey(tenantId)
+  const logs = readLogs(tenantId)
   logs.unshift({ ...entry, id: Math.random().toString(36).slice(2), timestamp: new Date().toISOString() })
   if (logs.length > MAX_ENTRIES) logs.splice(MAX_ENTRIES)
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(logs)) } catch { /* storage full */ }
+  try { localStorage.setItem(key, JSON.stringify(logs)) } catch { /* storage full */ }
 }
 
-export function readLogs(filter?: { category?: LogCategory; from?: string; to?: string }): ActivityLogEntry[] {
+export function readLogs(tenantId: string, filter?: { category?: LogCategory; from?: string; to?: string }): ActivityLogEntry[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey(tenantId))
     if (!raw) return []
     let logs: ActivityLogEntry[] = JSON.parse(raw)
     if (filter?.category) logs = logs.filter((l) => l.category === filter.category)
@@ -43,6 +44,6 @@ export function readLogs(filter?: { category?: LogCategory; from?: string; to?: 
   }
 }
 
-export function clearLogs(): void {
-  localStorage.removeItem(STORAGE_KEY)
+export function clearLogs(tenantId: string): void {
+  localStorage.removeItem(storageKey(tenantId))
 }

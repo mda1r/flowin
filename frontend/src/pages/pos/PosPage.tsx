@@ -62,7 +62,7 @@ function RetailPosPage() {
   const handleBarcodeScan = useCallback(async (barcode: string) => {
     setLastScanned(barcode)
     try {
-      const { data: results } = await catalogApi.listProducts({ search: barcode })
+      const { data: results } = await catalogApi.listProducts(tenantId!, { search: barcode })
       const matched = results.flatMap(p =>
         p.variants
           .filter(v => v.isActive && (v.barcode === barcode || v.sku === barcode))
@@ -92,8 +92,9 @@ function RetailPosPage() {
   useBarcodeScanner({ onScan: handleBarcodeScan, active: !showPayment })
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', search],
-    queryFn: () => catalogApi.listProducts({ search: search || undefined }),
+    queryKey: ['products', tenantId, search],
+    queryFn: () => catalogApi.listProducts(tenantId!, { search: search || undefined }),
+    enabled: !!tenantId,
   })
 
   const splitCashAmt = parseFloat(splitCash) || 0

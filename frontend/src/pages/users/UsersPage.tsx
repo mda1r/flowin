@@ -76,7 +76,8 @@ function RoleBadge({ roles }: { roles: string[] }) {
 // ── Permission Chip ────────────────────────────────────────────────────────────
 
 function PermissionChip({ user: u, onClick }: { user: UserSummaryResponse; onClick: () => void }) {
-  const perms = getUserPermissions(u.id)
+  const { tenantId } = useAuthStore()
+  const perms = getUserPermissions(tenantId ?? '', u.id)
   const hasCustom = perms !== null
   return (
     <button
@@ -99,7 +100,7 @@ function PagePermModal({
   target: UserSummaryResponse
   onClose: () => void
 }) {
-  const { user: currentUser } = useAuthStore()
+  const { user: currentUser, tenantId } = useAuthStore()
 
   // Filter available pages to only those relevant to this business type
   const allowedRoutes = currentUser?.businessType
@@ -107,7 +108,7 @@ function PagePermModal({
     : new Set(ALL_PAGES.map((p) => p.route))
   const availablePages = ALL_PAGES.filter((p) => allowedRoutes.has(p.route))
 
-  const existing = getUserPermissions(target.id)
+  const existing = getUserPermissions(tenantId ?? '', target.id)
   const defaultSelected = existing
     ? existing.filter((r) => allowedRoutes.has(r))
     : availablePages.map((p) => p.route)
@@ -127,8 +128,8 @@ function PagePermModal({
 
   const handleSave = () => {
     const routes = Array.from(selected)
-    saveUserPermissions(target.id, routes)
-    logActivity({
+    saveUserPermissions(tenantId ?? '', target.id, routes)
+    logActivity(tenantId ?? '', {
       userId: currentUser?.id ?? '',
       userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
       userEmail: currentUser?.email,
@@ -183,7 +184,7 @@ function PagePermModal({
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export function UsersPage() {
-  const { user: currentUser } = useAuthStore()
+  const { user: currentUser, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<UserSummaryResponse | null>(null)
@@ -207,10 +208,10 @@ export function UsersPage() {
     mutationFn: (data: CreateForm) => usersApi.create(data),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      logActivity({
+      logActivity(tenantId ?? '', {
         userId: currentUser?.id ?? '',
         userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
-      userEmail: currentUser?.email,
+        userEmail: currentUser?.email,
         category: 'user',
         action: 'إضافة مستخدم',
         details: `${res.data.fullName} — ${ROLE_LABELS[res.data.roles[0]] ?? res.data.roles[0]}`,
@@ -229,10 +230,10 @@ export function UsersPage() {
     mutationFn: (u: UserSummaryResponse) => usersApi.delete(u.id),
     onSuccess: (_res, deleted) => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      logActivity({
+      logActivity(tenantId ?? '', {
         userId: currentUser?.id ?? '',
         userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
-      userEmail: currentUser?.email,
+        userEmail: currentUser?.email,
         category: 'user',
         action: 'حذف مستخدم',
         details: `${deleted.fullName} — ${deleted.email}`,

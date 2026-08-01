@@ -1,18 +1,18 @@
-const STORAGE_KEY = 'nexus_user_permissions'
+const storageKey = (tenantId: string) => `nexus_user_permissions_${tenantId}`
 
-export function saveUserPermissions(userId: string, routes: string[]): void {
-  const all = readAllPermissions()
+export function saveUserPermissions(tenantId: string, userId: string, routes: string[]): void {
+  const all = readAllPermissions(tenantId)
   all[userId] = routes
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)) } catch { /* storage full */ }
+  try { localStorage.setItem(storageKey(tenantId), JSON.stringify(all)) } catch { /* storage full */ }
 }
 
-export function getUserPermissions(userId: string): string[] | null {
-  return readAllPermissions()[userId] ?? null
+export function getUserPermissions(tenantId: string, userId: string): string[] | null {
+  return readAllPermissions(tenantId)[userId] ?? null
 }
 
-function readAllPermissions(): Record<string, string[]> {
+function readAllPermissions(tenantId: string): Record<string, string[]> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey(tenantId))
     return raw ? JSON.parse(raw) : {}
   } catch {
     return {}

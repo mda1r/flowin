@@ -3,29 +3,29 @@ import type { CategoryResponse, ProductResponse } from '@/types/api'
 
 export const catalogApi = {
   // Categories
-  listCategories: (params?: { page?: number; pageSize?: number }) =>
-    apiClient.get<CategoryResponse[]>('/api/v1/categories', {
+  listCategories: (tenantId: string, params?: { page?: number; pageSize?: number }) =>
+    apiClient.get<CategoryResponse[]>(`/api/v1/tenants/${tenantId}/categories`, {
       params: { page: 1, pageSize: 50, ...params },
     }),
 
-  createCategory: (data: { name: string; description?: string }) =>
-    apiClient.post<CategoryResponse>('/api/v1/categories', data),
+  createCategory: (tenantId: string, data: { name: string; description?: string }) =>
+    apiClient.post<CategoryResponse>(`/api/v1/tenants/${tenantId}/categories`, data),
 
   // Products
-  listProducts: (params?: {
+  listProducts: (tenantId: string, params?: {
     categoryId?: string
     search?: string
     page?: number
     pageSize?: number
   }) =>
-    apiClient.get<ProductResponse[]>('/api/v1/products', {
+    apiClient.get<ProductResponse[]>(`/api/v1/tenants/${tenantId}/products`, {
       params: { pageSize: 100, ...params },
     }),
 
-  getProduct: (productId: string) =>
-    apiClient.get<ProductResponse>(`/api/v1/products/${productId}`),
+  getProduct: (tenantId: string, productId: string) =>
+    apiClient.get<ProductResponse>(`/api/v1/tenants/${tenantId}/products/${productId}`),
 
-  createProduct: (data: {
+  createProduct: (tenantId: string, data: {
     name: string
     description?: string
     categoryId?: string
@@ -38,26 +38,26 @@ export const catalogApi = {
     salePrice: number
     currency: string
     barcode?: string
-  }) => apiClient.post<ProductResponse>('/api/v1/products', data),
+  }) => apiClient.post<ProductResponse>(`/api/v1/tenants/${tenantId}/products`, data),
 
-  updateProduct: (productId: string, data: {
+  updateProduct: (tenantId: string, productId: string, data: {
     name: string
     description?: string
     categoryId?: string
     taxClass?: string
     trackInventory?: boolean
     imageUrl?: string
-  }) => apiClient.put<ProductResponse>(`/api/v1/products/${productId}`, data),
+  }) => apiClient.put<ProductResponse>(`/api/v1/tenants/${tenantId}/products/${productId}`, data),
 
-  updateVariant: (productId: string, variantId: string, data: {
+  updateVariant: (tenantId: string, productId: string, variantId: string, data: {
     name: string
     costPrice: number
     salePrice: number
     currency: string
     barcode?: string
   }) =>
-    apiClient.patch(`/api/v1/products/${productId}/variants/${variantId}`, data),
+    apiClient.patch(`/api/v1/tenants/${tenantId}/products/${productId}/variants/${variantId}`, data),
 
-  deactivateProduct: (productId: string) =>
-    apiClient.delete(`/api/v1/products/${productId}`),
+  deactivateProduct: (tenantId: string, productId: string) =>
+    apiClient.delete(`/api/v1/tenants/${tenantId}/products/${productId}`),
 }

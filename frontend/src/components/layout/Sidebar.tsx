@@ -84,6 +84,7 @@ function getNavItems(
   businessType: BusinessType | undefined,
   role: string | undefined,
   userId: string | undefined,
+  tenantId: string | undefined,
 ): NavItem[] {
   const baseItems = businessType
     ? (() => {
@@ -95,8 +96,8 @@ function getNavItems(
   const roleFiltered = baseItems.filter((item) => !item.roles || (role && item.roles.includes(role)))
 
   // Apply per-user page permissions (Owner/Manager always get everything)
-  if (userId && role !== 'Owner' && role !== 'Manager') {
-    const perms = getUserPermissions(userId)
+  if (userId && tenantId && role !== 'Owner' && role !== 'Manager') {
+    const perms = getUserPermissions(tenantId, userId)
     if (perms) {
       const allowed = new Set(perms)
       return roleFiltered.filter((item) => allowed.has(item.to))
@@ -113,7 +114,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { pathname } = useRouterState({ select: (s) => s.location })
-  const { user, logout } = useAuthStore()
+  const { user, logout, tenantId } = useAuthStore()
   const { t, lang, setLang } = useI18n()
 
   // inject the business-type accent identity globally
@@ -123,7 +124,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     document.documentElement.style.setProperty('--glow', identity.glow)
   }, [user?.businessType])
 
-  const navItems = getNavItems(user?.businessType, user?.role, user?.id)
+  const navItems = getNavItems(user?.businessType, user?.role, user?.id, tenantId ?? undefined)
 
   const initials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim() || '؟'

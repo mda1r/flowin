@@ -62,17 +62,19 @@ export function ProductsPage() {
   const [deactivatingProductId, setDeactivatingProductId] = useState<string | null>(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
-  const { branchId } = useAuthStore()
+  const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', search],
-    queryFn: () => catalogApi.listProducts({ search: search || undefined }),
+    queryKey: ['products', tenantId, search],
+    queryFn: () => catalogApi.listProducts(tenantId!, { search: search || undefined }),
+    enabled: !!tenantId,
   })
 
   const { data: categories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => catalogApi.listCategories(),
+    queryKey: ['categories', tenantId],
+    queryFn: () => catalogApi.listCategories(tenantId!),
+    enabled: !!tenantId,
   })
 
   const createForm = useForm<CreateFormData>({
@@ -95,7 +97,7 @@ export function ProductsPage() {
 
   const create = useMutation({
     mutationFn: async (data: CreateFormData) => {
-      const result = await catalogApi.createProduct({
+      const result = await catalogApi.createProduct(tenantId!, {
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
@@ -127,7 +129,7 @@ export function ProductsPage() {
 
   const updateProduct = useMutation({
     mutationFn: (data: EditProductFormData) =>
-      catalogApi.updateProduct(editingProduct!.id, {
+      catalogApi.updateProduct(tenantId!, editingProduct!.id, {
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
@@ -144,7 +146,7 @@ export function ProductsPage() {
 
   const updateVariant = useMutation({
     mutationFn: (data: EditVariantFormData) =>
-      catalogApi.updateVariant(editingVariant!.productId, editingVariant!.variant.id, {
+      catalogApi.updateVariant(tenantId!, editingVariant!.productId, editingVariant!.variant.id, {
         name: data.name,
         costPrice: data.costPrice,
         salePrice: data.salePrice,
@@ -159,7 +161,7 @@ export function ProductsPage() {
   })
 
   const createCategory = useMutation({
-    mutationFn: (data: CategoryFormData) => catalogApi.createCategory(data),
+    mutationFn: (data: CategoryFormData) => catalogApi.createCategory(tenantId!, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] })
       setShowCategoryModal(false)
@@ -170,7 +172,7 @@ export function ProductsPage() {
   })
 
   const deactivate = useMutation({
-    mutationFn: (productId: string) => catalogApi.deactivateProduct(productId),
+    mutationFn: (productId: string) => catalogApi.deactivateProduct(tenantId!, productId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
       setDeactivatingProductId(null)

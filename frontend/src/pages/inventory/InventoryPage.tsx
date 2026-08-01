@@ -100,7 +100,7 @@ function AlertCard({
 export function InventoryPage() {
   const [search, setSearch] = useState('')
   const [adjustItem, setAdjustItem] = useState<StockItemResponse | null>(null)
-  const { branchId, user } = useAuthStore()
+  const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
 
   const { data: stockData, isLoading } = useQuery({
@@ -118,7 +118,8 @@ export function InventoryPage() {
 
   const { data: productsData } = useQuery({
     queryKey: ['products'],
-    queryFn: () => catalogApi.listProducts(),
+    queryFn: () => catalogApi.listProducts(tenantId!),
+    enabled: !!tenantId,
   })
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AdjustFormData>({
@@ -136,7 +137,7 @@ export function InventoryPage() {
       }),
     onSuccess: (_res, formData) => {
       const info = variantMap.get(adjustItem?.variantId ?? '')
-      logActivity({
+      logActivity(tenantId ?? '', {
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
         userEmail: user?.email,

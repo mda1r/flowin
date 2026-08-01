@@ -15,7 +15,7 @@ import type { ShiftResponse, OrderResponse } from '@/types/api'
 // ── Open Shift Modal ──────────────────────────────────────────────────────────
 
 export function OpenShiftModal({ onClose }: { onClose: () => void }) {
-  const { branchId, user } = useAuthStore()
+  const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const [openingCash, setOpeningCash] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,7 +26,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
     try {
       await shiftsApi.open(branchId!, amount)
       qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
-      logActivity({
+      logActivity(tenantId ?? '', {
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
         userEmail: user?.email,
@@ -76,7 +76,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
 // ── Close Shift Modal ─────────────────────────────────────────────────────────
 
 export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onClose: () => void }) {
-  const { branchId, user } = useAuthStore()
+  const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const [closingCash, setClosingCash] = useState('')
   const [notes, setNotes] = useState('')
@@ -109,7 +109,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       await shiftsApi.close(branchId!, shift.id, amount, notes || undefined)
       qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
       qc.invalidateQueries({ queryKey: ['shifts', branchId] })
-      logActivity({
+      logActivity(tenantId ?? '', {
         userId: user?.id ?? '',
         userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
         userEmail: user?.email,
@@ -119,7 +119,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         branchId: branchId ?? undefined,
       })
       if (variance < 0) {
-        logActivity({
+        logActivity(tenantId ?? '', {
           userId: user?.id ?? '',
           userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
           userEmail: user?.email,
