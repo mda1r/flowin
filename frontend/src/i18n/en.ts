@@ -18,6 +18,7 @@ export const en = {
     branches: 'Branches',
     zatca: 'ZATCA',
     reports: 'Reports',
+    activityLogs: 'Activity Logs',
     settings: 'Settings',
     logout: 'Logout',
   },

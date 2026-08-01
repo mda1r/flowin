@@ -15,6 +15,7 @@ import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
+import { logActivity } from '@/lib/activityLog'
 import type { StockAlertItemResponse, StockItemResponse } from '@/types/api'
 
 const adjustSchema = z.object({
@@ -99,7 +100,7 @@ function AlertCard({
 export function InventoryPage() {
   const [search, setSearch] = useState('')
   const [adjustItem, setAdjustItem] = useState<StockItemResponse | null>(null)
-  const { branchId } = useAuthStore()
+  const { branchId, user } = useAuthStore()
   const qc = useQueryClient()
 
   const { data: stockData, isLoading } = useQuery({
@@ -133,7 +134,16 @@ export function InventoryPage() {
         reference: formData.reference,
         notes: formData.notes,
       }),
-    onSuccess: () => {
+    onSuccess: (_res, formData) => {
+      const info = variantMap.get(adjustItem?.variantId ?? '')
+      logActivity({
+        userId: user?.id ?? '',
+        userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        category: 'inventory',
+        action: 'تعديل المخزون',
+        details: `${info?.productName ?? adjustItem?.variantId ?? ''} → كمية جديدة: ${formData.newQuantity}`,
+        branchId: branchId ?? undefined,
+      })
       qc.invalidateQueries({ queryKey: ['stock', branchId] })
       qc.invalidateQueries({ queryKey: ['inventory-alerts', branchId] })
       setAdjustItem(null)

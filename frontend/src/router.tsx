@@ -27,6 +27,7 @@ import { StockCountPage } from '@/pages/inventory/StockCountPage'
 import { StockCountDetailPage } from '@/pages/inventory/StockCountDetailPage'
 import { ZatcaSettingsPage } from '@/pages/settings/ZatcaSettingsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
+import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
 
 const rootRoute = createRootRoute()
 
@@ -161,6 +162,12 @@ const reportsRoute = createRoute({
   component: ReportsPage,
 })
 
+const activityLogsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/activity-logs',
+  component: ActivityLogsPage,
+})
+
 // ── Admin routes ──────────────────────────────────────────────────────────────
 
 const adminRoute = createRoute({
@@ -243,6 +250,7 @@ const routeTree = rootRoute.addChildren([
     stockCountDetailRoute,
     zatcaSettingsRoute,
     reportsRoute,
+    activityLogsRoute,
   ]),
   adminRoute.addChildren([
     adminDashboardRoute,

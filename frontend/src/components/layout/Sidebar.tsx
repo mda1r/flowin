@@ -22,10 +22,12 @@ import {
   ClipboardList,
   Shield,
   BarChart2,
+  Activity,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
+import { getUserPermissions } from '@/lib/userPermissions'
 import type { BusinessType } from '@/types/api'
 
 /* business-type accent identity, injected as CSS variables on :root */
@@ -73,18 +75,23 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'zatca', to: '/settings/zatca', icon: <Shield className="h-5 w-5" /> },
   { labelKey: 'users', to: '/users', icon: <UserCog className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
 ]
 
 const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
-  Hotel:       ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/hotel', '/hotel/contracts', '/settings/zatca', '/users', '/branches'],
-  Gaming:      ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/gaming', '/settings/zatca', '/users', '/branches'],
-  Restaurant:  ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
-  Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
-  Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
-  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
+  Hotel:       ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/hotel', '/hotel/contracts', '/settings/zatca', '/users', '/branches', '/activity-logs'],
+  Gaming:      ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/gaming', '/settings/zatca', '/users', '/branches', '/activity-logs'],
+  Restaurant:  ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches', '/activity-logs'],
+  Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs'],
+  Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs'],
+  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches', '/activity-logs'],
 }
 
-function getNavItems(businessType: BusinessType | undefined, role: string | undefined): NavItem[] {
+function getNavItems(
+  businessType: BusinessType | undefined,
+  role: string | undefined,
+  userId: string | undefined,
+): NavItem[] {
   const baseItems = businessType
     ? (() => {
         const allowed = new Set(BUSINESS_TYPE_ROUTES[businessType] ?? [])
@@ -92,7 +99,18 @@ function getNavItems(businessType: BusinessType | undefined, role: string | unde
       })()
     : ALL_NAV_ITEMS
 
-  return baseItems.filter((item) => !item.roles || (role && item.roles.includes(role)))
+  const roleFiltered = baseItems.filter((item) => !item.roles || (role && item.roles.includes(role)))
+
+  // Apply per-user page permissions (Owner/Manager always get everything)
+  if (userId && role !== 'Owner' && role !== 'Manager') {
+    const perms = getUserPermissions(userId)
+    if (perms) {
+      const allowed = new Set(perms)
+      return roleFiltered.filter((item) => allowed.has(item.to))
+    }
+  }
+
+  return roleFiltered
 }
 
 interface SidebarProps {
@@ -112,7 +130,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     document.documentElement.style.setProperty('--glow', identity.glow)
   }, [user?.businessType])
 
-  const navItems = getNavItems(user?.businessType, user?.role)
+  const navItems = getNavItems(user?.businessType, user?.role, user?.id)
 
   const initials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim() || '؟'

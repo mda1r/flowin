@@ -8,12 +8,13 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
+import { logActivity } from '@/lib/activityLog'
 import type { ShiftResponse } from '@/types/api'
 
 // ── Open Shift Modal ──────────────────────────────────────────────────────────
 
 export function OpenShiftModal({ onClose }: { onClose: () => void }) {
-  const { branchId } = useAuthStore()
+  const { branchId, user } = useAuthStore()
   const qc = useQueryClient()
   const [openingCash, setOpeningCash] = useState('')
   const [loading, setLoading] = useState(false)
@@ -24,6 +25,14 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
     try {
       await shiftsApi.open(branchId!, amount)
       qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
+      logActivity({
+        userId: user?.id ?? '',
+        userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        category: 'shift',
+        action: 'فتح الشفت',
+        details: `رصيد الفتح: ${amount} ر.س`,
+        branchId: branchId ?? undefined,
+      })
       toast.success('تم فتح الشفت')
       onClose()
     } catch {
@@ -65,7 +74,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
 // ── Close Shift Modal ─────────────────────────────────────────────────────────
 
 export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onClose: () => void }) {
-  const { branchId } = useAuthStore()
+  const { branchId, user } = useAuthStore()
   const qc = useQueryClient()
   const [closingCash, setClosingCash] = useState('')
   const [notes, setNotes] = useState('')
@@ -78,6 +87,14 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       await shiftsApi.close(branchId!, shift.id, amount, notes || undefined)
       qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
       qc.invalidateQueries({ queryKey: ['shifts', branchId] })
+      logActivity({
+        userId: user?.id ?? '',
+        userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        category: 'shift',
+        action: 'إغلاق الشفت',
+        details: `المبيعات: ${shift.totalSales} ر.س · الطلبات: ${shift.totalOrders}${notes ? ` · ملاحظة: ${notes}` : ''}`,
+        branchId: branchId ?? undefined,
+      })
       toast.success('تم إغلاق الشفت بنجاح')
       onClose()
     } catch {

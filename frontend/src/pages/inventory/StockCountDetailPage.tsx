@@ -8,6 +8,7 @@ import { stockCountApi } from '@/api/stockCounts'
 import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
+import { logActivity } from '@/lib/activityLog'
 
 const TYPE_LABELS: Record<string, string> = {
   Daily: 'يومي',
@@ -94,6 +95,14 @@ export function StockCountDetailPage() {
   const completeMutation = useMutation({
     mutationFn: () => stockCountApi.completeSession(branchId, sessionId, autoAdjust),
     onSuccess: res => {
+      logActivity({
+        userId: user?.id ?? '',
+        userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        category: 'stock-count',
+        action: 'إتمام الجرد',
+        details: `جلسة ${sessionId.slice(0, 8)} · ${autoAdjust ? 'مع تعديل تلقائي للمخزون' : 'بدون تعديل تلقائي'}`,
+        branchId: branchId ?? undefined,
+      })
       toast.success('تم إتمام الجرد')
       queryClient.setQueryData(['stock-count', branchId, sessionId], res.data)
       queryClient.invalidateQueries({ queryKey: ['stock-counts', branchId] })
