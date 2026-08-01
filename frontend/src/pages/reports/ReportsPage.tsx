@@ -97,7 +97,7 @@ function computeStats(orders: OrderResponse[]) {
     }
   }
   const topProducts = Array.from(productMap.values())
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
     .slice(0, 10)
 
   return { totalRevenue, totalTax, totalSubtotal, totalOrders, avgOrder, byPayment, topProducts }
