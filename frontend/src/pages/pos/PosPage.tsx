@@ -17,14 +17,16 @@ import type { ProductResponse, ProductVariantResponse, PaymentMethod, OrderRespo
 import { RestaurantPosPage } from './RestaurantPosPage'
 import { HotelPosPage } from './HotelPosPage'
 import { GamingPosPage } from './GamingPosPage'
+import { CafePosPage } from './CafePosPage'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 
 export function POSPage() {
   const { user } = useAuthStore()
   switch (user?.businessType) {
     case 'Restaurant':
-    case 'Cafe':
       return <RestaurantPosPage />
+    case 'Cafe':
+      return <CafePosPage />
     case 'Hotel':
       return <HotelPosPage />
     case 'Gaming':

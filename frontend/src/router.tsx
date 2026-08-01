@@ -28,6 +28,7 @@ import { StockCountDetailPage } from '@/pages/inventory/StockCountDetailPage'
 import { ZatcaSettingsPage } from '@/pages/settings/ZatcaSettingsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
+import { CafeKitchenPage } from '@/pages/pos/CafeKitchenPage'
 
 const rootRoute = createRootRoute()
 
@@ -228,6 +229,12 @@ const restaurantKitchenRoute = createRoute({
   component: KitchenPage,
 })
 
+const cafeKitchenRoute = createRoute({
+  getParentRoute: () => kitchenShellRoute,
+  path: '/cafe/kitchen',
+  component: CafeKitchenPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -258,7 +265,7 @@ const routeTree = rootRoute.addChildren([
     adminTenantDetailRoute,
     adminPlansRoute,
   ]),
-  kitchenShellRoute.addChildren([restaurantKitchenRoute]),
+  kitchenShellRoute.addChildren([restaurantKitchenRoute, cafeKitchenRoute]),
 ])
 
 export const router = createRouter({ routeTree })
