@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -413,6 +413,33 @@ function ContractModal({
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'clauses' })
+
+  useEffect(() => {
+    if (!open) return
+    reset(editing ? {
+      tenantName: editing.tenantName,
+      tenantNationalId: editing.tenantNationalId,
+      tenantPhone: editing.tenantPhone,
+      roomNumber: editing.roomNumber,
+      startDate: editing.startDate.split('T')[0],
+      endDate: editing.endDate.split('T')[0],
+      monthlyRent: editing.monthlyRent,
+      landlordName: editing.landlordName,
+      notes: editing.notes ?? '',
+      clauses: editing.clauses.map((c) => ({ title: c.title, body: c.body })),
+    } : {
+      tenantName: '',
+      tenantNationalId: '',
+      tenantPhone: '',
+      roomNumber: '',
+      startDate: '',
+      endDate: '',
+      monthlyRent: undefined as unknown as number,
+      landlordName: '',
+      notes: '',
+      clauses: [],
+    })
+  }, [open, editing, reset])
 
   const create = useMutation({
     mutationFn: (data: ContractFormData) =>

@@ -22,6 +22,10 @@ import {
   Landmark,
   Ticket,
   PartyPopper,
+  Coffee,
+  Store,
+  ShoppingBag,
+  BarChart2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
@@ -360,15 +364,33 @@ const QUICK_ACTIONS: Partial<Record<BusinessType, QuickAction[]>> = {
     { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',      color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
     { label: 'الألعاب',   icon: <Gamepad2     className="h-5 w-5" />, to: '/gaming',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
     { label: 'العملاء',   icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600', wrap: 'bg-green-50 dark:bg-green-900/30'   },
-    { label: 'المصروفات', icon: <DollarSign   className="h-5 w-5" />, to: '/finance',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+  ],
+  Cafe: [
+    { label: 'طلب جديد',  icon: <ShoppingCart    className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+    { label: 'المقهى',    icon: <Coffee          className="h-5 w-5" />, to: '/restaurant', color: 'text-amber-600',  wrap: 'bg-amber-50 dark:bg-amber-900/30'   },
+    { label: 'العملاء',   icon: <Users           className="h-5 w-5" />, to: '/customers',  color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+    { label: 'التقارير',  icon: <BarChart2       className="h-5 w-5" />, to: '/reports',    color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+  ],
+  Retail: [
+    { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+    { label: 'المنتجات',  icon: <Store        className="h-5 w-5" />, to: '/products',  color: 'text-pink-600',   wrap: 'bg-pink-50 dark:bg-pink-900/30'     },
+    { label: 'العملاء',   icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+  ],
+  Supermarket: [
+    { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+    { label: 'المنتجات',  icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-emerald-600',wrap: 'bg-emerald-50 dark:bg-emerald-900/30'},
+    { label: 'المشتريات', icon: <ShoppingBag  className="h-5 w-5" />, to: '/purchasing',color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
   ],
 }
 
 const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
-  { label: 'بيع جديد',      icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-  { label: 'إضافة منتج',   icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
-  { label: 'إضافة عميل',   icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
-  { label: 'تسجيل مصروف', icon: <DollarSign   className="h-5 w-5" />, to: '/finance',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+  { label: 'بيع جديد',     icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+  { label: 'إضافة منتج',  icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+  { label: 'إضافة عميل',  icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+  { label: 'التقارير',     icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
 ]
 
 function QuickActionTile({ action }: { action: QuickAction }) {
@@ -567,11 +589,17 @@ export function DashboardPage() {
   const { user, branchId, tenantId } = useAuthStore()
   const businessType = user?.businessType as BusinessType | undefined
 
+  const today = localToday()
   const ordersQuery = useQuery({
-    queryKey: ['orders', branchId, 'recent'],
-    queryFn: () => ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 8 }),
+    queryKey: ['orders', branchId, 'today', today],
+    queryFn: () => ordersApi.listOrders(branchId!, {
+      status: 'Completed',
+      pageSize: 50,
+      dateFrom: today,
+      dateTo: today,
+    }),
     enabled: !!branchId,
-    refetchInterval: 60_000, // keep the pulse of the day fresh
+    refetchInterval: 60_000,
   })
   const recentOrders = ordersQuery.data
   const ordersLoading = ordersQuery.isLoading && ordersQuery.fetchStatus !== 'idle'

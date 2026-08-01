@@ -21,6 +21,7 @@ import {
   GitBranch,
   ClipboardList,
   Shield,
+  BarChart2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -64,6 +65,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-5 w-5" /> },
   { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-5 w-5" /> },
   { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-5 w-5" /> },
+  { labelKey: 'reports', to: '/reports', icon: <BarChart2 className="h-5 w-5" /> },
   { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-5 w-5" /> },
   { labelKey: 'hotelContracts', to: '/hotel/contracts', icon: <FileText className="h-5 w-5" /> },
@@ -74,12 +76,12 @@ const ALL_NAV_ITEMS: NavItem[] = [
 ]
 
 const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
-  Hotel:       ['/', '/pos', '/customers', '/sales', '/finance', '/hotel', '/hotel/contracts', '/settings/zatca', '/users', '/branches'],
-  Gaming:      ['/', '/pos', '/customers', '/sales', '/finance', '/gaming', '/settings/zatca', '/users', '/branches'],
-  Restaurant:  ['/', '/pos', '/customers', '/sales', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
-  Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
-  Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
-  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
+  Hotel:       ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/hotel', '/hotel/contracts', '/settings/zatca', '/users', '/branches'],
+  Gaming:      ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/gaming', '/settings/zatca', '/users', '/branches'],
+  Restaurant:  ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
+  Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
+  Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches'],
+  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches'],
 }
 
 function getNavItems(businessType: BusinessType | undefined, role: string | undefined): NavItem[] {

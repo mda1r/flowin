@@ -26,6 +26,7 @@ import { BranchesPage } from '@/pages/branches/BranchesPage'
 import { StockCountPage } from '@/pages/inventory/StockCountPage'
 import { StockCountDetailPage } from '@/pages/inventory/StockCountDetailPage'
 import { ZatcaSettingsPage } from '@/pages/settings/ZatcaSettingsPage'
+import { ReportsPage } from '@/pages/reports/ReportsPage'
 
 const rootRoute = createRootRoute()
 
@@ -154,6 +155,12 @@ const zatcaSettingsRoute = createRoute({
   component: ZatcaSettingsPage,
 })
 
+const reportsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/reports',
+  component: ReportsPage,
+})
+
 // ── Admin routes ──────────────────────────────────────────────────────────────
 
 const adminRoute = createRoute({
@@ -235,6 +242,7 @@ const routeTree = rootRoute.addChildren([
     stockCountRoute,
     stockCountDetailRoute,
     zatcaSettingsRoute,
+    reportsRoute,
   ]),
   adminRoute.addChildren([
     adminDashboardRoute,

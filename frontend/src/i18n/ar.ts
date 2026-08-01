@@ -18,6 +18,7 @@ export const ar: Translations = {
     users: 'المستخدمون',
     branches: 'الفروع',
     zatca: 'زاتكا',
+    reports: 'التقارير',
     settings: 'الإعدادات',
     logout: 'تسجيل الخروج',
   },

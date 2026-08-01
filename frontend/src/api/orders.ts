@@ -4,7 +4,7 @@ import type { OrderResponse, OrderStatus, PaymentMethod, RefundMethod, ReturnOrd
 export const ordersApi = {
   listOrders: (
     branchId: string,
-    params?: { status?: OrderStatus; page?: number; pageSize?: number },
+    params?: { status?: OrderStatus; page?: number; pageSize?: number; dateFrom?: string; dateTo?: string },
   ) =>
     apiClient.get<OrderResponse[]>(`/api/v1/branches/${branchId}/orders`, {
       params: { pageSize: 20, ...params },

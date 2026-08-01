@@ -17,6 +17,7 @@ export const en = {
     users: 'Users',
     branches: 'Branches',
     zatca: 'ZATCA',
+    reports: 'Reports',
     settings: 'Settings',
     logout: 'Logout',
   },
