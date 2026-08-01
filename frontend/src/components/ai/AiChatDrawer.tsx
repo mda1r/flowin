@@ -132,7 +132,7 @@ export function AiChatDrawer() {
   const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       role: 'assistant',
-      content: 'مرحباً! أنا مساعدك المالي الذكي. يمكنني تحليل مبيعاتك، مراقبة المخزون، وتقديم تقارير محاسبية. استخدم الأزرار السريعة أو اسألني مباشرة.',
+      content: 'مرحباً! أنا سعد، مساعدك المالي الذكي. يمكنني تحليل مبيعاتك، مراقبة المخزون، وتقديم تقارير محاسبية. استخدم الأزرار السريعة أو اسألني مباشرة.',
     },
   ])
   const [input, setInput] = useState('')
@@ -215,7 +215,7 @@ export function AiChatDrawer() {
                 <Sparkles className="h-4 w-4 text-[var(--accent)]" />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-bold text-gray-900 dark:text-gray-100">مساعد نكسس الذكي</div>
+                <div className="text-sm font-bold text-gray-900 dark:text-gray-100">سعد</div>
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   محاسب · مبيعات · مخزون
