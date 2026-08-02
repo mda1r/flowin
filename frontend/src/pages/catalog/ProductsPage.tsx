@@ -123,7 +123,11 @@ export function ProductsPage() {
       createForm.reset()
       toast.success('تم إنشاء المنتج')
     },
-    onError: () => toast.error('فشل حفظ المنتج'),
+    onError: (err: unknown) => {
+      const data = (err as any)?.response?.data
+      const detail = data?.message ?? data?.title ?? data?.errors ? JSON.stringify(data.errors) : null
+      toast.error('فشل حفظ المنتج', detail ?? 'تحقق من البيانات وحاول مجدداً')
+    },
   })
 
   const updateProduct = useMutation({
