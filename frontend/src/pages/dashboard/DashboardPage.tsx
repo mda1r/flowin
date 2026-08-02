@@ -368,10 +368,10 @@ const QUICK_ACTIONS: Partial<Record<BusinessType, QuickAction[]>> = {
     { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
   ],
   Cafe: [
-    { label: 'طلب جديد',  icon: <ShoppingCart    className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-    { label: 'المقهى',    icon: <Coffee          className="h-5 w-5" />, to: '/restaurant', color: 'text-amber-600',  wrap: 'bg-amber-50 dark:bg-amber-900/30'   },
-    { label: 'العملاء',   icon: <Users           className="h-5 w-5" />, to: '/customers',  color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
-    { label: 'التقارير',  icon: <BarChart2       className="h-5 w-5" />, to: '/reports',    color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+    { label: 'طلب جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+    { label: 'المنتجات',  icon: <Coffee       className="h-5 w-5" />, to: '/products',   color: 'text-amber-600',  wrap: 'bg-amber-50 dark:bg-amber-900/30'   },
+    { label: 'العملاء',   icon: <Users        className="h-5 w-5" />, to: '/customers',  color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',    color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
   ],
   Retail: [
     { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
