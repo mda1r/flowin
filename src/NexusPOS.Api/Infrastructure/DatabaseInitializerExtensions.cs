@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.Enums;
 using NexusPOS.Catalog.Infrastructure.Persistence;
@@ -30,6 +29,7 @@ using NexusPOS.Restaurant.Infrastructure.Persistence;
 using NexusPOS.Sales.Infrastructure.Persistence;
 using NexusPOS.SuperAdmin.Infrastructure.Persistence;
 using NexusPOS.Zatca.Infrastructure.Persistence;
+using Npgsql;
 using SuperAdminPlan = NexusPOS.SuperAdmin.Domain.Entities.SubscriptionPlan;
 
 namespace NexusPOS.Api.Infrastructure;
@@ -78,6 +78,7 @@ internal static class DatabaseInitializerExtensions
             await SeedHotelDemoDataAsync(sp, logger);
             await SeedGamingDemoDataAsync(sp, logger);
             await SeedExpiryDemoDataAsync(sp, logger);
+            await ProvisionTenantSchemasAsync(app.Services, logger);
         }
         catch (Exception ex)
         {
@@ -810,5 +811,360 @@ internal static class DatabaseInitializerExtensions
 
         await db.SaveChangesAsync();
         logger.LogInformation("Seeded {Count} gaming stations", stations.Length);
+    }
+
+    // ── Per-tenant schema provisioning ────────────────────────────────────────
+    // Each demo tenant gets its own PostgreSQL schema (tenant_XXXX) with its own
+    // tables and seed data, implementing true schema-per-tenant isolation.
+
+    private static async Task ProvisionTenantSchemasAsync(IServiceProvider rootSp, ILogger logger)
+    {
+        (Guid tenantId, Guid branchId, BusinessType bizType)[] tenants =
+        [
+            (_demoTenantId,                                  new("20000000-0000-0000-0000-000000000001"), BusinessType.Supermarket),
+            (new("10000000-0000-0000-0000-000000000002"),   new("20000000-0000-0000-0000-000000000002"), BusinessType.Restaurant),
+            (new("10000000-0000-0000-0000-000000000003"),   new("20000000-0000-0000-0000-000000000003"), BusinessType.Hotel),
+            (new("10000000-0000-0000-0000-000000000004"),   new("20000000-0000-0000-0000-000000000004"), BusinessType.Gaming),
+            (new("10000000-0000-0000-0000-000000000005"),   new("20000000-0000-0000-0000-000000000005"), BusinessType.Retail),
+            (new("10000000-0000-0000-0000-000000000006"),   new("20000000-0000-0000-0000-000000000006"), BusinessType.Cafe),
+        ];
+
+        foreach ((Guid tenantId, Guid branchId, BusinessType bizType) in tenants)
+        {
+            try
+            {
+                using IServiceScope scope = rootSp.CreateScope();
+                IServiceProvider sp = scope.ServiceProvider;
+
+                MutableTenantContext tenantCtx = sp.GetRequiredService<MutableTenantContext>();
+                tenantCtx.TenantId = tenantId;
+                tenantCtx.SchemaName = $"tenant_{tenantId:N}";
+                tenantCtx.IsAuthenticated = true;
+                tenantCtx.BranchId = branchId;
+
+                CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();
+
+                // Create the PostgreSQL schema for this tenant
+                string createSchemaSql = "CREATE SCHEMA IF NOT EXISTS \"" + tenantCtx.SchemaName + "\"";
+                await catalogDb.Database.ExecuteSqlRawAsync(createSchemaSql);
+
+                // Provision all tenant-specific module tables in this schema
+                await EnsureCreatedAsync<CatalogDbContext>(sp, logger);
+                await EnsureCreatedAsync<InventoryDbContext>(sp, logger);
+                await EnsureCreatedAsync<PosDbContext>(sp, logger);
+                await EnsureCreatedAsync<SalesDbContext>(sp, logger);
+                await EnsureCreatedAsync<CrmDbContext>(sp, logger);
+                await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);
+                await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
+                await EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
+
+                if (bizType is BusinessType.Restaurant or BusinessType.Cafe)
+                {
+                    await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+                }
+
+                if (bizType == BusinessType.Hotel)
+                {
+                    await EnsureCreatedAsync<HotelDbContext>(sp, logger);
+                }
+
+                if (bizType == BusinessType.Gaming)
+                {
+                    await EnsureCreatedAsync<GamingDbContext>(sp, logger);
+                }
+
+                // Seed demo data (idempotent — guard per business type)
+                bool alreadySeeded = bizType switch
+                {
+                    BusinessType.Hotel => await sp.GetRequiredService<HotelDbContext>().Rooms.AnyAsync(),
+                    BusinessType.Gaming => await sp.GetRequiredService<GamingDbContext>().GameStations.AnyAsync(),
+                    _ => await catalogDb.Categories.AnyAsync(),
+                };
+
+                if (!alreadySeeded)
+                {
+                    await SeedTenantDemoDataAsync(sp, tenantId, branchId, bizType, logger);
+                }
+
+                logger.LogInformation("Provisioned tenant schema {Schema}", tenantCtx.SchemaName);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to provision schema for tenant {TenantId}", tenantId);
+                throw;
+            }
+        }
+    }
+
+    private static Task SeedTenantDemoDataAsync(
+        IServiceProvider sp, Guid tenantId, Guid branchId, BusinessType bizType, ILogger logger) =>
+        bizType switch
+        {
+            BusinessType.Supermarket => SeedSupermarketTenantAsync(sp, branchId, logger),
+            BusinessType.Restaurant => SeedRestaurantTenantAsync(sp, logger),
+            BusinessType.Hotel => SeedHotelTenantAsync(sp, tenantId, branchId, logger),
+            BusinessType.Gaming => SeedGamingTenantAsync(sp, tenantId, branchId, logger),
+            BusinessType.Retail => SeedRetailTenantAsync(sp, branchId, logger),
+            BusinessType.Cafe => SeedCafeTenantAsync(sp, logger),
+            _ => Task.CompletedTask,
+        };
+
+    private static async Task SeedSupermarketTenantAsync(IServiceProvider sp, Guid branchId, ILogger logger)
+    {
+        CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();
+        InventoryDbContext inventoryDb = sp.GetRequiredService<InventoryDbContext>();
+
+        Category catFood = Category.Create("مواد غذائية");
+        Category catBev = Category.Create("مشروبات");
+        Category catElec = Category.Create("إلكترونيات");
+        Category catCare = Category.Create("عناية شخصية");
+        Category catHome = Category.Create("منزل ومطبخ");
+        catFood.ClearDomainEvents(); catBev.ClearDomainEvents(); catElec.ClearDomainEvents();
+        catCare.ClearDomainEvents(); catHome.ClearDomainEvents();
+        catalogDb.Categories.AddRange(catFood, catBev, catElec, catCare, catHome);
+        await catalogDb.SaveChangesAsync();
+
+        List<(Product product, decimal qty)> products =
+        [
+            CreateProduct(catalogDb, "أرز بسمتي ممتاز",    "أرز بسمتي طويل الحبة، كيلو",                catFood.Id.Value, "ARZ-001", "كيس 1 كيلو",    8m,  12m,  200, "6281234500001"),
+            CreateProduct(catalogDb, "زيت عباد الشمس",     "زيت نباتي صافٍ، 1.5 لتر",                    catFood.Id.Value, "ZYT-001", "زجاجة 1.5 لتر", 12m, 18m,  150, "6281234500002"),
+            CreateProduct(catalogDb, "سكر أبيض",            "سكر أبيض ناعم",                               catFood.Id.Value, "SKR-001", "كيس 1 كيلو",    4m,  6m,   300, "6281234500003"),
+            CreateProduct(catalogDb, "دقيق القمح",          "دقيق قمح للمخبوزات",                          catFood.Id.Value, "DQQ-001", "كيس 2 كيلو",    7m,  10m,  250, "6281234500004"),
+            CreateProduct(catalogDb, "تمر عجوة فاخر",       "تمر عجوة ممتاز من المدينة المنورة",            catFood.Id.Value, "TMR-001", "علبة 500 غرام", 35m, 55m,  80,  "6281234500005"),
+            CreateProduct(catalogDb, "مياه معدنية",         "مياه شرب طبيعية",                             catBev.Id.Value,  "MYH-001", "زجاجة 500 مل",  1m,  2m,   500, "6281234500006"),
+            CreateProduct(catalogDb, "عصير برتقال",         "عصير برتقال 100% طبيعي",                      catBev.Id.Value,  "ASR-001", "زجاجة 1 لتر",   8m,  14m,  120, "6281234500007"),
+            CreateProduct(catalogDb, "قهوة عربية",          "قهوة عربية بالهيل، 250 غرام",                 catBev.Id.Value,  "QHW-001", "علبة 250 غرام", 22m, 35m,  90,  "6281234500008"),
+            CreateProduct(catalogDb, "سماعة بلوتوث",        "سماعة لاسلكية بجودة عالية",                   catElec.Id.Value, "SME-001", "قطعة",          80m, 149m, 40,  "6281234500009"),
+            CreateProduct(catalogDb, "شاحن سريع USB-C",     "شاحن 65 واط",                                 catElec.Id.Value, "SHA-001", "قطعة",          35m, 65m,  60,  "6281234500010"),
+            CreateProduct(catalogDb, "كابل HDMI 4K",        "كابل HDMI، طول 2 متر",                        catElec.Id.Value, "CBL-001", "قطعة",          18m, 35m,  75,  "6281234500011"),
+            CreateProduct(catalogDb, "شامبو عناية بالشعر",  "للشعر الجاف والتالف",                         catCare.Id.Value, "SHM-001", "زجاجة 400 مل",  22m, 38m,  100, "6281234500012"),
+            CreateProduct(catalogDb, "معجون أسنان",         "بالفلورايد والنعناع",                          catCare.Id.Value, "MGN-001", "أنبوب 150 مل",  12m, 20m,  150, "6281234500013"),
+            CreateProduct(catalogDb, "صابون غسيل أطباق",   "برائحة الليمون",                               catHome.Id.Value, "SBN-001", "زجاجة 750 مل",  7m,  13m,  200, "6281234500014"),
+            CreateProduct(catalogDb, "أكياس قمامة",         "أكياس قمامة سميكة، 30 كيس",                   catHome.Id.Value, "KYS-001", "ربطة 30 كيس",   10m, 18m,  180, "6281234500015"),
+        ];
+
+        await catalogDb.SaveChangesAsync();
+
+        foreach ((Product product, decimal qty) in products)
+        {
+            ProductVariant variant = product.Variants.First();
+            StockItem stock = StockItem.Create(variant.Id.Value, branchId, reorderPoint: 10, reorderQuantity: 50);
+            stock.Receive(qty, "seed", "بيانات تجريبية أولية");
+            stock.ClearDomainEvents();
+            inventoryDb.StockItems.Add(stock);
+        }
+        await inventoryDb.SaveChangesAsync();
+
+        logger.LogInformation("Seeded supermarket catalog ({Count} products)", products.Count);
+    }
+
+    private static async Task SeedCafeTenantAsync(IServiceProvider sp, ILogger logger)
+    {
+        CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();
+
+        Category catHot = Category.Create("مشروبات ساخنة");
+        Category catCold = Category.Create("مشروبات باردة");
+        Category catBake = Category.Create("معجنات وحلويات");
+        Category catFood = Category.Create("وجبات خفيفة");
+        catHot.ClearDomainEvents(); catCold.ClearDomainEvents();
+        catBake.ClearDomainEvents(); catFood.ClearDomainEvents();
+        catalogDb.Categories.AddRange(catHot, catCold, catBake, catFood);
+        await catalogDb.SaveChangesAsync();
+
+        // Hot drinks
+        CreateMenuItem(catalogDb, "قهوة عربية", "قهوة عربية أصيلة بالهيل", catHot.Id.Value, "CF-001", "كوب", 8m);
+        CreateMenuItem(catalogDb, "اسبريسو", "شوت اسبريسو مركز", catHot.Id.Value, "CF-002", "كوب", 10m);
+        CreateMenuItem(catalogDb, "كابتشينو", "اسبريسو مع رغوة الحليب", catHot.Id.Value, "CF-003", "كوب", 16m);
+        CreateMenuItem(catalogDb, "لاتيه", "اسبريسو مع حليب مبخر", catHot.Id.Value, "CF-004", "كوب", 16m);
+        CreateMenuItem(catalogDb, "أمريكانو", "اسبريسو مخفف بالماء الساخن", catHot.Id.Value, "CF-005", "كوب", 12m);
+        CreateMenuItem(catalogDb, "موكا", "اسبريسو مع شوكولاتة وحليب", catHot.Id.Value, "CF-006", "كوب", 18m);
+        CreateMenuItem(catalogDb, "شاي أحمر", "شاي أحمر بالحليب", catHot.Id.Value, "CF-007", "كوب", 8m);
+        CreateMenuItem(catalogDb, "شاي أخضر", "شاي أخضر بالنعناع", catHot.Id.Value, "CF-008", "كوب", 8m);
+        // Cold drinks
+        CreateMenuItem(catalogDb, "قهوة مثلجة", "قهوة باردة مع الثلج", catCold.Id.Value, "CLD-001", "كوب", 18m);
+        CreateMenuItem(catalogDb, "فرابتشينو", "مشروب قهوة مثلج كريمي", catCold.Id.Value, "CLD-002", "كوب", 22m);
+        CreateMenuItem(catalogDb, "عصير برتقال", "عصير برتقال طازج", catCold.Id.Value, "CLD-003", "كوب", 14m);
+        CreateMenuItem(catalogDb, "موهيتو مثلج", "مشروب منعش بالنعناع والليمون", catCold.Id.Value, "CLD-004", "كوب", 16m);
+        // Pastries & Sweets
+        CreateMenuItem(catalogDb, "كرواسان", "كرواسان زبدي طازج", catBake.Id.Value, "BK-001", "قطعة", 12m);
+        CreateMenuItem(catalogDb, "مافن شوكولاتة", "مافن بالشوكولاتة الداكنة", catBake.Id.Value, "BK-002", "قطعة", 14m);
+        CreateMenuItem(catalogDb, "كيك لوتس", "كيك بكريمة لوتس", catBake.Id.Value, "BK-003", "شريحة", 20m);
+        CreateMenuItem(catalogDb, "تشيز كيك", "تشيز كيك بالتوت", catBake.Id.Value, "BK-004", "شريحة", 22m);
+        CreateMenuItem(catalogDb, "دونات سادة", "دونات بالسكر البودرة", catBake.Id.Value, "BK-005", "قطعة", 8m);
+        // Light meals
+        CreateMenuItem(catalogDb, "سندويش دجاج", "سندويش دجاج مشوي بالخضروات", catFood.Id.Value, "LM-001", "سندويش", 22m);
+        CreateMenuItem(catalogDb, "كلاب هوت", "نقانق في خبز هوت دوق", catFood.Id.Value, "LM-002", "قطعة", 18m);
+        CreateMenuItem(catalogDb, "بيتزا شخصية", "بيتزا صغيرة بالجبن والخضروات", catFood.Id.Value, "LM-003", "قطعة", 25m);
+
+        await catalogDb.SaveChangesAsync();
+        logger.LogInformation("Seeded cafe catalog (20 items)");
+    }
+
+    private static async Task SeedRestaurantTenantAsync(IServiceProvider sp, ILogger logger)
+    {
+        CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();
+
+        Category catApp = Category.Create("مقبلات");
+        Category catMain = Category.Create("أطباق رئيسية");
+        Category catBev = Category.Create("مشروبات");
+        Category catDes = Category.Create("حلويات");
+        catApp.ClearDomainEvents(); catMain.ClearDomainEvents();
+        catBev.ClearDomainEvents(); catDes.ClearDomainEvents();
+        catalogDb.Categories.AddRange(catApp, catMain, catBev, catDes);
+        await catalogDb.SaveChangesAsync();
+
+        // Appetizers
+        CreateMenuItem(catalogDb, "شوربة عدس", "شوربة عدس بالكمون والليمون", catApp.Id.Value, "RST-001", "طبق", 12m);
+        CreateMenuItem(catalogDb, "سلطة فتوش", "سلطة خضراء بالخضروات الطازجة", catApp.Id.Value, "RST-002", "طبق", 15m);
+        CreateMenuItem(catalogDb, "حمص بالطحينة", "حمص كريمي مع زيت الزيتون", catApp.Id.Value, "RST-003", "طبق", 14m);
+        CreateMenuItem(catalogDb, "متبل", "متبل الباذنجان المشوي", catApp.Id.Value, "RST-004", "طبق", 14m);
+        // Main courses
+        CreateMenuItem(catalogDb, "كبسة دجاج", "أرز كبسة بالدجاج والبهارات", catMain.Id.Value, "RST-010", "طبق", 35m);
+        CreateMenuItem(catalogDb, "مجبوس لحم", "أرز مجبوس مع اللحم", catMain.Id.Value, "RST-011", "طبق", 45m);
+        CreateMenuItem(catalogDb, "مندي خروف", "خروف بالأرز على الطريقة اليمنية", catMain.Id.Value, "RST-012", "طبق", 65m);
+        CreateMenuItem(catalogDb, "شاورما دجاج", "شاورما دجاج بالثوم والمخلل", catMain.Id.Value, "RST-013", "ساندويش", 22m);
+        CreateMenuItem(catalogDb, "مشاوي مشكلة", "تشكيلة مشاوي اللحم والدجاج", catMain.Id.Value, "RST-014", "طبق", 75m);
+        CreateMenuItem(catalogDb, "أرز بسمتي", "أرز بسمتي مطبوخ بالزبدة", catMain.Id.Value, "RST-015", "طبق", 10m);
+        // Beverages
+        CreateMenuItem(catalogDb, "شاي بالنعناع", "شاي طازج بالنعناع", catBev.Id.Value, "RST-020", "كوب", 6m);
+        CreateMenuItem(catalogDb, "عصير مانجو", "عصير مانجو طبيعي", catBev.Id.Value, "RST-021", "كوب", 10m);
+        CreateMenuItem(catalogDb, "قهوة عربية", "قهوة عربية بالهيل", catBev.Id.Value, "RST-022", "فنجان", 5m);
+        CreateMenuItem(catalogDb, "لبن رائب", "لبن طازج بارد", catBev.Id.Value, "RST-023", "كوب", 6m);
+        // Desserts
+        CreateMenuItem(catalogDb, "أم علي", "حلوى الأم علي بالكريمة والمكسرات", catDes.Id.Value, "RST-030", "طبق", 18m);
+        CreateMenuItem(catalogDb, "مهلبية", "مهلبية بالورد والفستق", catDes.Id.Value, "RST-031", "طبق", 12m);
+        CreateMenuItem(catalogDb, "كنافة", "كنافة بالجبن والقطر", catDes.Id.Value, "RST-032", "قطعة", 20m);
+
+        await catalogDb.SaveChangesAsync();
+        logger.LogInformation("Seeded restaurant catalog (17 items)");
+    }
+
+    private static async Task SeedRetailTenantAsync(IServiceProvider sp, Guid branchId, ILogger logger)
+    {
+        CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();
+        InventoryDbContext inventoryDb = sp.GetRequiredService<InventoryDbContext>();
+
+        Category catMens = Category.Create("ملابس رجالية");
+        Category catWomn = Category.Create("ملابس نسائية");
+        Category catShoe = Category.Create("أحذية");
+        Category catAcc = Category.Create("إكسسوارات");
+        Category catPerf = Category.Create("عطور");
+        catMens.ClearDomainEvents(); catWomn.ClearDomainEvents(); catShoe.ClearDomainEvents();
+        catAcc.ClearDomainEvents(); catPerf.ClearDomainEvents();
+        catalogDb.Categories.AddRange(catMens, catWomn, catShoe, catAcc, catPerf);
+        await catalogDb.SaveChangesAsync();
+
+        List<(Product product, decimal qty)> products =
+        [
+            CreateProduct(catalogDb, "ثوب رجالي أبيض",      "ثوب رجالي قطن 100%",              catMens.Id.Value, "RTL-001", "قطعة",    45m, 85m,   30),
+            CreateProduct(catalogDb, "قميص رجالي كاجوال",   "قميص كاجوال بألوان متعددة",        catMens.Id.Value, "RTL-002", "قطعة",    30m, 55m,   50),
+            CreateProduct(catalogDb, "بنطلون جينز",          "جينز أزرق قاطع كلاسيكي",          catMens.Id.Value, "RTL-003", "قطعة",    40m, 75m,   40),
+            CreateProduct(catalogDb, "عباية سوداء",          "عباية راقية بتطريز دقيق",          catWomn.Id.Value, "RTL-010", "قطعة",    55m, 95m,   25),
+            CreateProduct(catalogDb, "فستان كاجوال",         "فستان خفيف لإطلالة يومية",         catWomn.Id.Value, "RTL-011", "قطعة",    65m, 125m,  20),
+            CreateProduct(catalogDb, "بلوزة أنيقة",          "بلوزة حريرية ناعمة",               catWomn.Id.Value, "RTL-012", "قطعة",    35m, 65m,   30),
+            CreateProduct(catalogDb, "حذاء رياضي",           "حذاء رياضي مريح للجري",            catShoe.Id.Value, "RTL-020", "زوج",     85m, 150m,  20),
+            CreateProduct(catalogDb, "حذاء رسمي رجالي",      "حذاء جلد رجالي كلاسيكي",          catShoe.Id.Value, "RTL-021", "زوج",    110m, 200m,  15),
+            CreateProduct(catalogDb, "حقيبة يد نسائية",      "حقيبة جلد صناعي أنيقة",            catAcc.Id.Value,  "RTL-030", "قطعة",    90m, 180m,  15),
+            CreateProduct(catalogDb, "ساعة يد رجالية",       "ساعة فضية كلاسيكية",               catAcc.Id.Value,  "RTL-031", "قطعة",   180m, 350m,  10),
+            CreateProduct(catalogDb, "نظارات شمسية",         "نظارات UV400 بإطار أسود",           catAcc.Id.Value,  "RTL-032", "قطعة",    45m, 90m,   20),
+            CreateProduct(catalogDb, "عطر رجالي فاخر",       "عطر أروماتيك 100 مل",              catPerf.Id.Value, "RTL-040", "زجاجة",  145m, 280m,  10),
+            CreateProduct(catalogDb, "عطر نسائي ورود",       "عطر زهري أنثوي 100 مل",            catPerf.Id.Value, "RTL-041", "زجاجة",  130m, 250m,  10),
+        ];
+
+        await catalogDb.SaveChangesAsync();
+
+        foreach ((Product product, decimal qty) in products)
+        {
+            ProductVariant variant = product.Variants.First();
+            StockItem stock = StockItem.Create(variant.Id.Value, branchId, reorderPoint: 5, reorderQuantity: 20);
+            stock.Receive(qty, "seed", "بيانات تجريبية أولية");
+            stock.ClearDomainEvents();
+            inventoryDb.StockItems.Add(stock);
+        }
+        await inventoryDb.SaveChangesAsync();
+
+        logger.LogInformation("Seeded retail catalog ({Count} products)", products.Count);
+    }
+
+    private static async Task SeedHotelTenantAsync(
+        IServiceProvider sp, Guid tenantId, Guid branchId, ILogger logger)
+    {
+        HotelDbContext db = sp.GetRequiredService<HotelDbContext>();
+
+        (RoomType type, string number, int floor, int capacity, decimal rate, string desc)[] rooms =
+        [
+            (RoomType.Standard,     "101", 1, 2, 250m,  "غرفة قياسية مريحة بإطلالة على الحديقة"),
+            (RoomType.Standard,     "102", 1, 2, 250m,  "غرفة قياسية مريحة بسرير مزدوج"),
+            (RoomType.Standard,     "103", 1, 2, 250m,  "غرفة قياسية بسريرين منفصلين"),
+            (RoomType.Deluxe,       "201", 2, 3, 450m,  "غرفة ديلوكس بإطلالة بانورامية"),
+            (RoomType.Deluxe,       "202", 2, 3, 450m,  "غرفة ديلوكس فاخرة مع جاكوزي"),
+            (RoomType.Suite,        "301", 3, 4, 800m,  "جناح فاخر بغرفة معيشة مستقلة"),
+            (RoomType.Suite,        "302", 3, 4, 800m,  "جناح تنفيذي بإطلالة على المدينة"),
+            (RoomType.Presidential, "401", 4, 6, 1800m, "الجناح الرئاسي — الطابق الكامل"),
+        ];
+
+        foreach ((RoomType type, string number, int floor, int capacity, decimal rate, string desc) in rooms)
+        {
+            ErrorOr.ErrorOr<Room> result = Room.Create(tenantId, branchId, type, number, floor, capacity, rate, "SAR", desc);
+            if (!result.IsError)
+            {
+                result.Value.ClearDomainEvents();
+                db.Rooms.Add(result.Value);
+            }
+        }
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Seeded {Count} hotel rooms for tenant {TenantId}", rooms.Length, tenantId);
+    }
+
+    private static async Task SeedGamingTenantAsync(
+        IServiceProvider sp, Guid tenantId, Guid branchId, ILogger logger)
+    {
+        GamingDbContext db = sp.GetRequiredService<GamingDbContext>();
+
+        (StationType type, string name, decimal rate)[] stations =
+        [
+            (StationType.Console, "PlayStation 5 — طاولة 1",  30m),
+            (StationType.Console, "PlayStation 5 — طاولة 2",  30m),
+            (StationType.Console, "Xbox Series X — طاولة 3",  30m),
+            (StationType.PC,      "PC Gaming — محطة 1",        25m),
+            (StationType.PC,      "PC Gaming — محطة 2",        25m),
+            (StationType.PC,      "PC Gaming — محطة 3",        25m),
+            (StationType.VR,      "Meta Quest 3 — VR",         50m),
+            (StationType.Arcade,  "ملاكمة VR — Arcade",        40m),
+        ];
+
+        foreach ((StationType type, string name, decimal rate) in stations)
+        {
+            ErrorOr.ErrorOr<GameStation> result = GameStation.Create(tenantId, branchId, type, name, rate, "SAR");
+            if (!result.IsError)
+            {
+                db.GameStations.Add(result.Value);
+            }
+        }
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Seeded {Count} gaming stations for tenant {TenantId}", stations.Length, tenantId);
+    }
+
+    private static Product CreateMenuItem(
+        CatalogDbContext db,
+        string name, string description,
+        Guid categoryId, string sku, string variantName, decimal salePrice)
+    {
+        Product product = Product.Create(
+            name, description,
+            new NexusPOS.Catalog.Domain.ValueObjects.CategoryId(categoryId),
+            ProductType.Standard, TaxClass.Standard, trackInventory: false);
+
+        NexusPOS.Catalog.Domain.ValueObjects.Sku skuVo =
+            NexusPOS.Catalog.Domain.ValueObjects.Sku.Create(sku).Value;
+        NexusPOS.Catalog.Domain.ValueObjects.Money priceVo =
+            NexusPOS.Catalog.Domain.ValueObjects.Money.Create(salePrice, "SAR").Value;
+
+        product.AddVariant(skuVo, variantName, priceVo, priceVo, null);
+        product.ClearDomainEvents();
+        db.Products.Add(product);
+        return product;
     }
 }
