@@ -6,5 +6,5 @@ export const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
   Restaurant:  ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches', '/activity-logs'],
   Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs'],
   Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs'],
-  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches', '/activity-logs'],
+  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/reports', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs'],
 }
