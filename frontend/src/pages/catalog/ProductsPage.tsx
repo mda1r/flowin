@@ -96,7 +96,7 @@ export function ProductsPage() {
 
   const create = useMutation({
     mutationFn: async (data: CreateFormData) => {
-      const result = await catalogApi.createProduct({
+      const result = await catalogApi.createProduct(tenantId!, {
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
@@ -111,7 +111,7 @@ export function ProductsPage() {
       })
       if (data.trackInventory && branchId) {
         for (const variant of result.data.variants) {
-          await inventoryApi.initializeStock(branchId, variant.id)
+          try { await inventoryApi.initializeStock(branchId, variant.id) } catch { /* non-fatal */ }
         }
       }
       return result

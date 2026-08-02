@@ -26,7 +26,7 @@ export const catalogApi = {
   getProduct: (tenantId: string, productId: string) =>
     apiClient.get<ProductResponse>(`/api/v1/tenants/${tenantId}/products/${productId}`),
 
-  createProduct: (data: {
+  createProduct: (tenantId: string, data: {
     name: string
     description?: string
     categoryId?: string
@@ -39,7 +39,7 @@ export const catalogApi = {
     salePrice: number
     currency: string
     barcode?: string
-  }) => apiClient.post<ProductResponse>('/api/v1/products', data),
+  }) => apiClient.post<ProductResponse>(`/api/v1/tenants/${tenantId}/products`, data),
 
   updateProduct: (productId: string, data: {
     name: string
