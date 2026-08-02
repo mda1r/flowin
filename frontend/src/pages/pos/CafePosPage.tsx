@@ -186,8 +186,7 @@ export function CafePosPage() {
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories', tenantId],
-    queryFn: () => catalogApi.listCategories(tenantId!),
-    enabled: !!tenantId,
+    queryFn: () => catalogApi.listCategories(),
   })
 
   const { data: productsData, isLoading: productsLoading } = useQuery({

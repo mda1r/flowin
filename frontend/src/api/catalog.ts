@@ -2,14 +2,14 @@ import { apiClient } from './client'
 import type { CategoryResponse, ProductResponse } from '@/types/api'
 
 export const catalogApi = {
-  // Categories
-  listCategories: (tenantId: string, params?: { page?: number; pageSize?: number }) =>
-    apiClient.get<CategoryResponse[]>(`/api/v1/tenants/${tenantId}/categories`, {
+  // Categories (tenant scoped via auth token, no tenantId in URL)
+  listCategories: (params?: { page?: number; pageSize?: number }) =>
+    apiClient.get<CategoryResponse[]>('/api/v1/categories', {
       params: { page: 1, pageSize: 50, ...params },
     }),
 
-  createCategory: (tenantId: string, data: { name: string; description?: string }) =>
-    apiClient.post<CategoryResponse>(`/api/v1/tenants/${tenantId}/categories`, data),
+  createCategory: (data: { name: string; description?: string }) =>
+    apiClient.post<CategoryResponse>('/api/v1/categories', data),
 
   // Products
   listProducts: (tenantId: string, params?: {

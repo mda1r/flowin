@@ -73,8 +73,7 @@ export function ProductsPage() {
 
   const { data: categories } = useQuery({
     queryKey: ['categories', tenantId],
-    queryFn: () => catalogApi.listCategories(tenantId!),
-    enabled: !!tenantId,
+    queryFn: () => catalogApi.listCategories(),
   })
 
   const createForm = useForm<CreateFormData>({
@@ -161,7 +160,7 @@ export function ProductsPage() {
   })
 
   const createCategory = useMutation({
-    mutationFn: (data: CategoryFormData) => catalogApi.createCategory(tenantId!, data),
+    mutationFn: (data: CategoryFormData) => catalogApi.createCategory(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] })
       setShowCategoryModal(false)
