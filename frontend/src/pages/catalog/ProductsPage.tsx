@@ -96,7 +96,7 @@ export function ProductsPage() {
 
   const create = useMutation({
     mutationFn: async (data: CreateFormData) => {
-      const result = await catalogApi.createProduct(tenantId!, {
+      const result = await catalogApi.createProduct({
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
@@ -128,7 +128,7 @@ export function ProductsPage() {
 
   const updateProduct = useMutation({
     mutationFn: (data: EditProductFormData) =>
-      catalogApi.updateProduct(tenantId!, editingProduct!.id, {
+      catalogApi.updateProduct(editingProduct!.id, {
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
@@ -145,7 +145,7 @@ export function ProductsPage() {
 
   const updateVariant = useMutation({
     mutationFn: (data: EditVariantFormData) =>
-      catalogApi.updateVariant(tenantId!, editingVariant!.productId, editingVariant!.variant.id, {
+      catalogApi.updateVariant(editingVariant!.productId, editingVariant!.variant.id, {
         name: data.name,
         costPrice: data.costPrice,
         salePrice: data.salePrice,
@@ -171,7 +171,7 @@ export function ProductsPage() {
   })
 
   const deactivate = useMutation({
-    mutationFn: (productId: string) => catalogApi.deactivateProduct(tenantId!, productId),
+    mutationFn: (productId: string) => catalogApi.deactivateProduct(productId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
       setDeactivatingProductId(null)
@@ -203,7 +203,7 @@ export function ProductsPage() {
   const products: ProductResponse[] = data?.data ?? []
 
   return (
-    <div className="page-fade">
+    <div className="page-fade" dir="rtl">
       <PageHeader
         title="المنتجات"
         description="إدارة كتالوج المنتجات"
@@ -222,15 +222,15 @@ export function ProductsPage() {
       />
       <div className="p-6">
         <Card>
-          <div className="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
+          <div className="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800" dir="rtl">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <Search className="absolute end-3 top-2.5 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="ابحث في المنتجات..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="input pl-9"
+                className="input pe-9"
               />
             </div>
           </div>
