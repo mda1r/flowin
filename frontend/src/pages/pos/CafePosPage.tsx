@@ -12,7 +12,8 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { SAUDI_VAT_RATE } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { pushKitchenTicket } from '@/lib/cafeKitchen'
-import type { PaymentMethod } from '@/types/api'
+import { restaurantApi } from '@/api/restaurant'
+import type { PaymentMethod, CategoryResponse, ProductResponse } from '@/types/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -196,8 +197,10 @@ export function CafePosPage() {
     enabled: !!tenantId,
   })
 
-  const categories = categoriesData?.data ?? []
-  const products = productsData?.data ?? []
+  const _rawCats = categoriesData?.data
+  const categories: CategoryResponse[] = Array.isArray(_rawCats) ? _rawCats : ((_rawCats as any)?.items ?? [])
+  const _rawProds = productsData?.data
+  const products: ProductResponse[] = Array.isArray(_rawProds) ? _rawProds : ((_rawProds as any)?.items ?? [])
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
 
@@ -261,6 +264,7 @@ export function CafePosPage() {
 
       await ordersApi.complete(branchId, orderId, {
         paymentMethod: payMode as PaymentMethod,
+        amountTendered: grandTotal,
       })
 
       return orderId
@@ -285,6 +289,24 @@ export function CafePosPage() {
           })),
         })
       }
+
+      // Send to kitchen via backend (fire-and-forget)
+      if (branchId && tenantId) {
+        restaurantApi
+          .createOrder(branchId, {
+            tenantId,
+            tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
+            items: cart.map((i) => ({
+              menuItemId: i.variantId,
+              itemName: i.productName,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              notes: i.notes || undefined,
+            })),
+          })
+          .catch(() => {})
+      }
+
       setKitchenTicket(ticket)
       setTicketCounter((n) => n + 1)
       setCart([])

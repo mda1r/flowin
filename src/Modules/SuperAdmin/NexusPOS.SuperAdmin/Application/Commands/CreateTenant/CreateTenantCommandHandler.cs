@@ -5,13 +5,15 @@ using NexusPOS.Organization.Domain.Enums;
 using NexusPOS.Organization.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.SharedKernel.Application.Services;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 using NexusPOS.SuperAdmin.Application.Common;
 
 namespace NexusPOS.SuperAdmin.Application.Commands.CreateTenant;
 
 internal sealed class CreateTenantCommandHandler(
     OrganizationDbContext orgDb,
-    IUserProvisioningService userProvisioning)
+    IUserProvisioningService userProvisioning,
+    ITenantSchemaProvisioner schemaProvisioner)
     : ICommandHandler<CreateTenantCommand, TenantWithSubscriptionResponse>
 {
     public async Task<ErrorOr<TenantWithSubscriptionResponse>> Handle(
@@ -65,6 +67,9 @@ internal sealed class CreateTenantCommandHandler(
         orgDb.Branches.Add(branch);
 
         await orgDb.SaveChangesAsync(cancellationToken);
+
+        // Provision isolated PostgreSQL schema immediately upon tenant creation
+        await schemaProvisioner.ProvisionAsync(tenant.Id.Value, cancellationToken);
 
         string defaultPassword = await userProvisioning.CreateTenantAdminAsync(
             adminEmail,

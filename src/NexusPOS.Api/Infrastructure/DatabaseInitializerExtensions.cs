@@ -89,7 +89,7 @@ internal static class DatabaseInitializerExtensions
 
     // Splits a PostgreSQL DDL script by ';' while skipping semicolons inside
     // dollar-quoted blocks (e.g. DO $EF$...CREATE SCHEMA...;...END $EF$).
-    private static IEnumerable<string> SplitSqlStatements(string script)
+    internal static IEnumerable<string> SplitSqlStatements(string script)
     {
         bool inDollarQuote = false;
         string dollarTag = string.Empty;
@@ -139,7 +139,7 @@ internal static class DatabaseInitializerExtensions
         }
     }
 
-    private static async Task EnsureCreatedAsync<TContext>(IServiceProvider sp, ILogger logger)
+    internal static async Task EnsureCreatedAsync<TContext>(IServiceProvider sp, ILogger logger)
         where TContext : DbContext
     {
         TContext db = sp.GetRequiredService<TContext>();
@@ -819,17 +819,29 @@ internal static class DatabaseInitializerExtensions
 
     private static async Task ProvisionTenantSchemasAsync(IServiceProvider rootSp, ILogger logger)
     {
-        (Guid tenantId, Guid branchId, BusinessType bizType)[] tenants =
-        [
-            (_demoTenantId,                                  new("20000000-0000-0000-0000-000000000001"), BusinessType.Supermarket),
-            (new("10000000-0000-0000-0000-000000000002"),   new("20000000-0000-0000-0000-000000000002"), BusinessType.Restaurant),
-            (new("10000000-0000-0000-0000-000000000003"),   new("20000000-0000-0000-0000-000000000003"), BusinessType.Hotel),
-            (new("10000000-0000-0000-0000-000000000004"),   new("20000000-0000-0000-0000-000000000004"), BusinessType.Gaming),
-            (new("10000000-0000-0000-0000-000000000005"),   new("20000000-0000-0000-0000-000000000005"), BusinessType.Retail),
-            (new("10000000-0000-0000-0000-000000000006"),   new("20000000-0000-0000-0000-000000000006"), BusinessType.Cafe),
-        ];
+        // Demo tenant registry — branch IDs and types for seeding only
+        var demoRegistry = new Dictionary<Guid, (Guid BranchId, BusinessType BizType)>
+        {
+            [_demoTenantId] = (new Guid("20000000-0000-0000-0000-000000000001"), BusinessType.Supermarket),
+            [new Guid("10000000-0000-0000-0000-000000000002")] = (new Guid("20000000-0000-0000-0000-000000000002"), BusinessType.Restaurant),
+            [new Guid("10000000-0000-0000-0000-000000000003")] = (new Guid("20000000-0000-0000-0000-000000000003"), BusinessType.Hotel),
+            [new Guid("10000000-0000-0000-0000-000000000004")] = (new Guid("20000000-0000-0000-0000-000000000004"), BusinessType.Gaming),
+            [new Guid("10000000-0000-0000-0000-000000000005")] = (new Guid("20000000-0000-0000-0000-000000000005"), BusinessType.Retail),
+            [new Guid("10000000-0000-0000-0000-000000000006")] = (new Guid("20000000-0000-0000-0000-000000000006"), BusinessType.Cafe),
+        };
 
-        foreach ((Guid tenantId, Guid branchId, BusinessType bizType) in tenants)
+        // Query ALL tenants from the public Organization schema (no tenant context needed)
+        List<(Guid TenantId, BusinessType BizType)> tenants;
+        {
+            using IServiceScope listScope = rootSp.CreateScope();
+            OrganizationDbContext orgDb = listScope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+            List<Tenant> all = await orgDb.Tenants.AsNoTracking().ToListAsync();
+            tenants = all.ConvertAll(t => (t.Id.Value, t.BusinessType));
+        }
+
+        logger.LogInformation("Provisioning schemas for {Count} tenants", tenants.Count);
+
+        foreach ((Guid tenantId, BusinessType bizType) in tenants)
         {
             try
             {
@@ -840,15 +852,11 @@ internal static class DatabaseInitializerExtensions
                 tenantCtx.TenantId = tenantId;
                 tenantCtx.SchemaName = $"tenant_{tenantId:N}";
                 tenantCtx.IsAuthenticated = true;
-                tenantCtx.BranchId = branchId;
 
                 CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();
-
-                // Create the PostgreSQL schema for this tenant
                 string createSchemaSql = "CREATE SCHEMA IF NOT EXISTS \"" + tenantCtx.SchemaName + "\"";
                 await catalogDb.Database.ExecuteSqlRawAsync(createSchemaSql);
 
-                // Provision all tenant-specific module tables in this schema
                 await EnsureCreatedAsync<CatalogDbContext>(sp, logger);
                 await EnsureCreatedAsync<InventoryDbContext>(sp, logger);
                 await EnsureCreatedAsync<PosDbContext>(sp, logger);
@@ -873,25 +881,30 @@ internal static class DatabaseInitializerExtensions
                     await EnsureCreatedAsync<GamingDbContext>(sp, logger);
                 }
 
-                // Seed demo data (idempotent — guard per business type)
-                bool alreadySeeded = bizType switch
+                // Seed demo data only for known demo tenants
+                if (demoRegistry.TryGetValue(tenantId, out (Guid BranchId, BusinessType BizType) demo))
                 {
-                    BusinessType.Hotel => await sp.GetRequiredService<HotelDbContext>().Rooms.AnyAsync(),
-                    BusinessType.Gaming => await sp.GetRequiredService<GamingDbContext>().GameStations.AnyAsync(),
-                    _ => await catalogDb.Categories.AnyAsync(),
-                };
+                    tenantCtx.BranchId = demo.BranchId;
 
-                if (!alreadySeeded)
-                {
-                    await SeedTenantDemoDataAsync(sp, tenantId, branchId, bizType, logger);
+                    bool alreadySeeded = bizType switch
+                    {
+                        BusinessType.Hotel => await sp.GetRequiredService<HotelDbContext>().Rooms.AnyAsync(),
+                        BusinessType.Gaming => await sp.GetRequiredService<GamingDbContext>().GameStations.AnyAsync(),
+                        _ => await catalogDb.Categories.AnyAsync(),
+                    };
+
+                    if (!alreadySeeded)
+                    {
+                        await SeedTenantDemoDataAsync(sp, tenantId, demo.BranchId, demo.BizType, logger);
+                    }
                 }
 
-                logger.LogInformation("Provisioned tenant schema {Schema}", tenantCtx.SchemaName);
+                logger.LogInformation("Provisioned schema {Schema}", tenantCtx.SchemaName);
             }
             catch (Exception ex)
             {
+                // Log and continue — one failing tenant should not abort the entire startup
                 logger.LogError(ex, "Failed to provision schema for tenant {TenantId}", tenantId);
-                throw;
             }
         }
     }

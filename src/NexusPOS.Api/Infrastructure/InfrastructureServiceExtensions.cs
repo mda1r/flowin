@@ -3,8 +3,8 @@ using Elastic.Clients.Elasticsearch;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Npgsql;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
+using Npgsql;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -35,6 +35,7 @@ internal static class InfrastructureServiceExtensions
         services.AddScoped<MutableTenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<MutableTenantContext>());
         services.AddScoped<TenantSchemaInterceptor>();
+        services.AddScoped<ITenantSchemaProvisioner, TenantSchemaProvisioner>();
         return services;
     }
 
