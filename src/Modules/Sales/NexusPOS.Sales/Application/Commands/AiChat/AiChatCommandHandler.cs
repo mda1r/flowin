@@ -36,7 +36,16 @@ internal sealed class AiChatCommandHandler(
 
     public async Task<ErrorOr<string>> Handle(AiChatCommand request, CancellationToken cancellationToken)
     {
-        string context = await BuildContextAsync(request.BranchId, cancellationToken);
+        string context;
+        try
+        {
+            context = await BuildContextAsync(request.BranchId, cancellationToken);
+        }
+        catch
+        {
+            context = "لا توجد بيانات متاحة حالياً.";
+        }
+
         string fullMessage = $"{context}\n\nسؤال المستخدم: {request.Message}";
 
         string response = await claude.ChatAsync(SystemPrompt, fullMessage, cancellationToken);

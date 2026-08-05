@@ -32,15 +32,23 @@ internal sealed class ClaudeApiService(IHttpClientFactory httpClientFactory, ICo
             messages = new[] { new { role = "user", content = userMessage } },
         };
 
-        HttpResponseMessage response = await client.PostAsJsonAsync(AnthropicApiUrl, payload, ct);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            return "Failed to get AI response. Please try again.";
-        }
+            HttpResponseMessage response = await client.PostAsJsonAsync(AnthropicApiUrl, payload, ct);
 
-        AnthropicResponse? result = await response.Content.ReadFromJsonAsync<AnthropicResponse>(ct);
-        return result?.Content?[0]?.Text ?? string.Empty;
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorBody = await response.Content.ReadAsStringAsync(ct);
+                return $"خطأ في الاتصال بالمساعد (كود {(int)response.StatusCode}). تفاصيل: {errorBody[..Math.Min(errorBody.Length, 200)]}";
+            }
+
+            AnthropicResponse? result = await response.Content.ReadFromJsonAsync<AnthropicResponse>(ct);
+            return result?.Content?[0]?.Text ?? "لم يتم استلام رد من المساعد.";
+        }
+        catch (Exception ex)
+        {
+            return $"خطأ في الاتصال: {ex.Message[..Math.Min(ex.Message.Length, 150)]}";
+        }
     }
 
     private sealed record AnthropicResponse(
