@@ -327,7 +327,8 @@ export function SalesPage() {
               {
                 key: 'lines',
                 header: 'المنتجات',
-                render: (r) => `${r.lines.length} منتجات`,
+                render: (r) =>
+                  r.lines.length === 1 ? '١ منتج' : `${r.lines.length} منتجات`,
               },
               {
                 key: 'totalAmount',
