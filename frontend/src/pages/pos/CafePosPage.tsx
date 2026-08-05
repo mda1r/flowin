@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
-  Printer, MessageSquare, ExternalLink, CreditCard, Banknote,
+  Printer, MessageSquare, CreditCard, Banknote,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
@@ -331,16 +331,6 @@ export function CafePosPage() {
         <div className="flex items-center gap-3">
           <Coffee className="h-5 w-5 text-amber-400" />
           <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">نقطة البيع — كافيه</h1>
-          <a
-            href="/cafe/kitchen"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-          >
-            <ChefHat className="h-3.5 w-3.5" />
-            شاشة المطبخ
-            <ExternalLink className="h-3 w-3" />
-          </a>
         </div>
         <div className="flex items-center gap-2">
           {shift ? (

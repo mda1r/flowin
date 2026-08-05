@@ -23,6 +23,7 @@ import {
   Shield,
   BarChart2,
   Activity,
+  ChefHat,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -48,7 +49,7 @@ const BUSINESS_META: Record<BusinessType, { emoji: string; ar: string; en: strin
   Gaming:      { emoji: '🎮', ar: 'صالة ألعاب',  en: 'Gaming Lounge' },
   Supermarket: { emoji: '🛒', ar: 'سوبر ماركت',  en: 'Supermarket' },
   Retail:      { emoji: '🛍️', ar: 'متجر تجزئة', en: 'Retail Store' },
-  Cafe:        { emoji: '☕', ar: 'مقهى',        en: 'Cafe' },
+  Cafe:        { emoji: '☕', ar: 'كافيه',       en: 'Cafe' },
 }
 
 interface NavItem {
@@ -76,6 +77,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'zatca', to: '/settings/zatca', icon: <Shield className="h-5 w-5" /> },
   { labelKey: 'users', to: '/users', icon: <UserCog className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'kitchen', to: '/cafe/kitchen', icon: <ChefHat className="h-5 w-5" /> },
   { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
 ]
 

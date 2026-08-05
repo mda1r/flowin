@@ -19,6 +19,7 @@ export const ar: Translations = {
     branches: 'الفروع',
     zatca: 'زاتكا',
     reports: 'التقارير',
+    kitchen: 'شاشة المطبخ',
     activityLogs: 'سجل النشاطات',
     settings: 'الإعدادات',
     logout: 'تسجيل الخروج',
