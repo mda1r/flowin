@@ -319,7 +319,9 @@ export function SalesPage() {
                 key: 'id',
                 header: 'رقم الطلب',
                 render: (r) => (
-                  <span className="font-mono text-sm font-medium">{r.id.slice(0, 8).toUpperCase()}</span>
+                  <span className="font-mono text-sm font-medium text-blue-600 dark:text-blue-400">
+                    #{r.id.slice(-6).toUpperCase()}
+                  </span>
                 ),
               },
               {
@@ -346,6 +348,7 @@ export function SalesPage() {
               {
                 key: 'completedAt',
                 header: 'التاريخ',
+                className: 'whitespace-nowrap',
                 render: (r) => r.completedAt ? formatDateTime(r.completedAt) : '—',
               },
               {
