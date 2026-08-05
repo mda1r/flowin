@@ -41,5 +41,6 @@ internal sealed class OpenShiftCommandHandler(
         s.Id.Value, s.BranchId, s.UserId, s.CashierName, s.Status,
         s.OpeningCash, s.ClosingCash,
         s.TotalSales, s.TotalCashSales, s.TotalCardSales, s.TotalTax, s.TotalOrders,
-        s.ExpectedCash, s.CashVariance, s.Notes, s.OpenedAt, s.ClosedAt);
+        s.ExpectedCash, s.CashVariance, s.ClosingCardCount, s.CardVariance,
+        s.Notes, s.OpenedAt, s.ClosedAt);
 }

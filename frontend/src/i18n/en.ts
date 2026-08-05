@@ -19,6 +19,7 @@ export const en = {
     zatca: 'ZATCA',
     reports: 'Reports',
     kitchen: 'Kitchen Screen',
+    shiftReports: 'Shift Reports',
     activityLogs: 'Activity Logs',
     settings: 'Settings',
     logout: 'Logout',

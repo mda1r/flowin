@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Lock, Unlock, Clock, ShoppingBag, CreditCard, Banknote, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Lock, Unlock, Clock, ShoppingBag, CreditCard, Banknote, TrendingUp, AlertTriangle, Printer } from 'lucide-react'
 import { shiftsApi } from '@/api/shifts'
 import { ordersApi } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
@@ -79,11 +79,10 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const [closingCash, setClosingCash] = useState('')
+  const [closingCard, setClosingCard] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Fetch orders placed since shift opened to compute real cash/card sales
-  // (backend may not link orders to shifts correctly)
   const { data: shiftOrders } = useQuery({
     queryKey: ['shift-orders', branchId, shift.id, shift.openedAt],
     queryFn: async () => {
@@ -102,11 +101,66 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
     return { cashSales, cardSales, totalSales: cashSales + cardSales, totalOrders: orders.length }
   }, [shiftOrders])
 
+  const cashAmount = parseFloat(closingCash) || 0
+  const cardAmount = parseFloat(closingCard) || 0
+  const expectedCash = shift.openingCash + computed.cashSales
+  const cashVariance = cashAmount - expectedCash
+  const cardVariance = cardAmount - computed.cardSales
+
+  const duration = () => {
+    const ms = Date.now() - new Date(shift.openedAt).getTime()
+    const h = Math.floor(ms / 3_600_000)
+    const m = Math.floor((ms % 3_600_000) / 60_000)
+    return `${h}س ${m}د`
+  }
+
+  const handlePrint = () => {
+    const now = new Date().toLocaleString('ar-SA')
+    const cashierName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
+    const win = window.open('', '_blank', 'width=400,height=600')
+    if (!win) return
+    win.document.write(`
+      <html dir="rtl"><head><meta charset="utf-8"/><title>ملخص الشفت</title>
+      <style>
+        body{font-family:Arial,sans-serif;font-size:13px;margin:16px;color:#111}
+        h2{text-align:center;font-size:16px;margin-bottom:4px}
+        .sub{text-align:center;color:#555;font-size:11px;margin-bottom:12px}
+        hr{border:none;border-top:1px dashed #999;margin:8px 0}
+        .row{display:flex;justify-content:space-between;margin:4px 0}
+        .row .lbl{color:#444}.row .val{font-weight:bold}
+        .variance{padding:4px 8px;border-radius:4px;font-size:12px;margin-top:2px}
+        .ok{background:#d1fae5;color:#065f46}.bad{background:#fee2e2;color:#991b1b}
+        .total{font-size:15px;font-weight:bold;text-align:center;margin-top:8px}
+      </style></head><body>
+      <h2>ملخص الشفت</h2>
+      <div class="sub">${cashierName} · ${now}</div>
+      <hr/>
+      <div class="row"><span class="lbl">رصيد الفتح</span><span class="val">${formatCurrency(shift.openingCash)}</span></div>
+      <div class="row"><span class="lbl">مدة الشفت</span><span class="val">${duration()}</span></div>
+      <div class="row"><span class="lbl">عدد الطلبات</span><span class="val">${computed.totalOrders}</span></div>
+      <hr/>
+      <div class="row"><span class="lbl">مبيعات نقدية</span><span class="val">${formatCurrency(computed.cashSales)}</span></div>
+      <div class="row"><span class="lbl">مبيعات بطاقة</span><span class="val">${formatCurrency(computed.cardSales)}</span></div>
+      <hr/>
+      <div class="row"><span class="lbl">النقد المتوقع</span><span class="val">${formatCurrency(expectedCash)}</span></div>
+      <div class="row"><span class="lbl">النقد الفعلي</span><span class="val">${formatCurrency(cashAmount)}</span></div>
+      <div class="variance ${cashVariance >= 0 ? 'ok' : 'bad'}">${cashVariance >= 0 ? 'فائض نقدي' : 'عجز نقدي'}: ${formatCurrency(Math.abs(cashVariance))}</div>
+      <div class="row" style="margin-top:8px"><span class="lbl">إجمالي البطاقة المتوقع</span><span class="val">${formatCurrency(computed.cardSales)}</span></div>
+      <div class="row"><span class="lbl">إجمالي البطاقة الفعلي</span><span class="val">${formatCurrency(cardAmount)}</span></div>
+      <div class="variance ${cardVariance >= 0 ? 'ok' : 'bad'}">${cardVariance >= 0 ? 'فائض بطاقة' : 'عجز بطاقة'}: ${formatCurrency(Math.abs(cardVariance))}</div>
+      <hr/>
+      <div class="total">الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة، المجموع ${formatCurrency(computed.totalSales)}</div>
+      ${notes ? `<hr/><div style="color:#555;font-size:11px">ملاحظة: ${notes}</div>` : ''}
+      </body></html>
+    `)
+    win.document.close()
+    win.print()
+  }
+
   const handleClose = async () => {
-    const amount = parseFloat(closingCash) || 0
     setLoading(true)
     try {
-      await shiftsApi.close(branchId!, shift.id, amount, notes || undefined)
+      await shiftsApi.close(branchId!, shift.id, cashAmount, cardAmount, notes || undefined)
       qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
       qc.invalidateQueries({ queryKey: ['shifts', branchId] })
       logActivity(tenantId ?? '', {
@@ -115,17 +169,28 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         userEmail: user?.email,
         category: 'shift',
         action: 'إغلاق الشفت',
-        details: `المبيعات: ${computed.totalSales.toFixed(2)} ر.س · الطلبات: ${computed.totalOrders}${notes ? ` · ملاحظة: ${notes}` : ''}`,
+        details: `الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة، المجموع ${formatCurrency(computed.totalSales)}`,
         branchId: branchId ?? undefined,
       })
-      if (variance < 0) {
+      if (cashVariance < 0) {
         logActivity(tenantId ?? '', {
           userId: user?.id ?? '',
           userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
           userEmail: user?.email,
           category: 'shift',
           action: 'عجز في الصندوق',
-          details: `عجز ${Math.abs(variance).toFixed(2)} ر.س — متوقع ${expected.toFixed(2)} · فعلي ${amount.toFixed(2)}`,
+          details: `عجز نقدي ${formatCurrency(Math.abs(cashVariance))} — متوقع ${formatCurrency(expectedCash)} · فعلي ${formatCurrency(cashAmount)}`,
+          branchId: branchId ?? undefined,
+        })
+      }
+      if (cardVariance < 0) {
+        logActivity(tenantId ?? '', {
+          userId: user?.id ?? '',
+          userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          userEmail: user?.email,
+          category: 'shift',
+          action: 'عجز في البطاقة',
+          details: `عجز بطاقة ${formatCurrency(Math.abs(cardVariance))} — متوقع ${formatCurrency(computed.cardSales)} · فعلي ${formatCurrency(cardAmount)}`,
           branchId: branchId ?? undefined,
         })
       }
@@ -138,17 +203,6 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
     }
   }
 
-  const closing = parseFloat(closingCash) || 0
-  const expected = shift.openingCash + computed.cashSales
-  const variance = closing - expected
-
-  const duration = () => {
-    const ms = Date.now() - new Date(shift.openedAt).getTime()
-    const h = Math.floor(ms / 3_600_000)
-    const m = Math.floor((ms % 3_600_000) / 60_000)
-    return `${h}س ${m}د`
-  }
-
   return (
     <Modal
       open
@@ -157,6 +211,10 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>إلغاء</Button>
+          <Button variant="secondary" onClick={handlePrint} className="gap-1">
+            <Printer className="h-4 w-4" />
+            طباعة
+          </Button>
           <Button variant="danger" loading={loading} onClick={handleClose}>
             <Lock className="h-4 w-4" />
             إغلاق الشفت
@@ -165,7 +223,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       }
     >
       <div className="space-y-4" dir="rtl">
-        {/* shift summary */}
+        {/* summary cards */}
         <div className="grid grid-cols-2 gap-3">
           <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={String(computed.totalOrders)} />
           <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label="إجمالي المبيعات" value={formatCurrency(computed.totalSales)} />
@@ -175,35 +233,58 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           <SummaryCard icon={<Banknote className="h-4 w-4" />} label="رصيد الفتح" value={formatCurrency(shift.openingCash)} />
         </div>
 
-        <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-          <p className="mb-1 text-xs text-gray-500">النقد المتوقع في الصندوق</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(expected)}</p>
-          <p className="text-xs text-gray-400">= رصيد الفتح + مبيعات نقدية</p>
+        {/* daily income summary */}
+        <div className="rounded-xl bg-gray-50 p-3 text-center text-sm dark:bg-gray-800">
+          <span className="text-gray-500">الدخل اليوم: </span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cashSales)} كاش</span>
+          <span className="text-gray-400"> و </span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cardSales)} بطاقة</span>
+          <span className="text-gray-400">، المجموع </span>
+          <span className="font-bold text-[color:var(--accent)]">{formatCurrency(computed.totalSales)}</span>
         </div>
 
-        <Input
-          label="النقد الفعلي في الصندوق (ر.س)"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="0.00"
-          value={closingCash}
-          onChange={(e) => setClosingCash(e.target.value)}
-          autoFocus
-        />
-
-        {closingCash && (
-          <div className={`flex items-center gap-2 rounded-lg p-3 text-sm font-medium ${
-            variance >= 0
-              ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-              : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-          }`}>
-            {variance < 0 && <AlertTriangle className="h-4 w-4 shrink-0" />}
-            <span>
-              {variance >= 0 ? 'فائض' : 'عجز'}: {formatCurrency(Math.abs(variance))}
-            </span>
+        {/* cash section */}
+        <div className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+          <p className="text-xs font-medium text-gray-500">جرد النقد</p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">المتوقع في الصندوق</span>
+            <span className="font-bold tabular-nums">{formatCurrency(expectedCash)}</span>
           </div>
-        )}
+          <Input
+            label="النقد الفعلي في الصندوق (ر.س)"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={closingCash}
+            onChange={(e) => setClosingCash(e.target.value)}
+            autoFocus
+          />
+          {closingCash && (
+            <VarianceBadge label="نقد" variance={cashVariance} />
+          )}
+        </div>
+
+        {/* card section */}
+        <div className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+          <p className="text-xs font-medium text-gray-500">جرد البطاقة</p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">المتوقع من الجهاز</span>
+            <span className="font-bold tabular-nums">{formatCurrency(computed.cardSales)}</span>
+          </div>
+          <Input
+            label="إجمالي البطاقة من الجهاز (ر.س)"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={closingCard}
+            onChange={(e) => setClosingCard(e.target.value)}
+          />
+          {closingCard && (
+            <VarianceBadge label="بطاقة" variance={cardVariance} />
+          )}
+        </div>
 
         <Input
           label="ملاحظات (اختياري)"
@@ -213,6 +294,20 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         />
       </div>
     </Modal>
+  )
+}
+
+function VarianceBadge({ label, variance }: { label: string; variance: number }) {
+  const positive = variance >= 0
+  return (
+    <div className={`flex items-center gap-2 rounded-lg p-2.5 text-sm font-medium ${
+      positive
+        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+        : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+    }`}>
+      {!positive && <AlertTriangle className="h-4 w-4 shrink-0" />}
+      <span>{positive ? `فائض ${label}` : `عجز ${label}`}: {formatCurrency(Math.abs(variance))}</span>
+    </div>
   )
 }
 

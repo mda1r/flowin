@@ -35,6 +35,7 @@ internal sealed class TenantSchemaProvisioner(
         await DatabaseInitializerExtensions.EnsureCreatedAsync<CatalogDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<InventoryDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<PosDbContext>(sp, logger);
+        await DatabaseInitializerExtensions.MigratePosColumnsAsync(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<SalesDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<CrmDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<PurchasingDbContext>(sp, logger);

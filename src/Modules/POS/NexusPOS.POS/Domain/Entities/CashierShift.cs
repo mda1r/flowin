@@ -20,6 +20,8 @@ public sealed class CashierShift : Entity<CashierShiftId>
     public int TotalOrders { get; private set; }
     public decimal? ExpectedCash { get; private set; }
     public decimal? CashVariance { get; private set; }
+    public decimal? ClosingCardCount { get; private set; }
+    public decimal? CardVariance { get; private set; }
     public string? Notes { get; private set; }
     public DateTime OpenedAt { get; private set; }
     public DateTime? ClosedAt { get; private set; }
@@ -42,6 +44,7 @@ public sealed class CashierShift : Entity<CashierShiftId>
 
     public ErrorOr<Success> Close(
         decimal closingCash,
+        decimal closingCardCount,
         decimal totalSales,
         decimal totalCashSales,
         decimal totalCardSales,
@@ -63,6 +66,8 @@ public sealed class CashierShift : Entity<CashierShiftId>
         TotalOrders = totalOrders;
         ExpectedCash = OpeningCash + totalCashSales;
         CashVariance = closingCash - ExpectedCash;
+        ClosingCardCount = closingCardCount;
+        CardVariance = closingCardCount - totalCardSales;
         Notes = notes?.Trim();
         ClosedAt = DateTime.UtcNow;
 

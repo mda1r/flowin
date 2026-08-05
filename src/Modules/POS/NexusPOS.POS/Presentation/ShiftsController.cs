@@ -92,7 +92,7 @@ public sealed class ShiftsController(ISender mediator) : ControllerBase
         [FromBody] CloseShiftRequest request,
         CancellationToken cancellationToken = default)
     {
-        CloseShiftCommand command = new(shiftId, branchId, CurrentUserId, request.ClosingCash, request.Notes);
+        CloseShiftCommand command = new(shiftId, branchId, CurrentUserId, request.ClosingCash, request.ClosingCardCount, request.Notes);
         ErrorOr<ShiftResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);

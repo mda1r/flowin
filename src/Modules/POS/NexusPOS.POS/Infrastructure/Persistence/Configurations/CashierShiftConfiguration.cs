@@ -29,6 +29,8 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
         builder.Property(s => s.TotalOrders).HasColumnName("total_orders");
         builder.Property(s => s.ExpectedCash).HasColumnName("expected_cash").HasPrecision(18, 4);
         builder.Property(s => s.CashVariance).HasColumnName("cash_variance").HasPrecision(18, 4);
+        builder.Property(s => s.ClosingCardCount).HasColumnName("closing_card_count").HasPrecision(18, 4);
+        builder.Property(s => s.CardVariance).HasColumnName("card_variance").HasPrecision(18, 4);
         builder.Property(s => s.Notes).HasColumnName("notes").HasMaxLength(1000);
         builder.Property(s => s.OpenedAt).HasColumnName("opened_at");
         builder.Property(s => s.ClosedAt).HasColumnName("closed_at");

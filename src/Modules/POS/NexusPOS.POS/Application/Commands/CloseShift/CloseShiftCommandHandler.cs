@@ -48,6 +48,7 @@ internal sealed class CloseShiftCommandHandler(
 
         ErrorOr<Success> result = shift.Close(
             request.ClosingCash,
+            request.ClosingCardCount,
             totalSales,
             totalCashSales,
             totalCardSales,

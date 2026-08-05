@@ -17,6 +17,8 @@ public sealed record ShiftResponse(
     int TotalOrders,
     decimal? ExpectedCash,
     decimal? CashVariance,
+    decimal? ClosingCardCount,
+    decimal? CardVariance,
     string? Notes,
     DateTime OpenedAt,
     DateTime? ClosedAt);

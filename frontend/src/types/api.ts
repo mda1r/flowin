@@ -128,6 +128,8 @@ export interface ShiftResponse {
   totalOrders: number
   expectedCash: number | null
   cashVariance: number | null
+  closingCardCount: number | null
+  cardVariance: number | null
   notes: string | null
   openedAt: string
   closedAt: string | null

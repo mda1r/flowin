@@ -94,6 +94,16 @@ export function ProductsPage() {
     defaultValues: { currency: 'SAR' },
   })
 
+  const extractApiError = (err: unknown): string | null => {
+    const response = (err as any)?.response
+    const data = response?.data
+    return data?.message
+      ?? data?.title
+      ?? (data?.errors ? JSON.stringify(data.errors) : null)
+      ?? (typeof data === 'string' ? data : null)
+      ?? (response ? `خطأ ${response.status}` : 'تحقق من اتصال الإنترنت')
+  }
+
   const create = useMutation({
     mutationFn: async (data: CreateFormData) => {
       const result = await catalogApi.createProduct(tenantId!, {
@@ -124,9 +134,7 @@ export function ProductsPage() {
       toast.success('تم إنشاء المنتج')
     },
     onError: (err: unknown) => {
-      const data = (err as any)?.response?.data
-      const detail = data?.message ?? data?.title ?? data?.errors ? JSON.stringify(data.errors) : null
-      toast.error('فشل حفظ المنتج', detail ?? 'تحقق من البيانات وحاول مجدداً')
+      toast.error('فشل حفظ المنتج', extractApiError(err) ?? 'تحقق من البيانات')
     },
   })
 
@@ -144,7 +152,7 @@ export function ProductsPage() {
       setEditingProduct(null)
       toast.success('تم تحديث المنتج')
     },
-    onError: () => toast.error('فشل تحديث المنتج'),
+    onError: (err: unknown) => toast.error('فشل تحديث المنتج', extractApiError(err) ?? undefined),
   })
 
   const updateVariant = useMutation({
@@ -160,7 +168,7 @@ export function ProductsPage() {
       setEditingVariant(null)
       toast.success('تم تحديث النوع')
     },
-    onError: () => toast.error('فشل تحديث النوع'),
+    onError: (err: unknown) => toast.error('فشل تحديث النوع', extractApiError(err) ?? undefined),
   })
 
   const createCategory = useMutation({
@@ -171,7 +179,7 @@ export function ProductsPage() {
       categoryForm.reset()
       toast.success('تم إنشاء التصنيف')
     },
-    onError: () => toast.error('فشل إنشاء التصنيف'),
+    onError: (err: unknown) => toast.error('فشل إنشاء التصنيف', extractApiError(err) ?? undefined),
   })
 
   const deactivate = useMutation({
@@ -204,7 +212,8 @@ export function ProductsPage() {
     setEditingVariant({ productId, variant })
   }
 
-  const products: ProductResponse[] = data?.data ?? []
+  const _raw = data?.data
+  const products: ProductResponse[] = Array.isArray(_raw) ? _raw : ((_raw as any)?.items ?? [])
 
   return (
     <div className="page-fade" dir="rtl">
@@ -217,7 +226,15 @@ export function ProductsPage() {
               <Plus className="h-4 w-4" />
               تصنيف جديد
             </Button>
-            <Button onClick={() => { createForm.reset(); setShowCreateModal(true) }}>
+            <Button onClick={() => {
+              createForm.reset({
+                currency: 'SAR',
+                variantName: 'افتراضي',
+                trackInventory: true,
+                sku: Math.random().toString(36).slice(2, 8).toUpperCase(),
+              })
+              setShowCreateModal(true)
+            }}>
               <Plus className="h-4 w-4" />
               إضافة منتج
             </Button>

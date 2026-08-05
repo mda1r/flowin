@@ -11,22 +11,21 @@ export const catalogApi = {
   createCategory: (data: { name: string; description?: string }) =>
     apiClient.post<CategoryResponse>('/api/v1/categories', data),
 
-  // Products — LIST is tenant-scoped by URL (isolation fix)
-  //            WRITE uses /api/v1/products (tenant from auth token)
-  listProducts: (tenantId: string, params?: {
+  // Products — tenant determined from auth token (no tenantId in URL)
+  listProducts: (_tenantId: string, params?: {
     categoryId?: string
     search?: string
     page?: number
     pageSize?: number
   }) =>
-    apiClient.get<ProductResponse[]>(`/api/v1/tenants/${tenantId}/products`, {
+    apiClient.get<ProductResponse[]>(`/api/v1/products`, {
       params: { pageSize: 100, ...params },
     }),
 
-  getProduct: (tenantId: string, productId: string) =>
-    apiClient.get<ProductResponse>(`/api/v1/tenants/${tenantId}/products/${productId}`),
+  getProduct: (_tenantId: string, productId: string) =>
+    apiClient.get<ProductResponse>(`/api/v1/products/${productId}`),
 
-  createProduct: (tenantId: string, data: {
+  createProduct: (_tenantId: string, data: {
     name: string
     description?: string
     categoryId?: string
@@ -39,7 +38,7 @@ export const catalogApi = {
     salePrice: number
     currency: string
     barcode?: string
-  }) => apiClient.post<ProductResponse>(`/api/v1/tenants/${tenantId}/products`, data),
+  }) => apiClient.post<ProductResponse>(`/api/v1/products`, data),
 
   updateProduct: (productId: string, data: {
     name: string

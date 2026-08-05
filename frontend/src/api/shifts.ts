@@ -13,9 +13,9 @@ export const shiftsApi = {
   open: (branchId: string, openingCash: number) =>
     apiClient.post<ShiftResponse>(`/api/v1/branches/${branchId}/shifts`, { openingCash }),
 
-  close: (branchId: string, shiftId: string, closingCash: number, notes?: string) =>
+  close: (branchId: string, shiftId: string, closingCash: number, closingCardCount: number, notes?: string) =>
     apiClient.post<ShiftResponse>(
       `/api/v1/branches/${branchId}/shifts/${shiftId}/close`,
-      { closingCash, notes },
+      { closingCash, closingCardCount, notes },
     ),
 }

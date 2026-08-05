@@ -220,6 +220,22 @@ internal static class DatabaseInitializerExtensions
         logger.LogDebug("Schema patches applied");
     }
 
+    internal static async Task MigratePosColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        PosDbContext posDb = sp.GetRequiredService<PosDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS closing_card_count NUMERIC(18,4)",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS card_variance NUMERIC(18,4)",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await posDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "POS migration skipped: {Sql}", sql); }
+        }
+    }
+
     private static async Task SeedAdminUserAsync(IServiceProvider sp, ILogger logger)
     {
         IamDbContext db = sp.GetRequiredService<IamDbContext>();
@@ -860,6 +876,7 @@ internal static class DatabaseInitializerExtensions
                 await EnsureCreatedAsync<CatalogDbContext>(sp, logger);
                 await EnsureCreatedAsync<InventoryDbContext>(sp, logger);
                 await EnsureCreatedAsync<PosDbContext>(sp, logger);
+                await MigratePosColumnsAsync(sp, logger);
                 await EnsureCreatedAsync<SalesDbContext>(sp, logger);
                 await EnsureCreatedAsync<CrmDbContext>(sp, logger);
                 await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);

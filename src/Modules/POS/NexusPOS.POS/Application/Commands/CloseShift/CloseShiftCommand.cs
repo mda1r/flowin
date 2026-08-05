@@ -8,4 +8,5 @@ public sealed record CloseShiftCommand(
     Guid BranchId,
     Guid UserId,
     decimal ClosingCash,
+    decimal ClosingCardCount,
     string? Notes) : ICommand<ShiftResponse>;
