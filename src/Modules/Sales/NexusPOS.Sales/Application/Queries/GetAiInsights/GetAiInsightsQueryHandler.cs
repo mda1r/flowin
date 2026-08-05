@@ -51,19 +51,21 @@ internal sealed class GetAiInsightsQueryHandler(
             - التغيير: {(prev7Revenue > 0 ? (recent7Revenue - prev7Revenue) / prev7Revenue * 100 : 0):F1}%
             """;
 
+        const string insightSystemPrompt = "أنت محلل مبيعات في نظام Flowin POS. أجب بالعربية في جملة أو جملتين كحد أقصى. لا تستخدم # أو ** أو أي تنسيق markdown. اكتب نصاً عادياً فقط.";
+
         string salesInsight = await claude.ChatAsync(
-            "أنت محلل مبيعات خبير. أجب باللغة العربية في جملة واحدة موجزة.",
-            $"{dataContext}\n\nقدم رؤية موجزة عن أداء المبيعات.",
+            insightSystemPrompt,
+            $"{dataContext}\n\nقدم رؤية موجزة عن أداء المبيعات مع ذكر الأرقام.",
             cancellationToken);
 
         string trendInsight = await claude.ChatAsync(
-            "أنت محلل مبيعات خبير. أجب باللغة العربية في جملة واحدة موجزة.",
-            $"{dataContext}\n\nما هو اتجاه المبيعات؟ هل ترتفع أم تنخفض؟",
+            insightSystemPrompt,
+            $"{dataContext}\n\nهل المبيعات في ارتفاع أم انخفاض؟ قارن الأسبوع الأخير بالسابق واذكر النسبة.",
             cancellationToken);
 
         string recommendation = await claude.ChatAsync(
-            "أنت مستشار أعمال خبير. أجب باللغة العربية في جملة واحدة موجزة.",
-            $"{dataContext}\n\nما هي أهم توصية لتحسين المبيعات؟",
+            insightSystemPrompt,
+            $"{dataContext}\n\nقدم توصية عملية واحدة قابلة للتطبيق فوراً لزيادة الإيرادات.",
             cancellationToken);
 
         return new AiInsightsResponse(salesInsight, trendInsight, recommendation, DateTime.UtcNow);
