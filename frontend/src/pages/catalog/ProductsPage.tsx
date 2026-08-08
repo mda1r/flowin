@@ -34,6 +34,8 @@ const createSchema = z.object({
   currency: z.string().length(3),
   categoryId: z.string().optional(),
   trackInventory: z.boolean().default(true),
+  initialQuantity: z.coerce.number().nonneg().default(0),
+  expiryDate: z.string().optional(),
 })
 
 const editProductSchema = z.object({
@@ -121,7 +123,21 @@ export function ProductsPage() {
       })
       if (data.trackInventory && branchId) {
         for (const variant of result.data.variants) {
-          try { await inventoryApi.initializeStock(branchId, variant.id) } catch { /* non-fatal */ }
+          try {
+            const stockRes = await inventoryApi.initializeStock(branchId, variant.id)
+            if (data.initialQuantity > 0) {
+              await inventoryApi.adjustStock(branchId, stockRes.data.id, {
+                newQuantity: data.initialQuantity,
+                expiryDate: data.expiryDate || null,
+                notes: 'كمية أولية عند إنشاء المنتج',
+              })
+            } else if (data.expiryDate) {
+              await inventoryApi.adjustStock(branchId, stockRes.data.id, {
+                newQuantity: 0,
+                expiryDate: data.expiryDate,
+              })
+            }
+          } catch { /* non-fatal */ }
         }
       }
       return result
@@ -413,6 +429,26 @@ export function ProductsPage() {
             <input type="checkbox" {...createForm.register('trackInventory')} className="rounded" />
             تتبع المخزون
           </label>
+          {createForm.watch('trackInventory') && (
+            <div className="grid grid-cols-2 gap-4 rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/30 dark:bg-blue-900/10">
+              <Input
+                label="الكمية الأولية"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0"
+                {...createForm.register('initialQuantity')}
+              />
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">تاريخ الانتهاء (اختياري)</label>
+                <input
+                  type="date"
+                  {...createForm.register('expiryDate')}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+            </div>
+          )}
         </form>
       </Modal>
 

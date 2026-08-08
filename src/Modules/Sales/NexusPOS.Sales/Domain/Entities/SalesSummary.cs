@@ -36,4 +36,9 @@ public sealed class SalesSummary : AggregateRoot<SalesSummaryId>
         TotalDiscounts += discount;
         TotalTax += tax;
     }
+
+    public void RecordReturn(decimal refundAmount)
+    {
+        TotalRevenue -= refundAmount;
+    }
 }

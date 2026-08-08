@@ -148,9 +148,12 @@ public sealed class Order : AggregateRoot<OrderId>
         CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
+        var lineItems = Lines
+            .Select(l => new OrderCompletedDomainEvent.LineItem(l.VariantId, l.Quantity))
+            .ToList();
         RaiseDomainEvent(new OrderCompletedDomainEvent(
             Id.Value, TenantId, BranchId,
-            SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method));
+            SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method, lineItems));
         return Result.Success;
     }
 

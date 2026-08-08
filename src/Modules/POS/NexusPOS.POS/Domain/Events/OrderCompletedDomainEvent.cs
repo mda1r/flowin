@@ -12,4 +12,8 @@ public sealed record OrderCompletedDomainEvent(
     decimal TaxAmount,
     decimal Total,
     string Currency,
-    PaymentMethod PaymentMethod) : DomainEvent;
+    PaymentMethod PaymentMethod,
+    IReadOnlyList<OrderCompletedDomainEvent.LineItem> Lines) : DomainEvent
+{
+    public sealed record LineItem(Guid VariantId, decimal Quantity);
+}

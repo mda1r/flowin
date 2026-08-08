@@ -33,7 +33,7 @@ interface KitchenTicketData {
   ticketNumber: number
 }
 
-type PayMode = 'Cash' | 'Card'
+type PayMode = 'Cash' | 'Card' | 'Split'
 
 const CAFE_ACCENT: React.CSSProperties = {
   '--accent': '#FBBF24',
@@ -174,6 +174,8 @@ export function CafePosPage() {
   const [cart, setCart] = useState<CafeCartItem[]>([])
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [payMode, setPayMode] = useState<PayMode>('Cash')
+  const [splitCash, setSplitCash] = useState('')
+  const [splitCard, setSplitCard] = useState('')
 
   // Shift
   const [showOpenShift, setShowOpenShift] = useState(false)
@@ -241,7 +243,11 @@ export function CafePosPage() {
     mutationFn: async () => {
       if (!branchId || !tenantId) throw new Error('no-branch')
       if (cart.length === 0) throw new Error('empty')
-      if (orderType === 'here' && !tableNumber) throw new Error('no-table')
+      if (payMode === 'Split') {
+        const c = parseFloat(splitCash) || 0
+        const k = parseFloat(splitCard) || 0
+        if (Math.abs(c + k - grandTotal) > 0.01) throw new Error('split-mismatch')
+      }
 
       const orderRes = await ordersApi.createOrder(branchId, {
         tenantId,
@@ -266,6 +272,7 @@ export function CafePosPage() {
         paymentMethod: payMode as PaymentMethod,
         amountTendered: grandTotal,
       })
+
 
       return orderId
     },
@@ -311,16 +318,22 @@ export function CafePosPage() {
       setTicketCounter((n) => n + 1)
       setCart([])
       setTableNumber(null)
+      setSplitCash('')
+      setSplitCard('')
       toast.success('تم إتمام الطلب')
     },
     onError: (e: Error) => {
-      if (e.message === 'no-table') toast.error('اختر طاولة أولاً')
+      if (e.message === 'split-mismatch') toast.error('مجموع النقد والبطاقة لا يساوي الإجمالي')
       else if (e.message === 'empty') toast.error('السلة فارغة')
       else toast.error('فشل إتمام الطلب')
     },
   })
 
-  const canCheckout = cart.length > 0 && (orderType === 'takeaway' || tableNumber !== null)
+  const canCheckout = cart.length > 0 && (
+    payMode !== 'Split' || (
+      (parseFloat(splitCash) || 0) + (parseFloat(splitCard) || 0) > 0
+    )
+  )
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -498,22 +511,59 @@ export function CafePosPage() {
 
                 {/* Payment mode */}
                 <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                  {(['Cash', 'Card'] as PayMode[]).map((m) => (
+                  {(['Cash', 'Card', 'Split'] as PayMode[]).map((m) => (
                     <button
                       key={m}
-                      onClick={() => setPayMode(m)}
+                      onClick={() => { setPayMode(m); setSplitCash(''); setSplitCard('') }}
                       className={cn(
-                        'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors',
+                        'flex flex-1 items-center justify-center gap-1 py-2 text-xs font-medium transition-colors',
                         payMode === m
                           ? 'bg-[var(--accent)] text-white'
                           : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
                       )}
                     >
-                      {m === 'Cash' ? <Banknote className="h-3.5 w-3.5" /> : <CreditCard className="h-3.5 w-3.5" />}
-                      {m === 'Cash' ? 'نقداً' : 'بطاقة'}
+                      {m === 'Cash' && <Banknote className="h-3 w-3" />}
+                      {m === 'Card' && <CreditCard className="h-3 w-3" />}
+                      {m === 'Cash' ? 'نقداً' : m === 'Card' ? 'بطاقة' : 'مختلط'}
                     </button>
                   ))}
                 </div>
+
+                {/* Split payment inputs */}
+                {payMode === 'Split' && (
+                  <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800/40 dark:bg-amber-900/10">
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">توزيع الدفع المختلط</p>
+                    <div className="flex items-center gap-2">
+                      <Banknote className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="نقداً"
+                        value={splitCash}
+                        onChange={(e) => setSplitCash(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="بطاقة"
+                        value={splitCard}
+                        onChange={(e) => setSplitCard(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
+                      />
+                    </div>
+                    {splitCash && splitCard && (
+                      <p className={cn('text-xs font-medium', Math.abs((parseFloat(splitCash)||0)+(parseFloat(splitCard)||0)-grandTotal) < 0.01 ? 'text-green-600' : 'text-red-500')}>
+                        المجموع: {((parseFloat(splitCash)||0)+(parseFloat(splitCard)||0)).toFixed(2)} / {grandTotal.toFixed(2)} ر.س
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <button
                   onClick={() => checkout.mutate()}
@@ -521,11 +571,7 @@ export function CafePosPage() {
                   className="w-full rounded-xl py-3 text-sm font-bold text-white transition-all disabled:opacity-50"
                   style={{ background: 'var(--accent)' }}
                 >
-                  {checkout.isPending
-                    ? 'جاري...'
-                    : !canCheckout && orderType === 'here'
-                    ? 'اختر طاولة أولاً'
-                    : 'إتمام الطلب'}
+                  {checkout.isPending ? 'جاري...' : 'إتمام الطلب'}
                 </button>
               </div>
             )}

@@ -1,5 +1,6 @@
 using ErrorOr;
 using NexusPOS.POS.Domain.Enums;
+using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
 
@@ -50,6 +51,13 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
             Lines = lines,
             CreatedAt = DateTime.UtcNow,
         };
+
+        var lineItems = lines
+            .Select(l => new ReturnOrderCompletedDomainEvent.LineItem(l.VariantId, l.Quantity))
+            .ToList();
+        returnOrder.RaiseDomainEvent(new ReturnOrderCompletedDomainEvent(
+            returnOrder.Id.Value, originalOrderId, tenantId, branchId,
+            refundAmount, currency.ToUpperInvariant(), lineItems));
 
         return returnOrder;
     }

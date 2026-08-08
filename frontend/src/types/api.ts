@@ -206,7 +206,7 @@ export interface StockCountSessionResponse {
 // ── POS / Orders ─────────────────────────────────────────────────────────────
 
 export type OrderStatus = 'Open' | 'Completed' | 'Cancelled'
-export type PaymentMethod = 'Cash' | 'Card' | 'BankTransfer' | 'Voucher'
+export type PaymentMethod = 'Cash' | 'Card' | 'BankTransfer' | 'Voucher' | 'Split'
 
 export interface OrderLineResponse {
   id: string

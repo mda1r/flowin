@@ -203,23 +203,33 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
     }
   }
 
+  const hasVariance = (closingCash && cashVariance !== 0) || (closingCard && cardVariance !== 0)
+
   return (
     <Modal
       open
       onClose={onClose}
       title="إغلاق الشفت"
       footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>إلغاء</Button>
-          <Button variant="secondary" onClick={handlePrint} className="gap-1">
-            <Printer className="h-4 w-4" />
-            طباعة
-          </Button>
-          <Button variant="danger" loading={loading} onClick={handleClose}>
-            <Lock className="h-4 w-4" />
-            إغلاق الشفت
-          </Button>
-        </>
+        <div className="flex w-full flex-col gap-2">
+          {hasVariance && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>تحذير: يوجد فارق في الجرد — تأكد من المبلغ قبل الإغلاق</span>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={onClose}>إلغاء</Button>
+            <Button variant="secondary" onClick={handlePrint} className="gap-1">
+              <Printer className="h-4 w-4" />
+              طباعة
+            </Button>
+            <Button variant="danger" loading={loading} onClick={handleClose}>
+              <Lock className="h-4 w-4" />
+              إغلاق الشفت
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="space-y-4" dir="rtl">
@@ -298,15 +308,21 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
 }
 
 function VarianceBadge({ label, variance }: { label: string; variance: number }) {
-  const positive = variance >= 0
+  const exact = variance === 0
   return (
     <div className={`flex items-center gap-2 rounded-lg p-2.5 text-sm font-medium ${
-      positive
+      exact
         ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
         : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
     }`}>
-      {!positive && <AlertTriangle className="h-4 w-4 shrink-0" />}
-      <span>{positive ? `فائض ${label}` : `عجز ${label}`}: {formatCurrency(Math.abs(variance))}</span>
+      {!exact && <AlertTriangle className="h-4 w-4 shrink-0" />}
+      <span>
+        {exact
+          ? `${label} مطابق`
+          : variance > 0
+          ? `فائض ${label}: ${formatCurrency(variance)}`
+          : `عجز ${label}: ${formatCurrency(Math.abs(variance))}`}
+      </span>
     </div>
   )
 }

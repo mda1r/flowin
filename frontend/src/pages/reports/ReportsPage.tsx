@@ -12,6 +12,8 @@ import {
   Ticket,
   Calendar,
   AlertTriangle,
+  RotateCcw,
+  TrendingDown,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -19,7 +21,8 @@ import { Badge } from '@/components/ui/Badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { salesApi } from '@/api/sales'
-import type { OrderResponse } from '@/types/api'
+import { ordersApi } from '@/api/orders'
+import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 
@@ -119,6 +122,7 @@ const PAYMENT_LABELS: Record<string, { ar: string; icon: React.ReactNode; color:
   Card:         { ar: 'بطاقة',      icon: <CreditCard className="h-4 w-4" />, color: 'text-blue-600'    },
   BankTransfer: { ar: 'تحويل بنكي', icon: <Landmark   className="h-4 w-4" />, color: 'text-violet-600'  },
   Voucher:      { ar: 'قسيمة',      icon: <Ticket     className="h-4 w-4" />, color: 'text-amber-600'   },
+  Split:        { ar: 'مختلط',      icon: <Banknote   className="h-4 w-4" />, color: 'text-orange-600'  },
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -225,6 +229,12 @@ export function ReportsPage() {
     enabled: !!branchId,
   })
 
+  const { data: rawReturns } = useQuery({
+    queryKey: ['reports-returns', branchId],
+    queryFn: () => ordersApi.listReturns(branchId!),
+    enabled: !!branchId,
+  })
+
   const orders = useMemo<OrderResponse[]>(() => {
     const raw = rawOrders?.data
     const all: OrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
@@ -234,6 +244,20 @@ export function ReportsPage() {
       return ds >= dateFrom && ds <= dateTo
     })
   }, [rawOrders, dateFrom, dateTo])
+
+  const returns = useMemo<ReturnOrderResponse[]>(() => {
+    const raw = rawReturns?.data
+    const all: ReturnOrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    return all.filter(r => {
+      const ds = new Date(r.createdAt).toLocaleDateString('en-CA')
+      return ds >= dateFrom && ds <= dateTo
+    })
+  }, [rawReturns, dateFrom, dateTo])
+
+  const returnStats = useMemo(() => ({
+    count: returns.length,
+    total: returns.reduce((s, r) => s + r.refundAmount, 0),
+  }), [returns])
 
   const stats = useMemo(() => computeStats(orders), [orders])
 
@@ -306,10 +330,10 @@ export function ReportsPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <KpiCard
-                title="إجمالي الإيرادات"
-                value={formatCurrency(stats.totalRevenue)}
+                title="صافي الإيرادات"
+                value={formatCurrency(stats.totalRevenue - returnStats.total)}
                 sub={`${stats.totalOrders} طلب`}
                 icon={<DollarSign className="h-5 w-5 text-blue-600" />}
                 iconWrap="bg-blue-50 dark:bg-blue-900/30"
@@ -329,6 +353,8 @@ export function ReportsPage() {
                 iconWrap="bg-green-50 dark:bg-green-900/30"
                 accent="#22c55e"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <KpiCard
                 title="إجمالي ضريبة القيمة المضافة"
                 value={formatCurrency(stats.totalTax)}
@@ -336,6 +362,21 @@ export function ReportsPage() {
                 icon={<Receipt className="h-5 w-5 text-amber-600" />}
                 iconWrap="bg-amber-50 dark:bg-amber-900/30"
                 accent="#f59e0b"
+              />
+              <KpiCard
+                title="عدد الإرجاعات"
+                value={String(returnStats.count)}
+                sub={returnStats.count > 0 ? `إجمالي ${formatCurrency(returnStats.total)}` : 'لا توجد إرجاعات'}
+                icon={<RotateCcw className="h-5 w-5 text-red-600" />}
+                iconWrap="bg-red-50 dark:bg-red-900/30"
+                accent="#ef4444"
+              />
+              <KpiCard
+                title="إجمالي الإيرادات (قبل الإرجاع)"
+                value={formatCurrency(stats.totalRevenue)}
+                icon={<TrendingDown className="h-5 w-5 text-gray-500" />}
+                iconWrap="bg-gray-100 dark:bg-gray-800"
+                accent="#6b7280"
               />
             </div>
 
@@ -460,11 +501,16 @@ export function ReportsPage() {
                     {[
                       { label: 'الإيرادات قبل الضريبة', value: formatCurrency(stats.totalSubtotal) },
                       { label: 'ضريبة القيمة المضافة (15%)', value: formatCurrency(stats.totalTax) },
-                      { label: 'الإجمالي شامل الضريبة', value: formatCurrency(stats.totalRevenue), bold: true },
+                      { label: 'الإجمالي شامل الضريبة', value: formatCurrency(stats.totalRevenue) },
+                      { label: 'إجمالي الإرجاعات', value: returnStats.total > 0 ? `- ${formatCurrency(returnStats.total)}` : formatCurrency(0), red: returnStats.total > 0 },
+                      { label: 'صافي الإيرادات', value: formatCurrency(stats.totalRevenue - returnStats.total), bold: true },
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between px-6 py-3">
                         <span className="text-sm text-gray-500">{row.label}</span>
-                        <span className={cn('tabular-nums text-sm', row.bold ? 'font-bold text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300')}>
+                        <span className={cn('tabular-nums text-sm',
+                          row.bold ? 'font-bold text-gray-900 dark:text-gray-100' :
+                          (row as any).red ? 'font-medium text-red-600 dark:text-red-400' :
+                          'text-gray-700 dark:text-gray-300')}>
                           {row.value}
                         </span>
                       </div>
