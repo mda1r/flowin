@@ -204,6 +204,7 @@ const PAYMENT_META: Record<PaymentMethod, {
   Card:         { label: 'بطاقة',       badge: 'blue',   Icon: CreditCard, iconWrap: 'bg-blue-50 dark:bg-blue-900/30',       iconColor: 'text-blue-600'    },
   BankTransfer: { label: 'تحويل بنكي', badge: 'purple', Icon: Landmark,   iconWrap: 'bg-violet-50 dark:bg-violet-900/30',   iconColor: 'text-violet-600'  },
   Voucher:      { label: 'قسيمة',       badge: 'orange', Icon: Ticket,     iconWrap: 'bg-amber-50 dark:bg-amber-900/30',     iconColor: 'text-amber-600'   },
+  Split:        { label: 'مختلط',       badge: 'orange', Icon: Banknote,   iconWrap: 'bg-orange-50 dark:bg-orange-900/30',   iconColor: 'text-orange-600'  },
 }
 
 function formatOrderTime(iso?: string): string {

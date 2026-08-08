@@ -34,7 +34,7 @@ const createSchema = z.object({
   currency: z.string().length(3),
   categoryId: z.string().optional(),
   trackInventory: z.boolean().default(true),
-  initialQuantity: z.coerce.number().nonneg().default(0),
+  initialQuantity: z.coerce.number().nonnegative().default(0),
   expiryDate: z.string().optional(),
 })
 
