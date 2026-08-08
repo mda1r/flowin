@@ -1,5 +1,7 @@
+import { activityLogsApi } from '@/api/activityLogs'
+
 const storageKey = (tenantId: string) => `nexus_activity_logs_${tenantId}`
-const MAX_ENTRIES = 1000
+const MAX_ENTRIES = 200
 
 export type LogCategory = 'shift' | 'inventory' | 'stock-count' | 'order' | 'user' | 'other'
 
@@ -23,22 +25,30 @@ export function resolveDisplayName(entry: Pick<ActivityLogEntry, 'userName' | 'u
 }
 
 export function logActivity(tenantId: string, entry: Omit<ActivityLogEntry, 'id' | 'timestamp'>): void {
+  const occurredAt = new Date().toISOString()
+  const id = Math.random().toString(36).slice(2)
+
+  // Persist to localStorage immediately (instant, offline-safe)
   const key = storageKey(tenantId)
-  const logs = readLogs(tenantId)
-  logs.unshift({ ...entry, id: Math.random().toString(36).slice(2), timestamp: new Date().toISOString() })
+  const logs = readLocalLogs(tenantId)
+  logs.unshift({ ...entry, id, timestamp: occurredAt })
   if (logs.length > MAX_ENTRIES) logs.splice(MAX_ENTRIES)
   try { localStorage.setItem(key, JSON.stringify(logs)) } catch { /* storage full */ }
+
+  // Fire-and-forget to backend (permanent persistence)
+  activityLogsApi.log({
+    branchId: entry.branchId ?? null,
+    category: entry.category,
+    action: entry.action,
+    details: entry.details,
+    occurredAt,
+  }).catch(() => { /* backend unavailable — localStorage already saved */ })
 }
 
-export function readLogs(tenantId: string, filter?: { category?: LogCategory; from?: string; to?: string }): ActivityLogEntry[] {
+function readLocalLogs(tenantId: string): ActivityLogEntry[] {
   try {
     const raw = localStorage.getItem(storageKey(tenantId))
-    if (!raw) return []
-    let logs: ActivityLogEntry[] = JSON.parse(raw)
-    if (filter?.category) logs = logs.filter((l) => l.category === filter.category)
-    if (filter?.from) logs = logs.filter((l) => l.timestamp >= filter.from!)
-    if (filter?.to) logs = logs.filter((l) => l.timestamp <= filter.to! + 'T23:59:59Z')
-    return logs
+    return raw ? (JSON.parse(raw) as ActivityLogEntry[]) : []
   } catch {
     return []
   }

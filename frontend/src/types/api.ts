@@ -678,3 +678,18 @@ export interface GameSessionBillResponse {
   totalAmount: number
   currency: string
 }
+
+
+// ── Activity Logs ────────────────────────────────────────────────────────────
+
+export interface ActivityLogResponse {
+  id: string
+  timestamp: string
+  userId: string
+  userName: string
+  userEmail?: string | null
+  category: string
+  action: string
+  details?: string | null
+  branchId?: string | null
+}

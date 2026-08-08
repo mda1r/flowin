@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react'
-import { Activity, Trash2, Download, Filter, AlertTriangle } from 'lucide-react'
-import { readLogs, clearLogs, resolveDisplayName } from '@/lib/activityLog'
-import type { LogCategory, ActivityLogEntry } from '@/lib/activityLog'
+import { useQuery } from '@tanstack/react-query'
+import { Activity, Download, Filter, AlertTriangle, Loader2, RefreshCw } from 'lucide-react'
+import { activityLogsApi } from '@/api/activityLogs'
+import { resolveDisplayName } from '@/lib/activityLog'
+import type { LogCategory } from '@/lib/activityLog'
+import type { ActivityLogResponse } from '@/types/api'
 import { useAuthStore } from '@/stores/authStore'
-import { toast } from '@/components/ui/Toast'
 
 const CATEGORY_LABELS: Record<LogCategory, string> = {
   shift:         'الشفت',
@@ -23,7 +25,15 @@ const CATEGORY_COLORS: Record<LogCategory, string> = {
   other:         'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 }
 
-function exportCsv(logs: ActivityLogEntry[]) {
+function categoryLabel(cat: string): string {
+  return CATEGORY_LABELS[cat as LogCategory] ?? cat
+}
+
+function categoryColor(cat: string): string {
+  return CATEGORY_COLORS[cat as LogCategory] ?? CATEGORY_COLORS.other
+}
+
+function exportCsv(logs: ActivityLogResponse[]) {
   const rows = [
     ['التاريخ', 'الوقت', 'المستخدم', 'التصنيف', 'الإجراء', 'التفاصيل'],
     ...logs.map((l) => {
@@ -32,7 +42,7 @@ function exportCsv(logs: ActivityLogEntry[]) {
         d.toLocaleDateString('ar-SA'),
         d.toLocaleTimeString('ar-SA'),
         l.userName || l.userId,
-        CATEGORY_LABELS[l.category] ?? l.category,
+        categoryLabel(l.category),
         l.action,
         l.details ?? '',
       ]
@@ -49,18 +59,20 @@ function exportCsv(logs: ActivityLogEntry[]) {
 }
 
 export function ActivityLogsPage() {
-  const { tenantId } = useAuthStore()
+  const { branchId } = useAuthStore()
   const [filterCategory, setFilterCategory] = useState<LogCategory | 'all'>('all')
   const [filterUser, setFilterUser] = useState('')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
-  const [tick, setTick] = useState(0)
 
-  const allLogs = useMemo(
-    () => readLogs(tenantId ?? ''),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tick, tenantId],
-  )
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['activity-logs', branchId],
+    queryFn: () => activityLogsApi.list({ branchId: branchId ?? undefined, pageSize: 500 })
+      .then((r) => r.data),
+    staleTime: 30_000,
+  })
+
+  const allLogs = data ?? []
 
   const logs = useMemo(() => {
     return allLogs.filter((l) => {
@@ -72,12 +84,7 @@ export function ActivityLogsPage() {
     })
   }, [allLogs, filterCategory, filterUser, filterFrom, filterTo])
 
-  const handleClear = () => {
-    if (!window.confirm('هل تريد حذف جميع السجلات؟')) return
-    clearLogs(tenantId ?? '')
-    setTick((t) => t + 1)
-    toast.success('تم حذف السجلات')
-  }
+  const hasFilters = filterCategory !== 'all' || filterUser || filterFrom || filterTo
 
   return (
     <div className="p-6 md:p-8" dir="rtl">
@@ -88,9 +95,19 @@ export function ActivityLogsPage() {
             <Activity className="h-6 w-6" style={{ color: 'var(--accent)' }} />
             سجل النشاطات
           </h1>
-          <p className="mt-1 text-sm text-gray-500">{logs.length} سجل</p>
+          <p className="mt-1 text-sm text-gray-500">
+            {isLoading ? 'جاري التحميل…' : `${logs.length} سجل`}
+          </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            تحديث
+          </button>
           <button
             onClick={() => exportCsv(logs)}
             disabled={logs.length === 0}
@@ -98,14 +115,6 @@ export function ActivityLogsPage() {
           >
             <Download className="h-4 w-4" />
             تصدير CSV
-          </button>
-          <button
-            onClick={handleClear}
-            disabled={allLogs.length === 0}
-            className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-100 disabled:opacity-40 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-400"
-          >
-            <Trash2 className="h-4 w-4" />
-            مسح الكل
           </button>
         </div>
       </div>
@@ -159,7 +168,7 @@ export function ActivityLogsPage() {
           />
         </div>
 
-        {(filterCategory !== 'all' || filterUser || filterFrom || filterTo) && (
+        {hasFilters && (
           <button
             onClick={() => { setFilterCategory('all'); setFilterUser(''); setFilterFrom(''); setFilterTo('') }}
             className="rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-5"
@@ -170,7 +179,12 @@ export function ActivityLogsPage() {
       </div>
 
       {/* Table */}
-      {logs.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-20 dark:border-gray-700 dark:bg-gray-900">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          <span className="text-gray-400">جاري تحميل السجلات…</span>
+        </div>
+      ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-20 text-center dark:border-gray-700 dark:bg-gray-900">
           <Activity className="h-10 w-10 text-gray-200 dark:text-gray-700" />
           <p className="text-gray-400">لا توجد سجلات</p>
@@ -195,7 +209,11 @@ export function ActivityLogsPage() {
                 {logs.map((log) => {
                   const d = new Date(log.timestamp)
                   const isDeficit = log.action.includes('عجز')
-                  const displayName = resolveDisplayName(log)
+                  const displayName = resolveDisplayName({
+                    userName: log.userName,
+                    userEmail: log.userEmail ?? undefined,
+                    userId: log.userId,
+                  })
                   return (
                     <tr
                       key={log.id}
@@ -221,8 +239,8 @@ export function ActivityLogsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${CATEGORY_COLORS[log.category] ?? CATEGORY_COLORS.other}`}>
-                          {CATEGORY_LABELS[log.category] ?? log.category}
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${categoryColor(log.category)}`}>
+                          {categoryLabel(log.category)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
