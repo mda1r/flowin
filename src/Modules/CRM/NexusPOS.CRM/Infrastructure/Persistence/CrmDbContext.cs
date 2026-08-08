@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.CRM.Infrastructure.Persistence;
 
-public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<Customer> Customers => Set<Customer>();
 

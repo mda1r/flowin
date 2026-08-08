@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Hotel.Infrastructure.Persistence;
 
-public sealed class HotelDbContext(DbContextOptions<HotelDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class HotelDbContext(DbContextOptions<HotelDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Reservation> Reservations => Set<Reservation>();

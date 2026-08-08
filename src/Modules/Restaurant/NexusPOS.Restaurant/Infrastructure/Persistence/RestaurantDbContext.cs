@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Restaurant.Infrastructure.Persistence;
 
-public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<RestaurantOrder> RestaurantOrders => Set<RestaurantOrder>();

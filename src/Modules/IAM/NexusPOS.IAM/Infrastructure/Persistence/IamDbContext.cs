@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.IAM.Infrastructure.Persistence;
 
-public sealed class IamDbContext(DbContextOptions<IamDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class IamDbContext(DbContextOptions<IamDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

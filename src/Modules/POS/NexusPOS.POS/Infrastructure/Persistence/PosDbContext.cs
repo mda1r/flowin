@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.POS.Infrastructure.Persistence;
 
-public sealed class PosDbContext(DbContextOptions<PosDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class PosDbContext(DbContextOptions<PosDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();

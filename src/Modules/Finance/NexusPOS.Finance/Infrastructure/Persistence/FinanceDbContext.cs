@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Finance.Infrastructure.Persistence;
 
-public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<Expense> Expenses => Set<Expense>();
 

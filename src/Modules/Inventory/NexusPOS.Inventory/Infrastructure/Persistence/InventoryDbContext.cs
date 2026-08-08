@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Inventory.Infrastructure.Persistence;
 
-public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<StockItem> StockItems => Set<StockItem>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();

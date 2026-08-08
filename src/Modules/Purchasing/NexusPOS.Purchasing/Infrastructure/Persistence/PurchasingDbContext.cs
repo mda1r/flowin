@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Purchasing.Infrastructure.Persistence;
 
-public sealed class PurchasingDbContext(DbContextOptions<PurchasingDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class PurchasingDbContext(DbContextOptions<PurchasingDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();

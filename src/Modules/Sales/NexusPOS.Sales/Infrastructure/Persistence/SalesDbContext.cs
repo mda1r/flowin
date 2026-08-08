@@ -4,8 +4,8 @@ using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Sales.Infrastructure.Persistence;
 
-public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options)
-    : BaseModuleDbContext(options)
+public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options, MediatR.IPublisher publisher)
+    : BaseModuleDbContext(options, publisher)
 {
     public DbSet<SaleRecord> SaleRecords => Set<SaleRecord>();
     public DbSet<SalesSummary> SalesSummaries => Set<SalesSummary>();
