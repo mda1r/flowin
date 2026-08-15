@@ -24,6 +24,7 @@ import {
   BarChart2,
   Activity,
   ChefHat,
+  Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -79,6 +80,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'kitchen', to: '/cafe/kitchen', icon: <ChefHat className="h-5 w-5" /> },
   { labelKey: 'shiftReports', to: '/shifts', icon: <FileText className="h-5 w-5" /> },
+  { labelKey: 'invoices', to: '/invoices', icon: <Receipt className="h-5 w-5" /> },
   { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
 ]
 
@@ -159,7 +161,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </svg>
               <span
                 className="select-none text-xl font-extrabold tracking-tight"
-                style={{ color: '#ffffff' }}
+                style={{
+                  color: '#ffffff',
+                  textShadow: '0 0 20px color-mix(in srgb, var(--accent) 40%, transparent)',
+                }}
               >
                 flow<span style={{ color: '#62E6C7' }}>I</span>n
               </span>
@@ -167,7 +172,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
           <button
             onClick={onToggle}
-            className="card-3d card-3d-lift ms-auto rounded-lg p-1.5 text-gray-400"
+            className="card-3d card-3d-lift ms-auto rounded-lg p-1.5 text-gray-400 transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
             aria-label={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
           >
             <ChevronLeft
@@ -177,6 +182,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
         {!collapsed && user?.businessType && (
           <span className="biz-badge mt-2.5">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: 'var(--accent)', boxShadow: '0 0 6px var(--glow)' }}
+              aria-hidden="true"
+            />
             <span aria-hidden="true">{BUSINESS_META[user.businessType].emoji}</span>
             {lang === 'ar' ? BUSINESS_META[user.businessType].ar : BUSINESS_META[user.businessType].en}
           </span>
@@ -200,6 +210,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     isActive && 'nav-item-active',
                     collapsed && 'h-10 w-10 justify-center rounded-full px-0 py-0',
                   )}
+                  style={
+                    isActive
+                      ? {
+                          background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+                          borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)',
+                        }
+                      : undefined
+                  }
                   title={collapsed ? label : undefined}
                 >
                   {isActive && !collapsed && <span className="nav-accent-bar" aria-hidden="true" />}
@@ -213,7 +231,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t p-3" style={{ borderColor: 'var(--card-border)' }}>
+      <div
+        className="mx-3 h-px shrink-0"
+        style={{ background: 'color-mix(in srgb, var(--accent) 20%, var(--card-border))' }}
+        aria-hidden="true"
+      />
+      <div className="p-3">
         {!collapsed && user && (
           <div className="sidebar-footer-card mb-3 flex items-center gap-3 rounded-xl p-3">
             <div

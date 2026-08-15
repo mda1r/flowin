@@ -51,6 +51,48 @@ internal sealed class ClaudeApiService(IHttpClientFactory httpClientFactory, ICo
         }
     }
 
+    public async Task<string> ChatWithHistoryAsync(
+        string systemPrompt,
+        IReadOnlyList<ClaudeMessage> messages,
+        CancellationToken ct = default)
+    {
+        string apiKey = configuration["Anthropic:ApiKey"] ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return """{"message":"AI غير مكوّن. يرجى الإعداد.","actions":[],"state":"error"}""";
+        }
+
+        using HttpClient client = httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("x-api-key", apiKey);
+        client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+
+        var payload = new
+        {
+            model = ModelId,
+            max_tokens = 512,
+            system = systemPrompt,
+            messages = messages.Select(m => new { role = m.Role, content = m.Content }).ToArray(),
+        };
+
+        try
+        {
+            HttpResponseMessage response = await client.PostAsJsonAsync(AnthropicApiUrl, payload, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return """{"message":"عذراً، حدث خطأ في الاتصال. هل تودّ تكرار طلبك؟","actions":[],"state":"taking_order"}""";
+            }
+
+            AnthropicResponse? result = await response.Content.ReadFromJsonAsync<AnthropicResponse>(ct);
+            return result?.Content?[0]?.Text ?? """{"message":"لم يتم استلام رد.","actions":[],"state":"taking_order"}""";
+        }
+        catch
+        {
+            return """{"message":"عذراً، حدث خطأ. هل تودّ تكرار طلبك؟","actions":[],"state":"taking_order"}""";
+        }
+    }
+
     private sealed record AnthropicResponse(
         [property: JsonPropertyName("content")] AnthropicContent[]? Content);
 

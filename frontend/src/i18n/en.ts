@@ -20,6 +20,7 @@ export const en = {
     reports: 'Reports',
     kitchen: 'Kitchen Screen',
     shiftReports: 'Shift Reports',
+    invoices: 'Invoices',
     activityLogs: 'Activity Logs',
     settings: 'Settings',
     logout: 'Logout',

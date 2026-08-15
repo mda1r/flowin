@@ -31,7 +31,9 @@ internal sealed class ListTenantsQueryHandler(
                 && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Trial))
             .ToListAsync(cancellationToken);
 
-        var subByTenant = subscriptions.ToDictionary(s => s.TenantId);
+        var subByTenant = subscriptions
+            .GroupBy(s => s.TenantId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.ExpiryDate).First());
 
         var result = tenants.Select(t =>
         {

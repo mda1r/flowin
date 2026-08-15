@@ -21,6 +21,7 @@ export const ar: Translations = {
     reports: 'التقارير',
     kitchen: 'شاشة المطبخ',
     shiftReports: 'تقرير الشفت',
+    invoices: 'الفواتير',
     activityLogs: 'سجل النشاطات',
     settings: 'الإعدادات',
     logout: 'تسجيل الخروج',

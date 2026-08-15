@@ -9,7 +9,6 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
 {
     public async Task<StockItem?> FindByIdAsync(StockItemId id, CancellationToken cancellationToken = default) =>
         await dbContext.StockItems
-            .Include(s => s.Movements)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
     public async Task<StockItem?> FindByVariantAndBranchAsync(

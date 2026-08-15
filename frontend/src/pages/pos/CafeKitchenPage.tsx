@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChefHat, Clock, CheckCircle, Loader2, X, WifiOff } from 'lucide-react'
+import { ChefHat, Clock, CheckCircle, Loader2, X, WifiOff, ArrowRight } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/authStore'
 import { restaurantApi } from '@/api/restaurant'
 import type { RestaurantOrderResponse } from '@/types/api'
@@ -142,6 +143,7 @@ function TicketCard({
 export function CafeKitchenPage() {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   const { data: orders = [], isError } = useQuery({
     queryKey: ['kitchen', 'orders', branchId],
@@ -194,6 +196,13 @@ export function CafeKitchenPage() {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-800 bg-gray-900 px-6 py-4">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate({ to: '/pos' })}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+          >
+            <ArrowRight className="h-4 w-4" />
+            <span className="text-xs">رجوع</span>
+          </button>
           <ChefHat className="h-6 w-6 text-amber-400" />
           <h1 className="text-lg font-black tracking-wide text-white">شاشة المطبخ</h1>
           <span className="rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-bold text-amber-400">

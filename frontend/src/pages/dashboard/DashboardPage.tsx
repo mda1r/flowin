@@ -716,7 +716,7 @@ export function DashboardPage() {
         {/* ── Hero ──────────────────────────────────────────────────── */}
         <section
           className="entrance-1 relative overflow-hidden rounded-2xl p-7"
-          style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 55%, #1e3a8a 100%)' }}
+          style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 80%, #0f172a) 0%, color-mix(in srgb, var(--accent) 55%, #0f172a) 60%, color-mix(in srgb, var(--accent) 30%, #0f172a) 100%)' }}
         >
           {/* subtle grid overlay */}
           <div
@@ -730,24 +730,24 @@ export function DashboardPage() {
           />
           {/* radial glow */}
           <div
-            className="pointer-events-none absolute -top-20 -end-20 h-64 w-64 rounded-full opacity-20"
-            style={{ background: 'radial-gradient(circle, #93c5fd 0%, transparent 70%)' }}
+            className="pointer-events-none absolute -top-20 -end-20 h-64 w-64 rounded-full"
+            style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)', opacity: 0.25 }}
             aria-hidden="true"
           />
 
           <div className="relative flex flex-wrap items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2.5">
-                <GreetIcon className="h-6 w-6 text-blue-200" />
+                <GreetIcon className="h-6 w-6 text-white/65" />
                 <h1 className="text-2xl font-extrabold text-white">
                   {greeting}{user?.firstName ? `، ${user.firstName}` : ''}
                 </h1>
               </div>
-              <p className="mt-1.5 text-sm text-blue-200">{todayLabel}</p>
+              <p className="mt-1.5 text-sm text-white/65">{todayLabel}</p>
 
               <div className="mt-5 flex flex-wrap gap-3">
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
-                  <p className="text-xs font-medium text-blue-200">إيرادات اليوم</p>
+                  <p className="text-xs font-medium text-white/65">إيرادات اليوم</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-20 animate-pulse rounded-md bg-white/25" />
                   ) : (
@@ -755,7 +755,7 @@ export function DashboardPage() {
                   )}
                 </div>
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
-                  <p className="text-xs font-medium text-blue-200">الطلبات</p>
+                  <p className="text-xs font-medium text-white/65">الطلبات</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-white/25" />
                   ) : (
@@ -763,7 +763,7 @@ export function DashboardPage() {
                   )}
                 </div>
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
-                  <p className="text-xs font-medium text-blue-200">العملاء</p>
+                  <p className="text-xs font-medium text-white/65">العملاء</p>
                   {customersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-white/25" />
                   ) : (
@@ -773,10 +773,10 @@ export function DashboardPage() {
                 {hasAlerts && (
                   <a
                     href="/inventory"
-                    className="rounded-xl border border-orange-400/40 bg-orange-500/25 px-4 py-2.5 backdrop-blur-sm transition-colors hover:bg-orange-500/35"
+                    className="rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 backdrop-blur-sm transition-colors hover:bg-white/30"
                   >
-                    <p className="text-xs font-medium text-orange-200">تنبيهات</p>
-                    <p className="mt-0.5 text-lg font-bold tabular-nums text-orange-100">
+                    <p className="text-xs font-medium text-white/70">تنبيهات</p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
                       {nearExpiryCount + lowStockCount}
                     </p>
                   </a>
@@ -785,12 +785,19 @@ export function DashboardPage() {
             </div>
 
             <a href="/pos" className="shrink-0">
-              <button className="btn-shimmer inline-flex items-center gap-2.5 rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-lg transition-all hover:bg-blue-50 hover:shadow-xl active:scale-95">
+              <button className="btn-shimmer inline-flex items-center gap-2.5 rounded-xl bg-white px-5 py-3 text-sm font-bold text-gray-900 shadow-lg transition-all hover:bg-gray-100 hover:shadow-xl active:scale-95">
                 <ShoppingCart className="h-5 w-5" />
                 بيع جديد
               </button>
             </a>
           </div>
+
+          {/* bottom fade */}
+          <div
+            className="pointer-events-none absolute bottom-0 inset-x-0 h-16"
+            style={{ background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.15))' }}
+            aria-hidden="true"
+          />
         </section>
 
         {/* ── KPI grid ───────────────────────────────────────────────── */}

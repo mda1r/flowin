@@ -16,6 +16,7 @@ const PREDEFINED_FEATURES: { key: string; label: string }[] = [
   { key: 'multi_branch', label: 'تعدد الفروع' },
   { key: 'advanced_reports', label: 'التقارير المتقدمة' },
   { key: 'api_access', label: 'واجهة برمجية (API)' },
+  { key: 'ai_cashier', label: 'كاشير AI (كافيه)' },
 ]
 
 const BUSINESS_TYPES: { key: BusinessType; label: string; emoji: string }[] = [

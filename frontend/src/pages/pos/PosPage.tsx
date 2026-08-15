@@ -42,14 +42,12 @@ const RETAIL_ACCENT: React.CSSProperties = {
   '--glow': 'rgba(79,70,229,0.4)',
 } as React.CSSProperties
 
-type PayMode = 'Cash' | 'Card' | 'Split'
+type PayMode = 'Cash' | 'Card'
 
 function RetailPosPage() {
   const [search, setSearch] = useState('')
   const [payMode, setPayMode] = useState<PayMode>('Cash')
   const [amountTendered, setAmountTendered] = useState('')
-  const [splitCash, setSplitCash] = useState('')
-  const [splitCard, setSplitCard] = useState('')
   const [showPayment, setShowPayment] = useState(false)
   const [showHeld, setShowHeld] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(null)
@@ -57,9 +55,14 @@ function RetailPosPage() {
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showCloseShift, setShowCloseShift] = useState(false)
   const { shift } = useShift()
-  const { lines, addLine, removeLine, updateQuantity, subtotal, taxAmount, total, clear } = useCartStore()
+  const { lines, addLine, removeLine, updateQuantity, subtotal, clear } = useCartStore()
   const { hold, restore, carts: heldCarts } = useHeldCartsStore()
   const { branchId, tenantId } = useAuthStore()
+
+  // أسعار المنتجات شاملة الضريبة — نستخرج الضريبة من الإجمالي
+  const grossTotal = subtotal()
+  const extractedTax = Math.round(grossTotal * 0.15 / 1.15 * 100) / 100
+  const preTaxAmount = Math.round((grossTotal - extractedTax) * 100) / 100
 
   const handleBarcodeScan = useCallback(async (barcode: string) => {
     setLastScanned(barcode)
@@ -99,13 +102,9 @@ function RetailPosPage() {
     enabled: !!tenantId,
   })
 
-  const splitCashAmt = parseFloat(splitCash) || 0
-  const splitCardAmt = parseFloat(splitCard) || 0
-  const splitSum = splitCashAmt + splitCardAmt
-  const splitValid = payMode !== 'Split' || Math.abs(splitSum - total()) < 0.01
-
   const checkout = useMutation({
     mutationFn: async () => {
+      const preTaxRate = 1 + SAUDI_VAT_RATE
       const { data: order } = await ordersApi.createOrder(branchId!, {
         tenantId: tenantId!,
         currency: 'SAR',
@@ -116,17 +115,13 @@ function RetailPosPage() {
           variantId: line.variantId,
           productName: line.productName,
           variantName: line.variantName,
-          unitPrice: line.unitPrice,
+          unitPrice: Math.round((line.unitPrice / preTaxRate) * 10000) / 10000,
           quantity: line.quantity,
         })
       }
-      // Split payment → record as Cash with the full amount tendered
-      const paymentMethod: PaymentMethod =
-        payMode === 'Split' ? 'Cash' : payMode
-      const tendered =
-        payMode === 'Cash' ? (parseFloat(amountTendered) || total()) : total()
+      const tendered = payMode === 'Cash' ? (parseFloat(amountTendered) || grossTotal) : grossTotal
       const { data: completed } = await ordersApi.complete(branchId!, order.id, {
-        paymentMethod,
+        paymentMethod: payMode as PaymentMethod,
         amountTendered: tendered,
       })
       return completed
@@ -299,18 +294,18 @@ function RetailPosPage() {
           <div className="border-t p-4" style={{ borderColor: 'var(--card-border)' }}>
             <div className="mb-2 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>المجموع الجزئي</span>
-                <span className="tabular-nums">{formatCurrency(subtotal())}</span>
+                <span>المجموع قبل الضريبة</span>
+                <span className="tabular-nums">{formatCurrency(preTaxAmount)}</span>
               </div>
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>ضريبة القيمة المضافة 15%</span>
-                <span className="tabular-nums">{formatCurrency(taxAmount())}</span>
+                <span className="tabular-nums">{formatCurrency(extractedTax)}</span>
               </div>
             </div>
             <div className="mb-4 flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--card-border)' }}>
               <span className="font-medium text-gray-700 dark:text-gray-300">الإجمالي</span>
               <span className="text-emboss text-xl font-bold text-gray-900 dark:text-gray-100">
-                {formatCurrency(total())}
+                {formatCurrency(grossTotal)}
               </span>
             </div>
             <div className="mb-2 flex gap-2">
@@ -351,7 +346,7 @@ function RetailPosPage() {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => { setShowPayment(true); setAmountTendered(''); setSplitCash(''); setSplitCard('') }}
+              onClick={() => { setShowPayment(true); setAmountTendered('') }}
               disabled={lines.length === 0}
               className="btn-3d w-full !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
             >
@@ -370,12 +365,12 @@ function RetailPosPage() {
             <h2 className="mb-4 text-lg font-semibold">الدفع</h2>
             <div className="mb-4 space-y-1 text-sm">
               <div className="flex justify-between text-gray-500">
-                <span>المجموع الجزئي</span>
-                <span>{formatCurrency(subtotal())}</span>
+                <span>قبل الضريبة</span>
+                <span>{formatCurrency(preTaxAmount)}</span>
               </div>
               <div className="flex justify-between text-gray-500">
                 <span>ضريبة القيمة المضافة 15%</span>
-                <span>{formatCurrency(taxAmount())}</span>
+                <span>{formatCurrency(extractedTax)}</span>
               </div>
             </div>
             <div
@@ -387,17 +382,16 @@ function RetailPosPage() {
             >
               <p className="text-sm text-gray-500">المبلغ المستحق</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>
-                {formatCurrency(total())}
+                {formatCurrency(grossTotal)}
               </p>
             </div>
 
             {/* Payment mode selector */}
             <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">طريقة الدفع</p>
-            <div className="mb-4 grid grid-cols-3 gap-2">
+            <div className="mb-4 grid grid-cols-2 gap-2">
               {([
-                { mode: 'Cash',  icon: <Banknote className="h-4 w-4" />,   label: 'نقداً'    },
-                { mode: 'Card',  icon: <CreditCard className="h-4 w-4" />, label: 'بطاقة'    },
-                { mode: 'Split', icon: <QrCode className="h-4 w-4" />,     label: 'نقد+بطاقة' },
+                { mode: 'Cash', icon: <Banknote className="h-4 w-4" />,   label: 'نقداً'  },
+                { mode: 'Card', icon: <CreditCard className="h-4 w-4" />, label: 'بطاقة'  },
               ] as { mode: PayMode; icon: React.ReactNode; label: string }[]).map(({ mode, icon, label }) => (
                 <button
                   key={mode}
@@ -422,77 +416,19 @@ function RetailPosPage() {
                 </label>
                 <input
                   type="number"
-                  min={total()}
+                  min={grossTotal}
                   step="0.01"
-                  placeholder={String(total())}
+                  placeholder={String(grossTotal)}
                   value={amountTendered}
                   onChange={(e) => setAmountTendered(e.target.value)}
                   className="input-3d w-full"
                   autoFocus
                 />
-                {amountTendered && parseFloat(amountTendered) >= total() && (
+                {amountTendered && parseFloat(amountTendered) >= grossTotal && (
                   <p className="mt-1 text-sm text-green-600 dark:text-green-400">
-                    الباقي: {formatCurrency(parseFloat(amountTendered) - total())}
+                    الباقي: {formatCurrency(parseFloat(amountTendered) - grossTotal)}
                   </p>
                 )}
-              </div>
-            )}
-
-            {/* Split payment inputs */}
-            {payMode === 'Split' && (
-              <div className="mb-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                      <Banknote className="inline h-3 w-3 ml-1" />نقداً (ر.س)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={splitCash}
-                      onChange={(e) => {
-                        setSplitCash(e.target.value)
-                        const c = parseFloat(e.target.value) || 0
-                        const rem = Math.max(0, total() - c)
-                        setSplitCard(rem > 0 ? rem.toFixed(2) : '')
-                      }}
-                      className="input-3d w-full text-sm"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                      <CreditCard className="inline h-3 w-3 ml-1" />بطاقة (ر.س)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={splitCard}
-                      onChange={(e) => {
-                        setSplitCard(e.target.value)
-                        const c = parseFloat(e.target.value) || 0
-                        const rem = Math.max(0, total() - c)
-                        setSplitCash(rem > 0 ? rem.toFixed(2) : '')
-                      }}
-                      className="input-3d w-full text-sm"
-                    />
-                  </div>
-                </div>
-                <div className={cn(
-                  'rounded-lg px-3 py-2 text-sm text-center font-medium',
-                  splitValid
-                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
-                )}>
-                  {splitValid
-                    ? `✓ نقد ${formatCurrency(splitCashAmt)} + بطاقة ${formatCurrency(splitCardAmt)}`
-                    : `المجموع ${formatCurrency(splitSum)} — مطلوب ${formatCurrency(total())}`
-                  }
-                </div>
               </div>
             )}
 
@@ -505,8 +441,7 @@ function RetailPosPage() {
                 onClick={() => checkout.mutate()}
                 loading={checkout.isPending}
                 disabled={
-                  (payMode === 'Cash' && !!amountTendered && parseFloat(amountTendered) < total()) ||
-                  (payMode === 'Split' && !splitValid)
+                  payMode === 'Cash' && !!amountTendered && parseFloat(amountTendered) < grossTotal
                 }
                 className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
               >
@@ -543,7 +478,7 @@ function RetailPosPage() {
                       </div>
                       <p className="mt-0.5 text-sm font-medium text-gray-900 dark:text-gray-100">
                         {cart.lines.length} منتج · {formatCurrency(
-                          cart.lines.reduce((s, l) => s + l.unitPrice * l.quantity * 1.15, 0)
+                          cart.lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)
                         )}
                       </p>
                       <p className="truncate text-xs text-gray-400">
@@ -645,7 +580,9 @@ function ZatcaReceiptModal({
       <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
         <div className="mb-4 text-center">
           <h2 className="text-emboss text-lg font-bold text-gray-900 dark:text-gray-100">فاتورة ضريبية</h2>
-          <p className="logo-3d mt-1 text-sm font-bold">flowin</p>
+          {(zatcaSettings?.data?.sellerName) && (
+            <p className="logo-3d mt-1 text-sm font-bold">{zatcaSettings.data.sellerName}</p>
+          )}
           {vatNumber && <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
 

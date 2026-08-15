@@ -1,8 +1,8 @@
-import { useState } from 'react'
+﻿import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
-  Printer, MessageSquare, CreditCard, Banknote,
+  Printer, MessageSquare, CreditCard, Banknote, Bot,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
@@ -13,6 +13,8 @@ import { SAUDI_VAT_RATE } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { pushKitchenTicket } from '@/lib/cafeKitchen'
 import { restaurantApi } from '@/api/restaurant'
+import { aiCashierApi } from '@/api/aiCashier'
+import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
 import type { PaymentMethod, CategoryResponse, ProductResponse } from '@/types/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -33,11 +35,11 @@ interface KitchenTicketData {
   ticketNumber: number
 }
 
-type PayMode = 'Cash' | 'Card' | 'Split'
+type PayMode = 'Cash' | 'Card'
 
 const CAFE_ACCENT: React.CSSProperties = {
-  '--accent': '#FBBF24',
-  '--glow': 'rgba(251,191,36,0.35)',
+  '--accent': '#4F46E5',
+  '--glow': 'rgba(79,70,229,0.35)',
 } as React.CSSProperties
 
 const TOTAL_TABLES = 16
@@ -60,8 +62,8 @@ function TablePicker({
           className={cn(
             'flex h-12 items-center justify-center rounded-xl border-2 text-sm font-bold transition-all',
             selected === n
-              ? 'scale-95 border-[var(--accent)] bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-              : 'border-gray-200 bg-white text-gray-700 hover:border-amber-300 hover:bg-amber-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+              ? 'scale-95 border-[var(--accent)] bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+              : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
           )}
         >
           {n}
@@ -88,7 +90,7 @@ function KitchenTicketModal({
           {/* Header */}
           <div className="mb-4 border-b border-dashed border-gray-200 pb-4 text-center dark:border-gray-700">
             <div className="mb-1 flex items-center justify-center gap-2 text-lg font-black">
-              <ChefHat className="h-5 w-5 text-amber-500" />
+              <ChefHat className="h-5 w-5 text-indigo-500" />
               طلب المطبخ
             </div>
             <p className="text-xs text-gray-400">
@@ -98,7 +100,7 @@ function KitchenTicketModal({
               <span className={cn(
                 'rounded-full px-3 py-0.5 text-sm font-bold',
                 ticket.orderType === 'here'
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400'
                   : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
               )}>
                 {ticket.orderType === 'here'
@@ -120,7 +122,7 @@ function KitchenTicketModal({
                       <p className="text-xs text-gray-500 dark:text-gray-400">{item.variantName}</p>
                     )}
                     {item.notes && (
-                      <p className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                      <p className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
                         📝 {item.notes}
                       </p>
                     )}
@@ -174,8 +176,10 @@ export function CafePosPage() {
   const [cart, setCart] = useState<CafeCartItem[]>([])
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [payMode, setPayMode] = useState<PayMode>('Cash')
-  const [splitCash, setSplitCash] = useState('')
-  const [splitCard, setSplitCard] = useState('')
+  const payModeRef = useRef<PayMode>('Cash')
+
+  // AI Cashier
+  const [aiCashierActive, setAiCashierActive] = useState(false)
 
   // Shift
   const [showOpenShift, setShowOpenShift] = useState(false)
@@ -199,10 +203,30 @@ export function CafePosPage() {
     enabled: !!tenantId,
   })
 
+  const { data: cashierFeature } = useQuery({
+    queryKey: ['ai-cashier-available', tenantId],
+    queryFn: () => {
+      const id = branchId ?? tenantId
+      return id ? aiCashierApi.isAvailable(id) : Promise.resolve({ available: false })
+    },
+    enabled: !!tenantId,
+    staleTime: 1000 * 60 * 10,
+  })
+  const aiCashierAvailable = cashierFeature?.available ?? false
+
+  const { data: allProductsData } = useQuery({
+    queryKey: ['cafe-all-products', tenantId],
+    queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 200 }),
+    enabled: !!tenantId && aiCashierAvailable,
+    staleTime: 1000 * 60 * 5,
+  })
+
   const _rawCats = categoriesData?.data
   const categories: CategoryResponse[] = Array.isArray(_rawCats) ? _rawCats : ((_rawCats as any)?.items ?? [])
   const _rawProds = productsData?.data
   const products: ProductResponse[] = Array.isArray(_rawProds) ? _rawProds : ((_rawProds as any)?.items ?? [])
+  const _rawAll = allProductsData?.data
+  const allProducts: ProductResponse[] = Array.isArray(_rawAll) ? _rawAll : ((_rawAll as any)?.items ?? [])
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
 
@@ -219,6 +243,22 @@ export function CafePosPage() {
     })
   }
 
+  const addVariantById = useCallback((variantId: string, qty: number, notes: string) => {
+    for (const product of allProducts) {
+      const variant = product.variants.find((v) => v.id === variantId)
+      if (variant) {
+        setCart((prev) => {
+          const existing = prev.find((i) => i.variantId === variantId)
+          if (existing) {
+            return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + qty, notes: notes || i.notes } : i)
+          }
+          return [...prev, { variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, quantity: qty, notes: notes ?? '' }]
+        })
+        break
+      }
+    }
+  }, [allProducts])
+
   const updateQty = (variantId: string, delta: number) => {
     setCart((prev) =>
       prev
@@ -233,9 +273,10 @@ export function CafePosPage() {
     setCart((prev) => prev.map((i) => i.variantId === variantId ? { ...i, notes: note } : i))
   }
 
-  const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-  const tax = subtotal * SAUDI_VAT_RATE
-  const grandTotal = subtotal + tax
+  // الأسعار شاملة الضريبة — نستخرج الضريبة من الإجمالي
+  const grandTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const tax = Math.round((grandTotal * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
+  const subtotal = Math.round((grandTotal - tax) * 100) / 100
 
   // ── Checkout ──────────────────────────────────────────────────────────────
 
@@ -243,12 +284,9 @@ export function CafePosPage() {
     mutationFn: async () => {
       if (!branchId || !tenantId) throw new Error('no-branch')
       if (cart.length === 0) throw new Error('empty')
-      if (payMode === 'Split') {
-        const c = parseFloat(splitCash) || 0
-        const k = parseFloat(splitCard) || 0
-        if (Math.abs(c + k - grandTotal) > 0.01) throw new Error('split-mismatch')
-      }
 
+      // الأسعار شاملة الضريبة: نرسل سعر ما قبل الضريبة للباك اند ليحسب الضريبة
+      const preTaxRate = 1 + SAUDI_VAT_RATE
       const orderRes = await ordersApi.createOrder(branchId, {
         tenantId,
         currency: 'SAR',
@@ -262,7 +300,7 @@ export function CafePosPage() {
             variantId: item.variantId,
             productName: item.productName,
             variantName: item.variantName,
-            unitPrice: item.unitPrice,
+            unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
             quantity: item.quantity,
           }),
         ),
@@ -272,7 +310,6 @@ export function CafePosPage() {
         paymentMethod: payMode as PaymentMethod,
         amountTendered: grandTotal,
       })
-
 
       return orderId
     },
@@ -318,22 +355,70 @@ export function CafePosPage() {
       setTicketCounter((n) => n + 1)
       setCart([])
       setTableNumber(null)
-      setSplitCash('')
-      setSplitCard('')
       toast.success('تم إتمام الطلب')
     },
     onError: (e: Error) => {
-      if (e.message === 'split-mismatch') toast.error('مجموع النقد والبطاقة لا يساوي الإجمالي')
-      else if (e.message === 'empty') toast.error('السلة فارغة')
+      if (e.message === 'empty') toast.error('السلة فارغة')
       else toast.error('فشل إتمام الطلب')
     },
   })
 
-  const canCheckout = cart.length > 0 && (
-    payMode !== 'Split' || (
-      (parseFloat(splitCash) || 0) + (parseFloat(splitCard) || 0) > 0
-    )
-  )
+  const canCheckout = cart.length > 0
+
+  // ── AI Cashier checkout ────────────────────────────────────────────────────
+
+  const aiCheckout = useMutation({
+    mutationFn: async (paymentMethod: 'Cash' | 'Card') => {
+      if (!branchId || !tenantId) throw new Error('no-branch')
+      if (cart.length === 0) throw new Error('empty')
+      const preTaxRate = 1 + SAUDI_VAT_RATE
+      const orderRes = await ordersApi.createOrder(branchId, { tenantId, currency: 'SAR', taxRate: SAUDI_VAT_RATE })
+      const orderId = orderRes.data.id
+      await Promise.all(
+        cart.map((item) =>
+          ordersApi.addLine(branchId, orderId, {
+            variantId: item.variantId,
+            productName: item.productName,
+            variantName: item.variantName,
+            unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
+            quantity: item.quantity,
+          }),
+        ),
+      )
+      await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: grandTotal })
+      return orderId
+    },
+    onSuccess: () => {
+      const ticket: KitchenTicketData = { items: [...cart], orderType, tableNumber, ticketNumber: ticketCounter }
+      if (tenantId) {
+        pushKitchenTicket(tenantId, {
+          ticketNumber: ticketCounter,
+          tableNumber,
+          orderType,
+          items: cart.map((i) => ({ productName: i.productName, variantName: i.variantName, quantity: i.quantity, notes: i.notes })),
+        })
+      }
+      if (branchId && tenantId) {
+        restaurantApi.createOrder(branchId, {
+          tenantId,
+          tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
+          items: cart.map((i) => ({ menuItemId: i.variantId, itemName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, notes: i.notes || undefined })),
+        }).catch(() => {})
+      }
+      setKitchenTicket(ticket)
+      setTicketCounter((n) => n + 1)
+      setCart([])
+      setTableNumber(null)
+      setAiCashierActive(false)
+      toast.success('تم إتمام الطلب عبر كاشير AI')
+    },
+    onError: () => toast.error('فشل إتمام الطلب'),
+  })
+
+  const handleAiCompleteOrder = useCallback((paymentMethod: 'Cash' | 'Card') => {
+    payModeRef.current = paymentMethod
+    aiCheckout.mutate(paymentMethod)
+  }, [aiCheckout])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -342,10 +427,25 @@ export function CafePosPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-5 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center gap-3">
-          <Coffee className="h-5 w-5 text-amber-400" />
+          <Coffee className="h-5 w-5 text-indigo-400" />
           <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">نقطة البيع — كافيه</h1>
         </div>
         <div className="flex items-center gap-2">
+          {aiCashierAvailable && (
+            <button
+              onClick={() => setAiCashierActive((v) => !v)}
+              title="كاشير AI"
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors',
+                aiCashierActive
+                  ? 'bg-indigo-600 text-white'
+                  : 'border border-indigo-400/40 text-indigo-400 hover:bg-indigo-400/10',
+              )}
+            >
+              <Bot className="h-4 w-4" />
+              كاشير AI
+            </button>
+          )}
           {shift ? (
             <ShiftBadge shift={shift} onCloseShift={() => setShowCloseShift(true)} />
           ) : (
@@ -371,7 +471,7 @@ export function CafePosPage() {
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-semibold transition-colors',
                     orderType === 'here'
-                      ? 'bg-amber-400 text-white'
+                      ? 'bg-indigo-600 text-white'
                       : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
                   )}
                 >
@@ -397,8 +497,8 @@ export function CafePosPage() {
                   className={cn(
                     'w-full rounded-xl border-2 py-2 text-sm font-bold transition-colors',
                     tableNumber
-                      ? 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
-                      : 'border-dashed border-amber-300 bg-amber-50/50 text-amber-500 hover:border-amber-400',
+                      ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400'
+                      : 'border-dashed border-indigo-300 bg-indigo-50/50 text-indigo-500 hover:border-indigo-400',
                   )}
                 >
                   {tableNumber ? `طاولة ${tableNumber} ✏️` : '+ اختر طاولة'}
@@ -407,11 +507,14 @@ export function CafePosPage() {
             </div>
 
             {/* Cart header */}
-            <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+            <div
+              className="border-b border-gray-100 px-4 py-2 dark:border-gray-800"
+              style={{ background: 'linear-gradient(to left, color-mix(in srgb, var(--accent) 8%, transparent), transparent)' }}
+            >
               <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
                 الطلب
                 {orderType === 'takeaway' && <span className="mr-1 text-blue-500">— تيك أواي</span>}
-                {orderType === 'here' && tableNumber && <span className="mr-1 text-amber-500">— طاولة {tableNumber}</span>}
+                {orderType === 'here' && tableNumber && <span className="mr-1 text-indigo-500">— طاولة {tableNumber}</span>}
               </p>
             </div>
 
@@ -473,16 +576,16 @@ export function CafePosPage() {
                         onKeyDown={(e) => e.key === 'Enter' && setEditingNoteId(null)}
                         autoFocus
                         placeholder="ملاحظة للمطبخ..."
-                        className="mt-1.5 w-full rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-amber-400 dark:bg-amber-900/20 dark:border-amber-700"
+                        className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-400 dark:bg-indigo-900/20 dark:border-indigo-700"
                       />
                     ) : (
                       <button
                         onClick={() => setEditingNoteId(item.variantId)}
-                        className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-amber-500 transition-colors"
+                        className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-500 transition-colors"
                       >
                         <MessageSquare className="h-3 w-3" />
                         {item.notes ? (
-                          <span className="font-medium text-amber-600 dark:text-amber-400">{item.notes}</span>
+                          <span className="font-medium text-indigo-600 dark:text-indigo-400">{item.notes}</span>
                         ) : 'إضافة ملاحظة'}
                       </button>
                     )}
@@ -511,10 +614,10 @@ export function CafePosPage() {
 
                 {/* Payment mode */}
                 <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                  {(['Cash', 'Card', 'Split'] as PayMode[]).map((m) => (
+                  {(['Cash', 'Card'] as PayMode[]).map((m) => (
                     <button
                       key={m}
-                      onClick={() => { setPayMode(m); setSplitCash(''); setSplitCard('') }}
+                      onClick={() => setPayMode(m)}
                       className={cn(
                         'flex flex-1 items-center justify-center gap-1 py-2 text-xs font-medium transition-colors',
                         payMode === m
@@ -522,48 +625,11 @@ export function CafePosPage() {
                           : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
                       )}
                     >
-                      {m === 'Cash' && <Banknote className="h-3 w-3" />}
-                      {m === 'Card' && <CreditCard className="h-3 w-3" />}
-                      {m === 'Cash' ? 'نقداً' : m === 'Card' ? 'بطاقة' : 'مختلط'}
+                      {m === 'Cash' ? <Banknote className="h-3 w-3" /> : <CreditCard className="h-3 w-3" />}
+                      {m === 'Cash' ? 'نقداً' : 'بطاقة'}
                     </button>
                   ))}
                 </div>
-
-                {/* Split payment inputs */}
-                {payMode === 'Split' && (
-                  <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800/40 dark:bg-amber-900/10">
-                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">توزيع الدفع المختلط</p>
-                    <div className="flex items-center gap-2">
-                      <Banknote className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="نقداً"
-                        value={splitCash}
-                        onChange={(e) => setSplitCash(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="بطاقة"
-                        value={splitCard}
-                        onChange={(e) => setSplitCard(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
-                      />
-                    </div>
-                    {splitCash && splitCard && (
-                      <p className={cn('text-xs font-medium', Math.abs((parseFloat(splitCash)||0)+(parseFloat(splitCard)||0)-grandTotal) < 0.01 ? 'text-green-600' : 'text-red-500')}>
-                        المجموع: {((parseFloat(splitCash)||0)+(parseFloat(splitCard)||0)).toFixed(2)} / {grandTotal.toFixed(2)} ر.س
-                      </p>
-                    )}
-                  </div>
-                )}
 
                 <button
                   onClick={() => checkout.mutate()}
@@ -584,10 +650,10 @@ export function CafePosPage() {
               <button
                 onClick={() => setSelectedCategoryId('all')}
                 className={cn(
-                  'whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                  'px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
                   selectedCategoryId === 'all'
                     ? 'bg-[var(--accent)] text-white shadow-sm'
-                    : 'border border-gray-200 bg-white text-gray-600 hover:border-amber-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400',
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
                 )}
               >
                 الكل
@@ -597,10 +663,10 @@ export function CafePosPage() {
                   key={c.id}
                   onClick={() => setSelectedCategoryId(c.id)}
                   className={cn(
-                    'whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                    'px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
                     selectedCategoryId === c.id
                       ? 'bg-[var(--accent)] text-white shadow-sm'
-                      : 'border border-gray-200 bg-white text-gray-600 hover:border-amber-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400',
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
                   )}
                 >
                   {c.name}
@@ -633,7 +699,7 @@ export function CafePosPage() {
                           onClick={() =>
                             addToCart(variant.id, product.name, variant.name, variant.salePrice)
                           }
-                          className="flex flex-col items-start rounded-xl border border-gray-200 bg-white p-3 text-right transition-all hover:border-amber-400 hover:shadow-md active:scale-95 dark:border-gray-700 dark:bg-gray-800"
+                          className="group relative flex flex-col items-start overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-right transition-all duration-200 hover:border-indigo-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] dark:border-gray-700 dark:bg-gray-800"
                         >
                           <p className="text-sm font-semibold leading-snug text-gray-900 dark:text-gray-100">
                             {product.name}
@@ -641,9 +707,13 @@ export function CafePosPage() {
                           {variant.name && variant.name !== 'افتراضي' && variant.name !== product.name && (
                             <p className="text-xs text-gray-400">{variant.name}</p>
                           )}
-                          <p className="mt-auto pt-2 text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
+                          <p className="mt-auto pt-3 text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
                             {formatCurrency(variant.salePrice)}
                           </p>
+                          <span
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                            style={{ background: 'var(--accent)' }}
+                          />
                         </button>
                       )),
                   )}
@@ -691,6 +761,17 @@ export function CafePosPage() {
       {/* ── Kitchen Ticket ── */}
       {kitchenTicket && (
         <KitchenTicketModal ticket={kitchenTicket} onClose={() => setKitchenTicket(null)} />
+      )}
+
+      {/* ── AI Cashier Agent overlay ── */}
+      {aiCashierActive && branchId && (
+        <AiCashierAgent
+          branchId={branchId}
+          allProducts={allProducts}
+          onAddVariant={addVariantById}
+          onCompleteOrder={handleAiCompleteOrder}
+          onDeactivate={() => setAiCashierActive(false)}
+        />
       )}
     </div>
   )

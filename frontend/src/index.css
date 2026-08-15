@@ -25,7 +25,7 @@
     --glass-bg: rgba(255, 255, 255, 0.82);
     --grid-line: rgba(79, 126, 247, 0.06);
 
-    --color-bg: #F7F7F5;
+    --color-bg: #F8F9FA;
     --color-surface: #ffffff;
     --color-border: #e5e7eb;
     --color-text: #23262D;
@@ -44,7 +44,7 @@
     --glass-bg: rgba(35, 38, 45, 0.82);
     --grid-line: rgba(79, 126, 247, 0.05);
 
-    --color-bg: #23262D;
+    --color-bg: #111318;
     --color-surface: #2d3038;
     --color-border: #3a3d46;
     --color-text: #F7F7F5;
@@ -596,18 +596,24 @@
   /* ---------- flowin card — clean, airy ---------- */
 
   .card-3d {
-    border-radius: 1rem;
+    border-radius: 14px;
     background: var(--color-surface);
     border: 1px solid var(--card-border);
-    box-shadow: 0 1px 3px var(--shadow-mid), 0 4px 12px var(--shadow-far);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.06),
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 0 0 1px var(--card-border);
     transition:
-      transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
-      box-shadow 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow 0.2s ease,
+      transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .card-3d-lift:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 12px var(--shadow-mid), 0 12px 32px var(--shadow-far);
+    transform: translateY(-2px);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.12),
+      0 0 0 1px color-mix(in srgb, var(--accent) 20%, var(--card-border));
   }
 
   .extruded-3d {
@@ -620,6 +626,8 @@
     background: var(--color-surface);
     border: 1px solid var(--card-border);
     box-shadow: 0 8px 32px var(--shadow-mid), 0 24px 64px var(--shadow-far);
+    backdrop-filter: blur(24px) saturate(200%) brightness(1.02);
+    -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(1.02);
   }
 
   /* ---------- flowin primary button — mint green + graphite text ---------- */
@@ -632,10 +640,7 @@
     border-radius: 0.75rem;
     transform: translateY(0);
     box-shadow: 0 2px 8px rgba(98, 230, 199, 0.35);
-    transition:
-      transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-      box-shadow 0.2s ease,
-      filter 0.2s ease;
+    transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .btn-3d:hover:not(:disabled) {
@@ -645,7 +650,7 @@
   }
 
   .btn-3d:active:not(:disabled) {
-    transform: translateY(1px);
+    transform: translateY(1px) scale(0.98);
     box-shadow: 0 1px 4px rgba(98, 230, 199, 0.25);
   }
 
@@ -792,11 +797,11 @@
 
   .nav-icon {
     display: inline-flex;
-    transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), color 0.15s ease;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
   }
 
   .nav-item:hover .nav-icon {
-    transform: scale(1.08);
+    transform: scale(1.1);
     color: #62E6C7;
   }
 
@@ -1301,13 +1306,15 @@
     inset-inline: 0;
     top: 0;
     height: 3px;
-    border-start-start-radius: 1rem;
-    border-start-end-radius: 1rem;
+    border-start-start-radius: 14px;
+    border-start-end-radius: 14px;
+    border-end-start-radius: 2px;
+    border-end-end-radius: 2px;
+    opacity: 0.85;
     background: linear-gradient(
       90deg,
       var(--kpi-color, var(--accent)),
-      color-mix(in srgb, var(--kpi-color, var(--accent)) 30%, transparent) 60%,
-      transparent
+      color-mix(in srgb, var(--kpi-color, var(--accent)) 60%, #fff)
     );
     box-shadow: 0 0 12px color-mix(in srgb, var(--kpi-color, var(--accent)) 45%, transparent);
     pointer-events: none;
@@ -1317,8 +1324,7 @@
     background: linear-gradient(
       -90deg,
       var(--kpi-color, var(--accent)),
-      color-mix(in srgb, var(--kpi-color, var(--accent)) 30%, transparent) 60%,
-      transparent
+      color-mix(in srgb, var(--kpi-color, var(--accent)) 60%, #fff)
     );
   }
 
@@ -1332,11 +1338,15 @@
   /* ---------- row hover (list and table rows) ---------- */
 
   .row-hover {
-    transition: background-color 0.14s ease;
+    transition: background 0.14s ease;
   }
 
   .row-hover:hover {
-    background-color: color-mix(in srgb, var(--accent) 5%, var(--color-surface));
+    background: linear-gradient(
+      to left,
+      color-mix(in srgb, var(--accent) 5%, transparent),
+      color-mix(in srgb, var(--accent) 2%, transparent)
+    );
   }
 
   /* ---------- improved skeleton (accent-tinted shimmer) ---------- */

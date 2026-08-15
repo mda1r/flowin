@@ -30,6 +30,7 @@ import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
 import { CafeKitchenPage } from '@/pages/pos/CafeKitchenPage'
 import { ShiftReportsPage } from '@/pages/pos/ShiftReportsPage'
+import { InvoicesPage } from '@/pages/pos/InvoicesPage'
 
 const rootRoute = createRootRoute()
 
@@ -242,6 +243,12 @@ const shiftReportsRoute = createRoute({
   component: ShiftReportsPage,
 })
 
+const invoicesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/invoices',
+  component: InvoicesPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -266,6 +273,7 @@ const routeTree = rootRoute.addChildren([
     reportsRoute,
     activityLogsRoute,
     shiftReportsRoute,
+    invoicesRoute,
   ]),
   adminRoute.addChildren([
     adminDashboardRoute,
