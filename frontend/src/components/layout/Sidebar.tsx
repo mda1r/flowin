@@ -40,7 +40,7 @@ const BUSINESS_ACCENTS: Record<BusinessType, { accent: string; glow: string }> =
   Gaming:      { accent: '#A78BFA', glow: 'rgba(167,139,250,0.35)' },
   Supermarket: { accent: '#34D399', glow: 'rgba(52,211,153,0.30)' },
   Retail:      { accent: '#F472B6', glow: 'rgba(244,114,182,0.30)' },
-  Cafe:        { accent: '#FBBF24', glow: 'rgba(251,191,36,0.30)' },
+  Cafe:        { accent: '#34D399', glow: 'rgba(52,211,153,0.30)' },
 }
 
 /* themed identity chip shown under the brand name */
