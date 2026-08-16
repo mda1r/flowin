@@ -26,6 +26,7 @@ import {
   Store,
   ShoppingBag,
   BarChart2,
+  Receipt,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
@@ -33,10 +34,11 @@ import { Badge } from '@/components/ui/Badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { ordersApi } from '@/api/orders'
-import type { OrderResponse, BusinessType, PaymentMethod } from '@/types/api'
+import type { OrderResponse, BusinessType, PaymentMethod, ReturnOrderResponse } from '@/types/api'
 import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
+import { salesApi } from '@/api/sales'
 
 /* ────────────────────────────────────────────────────────────────
    animated number counter — snappy ease-out + elastic settle pop.
@@ -582,6 +584,14 @@ const MILESTONES = [
    dashboard page
    ──────────────────────────────────────────────────────────────── */
 
+function computeStats(orders: OrderResponse[]) {
+  const totalRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
+  const totalTax = orders.reduce((s, o) => s + o.taxAmount, 0)
+  const totalOrders = orders.length
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
+  return { totalRevenue, totalTax, totalOrders, avgOrder }
+}
+
 const FALLBACK_REVENUE   = [4, 6, 5, 8, 7, 10, 9]
 const FALLBACK_ORDERS    = [2, 3, 2, 4, 3,  5, 4]
 const FALLBACK_CUSTOMERS = [2, 3, 3, 4, 5,  5, 6]
@@ -593,17 +603,17 @@ export function DashboardPage() {
 
   const today = localToday()
   const ordersQuery = useQuery({
-    queryKey: ['orders', branchId, 'today', today],
-    queryFn: () => ordersApi.listOrders(branchId!, {
-      status: 'Completed',
-      pageSize: 50,
-      dateFrom: today,
-      dateTo: today,
-    }),
+    queryKey: ['dashboard-orders', branchId, today],
+    queryFn: () => salesApi.listCompletedOrders(branchId!, { dateFrom: today, dateTo: today }),
     enabled: !!branchId,
     refetchInterval: 60_000,
   })
-  const recentOrders = ordersQuery.data
+  const returnsQuery = useQuery({
+    queryKey: ['dashboard-returns', branchId, today],
+    queryFn: () => ordersApi.listReturns(branchId!),
+    enabled: !!branchId,
+    refetchInterval: 60_000,
+  })
   const ordersLoading = ordersQuery.isLoading && ordersQuery.fetchStatus !== 'idle'
   const ordersFetched = ordersQuery.isSuccess
 
@@ -643,16 +653,23 @@ export function DashboardPage() {
   }, [productsData])
 
   const orders = useMemo<OrderResponse[]>(() => {
-    const raw = recentOrders?.data
+    const raw = ordersQuery.data?.data
     const all: OrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
-    // Filter client-side by local date — backend may not support dateFrom/dateTo
     return all.filter(o => {
       const d = new Date(o.completedAt ?? o.createdAt)
       return d.toLocaleDateString('en-CA') === today
     })
-  }, [recentOrders, today])
+  }, [ordersQuery.data, today])
 
-  const todayRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
+  const todayReturns = useMemo<ReturnOrderResponse[]>(() => {
+    const raw = returnsQuery.data?.data
+    const all: ReturnOrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    return all.filter(r => new Date(r.createdAt).toLocaleDateString('en-CA') === today)
+  }, [returnsQuery.data, today])
+
+  const stats = useMemo(() => computeStats(orders), [orders])
+  const returnTotal = todayReturns.reduce((s, r) => s + r.refundAmount, 0)
+  const netRevenue = stats.totalRevenue - returnTotal
   const alerts = alertsData?.data
 
   const nearExpiryCount = (alerts?.expired.length ?? 0) + (alerts?.expiringSoon.length ?? 0)
@@ -683,7 +700,7 @@ export function DashboardPage() {
     }
   }, [ordersFetched, orders])
 
-  const milestone = MILESTONES.find((m) => todayRevenue >= m.at)
+  const milestone = MILESTONES.find((m) => netRevenue >= m.at)
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'صباح الخير' : 'مساء الخير'
@@ -703,7 +720,7 @@ export function DashboardPage() {
     : FALLBACK_AVG
 
   const quickActions = (businessType ? QUICK_ACTIONS[businessType] : null) ?? DEFAULT_QUICK_ACTIONS
-  const statsLoading = ordersLoading || customersLoading
+  const statsLoading = ordersLoading
 
   return (
     <div className="page-fade min-h-full">
@@ -751,7 +768,7 @@ export function DashboardPage() {
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-20 animate-pulse rounded-md bg-white/25" />
                   ) : (
-                    <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{formatCurrency(todayRevenue)}</p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{formatCurrency(netRevenue)}</p>
                   )}
                 </div>
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
@@ -759,7 +776,7 @@ export function DashboardPage() {
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-white/25" />
                   ) : (
-                    <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{orders.length}</p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums text-white">{stats.totalOrders}</p>
                   )}
                 </div>
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
@@ -812,10 +829,9 @@ export function DashboardPage() {
           ) : (
             <>
               <StatCard
-                title="إيرادات اليوم"
-                value={todayRevenue}
+                title="صافي الإيرادات"
+                value={netRevenue}
                 format={(n) => formatCurrency(n)}
-                change={12.5}
                 icon={<DollarSign className="h-5 w-5 text-blue-600" />}
                 iconWrap="bg-blue-50 dark:bg-blue-900/30"
                 sparkColor="text-blue-500"
@@ -836,8 +852,7 @@ export function DashboardPage() {
               />
               <StatCard
                 title="طلبات اليوم"
-                value={orders.length}
-                change={8.2}
+                value={stats.totalOrders}
                 icon={<ShoppingCart className="h-5 w-5 text-purple-600" />}
                 iconWrap="bg-purple-50 dark:bg-purple-900/30"
                 sparkColor="text-purple-500"
@@ -847,20 +862,20 @@ export function DashboardPage() {
                 entrance="entrance-3"
               />
               <StatCard
-                title="إجمالي العملاء"
-                value={customers?.data?.length ?? 0}
-                change={3.1}
-                icon={<Users className="h-5 w-5 text-green-600" />}
-                iconWrap="bg-green-50 dark:bg-green-900/30"
-                sparkColor="text-green-500"
-                kpiColor="#22c55e"
+                title="ضريبة القيمة المضافة"
+                value={stats.totalTax}
+                format={(n) => formatCurrency(n)}
+                icon={<Receipt className="h-5 w-5 text-amber-600" />}
+                iconWrap="bg-amber-50 dark:bg-amber-900/30"
+                sparkColor="text-amber-500"
+                kpiColor="#f59e0b"
                 spark={FALLBACK_CUSTOMERS}
-                sparkId="spark-customers"
+                sparkId="spark-tax"
                 entrance="entrance-4"
               />
               <StatCard
                 title="متوسط قيمة الطلب"
-                value={orders.length > 0 ? todayRevenue / orders.length : 0}
+                value={stats.avgOrder}
                 format={(n) => formatCurrency(n)}
                 icon={<TrendingUp className="h-5 w-5 text-orange-600" />}
                 iconWrap="bg-orange-50 dark:bg-orange-900/30"
