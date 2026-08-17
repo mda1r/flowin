@@ -162,7 +162,8 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             orderId,
             branchId,
             request.RefundMethod,
-            request.Lines.Select(l => new ReturnOrderLineInput(l.LineId, l.Quantity, l.Reason)).ToList());
+            request.Lines.Select(l => new ReturnOrderLineInput(l.LineId, l.Quantity, l.Reason)).ToList(),
+            request.RestockItems);
 
         ErrorOr<ReturnOrderResponse> result = await mediator.Send(command, cancellationToken);
 

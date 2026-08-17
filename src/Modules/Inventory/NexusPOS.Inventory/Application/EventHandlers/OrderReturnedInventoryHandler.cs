@@ -16,6 +16,11 @@ internal sealed class OrderReturnedInventoryHandler(
 {
     public async Task Handle(ReturnOrderCompletedDomainEvent notification, CancellationToken cancellationToken)
     {
+        if (!notification.RestockItems)
+        {
+            return;
+        }
+
         foreach (ReturnOrderCompletedDomainEvent.LineItem line in notification.Lines)
         {
             try

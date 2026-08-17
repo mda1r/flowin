@@ -9,4 +9,5 @@ public sealed record ReturnOrderLineRequest(
 
 public sealed record ReturnOrderRequest(
     RefundMethod RefundMethod,
-    IReadOnlyList<ReturnOrderLineRequest> Lines);
+    IReadOnlyList<ReturnOrderLineRequest> Lines,
+    bool RestockItems = true);

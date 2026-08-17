@@ -9,7 +9,8 @@ public sealed record ReturnOrderCompletedDomainEvent(
     Guid BranchId,
     decimal RefundAmount,
     string Currency,
-    IReadOnlyList<ReturnOrderCompletedDomainEvent.LineItem> Lines) : DomainEvent
+    IReadOnlyList<ReturnOrderCompletedDomainEvent.LineItem> Lines,
+    bool RestockItems) : DomainEvent
 {
     public sealed record LineItem(Guid VariantId, decimal Quantity);
 }

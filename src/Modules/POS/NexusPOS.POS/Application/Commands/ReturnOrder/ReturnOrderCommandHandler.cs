@@ -68,7 +68,8 @@ internal sealed class ReturnOrderCommandHandler(
             request.BranchId,
             order.Currency,
             request.RefundMethod,
-            returnLines);
+            returnLines,
+            request.RestockItems);
 
         if (returnResult.IsError)
         {

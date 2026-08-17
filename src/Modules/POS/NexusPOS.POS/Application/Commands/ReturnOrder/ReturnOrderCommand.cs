@@ -13,4 +13,5 @@ public sealed record ReturnOrderCommand(
     Guid OriginalOrderId,
     Guid BranchId,
     RefundMethod RefundMethod,
-    IReadOnlyList<ReturnOrderLineInput> Lines) : ICommand<ReturnOrderResponse>;
+    IReadOnlyList<ReturnOrderLineInput> Lines,
+    bool RestockItems = true) : ICommand<ReturnOrderResponse>;
