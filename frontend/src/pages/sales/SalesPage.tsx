@@ -13,7 +13,7 @@ import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { toast } from '@/components/ui/Toast'
 import type { OrderLineResponse, OrderResponse, RefundMethod, ReturnReason } from '@/types/api'
 
-type DateRange = 'today' | 'week' | 'month'
+type DateRange = 'today' | 'week' | 'month' | 'year'
 
 const RETURN_REASONS: { value: ReturnReason; label: string }[] = [
   { value: 'DefectiveProduct', label: 'عيب في المنتج' },
@@ -233,7 +233,8 @@ export function SalesPage() {
       d.setHours(0, 0, 0, 0)
       return d.toISOString()
     }
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    return new Date(now.getFullYear(), 0, 1).toISOString()
   })()
 
   const { data: orders, isLoading } = useQuery({
@@ -255,6 +256,7 @@ export function SalesPage() {
     { label: 'اليوم', value: 'today' },
     { label: 'هذا الأسبوع', value: 'week' },
     { label: 'هذا الشهر', value: 'month' },
+    { label: 'هذه السنة', value: 'year' },
   ]
 
   return (
