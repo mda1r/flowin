@@ -130,7 +130,7 @@ export function InventoryPage() {
     mutationFn: (formData: AdjustFormData) =>
       inventoryApi.adjustStock(branchId!, adjustItem!.id, {
         newQuantity: formData.newQuantity,
-        expiryDate: formData.expiryDate || null,
+        expiryDate: formData.expiryDate ? formData.expiryDate + 'T00:00:00Z' : null,
         reorderPoint: formData.reorderPoint !== undefined ? formData.reorderPoint : undefined,
         reference: formData.reference,
         notes: formData.notes,
@@ -177,7 +177,13 @@ export function InventoryPage() {
   const openAdjust = (item: StockItemResponse) => {
     setAdjustItem(item)
     const expiryStr = item.expiryDate
-      ? new Date(item.expiryDate).toISOString().split('T')[0]
+      ? (() => {
+          const d = new Date(item.expiryDate!)
+          const y = d.getUTCFullYear()
+          const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+          const day = String(d.getUTCDate()).padStart(2, '0')
+          return `${y}-${m}-${day}`
+        })()
       : ''
     reset({
       newQuantity: item.quantity,

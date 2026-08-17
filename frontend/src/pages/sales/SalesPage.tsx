@@ -225,13 +225,33 @@ export function SalesPage() {
   const { branchId } = useAuthStore()
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ['orders', branchId, 'sales', range],
+    queryKey: ['orders', branchId, 'sales'],
     queryFn: () =>
-      ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 100 }),
+      ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 500 }),
     enabled: !!branchId,
   })
 
-  const items = orders?.data ?? []
+  const allOrders: OrderResponse[] = (() => {
+    const raw = orders?.data
+    return Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+  })()
+
+  const items = allOrders.filter((o) => {
+    const d = new Date(o.completedAt ?? o.createdAt)
+    const now = new Date()
+    const sameDay = (a: Date, b: Date) =>
+      a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+    if (range === 'today') return sameDay(d, now)
+    if (range === 'week') {
+      const weekStart = new Date(now)
+      weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+      weekStart.setHours(0, 0, 0, 0)
+      return d >= weekStart
+    }
+    // month
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  })
+
   const totalRevenue = items.reduce((s, o) => s + o.totalAmount, 0)
   const avgOrder = items.length > 0 ? totalRevenue / items.length : 0
 

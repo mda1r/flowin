@@ -26,10 +26,13 @@ internal sealed class AdjustStockCommandHandler(
             return InventoryErrors.StockItemNotFound;
         }
 
-        ErrorOr<Success> result = stockItem.Adjust(request.NewQuantity, request.Reference, request.Notes);
-        if (result.IsError)
+        if (request.NewQuantity != stockItem.Quantity)
         {
-            return result.Errors;
+            ErrorOr<Success> result = stockItem.Adjust(request.NewQuantity, request.Reference, request.Notes);
+            if (result.IsError)
+            {
+                return result.Errors;
+            }
         }
 
         if (request.ExpiryDate.HasValue)

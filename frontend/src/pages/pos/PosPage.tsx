@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
 import { zatcaApi } from '@/api/zatca'
+import { inventoryApi } from '@/api/inventory'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
@@ -42,12 +43,14 @@ const RETAIL_ACCENT: React.CSSProperties = {
   '--glow': 'rgba(79,70,229,0.4)',
 } as React.CSSProperties
 
-type PayMode = 'Cash' | 'Card'
+type PayMode = 'Cash' | 'Card' | 'Split'
 
 function RetailPosPage() {
   const [search, setSearch] = useState('')
   const [payMode, setPayMode] = useState<PayMode>('Cash')
   const [amountTendered, setAmountTendered] = useState('')
+  const [splitCash, setSplitCash] = useState('')
+  const [splitCard, setSplitCard] = useState('')
   const [showPayment, setShowPayment] = useState(false)
   const [showHeld, setShowHeld] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(null)
@@ -78,13 +81,18 @@ function RetailPosPage() {
         : null)
 
       if (hit) {
-        addLine({
-          variantId: hit.variant.id,
-          productName: hit.product.name,
-          variantName: hit.variant.name,
-          unitPrice: hit.variant.salePrice,
-        })
-        toast.success('تمت الإضافة', `${hit.product.name} — ${formatCurrency(hit.variant.salePrice)}`)
+        const currentQty = lines.find(l => l.variantId === hit.variant.id)?.quantity ?? 0
+        if (!canAddToCart(hit.variant.id, currentQty)) {
+          toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[hit.variant.id] ?? 0} وحدة`)
+        } else {
+          addLine({
+            variantId: hit.variant.id,
+            productName: hit.product.name,
+            variantName: hit.variant.name,
+            unitPrice: hit.variant.salePrice,
+          })
+          toast.success('تمت الإضافة', `${hit.product.name} — ${formatCurrency(hit.variant.salePrice)}`)
+        }
       } else {
         toast.error('باركود غير معروف', barcode)
       }
@@ -101,6 +109,37 @@ function RetailPosPage() {
     queryFn: () => catalogApi.listProducts(tenantId!, { search: search || undefined }),
     enabled: !!tenantId,
   })
+
+  const { data: stockData } = useQuery({
+    queryKey: ['pos-stock', branchId],
+    queryFn: () => inventoryApi.listItems(branchId!, { pageSize: 500 }),
+    enabled: !!branchId,
+    staleTime: 30_000,
+  })
+
+  const stockMap = (() => {
+    const raw = stockData?.data
+    const items = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    const m: Record<string, number> = {}
+    for (const s of items) m[s.variantId] = s.quantity
+    return m
+  })()
+
+  const productList = products?.data ?? []
+
+  const trackMap = (() => {
+    const m: Record<string, boolean> = {}
+    const list = Array.isArray(productList) ? productList : ((productList as any)?.items ?? [])
+    for (const p of list) {
+      for (const v of p.variants) m[v.id] = p.trackInventory
+    }
+    return m
+  })()
+
+  const canAddToCart = (variantId: string, currentQty: number, addQty = 1): boolean => {
+    if (!trackMap[variantId]) return true
+    return currentQty + addQty <= (stockMap[variantId] ?? 0)
+  }
 
   const checkout = useMutation({
     mutationFn: async () => {
@@ -123,6 +162,10 @@ function RetailPosPage() {
       const { data: completed } = await ordersApi.complete(branchId!, order.id, {
         paymentMethod: payMode as PaymentMethod,
         amountTendered: tendered,
+        ...(payMode === 'Split' && {
+          cashAmount: parseFloat(splitCash) || 0,
+          cardAmount: parseFloat(splitCard) || 0,
+        }),
       })
       return completed
     },
@@ -130,6 +173,10 @@ function RetailPosPage() {
       setCompletedOrder(order)
       clear()
       setShowPayment(false)
+      setPayMode('Cash')
+      setAmountTendered('')
+      setSplitCash('')
+      setSplitCard('')
       toast.success('تمت عملية الدفع', 'تمت معالجة الطلب بنجاح')
     },
     onError: () => toast.error('فشلت عملية الدفع', 'يرجى المحاولة مرة أخرى'),
@@ -153,8 +200,6 @@ function RetailPosPage() {
     setShowHeld(false)
     toast.success('تم استرداد الفاتورة')
   }
-
-  const productList = products?.data ?? []
 
   return (
     <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RETAIL_ACCENT}>
@@ -216,14 +261,20 @@ function RetailPosPage() {
                       key={variant.id}
                       product={product}
                       variant={variant}
-                      onAdd={() =>
+                      stockQty={trackMap[variant.id] ? (stockMap[variant.id] ?? 0) : null}
+                      onAdd={() => {
+                        const currentQty = lines.find(l => l.variantId === variant.id)?.quantity ?? 0
+                        if (!canAddToCart(variant.id, currentQty)) {
+                          toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variant.id] ?? 0} وحدة`)
+                          return
+                        }
                         addLine({
                           variantId: variant.id,
                           productName: product.name,
                           variantName: variant.name,
                           unitPrice: variant.salePrice,
                         })
-                      }
+                      }}
                     />
                   ))
                 )}
@@ -274,7 +325,13 @@ function RetailPosPage() {
                         </button>
                         <span className="w-8 text-center text-sm font-semibold tabular-nums">{line.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(line.variantId, line.quantity + 1)}
+                          onClick={() => {
+                            if (!canAddToCart(line.variantId, line.quantity)) {
+                              toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[line.variantId] ?? 0} وحدة`)
+                              return
+                            }
+                            updateQuantity(line.variantId, line.quantity + 1)
+                          }}
                           className="card-3d card-3d-lift flex h-6 w-6 items-center justify-center !rounded-md text-gray-600 dark:text-gray-400"
                         >
                           <Plus className="h-3 w-3" />
@@ -388,14 +445,15 @@ function RetailPosPage() {
 
             {/* Payment mode selector */}
             <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">طريقة الدفع</p>
-            <div className="mb-4 grid grid-cols-2 gap-2">
+            <div className="mb-4 grid grid-cols-3 gap-2">
               {([
-                { mode: 'Cash', icon: <Banknote className="h-4 w-4" />,   label: 'نقداً'  },
-                { mode: 'Card', icon: <CreditCard className="h-4 w-4" />, label: 'بطاقة'  },
+                { mode: 'Cash',  icon: <Banknote className="h-4 w-4" />,   label: 'نقداً'    },
+                { mode: 'Card',  icon: <CreditCard className="h-4 w-4" />, label: 'بطاقة'    },
+                { mode: 'Split', icon: <span className="text-sm font-black">½</span>, label: 'تقسيم' },
               ] as { mode: PayMode; icon: React.ReactNode; label: string }[]).map(({ mode, icon, label }) => (
                 <button
                   key={mode}
-                  onClick={() => setPayMode(mode)}
+                  onClick={() => { setPayMode(mode); setAmountTendered(''); setSplitCash(''); setSplitCard('') }}
                   className={cn(
                     'card-3d flex flex-col items-center gap-1 p-3 text-xs font-medium transition-all',
                     payMode === mode ? 'neon-border' : 'card-3d-lift text-gray-600 dark:text-gray-400',
@@ -432,6 +490,66 @@ function RetailPosPage() {
               </div>
             )}
 
+            {/* Split inputs */}
+            {payMode === 'Split' && (() => {
+              const cashNum = parseFloat(splitCash) || 0
+              const cardNum = parseFloat(splitCard) || 0
+              const diff = Math.abs(cashNum + cardNum - grossTotal)
+              const splitOk = cashNum > 0 && cardNum > 0 && diff < 0.01
+              return (
+                <div className="mb-4 space-y-3 rounded-xl border border-dashed p-3" style={{ borderColor: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 6%, transparent)' }}>
+                  <p className="text-center text-xs font-semibold text-gray-500">
+                    الإجمالي: {formatCurrency(grossTotal)}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">نقداً (ر.س)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={splitCash}
+                        onChange={(e) => {
+                          setSplitCash(e.target.value)
+                          const c = parseFloat(e.target.value) || 0
+                          const rem = grossTotal - c
+                          setSplitCard(rem > 0 ? rem.toFixed(2) : '')
+                        }}
+                        className="input-3d w-full"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">بطاقة (ر.س)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={splitCard}
+                        onChange={(e) => {
+                          setSplitCard(e.target.value)
+                          const c = parseFloat(e.target.value) || 0
+                          const rem = grossTotal - c
+                          setSplitCash(rem > 0 ? rem.toFixed(2) : '')
+                        }}
+                        className="input-3d w-full"
+                      />
+                    </div>
+                  </div>
+                  {cashNum + cardNum > 0 && !splitOk && (
+                    <p className="text-center text-xs font-semibold text-red-500">
+                      الفرق: {(grossTotal - cashNum - cardNum).toFixed(2)} ر.س
+                    </p>
+                  )}
+                  {splitOk && (
+                    <p className="text-center text-xs font-semibold text-green-600 dark:text-green-400">✓ مجموع صحيح</p>
+                  )}
+                </div>
+              )
+            })()}
+
             <div className="flex gap-3">
               <Button variant="secondary" onClick={() => setShowPayment(false)} className="flex-1">
                 إلغاء
@@ -441,7 +559,12 @@ function RetailPosPage() {
                 onClick={() => checkout.mutate()}
                 loading={checkout.isPending}
                 disabled={
-                  payMode === 'Cash' && !!amountTendered && parseFloat(amountTendered) < grossTotal
+                  (payMode === 'Cash' && !!amountTendered && parseFloat(amountTendered) < grossTotal) ||
+                  (payMode === 'Split' && (() => {
+                    const c = parseFloat(splitCash) || 0
+                    const k = parseFloat(splitCard) || 0
+                    return !(c > 0 && k > 0 && Math.abs(c + k - grossTotal) < 0.01)
+                  })())
                 }
                 className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
               >
@@ -520,16 +643,23 @@ function RetailPosPage() {
 function ProductCard({
   product,
   variant,
+  stockQty,
   onAdd,
 }: {
   product: ProductResponse
   variant: ProductVariantResponse
+  stockQty: number | null
   onAdd: () => void
 }) {
+  const outOfStock = stockQty !== null && stockQty <= 0
   return (
     <button
       onClick={onAdd}
-      className="card-3d tilt-card extruded-3d flex flex-col items-start p-3 text-start"
+      disabled={outOfStock}
+      className={cn(
+        'card-3d tilt-card extruded-3d flex flex-col items-start p-3 text-start',
+        outOfStock && 'pointer-events-none opacity-50',
+      )}
     >
       <div
         className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold"
@@ -545,9 +675,23 @@ function ProductCard({
         {product.name}
       </p>
       <p className="mt-0.5 text-xs text-gray-400">{variant.name}</p>
-      <p className="mt-auto pt-2 text-sm font-bold" style={{ color: 'var(--accent)' }}>
-        {formatCurrency(variant.salePrice)}
-      </p>
+      <div className="mt-auto flex w-full items-center justify-between pt-2">
+        <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>
+          {formatCurrency(variant.salePrice)}
+        </p>
+        {stockQty !== null && (
+          <span className={cn(
+            'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+            outOfStock
+              ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+              : stockQty <= 5
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+              : 'bg-gray-100 text-gray-500 dark:bg-gray-800',
+          )}>
+            {outOfStock ? 'نفد' : stockQty}
+          </span>
+        )}
+      </div>
     </button>
   )
 }
@@ -610,6 +754,17 @@ function ZatcaReceiptModal({
             <span>الإجمالي</span>
             <span className="tabular-nums">{formatCurrency(order.totalAmount)}</span>
           </div>
+        </div>
+
+        {/* Payment method */}
+        <div className="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500 dark:bg-gray-800">
+          {order.paymentMethod === 'Cash' ? 'نقداً' :
+           order.paymentMethod === 'Card' ? 'بطاقة' :
+           order.paymentMethod === 'Split' ? 'تقسيم (نقد + بطاقة)' :
+           order.paymentMethod}
+          {order.paymentMethod === 'Cash' && order.amountTendered && order.amountTendered > order.totalAmount && (
+            <span> · الباقي {formatCurrency(order.amountTendered - order.totalAmount)}</span>
+          )}
         </div>
 
         {/* ZATCA QR Code */}

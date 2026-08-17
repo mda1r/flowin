@@ -2,14 +2,16 @@
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
-  Printer, MessageSquare, CreditCard, Banknote, Bot,
+  Printer, MessageSquare, CreditCard, Banknote, Bot, QrCode,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
+import { inventoryApi } from '@/api/inventory'
+import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, cn } from '@/lib/utils'
-import { SAUDI_VAT_RATE } from '@/lib/zatca'
+import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { pushKitchenTicket } from '@/lib/cafeKitchen'
 import { restaurantApi } from '@/api/restaurant'
@@ -35,7 +37,21 @@ interface KitchenTicketData {
   ticketNumber: number
 }
 
-type PayMode = 'Cash' | 'Card'
+interface CustomerReceiptData {
+  orderId: string
+  items: CafeCartItem[]
+  grandTotal: number
+  tax: number
+  subtotal: number
+  payMode: PayMode
+  splitCash?: number
+  splitCard?: number
+  tableNumber: number | null
+  orderType: 'here' | 'takeaway'
+  completedAt: string
+}
+
+type PayMode = 'Cash' | 'Card' | 'Split'
 
 const CAFE_ACCENT: React.CSSProperties = {
   '--accent': '#4F46E5',
@@ -104,7 +120,7 @@ function KitchenTicketModal({
                   : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
               )}>
                 {ticket.orderType === 'here'
-                  ? `طاولة ${ticket.tableNumber}`
+                  ? ticket.tableNumber ? `طاولة ${ticket.tableNumber}` : 'بدون طاولة'
                   : '🛍 تيك أواي'}
               </span>
               <span className="text-sm text-gray-400">#{ticket.ticketNumber}</span>
@@ -158,6 +174,139 @@ function KitchenTicketModal({
   )
 }
 
+// ── Customer Receipt Modal ────────────────────────────────────────────────────
+
+function CustomerReceiptModal({
+  receipt,
+  onClose,
+}: {
+  receipt: CustomerReceiptData
+  onClose: () => void
+}) {
+  const { data: zatcaSettings } = useQuery({
+    queryKey: ['zatca-settings'],
+    queryFn: () => zatcaApi.getSettings(),
+    staleTime: 60_000,
+  })
+
+  const sellerName = zatcaSettings?.data?.sellerName ?? ''
+  const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
+
+  const qrCode = generateZatcaQr({
+    sellerName: sellerName || 'كافيه',
+    vatNumber,
+    timestamp: receipt.completedAt,
+    totalWithVat: receipt.grandTotal,
+    vatAmount: receipt.tax,
+  })
+
+  const payLabel =
+    receipt.payMode === 'Cash' ? 'نقداً' :
+    receipt.payMode === 'Card' ? 'بطاقة' :
+    `تقسيم — نقد ${formatCurrency(receipt.splitCash ?? 0)} / بطاقة ${formatCurrency(receipt.splitCard ?? 0)}`
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
+      <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+        <div id="cafe-receipt-print" className="p-5">
+          {/* Header */}
+          <div className="mb-4 border-b border-dashed border-gray-200 pb-4 text-center dark:border-gray-700">
+            {sellerName && (
+              <p className="text-base font-black text-gray-900 dark:text-gray-100">{sellerName}</p>
+            )}
+            {vatNumber && (
+              <p className="text-xs text-gray-500">الرقم الضريبي: {vatNumber}</p>
+            )}
+            <p className="text-xs text-gray-400 mt-1">
+              {new Date(receipt.completedAt).toLocaleString('ar-SA', {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </p>
+            <p className="text-xs font-mono text-gray-400">#{receipt.orderId.slice(-8).toUpperCase()}</p>
+            {receipt.orderType === 'here' && receipt.tableNumber && (
+              <span className="mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400">
+                طاولة {receipt.tableNumber}
+              </span>
+            )}
+            {receipt.orderType === 'takeaway' && (
+              <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
+                🛍 تيك أواي
+              </span>
+            )}
+          </div>
+
+          {/* Items */}
+          <div className="mb-4 space-y-2 text-sm">
+            {receipt.items.map((item) => (
+              <div key={item.variantId} className="flex justify-between text-gray-700 dark:text-gray-300">
+                <span className="flex-1">
+                  {item.productName}
+                  {item.quantity > 1 && <span className="text-gray-400"> ×{item.quantity}</span>}
+                  {item.notes && <span className="block text-xs text-indigo-500">📝 {item.notes}</span>}
+                </span>
+                <span className="tabular-nums">{formatCurrency(item.unitPrice * item.quantity)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Totals */}
+          <div className="mb-4 space-y-1 border-t border-dashed border-gray-200 pt-3 text-sm dark:border-gray-700">
+            <div className="flex justify-between text-gray-500">
+              <span>المجموع قبل الضريبة</span>
+              <span className="tabular-nums">{formatCurrency(receipt.subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-gray-500">
+              <span>ضريبة القيمة المضافة 15%</span>
+              <span className="tabular-nums">{formatCurrency(receipt.tax)}</span>
+            </div>
+            <div className="flex justify-between text-base font-bold text-gray-900 dark:text-gray-100">
+              <span>الإجمالي</span>
+              <span className="tabular-nums">{formatCurrency(receipt.grandTotal)}</span>
+            </div>
+          </div>
+
+          {/* Payment */}
+          <div className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500 dark:bg-gray-800">
+            {payLabel}
+          </div>
+
+          {/* ZATCA QR */}
+          <div className="mb-2 flex flex-col items-center gap-1">
+            <QrCode className="h-4 w-4 text-gray-400" />
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(qrCode)}`}
+              alt="QR ZATCA"
+              width={110}
+              height={110}
+              className="rounded-lg"
+            />
+            <p className="text-[10px] text-gray-400">رمز ZATCA للتحقق</p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-700">
+          <button
+            onClick={() => window.print()}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900"
+          >
+            <Printer className="h-4 w-4" />
+            طباعة
+          </button>
+          <button
+            onClick={onClose}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+            إغلاق
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function CafePosPage() {
@@ -185,8 +334,13 @@ export function CafePosPage() {
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showCloseShift, setShowCloseShift] = useState(false)
 
-  // Kitchen ticket
+  // Split payment
+  const [splitCash, setSplitCash] = useState<string>('')
+  const [splitCard, setSplitCard] = useState<string>('')
+
+  // Kitchen ticket & customer receipt
   const [kitchenTicket, setKitchenTicket] = useState<KitchenTicketData | null>(null)
+  const [customerReceipt, setCustomerReceipt] = useState<CustomerReceiptData | null>(null)
   const [ticketCounter, setTicketCounter] = useState(1)
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -217,8 +371,15 @@ export function CafePosPage() {
   const { data: allProductsData } = useQuery({
     queryKey: ['cafe-all-products', tenantId],
     queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 200 }),
-    enabled: !!tenantId && aiCashierAvailable,
+    enabled: !!tenantId,
     staleTime: 1000 * 60 * 5,
+  })
+
+  const { data: stockData } = useQuery({
+    queryKey: ['pos-stock', branchId],
+    queryFn: () => inventoryApi.listItems(branchId!, { pageSize: 500 }),
+    enabled: !!branchId,
+    staleTime: 30_000,
   })
 
   const _rawCats = categoriesData?.data
@@ -228,6 +389,32 @@ export function CafePosPage() {
   const _rawAll = allProductsData?.data
   const allProducts: ProductResponse[] = Array.isArray(_rawAll) ? _rawAll : ((_rawAll as any)?.items ?? [])
 
+  // Stock map: variantId → quantity on hand
+  const stockMap = (() => {
+    const raw = stockData?.data
+    const items = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    const m: Record<string, number> = {}
+    for (const s of items) m[s.variantId] = s.quantity
+    return m
+  })()
+
+  // Map: variantId → does the product track inventory
+  const trackMap = (() => {
+    const m: Record<string, boolean> = {}
+    for (const p of allProducts) {
+      for (const v of p.variants) m[v.id] = p.trackInventory
+    }
+    return m
+  })()
+
+  const cartQty = (variantId: string) => cart.find(i => i.variantId === variantId)?.quantity ?? 0
+
+  const canAddMore = (variantId: string, addingQty = 1): boolean => {
+    if (!trackMap[variantId]) return true
+    const available = stockMap[variantId] ?? 0
+    return cartQty(variantId) + addingQty <= available
+  }
+
   // ── Cart ops ──────────────────────────────────────────────────────────────
 
   const addToCart = (
@@ -236,6 +423,11 @@ export function CafePosPage() {
     variantName: string,
     unitPrice: number,
   ) => {
+    if (!canAddMore(variantId)) {
+      const available = stockMap[variantId] ?? 0
+      toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+      return
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.variantId === variantId)
       if (existing) return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + 1 } : i)
@@ -247,6 +439,14 @@ export function CafePosPage() {
     for (const product of allProducts) {
       const variant = product.variants.find((v) => v.id === variantId)
       if (variant) {
+        if (product.trackInventory) {
+          const available = stockMap[variantId] ?? 0
+          const inCart = cartQty(variantId)
+          if (inCart + qty > available) {
+            toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+            return
+          }
+        }
         setCart((prev) => {
           const existing = prev.find((i) => i.variantId === variantId)
           if (existing) {
@@ -257,9 +457,14 @@ export function CafePosPage() {
         break
       }
     }
-  }, [allProducts])
+  }, [allProducts, stockMap, cartQty])
 
   const updateQty = (variantId: string, delta: number) => {
+    if (delta > 0 && !canAddMore(variantId)) {
+      const available = stockMap[variantId] ?? 0
+      toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+      return
+    }
     setCart((prev) =>
       prev
         .map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + delta } : i)
@@ -309,17 +514,28 @@ export function CafePosPage() {
       await ordersApi.complete(branchId, orderId, {
         paymentMethod: payMode as PaymentMethod,
         amountTendered: grandTotal,
+        ...(payMode === 'Split' && {
+          cashAmount: parseFloat(splitCash) || 0,
+          cardAmount: parseFloat(splitCard) || 0,
+        }),
       })
 
       return orderId
     },
-    onSuccess: () => {
-      const ticket: KitchenTicketData = {
+    onSuccess: (orderId) => {
+      const snapshot = {
         items: [...cart],
-        orderType,
+        grandTotal,
+        tax,
+        subtotal,
+        payMode,
+        splitCash: splitCashNum || undefined,
+        splitCard: splitCardNum || undefined,
         tableNumber,
-        ticketNumber: ticketCounter,
+        orderType,
       }
+
+      // Push to kitchen (fire and forget)
       if (tenantId) {
         pushKitchenTicket(tenantId, {
           ticketNumber: ticketCounter,
@@ -333,8 +549,6 @@ export function CafePosPage() {
           })),
         })
       }
-
-      // Send to kitchen via backend (fire-and-forget)
       if (branchId && tenantId) {
         restaurantApi
           .createOrder(branchId, {
@@ -351,10 +565,18 @@ export function CafePosPage() {
           .catch(() => {})
       }
 
-      setKitchenTicket(ticket)
+      // Show customer receipt
+      setCustomerReceipt({
+        orderId,
+        ...snapshot,
+        completedAt: new Date().toISOString(),
+      })
       setTicketCounter((n) => n + 1)
       setCart([])
       setTableNumber(null)
+      setSplitCash('')
+      setSplitCard('')
+      setPayMode('Cash')
       toast.success('تم إتمام الطلب')
     },
     onError: (e: Error) => {
@@ -363,7 +585,13 @@ export function CafePosPage() {
     },
   })
 
-  const canCheckout = cart.length > 0
+  const splitCashNum = parseFloat(splitCash) || 0
+  const splitCardNum = parseFloat(splitCard) || 0
+  const splitValid = payMode !== 'Split' || (
+    splitCashNum > 0 && splitCardNum > 0 &&
+    Math.abs(splitCashNum + splitCardNum - grandTotal) < 0.01
+  )
+  const canCheckout = cart.length > 0 && splitValid
 
   // ── AI Cashier checkout ────────────────────────────────────────────────────
 
@@ -614,10 +842,10 @@ export function CafePosPage() {
 
                 {/* Payment mode */}
                 <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                  {(['Cash', 'Card'] as PayMode[]).map((m) => (
+                  {(['Cash', 'Card', 'Split'] as PayMode[]).map((m) => (
                     <button
                       key={m}
-                      onClick={() => setPayMode(m)}
+                      onClick={() => { setPayMode(m); setSplitCash(''); setSplitCard('') }}
                       className={cn(
                         'flex flex-1 items-center justify-center gap-1 py-2 text-xs font-medium transition-colors',
                         payMode === m
@@ -625,11 +853,63 @@ export function CafePosPage() {
                           : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
                       )}
                     >
-                      {m === 'Cash' ? <Banknote className="h-3 w-3" /> : <CreditCard className="h-3 w-3" />}
-                      {m === 'Cash' ? 'نقداً' : 'بطاقة'}
+                      {m === 'Cash' && <Banknote className="h-3 w-3" />}
+                      {m === 'Card' && <CreditCard className="h-3 w-3" />}
+                      {m === 'Split' && <span className="text-[10px] font-bold">½</span>}
+                      {m === 'Cash' ? 'نقداً' : m === 'Card' ? 'بطاقة' : 'تقسيم'}
                     </button>
                   ))}
                 </div>
+
+                {/* Split inputs */}
+                {payMode === 'Split' && (
+                  <div className="space-y-2 rounded-xl border border-dashed border-[var(--accent)]/40 bg-[var(--accent)]/5 p-3">
+                    <p className="text-center text-xs font-semibold text-gray-500">
+                      الإجمالي: {(grandTotal).toFixed(2)} ر.س
+                    </p>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="mb-1 block text-[10px] font-medium text-gray-500">نقداً</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={splitCash}
+                          onChange={(e) => {
+                            setSplitCash(e.target.value)
+                            const cash = parseFloat(e.target.value) || 0
+                            const remaining = grandTotal - cash
+                            setSplitCard(remaining > 0 ? remaining.toFixed(2) : '')
+                          }}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm tabular-nums outline-none focus:border-[var(--accent)] dark:border-gray-700 dark:bg-gray-800"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="mb-1 block text-[10px] font-medium text-gray-500">بطاقة</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={splitCard}
+                          onChange={(e) => {
+                            setSplitCard(e.target.value)
+                            const card = parseFloat(e.target.value) || 0
+                            const remaining = grandTotal - card
+                            setSplitCash(remaining > 0 ? remaining.toFixed(2) : '')
+                          }}
+                          className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm tabular-nums outline-none focus:border-[var(--accent)] dark:border-gray-700 dark:bg-gray-800"
+                        />
+                      </div>
+                    </div>
+                    {splitCashNum + splitCardNum > 0 && Math.abs(splitCashNum + splitCardNum - grandTotal) > 0.01 && (
+                      <p className="text-center text-[10px] font-semibold text-red-500">
+                        الفرق: {(grandTotal - splitCashNum - splitCardNum).toFixed(2)} ر.س
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <button
                   onClick={() => checkout.mutate()}
@@ -758,8 +1038,13 @@ export function CafePosPage() {
         <CloseShiftModal shift={shift} onClose={() => setShowCloseShift(false)} />
       )}
 
-      {/* ── Kitchen Ticket ── */}
-      {kitchenTicket && (
+      {/* ── Customer Receipt (shown after checkout) ── */}
+      {customerReceipt && (
+        <CustomerReceiptModal receipt={customerReceipt} onClose={() => setCustomerReceipt(null)} />
+      )}
+
+      {/* ── Kitchen Ticket (for kitchen display only) ── */}
+      {kitchenTicket && !customerReceipt && (
         <KitchenTicketModal ticket={kitchenTicket} onClose={() => setKitchenTicket(null)} />
       )}
 
