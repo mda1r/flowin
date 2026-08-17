@@ -69,7 +69,8 @@ internal sealed class ReturnOrderCommandHandler(
             order.Currency,
             request.RefundMethod,
             returnLines,
-            request.RestockItems);
+            request.RestockItems,
+            order.TaxRate);
 
         if (returnResult.IsError)
         {

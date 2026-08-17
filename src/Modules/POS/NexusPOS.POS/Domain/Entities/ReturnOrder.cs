@@ -27,7 +27,8 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
         string currency,
         RefundMethod refundMethod,
         IEnumerable<(Guid lineId, Guid variantId, string productName, string variantName, decimal quantity, decimal unitPrice, ReturnReason reason)> returnLines,
-        bool restockItems = true)
+        bool restockItems = true,
+        decimal taxRate = 0m)
     {
         List<ReturnOrderLine> lines = returnLines
             .Select(l => ReturnOrderLine.Create(l.lineId, l.variantId, l.productName, l.variantName, l.quantity, l.unitPrice, l.reason))
@@ -38,7 +39,9 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
             return Error.Validation("ReturnOrder.NoLines", "At least one line is required for a return.");
         }
 
-        decimal refundAmount = Math.Round(lines.Sum(l => l.LineTotal), 4);
+        // UnitPrice is stored pre-tax; multiply by (1 + taxRate) to refund the tax-inclusive amount
+        decimal pretaxTotal = Math.Round(lines.Sum(l => l.LineTotal), 4);
+        decimal refundAmount = Math.Round(pretaxTotal * (1 + taxRate), 4);
 
         ReturnOrder returnOrder = new()
         {
