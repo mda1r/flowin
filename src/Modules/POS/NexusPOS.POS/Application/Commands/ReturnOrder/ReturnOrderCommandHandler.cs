@@ -35,6 +35,15 @@ internal sealed class ReturnOrderCommandHandler(
             return Error.Validation("ReturnOrder.OrderNotCompleted", "Only completed orders can be returned.");
         }
 
+        // Aggregate quantities already returned for each line
+        IReadOnlyList<ReturnOrderEntity> existingReturns = await returnOrderRepository
+            .FindByOriginalOrderAsync(request.OriginalOrderId, cancellationToken);
+
+        Dictionary<Guid, decimal> alreadyReturned = existingReturns
+            .SelectMany(r => r.Lines)
+            .GroupBy(l => l.OriginalLineId)
+            .ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
+
         // Build return line tuples by matching requested lineIds to the order lines
         List<(Guid lineId, Guid variantId, string productName, string variantName, decimal quantity, decimal unitPrice, ReturnReason reason)> returnLines = [];
 
@@ -46,10 +55,13 @@ internal sealed class ReturnOrderCommandHandler(
                 return PosErrors.OrderLineNotFound;
             }
 
-            if (lineInput.Quantity > originalLine.Quantity)
+            decimal previouslyReturned = alreadyReturned.GetValueOrDefault(lineInput.LineId, 0m);
+            decimal remainingReturnable = originalLine.Quantity - previouslyReturned;
+
+            if (lineInput.Quantity > remainingReturnable)
             {
                 return Error.Validation("ReturnOrder.QuantityExceeded",
-                    $"Return quantity for line {lineInput.LineId} exceeds the original ordered quantity.");
+                    $"Return quantity for line {lineInput.LineId} exceeds the remaining returnable quantity ({remainingReturnable}).");
             }
 
             returnLines.Add((
