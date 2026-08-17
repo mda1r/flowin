@@ -65,9 +65,9 @@ export function RestaurantPosPage() {
       ? setLines(prev => prev.filter(l => l.menuItemId !== id))
       : setLines(prev => prev.map(l => l.menuItemId === id ? { ...l, quantity: qty } : l))
 
-  const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0)
-  const vat = subtotal * VAT
-  const total = subtotal + vat
+  const total = lines.reduce((s, l) => s + l.price * l.quantity, 0)
+  const vat = +(total * VAT / (1 + VAT)).toFixed(2)
+  const subtotal = total - vat
 
   const createOrder = useMutation({
     mutationFn: async () => {

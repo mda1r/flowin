@@ -70,6 +70,7 @@ export function ActivityLogsPage() {
     queryFn: () => activityLogsApi.list({ branchId: branchId ?? undefined, pageSize: 500 })
       .then((r) => r.data),
     staleTime: 30_000,
+    enabled: !!branchId,
   })
 
   const allLogs = data ?? []

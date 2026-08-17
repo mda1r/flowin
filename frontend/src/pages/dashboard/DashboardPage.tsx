@@ -594,7 +594,6 @@ function computeStats(orders: OrderResponse[]) {
 
 const FALLBACK_REVENUE   = [4, 6, 5, 8, 7, 10, 9]
 const FALLBACK_ORDERS    = [2, 3, 2, 4, 3,  5, 4]
-const FALLBACK_CUSTOMERS = [2, 3, 3, 4, 5,  5, 6]
 const FALLBACK_AVG       = [5, 4, 6, 5, 7,  6, 8]
 
 export function DashboardPage() {
@@ -869,7 +868,7 @@ export function DashboardPage() {
                 iconWrap="bg-amber-50 dark:bg-amber-900/30"
                 sparkColor="text-amber-500"
                 kpiColor="#f59e0b"
-                spark={FALLBACK_CUSTOMERS}
+                spark={FALLBACK_AVG}
                 sparkId="spark-tax"
                 entrance="entrance-4"
               />

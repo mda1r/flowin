@@ -411,7 +411,8 @@ export function CafePosPage() {
 
   const canAddMore = (variantId: string, addingQty = 1): boolean => {
     if (!trackMap[variantId]) return true
-    const available = stockMap[variantId] ?? 0
+    const available = stockMap[variantId]
+    if (available === undefined) return true
     return cartQty(variantId) + addingQty <= available
   }
 
@@ -424,8 +425,7 @@ export function CafePosPage() {
     unitPrice: number,
   ) => {
     if (!canAddMore(variantId)) {
-      const available = stockMap[variantId] ?? 0
-      toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
       return
     }
     setCart((prev) => {
@@ -440,11 +440,13 @@ export function CafePosPage() {
       const variant = product.variants.find((v) => v.id === variantId)
       if (variant) {
         if (product.trackInventory) {
-          const available = stockMap[variantId] ?? 0
-          const inCart = cartQty(variantId)
-          if (inCart + qty > available) {
-            toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
-            return
+          const available = stockMap[variantId]
+          if (available !== undefined) {
+            const inCart = cartQty(variantId)
+            if (inCart + qty > available) {
+              toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+              return
+            }
           }
         }
         setCart((prev) => {
@@ -461,8 +463,7 @@ export function CafePosPage() {
 
   const updateQty = (variantId: string, delta: number) => {
     if (delta > 0 && !canAddMore(variantId)) {
-      const available = stockMap[variantId] ?? 0
-      toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
       return
     }
     setCart((prev) =>

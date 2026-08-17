@@ -62,6 +62,6 @@ export const gamingApi = {
 
   setMaintenance: (branchId: string, stationId: string) =>
     apiClient.post<GameStationResponse>(
-      `/api/v1/branches/${branchId}/game-stations/${stationId}/maintenance`,
+      `${BASE(branchId)}/stations/${stationId}/maintenance`,
     ),
 }

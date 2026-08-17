@@ -311,7 +311,7 @@ function ContractRow({
   signPending: boolean
 }) {
   const canEdit = contract.status === 'Draft' || contract.status === 'Active'
-  const canSign = contract.status !== 'Executed' && contract.status !== 'Cancelled'
+  const canSign = contract.status === 'Active'
 
   return (
     <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-900">

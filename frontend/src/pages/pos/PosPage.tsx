@@ -138,7 +138,9 @@ function RetailPosPage() {
 
   const canAddToCart = (variantId: string, currentQty: number, addQty = 1): boolean => {
     if (!trackMap[variantId]) return true
-    return currentQty + addQty <= (stockMap[variantId] ?? 0)
+    const available = stockMap[variantId]
+    if (available === undefined) return true
+    return currentQty + addQty <= available
   }
 
   const checkout = useMutation({

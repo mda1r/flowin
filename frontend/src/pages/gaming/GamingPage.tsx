@@ -110,6 +110,7 @@ export function GamingPage() {
   const [startModal, setStartModal] = useState<GameStationResponse | null>(null)
   const [extendModal, setExtendModal] = useState<GameStationResponse | null>(null)
   const [billModal, setBillModal] = useState<GameSessionBillResponse | null>(null)
+  const [endingStationId, setEndingStationId] = useState<string | null>(null)
 
   // Start session form state
   const [startForm, setStartForm] = useState<StartForm>({
@@ -208,11 +209,15 @@ export function GamingPage() {
     mutationFn: (station: GameStationResponse) =>
       gamingApi.endSessionById(branchId!, station.activeSession!.sessionId),
     onSuccess: (res) => {
+      setEndingStationId(null)
       invalidate()
       setBillModal(res.data)
       toast.success('انتهت الجلسة')
     },
-    onError: () => toast.error('فشل إنهاء الجلسة'),
+    onError: () => {
+      setEndingStationId(null)
+      toast.error('فشل إنهاء الجلسة')
+    },
   })
 
   const maintenanceMut = useMutation({
@@ -354,9 +359,9 @@ export function GamingPage() {
                 station={station}
                 onStart={() => openStartModal(station)}
                 onExtend={() => openExtendModal(station)}
-                onEnd={() => endMut.mutate(station)}
+                onEnd={() => { setEndingStationId(station.id); endMut.mutate(station) }}
                 onMaintenance={() => maintenanceMut.mutate(station.id)}
-                endLoading={endMut.isPending}
+                endLoading={endingStationId === station.id && endMut.isPending}
                 maintenanceLoading={maintenanceMut.isPending}
               />
             ))}
@@ -976,7 +981,9 @@ function StationCard({
               variant="danger"
               size="sm"
               className="flex-1 justify-center text-xs"
-              onClick={onEnd}
+              onClick={() => {
+                if (window.confirm(`إنهاء جلسة ${station.name}؟`)) onEnd()
+              }}
               loading={endLoading}
             >
               إنهاء

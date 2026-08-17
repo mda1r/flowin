@@ -30,7 +30,11 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) =>
         set({ user, tenantId: user.tenantId, branchId: user.branchId }),
 
-      setActiveBranch: (branchId) => set({ branchId }),
+      setActiveBranch: (branchId) =>
+        set((state) => ({
+          branchId,
+          user: state.user ? { ...state.user, branchId } : null,
+        })),
 
       logout: () =>
         set({

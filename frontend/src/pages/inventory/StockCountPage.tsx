@@ -36,8 +36,8 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 export function StockCountPage() {
   const navigate = useNavigate()
-  const { user, tenantId } = useAuthStore()
-  const branchId = user?.branchId ?? ''
+  const { branchId: branchIdRaw, tenantId } = useAuthStore()
+  const branchId = branchIdRaw ?? ''
   const queryClient = useQueryClient()
 
   const [showCreate, setShowCreate] = useState(false)
@@ -84,8 +84,8 @@ export function StockCountPage() {
 
       return stockCountApi.createSession(branchId, {
         type: form.type,
-        periodStart: new Date(form.periodStart).toISOString(),
-        periodEnd: new Date(`${form.periodEnd}T23:59:59`).toISOString(),
+        periodStart: form.periodStart + 'T00:00:00Z',
+        periodEnd: form.periodEnd + 'T23:59:59Z',
         notes: form.notes.trim() || undefined,
         items,
       })

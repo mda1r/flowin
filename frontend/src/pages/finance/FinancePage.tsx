@@ -84,7 +84,7 @@ export function FinancePage() {
 
   const approve = useMutation({
     mutationFn: (expenseId: string) =>
-      financeApi.approve(branchId!, expenseId, { approvedBy: user!.id }),
+      financeApi.approve(branchId!, expenseId, { approvedBy: user?.id ?? '' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['expenses', branchId] })
       toast.success('تمت الموافقة على المصروف')

@@ -2,13 +2,89 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Clock, ShoppingBag, Banknote, TrendingUp, CheckCircle,
-  AlertTriangle, ChevronDown, ChevronUp, Receipt,
+  AlertTriangle, ChevronDown, Receipt, Printer,
 } from 'lucide-react'
 import { shiftsApi } from '@/api/shifts'
 import { ordersApi } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency } from '@/lib/utils'
 import type { ShiftResponse, OrderResponse } from '@/types/api'
+
+function printShift(shift: ShiftResponse) {
+  const openedAt = new Date(shift.openedAt)
+  const closedAt = shift.closedAt ? new Date(shift.closedAt) : null
+  const ms = closedAt ? closedAt.getTime() - openedAt.getTime() : Date.now() - openedAt.getTime()
+  const h = Math.floor(ms / 3_600_000)
+  const m = Math.floor((ms % 3_600_000) / 60_000)
+
+  const cashVariance = shift.cashVariance ?? 0
+  const cardVariance = shift.cardVariance ?? 0
+  const expectedCash = shift.expectedCash ?? (shift.openingCash + shift.totalCashSales)
+  const closingCash = shift.closingCash ?? 0
+  const closingCard = shift.closingCardCount ?? 0
+
+  const win = window.open('', '_blank', 'width=420,height=720')
+  if (!win) return
+
+  win.document.write(`
+    <html dir="rtl"><head><meta charset="utf-8"/>
+    <title>فاتورة الشفت — ${shift.cashierName}</title>
+    <style>
+      @media print { body { margin: 0 } }
+      body { font-family: Arial, sans-serif; font-size: 13px; margin: 16px; color: #111 }
+      h2 { text-align: center; font-size: 17px; margin-bottom: 4px; font-weight: bold }
+      .sub { text-align: center; color: #555; font-size: 11px; margin-bottom: 12px; line-height: 1.7 }
+      hr { border: none; border-top: 1px dashed #999; margin: 8px 0 }
+      .row { display: flex; justify-content: space-between; margin: 5px 0 }
+      .row .lbl { color: #555 }
+      .row .val { font-weight: bold }
+      .variance { padding: 5px 8px; border-radius: 4px; font-size: 12px; margin-top: 3px }
+      .ok  { background: #d1fae5; color: #065f46 }
+      .bad { background: #fee2e2; color: #991b1b }
+      .total { font-size: 14px; font-weight: bold; text-align: center; margin-top: 10px;
+               padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9 }
+      .note { color: #666; font-size: 11px; margin-top: 8px }
+    </style></head><body>
+    <h2>فاتورة الشفت</h2>
+    <div class="sub">
+      ${shift.cashierName}<br/>
+      الفتح: ${openedAt.toLocaleString('ar-SA')}<br/>
+      ${closedAt ? `الإغلاق: ${closedAt.toLocaleString('ar-SA')}<br/>` : ''}
+      المدة: ${h}س ${m}د
+    </div>
+    <hr/>
+    <div class="row"><span class="lbl">رصيد الفتح</span><span class="val">${formatCurrency(shift.openingCash)}</span></div>
+    <div class="row"><span class="lbl">عدد الطلبات</span><span class="val">${shift.totalOrders}</span></div>
+    <div class="row"><span class="lbl">ضريبة القيمة المضافة 15%</span><span class="val">${formatCurrency(shift.totalTax)}</span></div>
+    <hr/>
+    <div class="row"><span class="lbl">مبيعات نقدية</span><span class="val">${formatCurrency(shift.totalCashSales)}</span></div>
+    <div class="row"><span class="lbl">مبيعات بطاقة</span><span class="val">${formatCurrency(shift.totalCardSales)}</span></div>
+    ${shift.closedAt ? `
+    <hr/>
+    <div class="row"><span class="lbl">النقد المتوقع في الصندوق</span><span class="val">${formatCurrency(expectedCash)}</span></div>
+    <div class="row"><span class="lbl">النقد الفعلي</span><span class="val">${formatCurrency(closingCash)}</span></div>
+    <div class="variance ${cashVariance >= 0 ? 'ok' : 'bad'}">
+      ${cashVariance >= 0 ? 'فائض نقدي' : 'عجز نقدي'}: ${formatCurrency(Math.abs(cashVariance))}
+    </div>
+    <div class="row" style="margin-top:8px"><span class="lbl">إجمالي البطاقة المتوقع</span><span class="val">${formatCurrency(shift.totalCardSales)}</span></div>
+    <div class="row"><span class="lbl">إجمالي البطاقة الفعلي</span><span class="val">${formatCurrency(closingCard)}</span></div>
+    <div class="variance ${cardVariance >= 0 ? 'ok' : 'bad'}">
+      ${cardVariance >= 0 ? 'فائض بطاقة' : 'عجز بطاقة'}: ${formatCurrency(Math.abs(cardVariance))}
+    </div>
+    ` : ''}
+    <hr/>
+    <div class="total">
+      الإجمالي: ${formatCurrency(shift.totalSales)}<br/>
+      <span style="font-size:12px;font-weight:normal;color:#555">
+        ${formatCurrency(shift.totalCashSales)} نقد · ${formatCurrency(shift.totalCardSales)} بطاقة
+      </span>
+    </div>
+    ${shift.notes ? `<div class="note">ملاحظة: ${shift.notes}</div>` : ''}
+    </body></html>
+  `)
+  win.document.close()
+  win.print()
+}
 
 export function ShiftReportsPage() {
   const { branchId } = useAuthStore()
@@ -139,11 +215,7 @@ function ShiftCard({ shift, isCurrent = false }: { shift: ShiftResponse; isCurre
                 مغلق
               </span>
             )}
-            {expanded ? (
-              <ChevronUp className="h-4 w-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            )}
+            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </div>
         </div>
 
@@ -176,6 +248,20 @@ function ShiftCard({ shift, isCurrent = false }: { shift: ShiftResponse; isCurre
           <p className="mt-2 text-xs text-gray-400 text-right">ملاحظة: {shift.notes}</p>
         )}
       </button>
+
+      {/* Print button — always visible */}
+      <div className="flex items-center justify-between border-t border-gray-100 px-4 py-2 dark:border-gray-800">
+        <button
+          onClick={(e) => { e.stopPropagation(); printShift(shift) }}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          طباعة فاتورة الشفت
+        </button>
+        <span className="text-xs text-gray-400">
+          {expanded ? 'إخفاء الفواتير ▲' : 'عرض الفواتير ▼'}
+        </span>
+      </div>
 
       {/* Expanded orders list */}
       {expanded && (

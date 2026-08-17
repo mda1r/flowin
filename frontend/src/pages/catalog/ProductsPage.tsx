@@ -125,19 +125,17 @@ export function ProductsPage() {
         for (const variant of result.data.variants) {
           try {
             const stockRes = await inventoryApi.initializeStock(branchId, variant.id)
-            if (data.initialQuantity > 0) {
+            const expiryIso = data.expiryDate ? data.expiryDate + 'T00:00:00Z' : null
+            if (data.initialQuantity > 0 || expiryIso) {
               await inventoryApi.adjustStock(branchId, stockRes.data.id, {
                 newQuantity: data.initialQuantity,
-                expiryDate: data.expiryDate || null,
-                notes: 'كمية أولية عند إنشاء المنتج',
-              })
-            } else if (data.expiryDate) {
-              await inventoryApi.adjustStock(branchId, stockRes.data.id, {
-                newQuantity: 0,
-                expiryDate: data.expiryDate,
+                expiryDate: expiryIso,
+                notes: data.initialQuantity > 0 ? 'كمية أولية عند إنشاء المنتج' : undefined,
               })
             }
-          } catch { /* non-fatal */ }
+          } catch {
+            toast.error('تحذير', 'تم إنشاء المنتج لكن فشل تسجيل الكمية الأولية — راجع المخزون')
+          }
         }
       }
       return result

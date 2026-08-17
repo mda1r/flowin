@@ -51,11 +51,13 @@ function OrderCard({
   order,
   onItemReady,
   onOrderReady,
+  onSendToKitchen,
 }: {
   order: RestaurantOrderResponse
   branchId?: string
   onItemReady: (orderId: string, itemId: string) => void
   onOrderReady: (orderId: string) => void
+  onSendToKitchen?: (orderId: string) => void
 }) {
   const minutes = minutesSince(order.createdAt)
   const allReady = order.items.every((i) => i.status === 'Ready')
@@ -123,6 +125,16 @@ function OrderCard({
           </li>
         ))}
       </ul>
+
+      {/* Send to Kitchen button — Pending orders */}
+      {order.status === 'Pending' && onSendToKitchen && (
+        <button
+          onClick={() => onSendToKitchen(order.id)}
+          className="w-full rounded-xl bg-blue-500 py-2 text-sm font-bold text-white transition-all hover:bg-blue-400"
+        >
+          إرسال للمطبخ
+        </button>
+      )}
 
       {/* Ready button */}
       {order.status === 'InKitchen' && (
@@ -201,9 +213,14 @@ export function KitchenPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant-orders-kitchen', branchId] }),
   })
 
+  const sendToKitchenMutation = useMutation({
+    mutationFn: (orderId: string) => restaurantApi.sendToKitchen(branchId!, orderId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant-orders-kitchen', branchId] }),
+  })
+
   const pendingOrders = orders.filter((o) => o.status === 'Pending')
   const inKitchenOrders = orders.filter((o) => o.status === 'InKitchen')
-  const readyOrders = orders.filter((o) => o.status === 'Ready' || o.status === 'Served')
+  const readyOrders = orders.filter((o) => o.status === 'Ready')
 
   return (
     <div className="min-h-screen bg-gray-950 text-white" dir="rtl">
@@ -256,6 +273,7 @@ export function KitchenPage() {
                 onItemReady={(orderId, itemId) =>
                   markItemReadyMutation.mutate({ orderId, itemId })}
                 onOrderReady={(orderId) => markOrderReadyMutation.mutate(orderId)}
+                onSendToKitchen={(orderId) => sendToKitchenMutation.mutate(orderId)}
               />
             ))}
             {pendingOrders.length === 0 && (

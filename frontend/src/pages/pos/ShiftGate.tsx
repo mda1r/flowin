@@ -97,8 +97,9 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   const computed = useMemo(() => {
     const orders = shiftOrders ?? []
     const cashSales = orders.filter((o) => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0)
-    const cardSales = orders.filter((o) => o.paymentMethod !== 'Cash').reduce((s, o) => s + o.totalAmount, 0)
-    return { cashSales, cardSales, totalSales: cashSales + cardSales, totalOrders: orders.length }
+    const cardSales = orders.filter((o) => o.paymentMethod === 'Card').reduce((s, o) => s + o.totalAmount, 0)
+    const splitSales = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + o.totalAmount, 0)
+    return { cashSales, cardSales, splitSales, totalSales: cashSales + cardSales + splitSales, totalOrders: orders.length }
   }, [shiftOrders])
 
   const cashAmount = parseFloat(closingCash) || 0
@@ -141,6 +142,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       <hr/>
       <div class="row"><span class="lbl">مبيعات نقدية</span><span class="val">${formatCurrency(computed.cashSales)}</span></div>
       <div class="row"><span class="lbl">مبيعات بطاقة</span><span class="val">${formatCurrency(computed.cardSales)}</span></div>
+      ${computed.splitSales > 0 ? `<div class="row"><span class="lbl">مبيعات مختلطة (نقد+بطاقة)</span><span class="val">${formatCurrency(computed.splitSales)}</span></div>` : ''}
       <hr/>
       <div class="row"><span class="lbl">النقد المتوقع</span><span class="val">${formatCurrency(expectedCash)}</span></div>
       <div class="row"><span class="lbl">النقد الفعلي</span><span class="val">${formatCurrency(cashAmount)}</span></div>
@@ -149,7 +151,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       <div class="row"><span class="lbl">إجمالي البطاقة الفعلي</span><span class="val">${formatCurrency(cardAmount)}</span></div>
       <div class="variance ${cardVariance >= 0 ? 'ok' : 'bad'}">${cardVariance >= 0 ? 'فائض بطاقة' : 'عجز بطاقة'}: ${formatCurrency(Math.abs(cardVariance))}</div>
       <hr/>
-      <div class="total">الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة، المجموع ${formatCurrency(computed.totalSales)}</div>
+      <div class="total">الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة${computed.splitSales > 0 ? ` و ${formatCurrency(computed.splitSales)} مختلط` : ''}، المجموع ${formatCurrency(computed.totalSales)}</div>
       ${notes ? `<hr/><div style="color:#555;font-size:11px">ملاحظة: ${notes}</div>` : ''}
       </body></html>
     `)
@@ -249,6 +251,12 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cashSales)} كاش</span>
           <span className="text-gray-400"> و </span>
           <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cardSales)} بطاقة</span>
+          {computed.splitSales > 0 && (
+            <>
+              <span className="text-gray-400"> و </span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.splitSales)} مختلط</span>
+            </>
+          )}
           <span className="text-gray-400">، المجموع </span>
           <span className="font-bold text-[color:var(--accent)]">{formatCurrency(computed.totalSales)}</span>
         </div>

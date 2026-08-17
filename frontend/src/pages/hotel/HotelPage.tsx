@@ -1009,9 +1009,9 @@ function HotelReceiptModal({
   })
   const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
 
-  const subtotal = reservation.totalAmount
-  const vat = subtotal * SAUDI_VAT_RATE
-  const total = subtotal + vat
+  const total = reservation.totalAmount
+  const vat = +(total * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)).toFixed(2)
+  const subtotal = total - vat
 
   const qrCode = generateZatcaQr({
     sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',

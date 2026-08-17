@@ -163,7 +163,7 @@ export function PurchasingPage() {
           {view === 'orders' ? (
             <Table
               loading={isLoading}
-              data={orders?.data ?? []}
+              data={(Array.isArray(orders?.data) ? orders!.data : ((orders?.data as any)?.items ?? [])) as import('@/types/api').PurchaseOrderResponse[]}
               keyExtractor={(r) => r.id}
               emptyMessage={t.purchasing.noOrders}
               columns={[
@@ -174,7 +174,15 @@ export function PurchasingPage() {
                     <span className="font-mono text-sm font-medium">{r.id.slice(-8).toUpperCase()}</span>
                   ),
                 },
-                { key: 'supplierName', header: t.purchasing.supplier },
+                {
+                  key: 'supplierName',
+                  header: t.purchasing.supplier,
+                  render: (r) => {
+                    const supplierList = Array.isArray(suppliers?.data) ? suppliers!.data : ((suppliers?.data as any)?.items ?? [])
+                    const found = supplierList.find((s: { id: string; name: string }) => s.id === r.supplierId)
+                    return found?.name ?? '—'
+                  },
+                },
                 {
                   key: 'totalCost',
                   header: t.purchasing.total,

@@ -32,8 +32,8 @@ const STATUS_LABELS: Record<string, string> = {
 export function StockCountDetailPage() {
   const { sessionId } = useParams({ strict: false }) as { sessionId: string }
   const navigate = useNavigate()
-  const { user, tenantId } = useAuthStore()
-  const branchId = user?.branchId ?? ''
+  const { user, tenantId, branchId: branchIdRaw } = useAuthStore()
+  const branchId = branchIdRaw ?? ''
   const queryClient = useQueryClient()
 
   const [counts, setCounts] = useState<Record<string, string>>({})
