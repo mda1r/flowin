@@ -6,5 +6,5 @@ export const BUSINESS_TYPE_ROUTES: Record<BusinessType, string[]> = {
   Restaurant:  ['/', '/pos', '/customers', '/sales', '/reports', '/finance', '/restaurant', '/settings/zatca', '/users', '/branches', '/activity-logs', '/shifts', '/invoices'],
   Supermarket: ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs', '/shifts', '/invoices'],
   Retail:      ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/purchasing', '/finance', '/settings/zatca', '/users', '/branches', '/activity-logs', '/shifts', '/invoices'],
-  Cafe:        ['/', '/pos', '/products', '/customers', '/sales', '/reports', '/finance', '/cafe/kitchen', '/settings/zatca', '/users', '/branches', '/activity-logs', '/shifts', '/invoices'],
+  Cafe:        ['/', '/pos', '/products', '/inventory', '/stock-counts', '/customers', '/sales', '/reports', '/finance', '/cafe/kitchen', '/settings/zatca', '/users', '/branches', '/activity-logs', '/shifts', '/invoices'],
 }

@@ -369,7 +369,7 @@ export function CafePosPage() {
   const aiCashierAvailable = cashierFeature?.available ?? false
 
   const { data: allProductsData } = useQuery({
-    queryKey: ['cafe-all-products', tenantId],
+    queryKey: ['products', tenantId],
     queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 200 }),
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 5,
