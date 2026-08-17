@@ -174,12 +174,12 @@ function ShiftCard({ shift, isCurrent = false }: { shift: ShiftResponse; isCurre
     queryKey: ['shift-orders', branchId, shift.id],
     queryFn: async () => {
       if (!branchId) return []
-      const dateFrom = shift.openedAt
-      const dateTo = shift.closedAt ?? new Date().toISOString()
+      const from = shift.openedAt
+      const to = shift.closedAt ?? new Date().toISOString()
       const { data } = await ordersApi.listOrders(branchId, {
         status: 'Completed',
-        dateFrom,
-        dateTo,
+        from,
+        to,
         pageSize: 100,
       })
       return (Array.isArray(data) ? data : (data as any)?.items ?? []) as OrderResponse[]

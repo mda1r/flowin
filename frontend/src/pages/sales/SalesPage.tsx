@@ -224,7 +224,7 @@ export function SalesPage() {
   const [returnOrder, setReturnOrder] = useState<OrderResponse | null>(null)
   const { branchId } = useAuthStore()
 
-  const dateFrom = (() => {
+  const from = (() => {
     const now = new Date()
     if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
     if (range === 'week') {
@@ -239,7 +239,7 @@ export function SalesPage() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ['orders', branchId, 'sales', range],
     queryFn: () =>
-      ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 200, dateFrom }),
+      ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 200, from }),
     enabled: !!branchId,
   })
 
