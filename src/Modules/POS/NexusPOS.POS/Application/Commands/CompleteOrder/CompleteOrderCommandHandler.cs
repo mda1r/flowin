@@ -26,7 +26,7 @@ internal sealed class CompleteOrderCommandHandler(
             return PosErrors.OrderNotFound;
         }
 
-        ErrorOr<Success> completeResult = order.Complete(request.PaymentMethod, request.AmountTendered);
+        ErrorOr<Success> completeResult = order.Complete(request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount);
         if (completeResult.IsError)
         {
             return completeResult.Errors;

@@ -17,6 +17,8 @@ public sealed record OrderResponse(
     PaymentMethod? PaymentMethod,
     decimal? AmountTendered,
     decimal? ChangeDue,
+    decimal? SplitCash,
+    decimal? SplitCard,
     string? Notes,
     DateTime CreatedAt,
     DateTime? CompletedAt,

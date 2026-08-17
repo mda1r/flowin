@@ -8,4 +8,6 @@ public sealed record CompleteOrderCommand(
     Guid OrderId,
     Guid BranchId,
     PaymentMethod PaymentMethod,
-    decimal AmountTendered) : ICommand<OrderResponse>;
+    decimal AmountTendered,
+    decimal? CashAmount = null,
+    decimal? CardAmount = null) : ICommand<OrderResponse>;

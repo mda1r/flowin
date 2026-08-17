@@ -21,6 +21,8 @@ internal static class OrderMapper
             order.PaymentMethod,
             order.AmountTendered,
             order.ChangeDue,
+            order.SplitCash,
+            order.SplitCard,
             order.Notes,
             order.CreatedAt,
             order.CompletedAt,

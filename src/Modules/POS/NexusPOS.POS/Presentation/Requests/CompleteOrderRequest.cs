@@ -2,4 +2,4 @@ using NexusPOS.POS.Domain.Enums;
 
 namespace NexusPOS.POS.Presentation.Requests;
 
-public sealed record CompleteOrderRequest(PaymentMethod PaymentMethod, decimal AmountTendered);
+public sealed record CompleteOrderRequest(PaymentMethod PaymentMethod, decimal AmountTendered, decimal? CashAmount = null, decimal? CardAmount = null);

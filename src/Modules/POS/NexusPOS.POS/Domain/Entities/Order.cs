@@ -23,6 +23,8 @@ public sealed class Order : AggregateRoot<OrderId>
     public PaymentMethod? PaymentMethod { get; private set; }
     public decimal? AmountTendered { get; private set; }
     public decimal? ChangeDue { get; private set; }
+    public decimal? SplitCash { get; private set; }
+    public decimal? SplitCard { get; private set; }
     public string? Notes { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
@@ -124,7 +126,7 @@ public sealed class Order : AggregateRoot<OrderId>
         return Result.Success;
     }
 
-    public ErrorOr<Success> Complete(Enums.PaymentMethod method, decimal amountTendered)
+    public ErrorOr<Success> Complete(Enums.PaymentMethod method, decimal amountTendered, decimal? cashAmount = null, decimal? cardAmount = null)
     {
         if (Status != OrderStatus.Open)
         {
@@ -145,6 +147,11 @@ public sealed class Order : AggregateRoot<OrderId>
         PaymentMethod = method;
         AmountTendered = amountTendered;
         ChangeDue = Math.Round(amountTendered - TotalAmount, 4);
+        if (method == Enums.PaymentMethod.Split)
+        {
+            SplitCash = cashAmount;
+            SplitCard = cardAmount;
+        }
         CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 

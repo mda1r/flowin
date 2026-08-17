@@ -29,6 +29,8 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.PaymentMethod).HasColumnName("payment_method");
         builder.Property(o => o.AmountTendered).HasColumnName("amount_tendered").HasPrecision(18, 4);
         builder.Property(o => o.ChangeDue).HasColumnName("change_due").HasPrecision(18, 4);
+        builder.Property(o => o.SplitCash).HasColumnName("cash_amount").HasPrecision(18, 4);
+        builder.Property(o => o.SplitCard).HasColumnName("card_amount").HasPrecision(18, 4);
         builder.Property(o => o.Notes).HasColumnName("notes").HasMaxLength(512);
         builder.Property(o => o.CreatedAt).HasColumnName("created_at");
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at");

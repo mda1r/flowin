@@ -141,7 +141,7 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         [FromBody] CompleteOrderRequest request,
         CancellationToken cancellationToken)
     {
-        CompleteOrderCommand command = new(orderId, branchId, request.PaymentMethod, request.AmountTendered);
+        CompleteOrderCommand command = new(orderId, branchId, request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount);
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
