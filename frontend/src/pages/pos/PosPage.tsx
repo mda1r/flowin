@@ -81,7 +81,7 @@ function RetailPosPage() {
         : null)
 
       if (hit) {
-        const currentQty = lines.find(l => l.variantId === hit.variant.id)?.quantity ?? 0
+        const currentQty = useCartStore.getState().lines.find(l => l.variantId === hit.variant.id)?.quantity ?? 0
         if (!canAddToCart(hit.variant.id, currentQty)) {
           toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[hit.variant.id] ?? 0} وحدة`)
         } else {

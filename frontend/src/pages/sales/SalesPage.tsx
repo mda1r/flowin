@@ -224,33 +224,29 @@ export function SalesPage() {
   const [returnOrder, setReturnOrder] = useState<OrderResponse | null>(null)
   const { branchId } = useAuthStore()
 
+  const dateFrom = (() => {
+    const now = new Date()
+    if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    if (range === 'week') {
+      const d = new Date(now)
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+      d.setHours(0, 0, 0, 0)
+      return d.toISOString()
+    }
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  })()
+
   const { data: orders, isLoading } = useQuery({
-    queryKey: ['orders', branchId, 'sales'],
+    queryKey: ['orders', branchId, 'sales', range],
     queryFn: () =>
-      ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 500 }),
+      ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 200, dateFrom }),
     enabled: !!branchId,
   })
 
-  const allOrders: OrderResponse[] = (() => {
+  const items: OrderResponse[] = (() => {
     const raw = orders?.data
     return Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
   })()
-
-  const items = allOrders.filter((o) => {
-    const d = new Date(o.completedAt ?? o.createdAt)
-    const now = new Date()
-    const sameDay = (a: Date, b: Date) =>
-      a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-    if (range === 'today') return sameDay(d, now)
-    if (range === 'week') {
-      const weekStart = new Date(now)
-      weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-      weekStart.setHours(0, 0, 0, 0)
-      return d >= weekStart
-    }
-    // month
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-  })
 
   const totalRevenue = items.reduce((s, o) => s + o.totalAmount, 0)
   const avgOrder = items.length > 0 ? totalRevenue / items.length : 0

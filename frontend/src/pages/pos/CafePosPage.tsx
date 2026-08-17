@@ -617,8 +617,7 @@ export function CafePosPage() {
       await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: grandTotal })
       return orderId
     },
-    onSuccess: () => {
-      const ticket: KitchenTicketData = { items: [...cart], orderType, tableNumber, ticketNumber: ticketCounter }
+    onSuccess: (orderId) => {
       if (tenantId) {
         pushKitchenTicket(tenantId, {
           ticketNumber: ticketCounter,
@@ -634,7 +633,17 @@ export function CafePosPage() {
           items: cart.map((i) => ({ menuItemId: i.variantId, itemName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, notes: i.notes || undefined })),
         }).catch(() => {})
       }
-      setKitchenTicket(ticket)
+      setCustomerReceipt({
+        orderId,
+        items: [...cart],
+        grandTotal,
+        tax,
+        subtotal,
+        payMode: payModeRef.current,
+        tableNumber,
+        orderType,
+        completedAt: new Date().toISOString(),
+      })
       setTicketCounter((n) => n + 1)
       setCart([])
       setTableNumber(null)
