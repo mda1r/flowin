@@ -138,7 +138,7 @@ public sealed class Order : AggregateRoot<OrderId>
             return PosErrors.EmptyOrder;
         }
 
-        if (amountTendered < TotalAmount)
+        if (Math.Round(amountTendered, 2) < Math.Round(TotalAmount, 2))
         {
             return PosErrors.InsufficientPayment;
         }
