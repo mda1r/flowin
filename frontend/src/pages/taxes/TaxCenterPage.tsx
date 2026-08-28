@@ -50,8 +50,8 @@ function fmt(n: number) {
   return n.toLocaleString('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('en-SA', { year: 'numeric', month: 'short', day: 'numeric' })
+function fmtDate(d: string, locale = 'en-SA') {
+  return new Date(d).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 // ── UI Primitives ─────────────────────────────────────────────────────────────
@@ -93,39 +93,42 @@ function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 }
 
 function ErrorState({ message }: { message?: string }) {
+  const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
         <ServerCrash className="h-7 w-7" />
       </div>
-      <h3 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Failed to load</h3>
+      <h3 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{t.taxes.error.failedToLoad}</h3>
       <p className="max-w-sm text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {message ?? 'An error occurred while loading tax data.'}
+        {message ?? t.taxes.error.loadError}
       </p>
     </div>
   )
 }
 
 function PermissionDeniedState() {
+  const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
         <Lock className="h-7 w-7" />
       </div>
-      <h3 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Access Restricted</h3>
+      <h3 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{t.taxes.access.restricted}</h3>
       <p className="max-w-sm text-sm" style={{ color: 'var(--text-secondary)' }}>
-        You don't have permission to view tax data. Contact your account owner.
+        {t.taxes.access.noPermission}
       </p>
     </div>
   )
 }
 
 function NoPeriodState({ onCreateClick }: { onCreateClick: () => void }) {
+  const { t } = useI18n()
   return (
     <EmptyState
       icon={<CalendarDays className="h-8 w-8" />}
-      title="No Tax Period Selected"
-      description="Create a tax period to start tracking VAT obligations, reviewing transactions, and preparing your VAT return."
+      title={t.taxes.noPeriod.title}
+      description={t.taxes.noPeriod.description}
       action={
         <button
           onClick={onCreateClick}
@@ -133,7 +136,7 @@ function NoPeriodState({ onCreateClick }: { onCreateClick: () => void }) {
           style={{ background: 'var(--accent)' }}
         >
           <Plus className="h-4 w-4" />
-          Create Tax Period
+          {t.taxes.noPeriod.create}
         </button>
       }
     />
@@ -213,16 +216,17 @@ function SeverityBadge({ severity }: { severity: string }) {
 // ── Period Status Badge ───────────────────────────────────────────────────────
 
 function PeriodStatusBadge({ status }: { status: string }) {
+  const { t } = useI18n()
   const isOpen = status === 'open'
   return (
     <span
-      className="rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
+      className="rounded-full px-2 py-0.5 text-xs font-semibold"
       style={{
         background: isOpen ? '#22c55e20' : '#6b728020',
         color: isOpen ? '#22c55e' : '#9ca3af',
       }}
     >
-      {status}
+      {t.taxes.periodStatus[status as keyof typeof t.taxes.periodStatus] ?? status}
     </span>
   )
 }
@@ -260,6 +264,7 @@ type CreatePeriodForm = z.infer<typeof createPeriodSchema>
 
 function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCreated: (p: TaxPeriodResponse) => void }) {
   const qc = useQueryClient()
+  const { t } = useI18n()
   const { register, handleSubmit, formState: { errors } } = useForm<CreatePeriodForm>({
     resolver: zodResolver(createPeriodSchema),
   })
@@ -283,11 +288,11 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
   }
 
   return (
-    <Modal title="Create Tax Period" onClose={onClose}>
+    <Modal title={t.taxes.createPeriod.title} onClose={onClose}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Start Date
+            {t.taxes.createPeriod.startDate}
           </label>
           <input
             type="date"
@@ -299,7 +304,7 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            End Date
+            {t.taxes.createPeriod.endDate}
           </label>
           <input
             type="date"
@@ -311,26 +316,26 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Notes (optional)
+            {t.taxes.createPeriod.notes}
           </label>
           <input
             type="text"
             {...register('notes')}
             className="w-full rounded-xl border px-3 py-2 text-sm"
             style={inputStyle}
-            placeholder="e.g. Q1 2025"
+            placeholder={t.taxes.createPeriod.notesPlaceholder}
           />
         </div>
         {createMutation.error && (
           <p className="text-xs text-red-500">
             {isAxiosError(createMutation.error)
-              ? (createMutation.error.response?.data?.detail ?? 'Failed to create period. Please try again.')
-              : 'Failed to create period. Please try again.'}
+              ? (createMutation.error.response?.data?.detail ?? t.taxes.createPeriod.failed)
+              : t.taxes.createPeriod.failed}
           </p>
         )}
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Cancel
+            {t.taxes.createPeriod.cancel}
           </button>
           <button
             type="submit"
@@ -338,7 +343,7 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
             className="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
             style={{ background: 'var(--accent)' }}
           >
-            {createMutation.isPending ? 'Creating…' : 'Create Period'}
+            {createMutation.isPending ? t.taxes.createPeriod.creating : t.taxes.createPeriod.create}
           </button>
         </div>
       </form>
@@ -461,6 +466,7 @@ function OverviewTab({
   onCreatePeriod: () => void
   permDenied?: boolean
 }) {
+  const { t } = useI18n()
   const { data, isLoading, error } = useQuery<TaxOverviewResponse>({
     queryKey: ['tax', 'overview', periodId],
     queryFn: () => taxApi.getOverview(periodId!),
@@ -478,30 +484,30 @@ function OverviewTab({
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Output VAT"
+          label={t.taxes.kpi.outputVat}
           value={`SAR ${fmt(data.totalOutputVat)}`}
-          sub={`${data.saleTransactionCount} transactions`}
+          sub={`${data.saleTransactionCount} ${t.taxes.kpi.transactions}`}
           icon={<TrendingUp className="h-4 w-4" />}
           color="#ef4444"
         />
         <KpiCard
-          label="Input VAT (Claimable)"
+          label={t.taxes.kpi.inputVatClaimable}
           value={`SAR ${fmt(data.totalInputVat)}`}
-          sub={`${data.purchaseInvoiceCount} invoices`}
+          sub={`${data.purchaseInvoiceCount} ${t.taxes.kpi.invoices}`}
           icon={<TrendingDown className="h-4 w-4" />}
           color="#22c55e"
         />
         <KpiCard
-          label="Net VAT Due"
+          label={t.taxes.kpi.netVatDue}
           value={`SAR ${fmt(Math.abs(data.netVatPayable))}`}
-          sub={data.netVatPayable >= 0 ? 'Payable to ZATCA' : 'Refundable'}
+          sub={data.netVatPayable >= 0 ? t.taxes.kpi.payableToZatca : t.taxes.kpi.refundable}
           icon={<Minus className="h-4 w-4" />}
           color={netColor}
         />
         <KpiCard
-          label="Tax Readiness"
+          label={t.taxes.kpi.readiness}
           value={`${data.taxReadinessScore}/100`}
-          sub={`${data.openAnomalyCount} open issues`}
+          sub={`${data.openAnomalyCount} ${t.taxes.kpi.openIssues}`}
           icon={<CheckCircle className="h-4 w-4" />}
           color="#3b82f6"
           badge={<ReadinessBadge score={data.taxReadinessScore} />}
@@ -512,14 +518,14 @@ function OverviewTab({
         className="rounded-xl border p-5"
         style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
       >
-        <h3 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Period Summary</h3>
+        <h3 className="mb-4 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t.taxes.summary.title}</h3>
         <dl className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-          {[
-            ['Total Sales (Base)', `SAR ${fmt(data.totalSalesBase)}`],
-            ['Total Purchases (Base)', `SAR ${fmt(data.totalPurchasesBase)}`],
-            ['Output VAT Collected', `SAR ${fmt(data.totalOutputVat)}`],
-            ['Input VAT Claimable', `SAR ${fmt(data.totalInputVat)}`],
-          ].map(([l, v]) => (
+          {([
+            [t.taxes.summary.totalSalesBase, `SAR ${fmt(data.totalSalesBase)}`],
+            [t.taxes.summary.totalPurchasesBase, `SAR ${fmt(data.totalPurchasesBase)}`],
+            [t.taxes.summary.outputVatCollected, `SAR ${fmt(data.totalOutputVat)}`],
+            [t.taxes.summary.inputVatClaimable, `SAR ${fmt(data.totalInputVat)}`],
+          ] as [string, string][]).map(([l, v]) => (
             <div key={l}>
               <dt className="text-xs" style={{ color: 'var(--text-secondary)' }}>{l}</dt>
               <dd className="mt-1 text-sm font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{v}</dd>
@@ -842,8 +848,10 @@ function LedgerTab({
   periodId: string | null
   onCreatePeriod: () => void
 }) {
+  const { t, lang } = useI18n()
   const [page, setPage] = useState(1)
   const qc = useQueryClient()
+  const dateLocale = lang === 'ar' ? 'ar-SA' : 'en-SA'
 
   const { data, isLoading, error } = useQuery<TaxLedgerResult>({
     queryKey: ['tax', 'ledger', periodId, page],
@@ -899,7 +907,7 @@ function LedgerTab({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--card-border)' }}>
-                    {['Type', 'Transaction', 'Date', 'Base Amount', 'Tax Amount', 'Rate'].map((h) => (
+                    {[t.taxes.ledger.headers.type, t.taxes.ledger.headers.transaction, t.taxes.ledger.headers.date, t.taxes.ledger.headers.baseAmount, t.taxes.ledger.headers.taxAmount, t.taxes.ledger.headers.rate].map((h) => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"
@@ -927,7 +935,7 @@ function LedgerTab({
                       <td className="px-4 py-3 capitalize" style={{ color: 'var(--text-secondary)' }}>
                         {e.transactionType.replace(/([A-Z])/g, ' $1').trim()}
                       </td>
-                      <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{fmtDate(e.effectiveDate)}</td>
+                      <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{fmtDate(e.effectiveDate, dateLocale)}</td>
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--text-primary)' }}>SAR {fmt(e.baseAmount)}</td>
                       <td
                         className="px-4 py-3 tabular-nums"
@@ -948,7 +956,7 @@ function LedgerTab({
           {totalPages > 1 && (
             <div className="flex items-center justify-between text-sm">
               <span style={{ color: 'var(--text-secondary)' }}>
-                Page {data.page} of {totalPages}
+                {t.taxes.ledger.page} {data.page} {t.taxes.ledger.of} {totalPages}
               </span>
               <div className="flex gap-2">
                 <button
@@ -957,7 +965,7 @@ function LedgerTab({
                   className="rounded-xl border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
                   style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
                 >
-                  Previous
+                  {t.taxes.ledger.previous}
                 </button>
                 <button
                   disabled={data.page >= totalPages}
@@ -965,7 +973,7 @@ function LedgerTab({
                   className="rounded-xl border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
                   style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
                 >
-                  Next
+                  {t.taxes.ledger.next}
                 </button>
               </div>
             </div>
@@ -989,6 +997,8 @@ function PeriodSelector({
   onChange: (id: string) => void
   onCreateClick: () => void
 }) {
+  const { t, lang } = useI18n()
+  const dateLocale = lang === 'ar' ? 'ar-SA' : 'en-SA'
   const [open, setOpen] = useState(false)
   const selected = periods.find((p) => p.id === selectedId)
 
@@ -1007,8 +1017,8 @@ function PeriodSelector({
           <CalendarDays className="h-4 w-4" style={{ color: 'var(--accent)' }} />
           <span>
             {selected
-              ? `${fmtDate(selected.startDate)} – ${fmtDate(selected.endDate)}`
-              : 'Select Period'}
+              ? `${fmtDate(selected.startDate, dateLocale)} – ${fmtDate(selected.endDate, dateLocale)}`
+              : t.taxes.selectPeriod}
           </span>
           {selected && <PeriodStatusBadge status={selected.status} />}
           <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
@@ -1020,7 +1030,7 @@ function PeriodSelector({
             style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
           >
             {periods.length === 0 ? (
-              <div className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>No periods yet</div>
+              <div className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{t.taxes.selector.noPeriods}</div>
             ) : (
               <div className="max-h-60 overflow-y-auto divide-y" style={{ borderColor: 'var(--card-border)' }}>
                 {periods.map((p) => (
@@ -1030,7 +1040,7 @@ function PeriodSelector({
                     className="flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-black/5"
                     style={{ color: 'var(--text-primary)' }}
                   >
-                    <span>{fmtDate(p.startDate)} – {fmtDate(p.endDate)}</span>
+                    <span>{fmtDate(p.startDate, dateLocale)} – {fmtDate(p.endDate, dateLocale)}</span>
                     <PeriodStatusBadge status={p.status} />
                   </button>
                 ))}
@@ -1046,7 +1056,7 @@ function PeriodSelector({
         style={{ background: 'var(--accent)' }}
       >
         <Plus className="h-4 w-4" />
-        New Period
+        {t.taxes.selector.newPeriod}
       </button>
     </div>
   )

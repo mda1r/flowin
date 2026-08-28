@@ -908,6 +908,13 @@ export const ar: Translations = {
       vatPayable: 'الضريبة المستحقة المقدرة', outputVat: 'ضريبة المخرجات',
       inputVat: 'ضريبة المدخلات', readiness: 'جاهزية الإقرار',
       estimate: 'تقدير', unresolved: '{n} بنود غير محسومة قد تؤثر على المبلغ النهائي',
+      inputVatClaimable: 'ضريبة المدخلات (قابلة للخصم)',
+      netVatDue: 'صافي الضريبة المستحقة',
+      transactions: 'معاملة',
+      invoices: 'فاتورة',
+      payableToZatca: 'مستحقة لزاتكا',
+      refundable: 'قابلة للاسترداد',
+      openIssues: 'مشكلات مفتوحة',
     },
     overview: {
       assistantReview: 'مراجعة المساعد',
@@ -1025,11 +1032,51 @@ export const ar: Translations = {
       taxableAmount: 'الخاضع للضريبة', vatAmount: 'الضريبة', ruleVersion: 'إصدار القاعدة',
       source: 'المصدر', noEntries: 'لا توجد قيود', exportCsv: 'تصدير CSV',
       document: 'المستند', branch: 'الفرع',
+      page: 'صفحة', of: 'من', previous: 'السابق', next: 'التالي',
+      headers: {
+        type: 'النوع', transaction: 'المعاملة', date: 'التاريخ',
+        baseAmount: 'المبلغ الأساسي', taxAmount: 'مبلغ الضريبة', rate: 'النسبة',
+      },
     },
     taxCategory: {
       standard: 'قياسي (15٪)', zeroRated: 'معدل صفري', exempt: 'معفى',
       outOfScope: 'خارج النطاق', reverseCharge: 'الاحتساب العكسي',
       custom: 'معدل مخصص', needsReview: 'تحتاج مراجعة',
+    },
+    noPeriod: {
+      title: 'لم تُحدَّد فترة ضريبية',
+      description: 'أنشئ فترة ضريبية لبدء تتبع التزامات ضريبة القيمة المضافة ومراجعة المعاملات وإعداد إقرارك الضريبي.',
+      create: 'إنشاء فترة ضريبية',
+    },
+    error: {
+      failedToLoad: 'فشل التحميل',
+      loadError: 'حدث خطأ أثناء تحميل البيانات الضريبية.',
+    },
+    access: {
+      restricted: 'الوصول مقيد',
+      noPermission: 'ليس لديك صلاحية الاطلاع على البيانات الضريبية. تواصل مع مالك الحساب.',
+    },
+    selector: {
+      noPeriods: 'لا توجد فترات',
+      newPeriod: 'فترة جديدة',
+    },
+    createPeriod: {
+      title: 'إنشاء فترة ضريبية',
+      startDate: 'تاريخ البداية',
+      endDate: 'تاريخ الانتهاء',
+      notes: 'ملاحظات (اختياري)',
+      notesPlaceholder: 'مثال: الربع الأول 2025',
+      creating: 'جاري الإنشاء...',
+      create: 'إنشاء الفترة',
+      cancel: 'إلغاء',
+      failed: 'فشل إنشاء الفترة. يرجى المحاولة مرة أخرى.',
+    },
+    summary: {
+      title: 'ملخص الفترة',
+      totalSalesBase: 'إجمالي المبيعات (الأساس)',
+      totalPurchasesBase: 'إجمالي المشتريات (الأساس)',
+      outputVatCollected: 'ضريبة المخرجات المحصلة',
+      inputVatClaimable: 'ضريبة المدخلات القابلة للخصم',
     },
     ai: {
       quickPrompts: {

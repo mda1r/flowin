@@ -906,6 +906,13 @@ export const en = {
       vatPayable: 'Estimated VAT Payable', outputVat: 'Output VAT',
       inputVat: 'Input VAT', readiness: 'Tax Readiness',
       estimate: 'Estimate', unresolved: '{n} unresolved items may affect final amount',
+      inputVatClaimable: 'Input VAT (Claimable)',
+      netVatDue: 'Net VAT Due',
+      transactions: 'transactions',
+      invoices: 'invoices',
+      payableToZatca: 'Payable to ZATCA',
+      refundable: 'Refundable',
+      openIssues: 'open issues',
     },
     overview: {
       assistantReview: 'Assistant Review',
@@ -1023,11 +1030,51 @@ export const en = {
       taxableAmount: 'Taxable', vatAmount: 'VAT', ruleVersion: 'Rule Version',
       source: 'Source', noEntries: 'No ledger entries', exportCsv: 'Export CSV',
       document: 'Document', branch: 'Branch',
+      page: 'Page', of: 'of', previous: 'Previous', next: 'Next',
+      headers: {
+        type: 'Type', transaction: 'Transaction', date: 'Date',
+        baseAmount: 'Base Amount', taxAmount: 'Tax Amount', rate: 'Rate',
+      },
     },
     taxCategory: {
       standard: 'Standard (15%)', zeroRated: 'Zero Rated', exempt: 'Exempt',
       outOfScope: 'Out of Scope', reverseCharge: 'Reverse Charge',
       custom: 'Custom Rate', needsReview: 'Needs Review',
+    },
+    noPeriod: {
+      title: 'No Tax Period Selected',
+      description: 'Create a tax period to start tracking VAT obligations, reviewing transactions, and preparing your VAT return.',
+      create: 'Create Tax Period',
+    },
+    error: {
+      failedToLoad: 'Failed to load',
+      loadError: 'An error occurred while loading tax data.',
+    },
+    access: {
+      restricted: 'Access Restricted',
+      noPermission: "You don't have permission to view tax data. Contact your account owner.",
+    },
+    selector: {
+      noPeriods: 'No periods yet',
+      newPeriod: 'New Period',
+    },
+    createPeriod: {
+      title: 'Create Tax Period',
+      startDate: 'Start Date',
+      endDate: 'End Date',
+      notes: 'Notes (optional)',
+      notesPlaceholder: 'e.g. Q1 2025',
+      creating: 'Creating…',
+      create: 'Create Period',
+      cancel: 'Cancel',
+      failed: 'Failed to create period. Please try again.',
+    },
+    summary: {
+      title: 'Period Summary',
+      totalSalesBase: 'Total Sales (Base)',
+      totalPurchasesBase: 'Total Purchases (Base)',
+      outputVatCollected: 'Output VAT Collected',
+      inputVatClaimable: 'Input VAT Claimable',
     },
     ai: {
       quickPrompts: {
