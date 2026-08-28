@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -1084,11 +1084,19 @@ const TABS: TabDef[] = [
 
 export function TaxCenterPage() {
   const { t } = useI18n()
+  const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [showCreatePeriod, setShowCreatePeriod] = useState(false)
   const [showAi, setShowAi] = useState(false)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null)
   const branchId = useAuthStore((s) => s.branchId)
+
+  useEffect(() => {
+    if (!selectedPeriodId) return
+    taxApi.refreshLedger(selectedPeriodId)
+      .then(() => qc.invalidateQueries({ queryKey: ['tax'] }))
+      .catch(() => {})
+  }, [selectedPeriodId, qc])
 
   const { data: aiFeature } = useQuery({
     queryKey: ['ai-available', branchId],
