@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Inventory.Application.Commands.AdjustStock;
+using NexusPOS.Inventory.Application.Commands.DeleteStockItem;
 using NexusPOS.Inventory.Application.Commands.InitializeStock;
 using NexusPOS.Inventory.Application.Commands.ReceiveStock;
 using NexusPOS.Inventory.Application.Common;
@@ -96,7 +97,7 @@ public sealed class StockController(ISender mediator) : ControllerBase
         [FromBody] AdjustStockRequest request,
         CancellationToken cancellationToken)
     {
-        AdjustStockCommand command = new(stockItemId, branchId, request.NewQuantity, request.Reference, request.Notes, request.ExpiryDate, request.ReorderPoint, request.ReorderQuantity);
+        AdjustStockCommand command = new(stockItemId, branchId, request.NewQuantity, request.Reference, request.Notes, request.ExpiryDate, request.ReorderPoint, request.ReorderQuantity, request.NotifyDaysBeforeExpiry);
         ErrorOr<StockItemResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -114,6 +115,21 @@ public sealed class StockController(ISender mediator) : ControllerBase
         ErrorOr<InventoryAlertsResponse> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>Delete a stock item record.</summary>
+    [HttpDelete("{stockItemId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteStockItem(
+        Guid branchId,
+        Guid stockItemId,
+        CancellationToken cancellationToken)
+    {
+        DeleteStockItemCommand command = new(stockItemId, branchId);
+        ErrorOr<Success> result = await mediator.Send(command, cancellationToken);
+
+        return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
     private IActionResult MapErrorsToResult(List<Error> errors)

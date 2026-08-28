@@ -40,5 +40,5 @@ internal sealed class InitializeStockCommandHandler(
         s.Id.Value, s.VariantId, s.BranchId,
         s.Quantity, s.ReorderPoint, s.ReorderQuantity,
         s.Quantity <= s.ReorderPoint && s.ReorderPoint > 0,
-        s.UpdatedAt, s.ExpiryDate);
+        s.UpdatedAt, s.ExpiryDate, s.NotifyDaysBeforeExpiry);
 }

@@ -238,6 +238,21 @@ internal static class DatabaseInitializerExtensions
         }
     }
 
+    internal static async Task MigrateInventoryColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        InventoryDbContext invDb = sp.GetRequiredService<InventoryDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS notify_days_before_expiry INT DEFAULT 7",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await invDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Inventory migration skipped: {Sql}", sql); }
+        }
+    }
+
     private static async Task SeedAdminUserAsync(IServiceProvider sp, ILogger logger)
     {
         IamDbContext db = sp.GetRequiredService<IamDbContext>();
@@ -879,6 +894,7 @@ internal static class DatabaseInitializerExtensions
                 await EnsureCreatedAsync<InventoryDbContext>(sp, logger);
                 await EnsureCreatedAsync<PosDbContext>(sp, logger);
                 await MigratePosColumnsAsync(sp, logger);
+                await MigrateInventoryColumnsAsync(sp, logger);
                 await EnsureCreatedAsync<SalesDbContext>(sp, logger);
                 await EnsureCreatedAsync<CrmDbContext>(sp, logger);
                 await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);

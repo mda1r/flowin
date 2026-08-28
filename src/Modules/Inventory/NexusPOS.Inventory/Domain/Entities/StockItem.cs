@@ -14,6 +14,7 @@ public sealed class StockItem : AggregateRoot<StockItemId>
     public decimal ReorderPoint { get; private set; }
     public decimal ReorderQuantity { get; private set; }
     public DateTime? ExpiryDate { get; private set; }
+    public int NotifyDaysBeforeExpiry { get; private set; } = 7;
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -39,6 +40,12 @@ public sealed class StockItem : AggregateRoot<StockItemId>
     public void SetExpiryDate(DateTime? expiryDate)
     {
         ExpiryDate = expiryDate;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetNotifyDaysBeforeExpiry(int days)
+    {
+        NotifyDaysBeforeExpiry = days < 1 ? 1 : days;
         UpdatedAt = DateTime.UtcNow;
     }
 

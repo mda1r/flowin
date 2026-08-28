@@ -47,6 +47,11 @@ internal sealed class AdjustStockCommandHandler(
                 request.ReorderQuantity ?? stockItem.ReorderQuantity);
         }
 
+        if (request.NotifyDaysBeforeExpiry.HasValue)
+        {
+            stockItem.SetNotifyDaysBeforeExpiry(request.NotifyDaysBeforeExpiry.Value);
+        }
+
         stockItemRepository.Update(stockItem);
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -54,6 +59,6 @@ internal sealed class AdjustStockCommandHandler(
             stockItem.Id.Value, stockItem.VariantId, stockItem.BranchId,
             stockItem.Quantity, stockItem.ReorderPoint, stockItem.ReorderQuantity,
             stockItem.Quantity <= stockItem.ReorderPoint && stockItem.ReorderPoint > 0,
-            stockItem.UpdatedAt, stockItem.ExpiryDate);
+            stockItem.UpdatedAt, stockItem.ExpiryDate, stockItem.NotifyDaysBeforeExpiry);
     }
 }

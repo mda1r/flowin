@@ -9,7 +9,8 @@ public interface IStockItemRepository
     Task<StockItem?> FindByVariantAndBranchAsync(Guid variantId, Guid branchId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StockItem>> FindByBranchAsync(Guid branchId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StockItem>> FindLowStockAsync(Guid branchId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<StockItem>> FindExpiringAsync(Guid branchId, int daysAhead, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StockItem>> FindExpiringAsync(Guid branchId, CancellationToken cancellationToken = default);
     void Add(StockItem stockItem);
     void Update(StockItem stockItem);
+    void Remove(StockItem stockItem);
 }

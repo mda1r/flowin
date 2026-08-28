@@ -11,4 +11,5 @@ public sealed record AdjustStockCommand(
     string? Notes = null,
     DateTime? ExpiryDate = null,
     decimal? ReorderPoint = null,
-    decimal? ReorderQuantity = null) : ICommand<StockItemResponse>;
+    decimal? ReorderQuantity = null,
+    int? NotifyDaysBeforeExpiry = null) : ICommand<StockItemResponse>;

@@ -16,7 +16,7 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
         DateTime now = DateTime.UtcNow;
 
         IReadOnlyList<StockItem> expiringItems = await stockItemRepository
-            .FindExpiringAsync(request.BranchId, request.ExpiryDaysAhead, cancellationToken);
+            .FindExpiringAsync(request.BranchId, cancellationToken);
 
         IReadOnlyList<StockItem> lowStockItems = await stockItemRepository
             .FindLowStockAsync(request.BranchId, cancellationToken);

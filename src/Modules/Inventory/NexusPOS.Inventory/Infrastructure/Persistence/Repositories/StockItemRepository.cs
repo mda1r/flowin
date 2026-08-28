@@ -33,16 +33,22 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockItem>> FindExpiringAsync(
-        Guid branchId, int daysAhead, CancellationToken cancellationToken = default)
+        Guid branchId, CancellationToken cancellationToken = default)
     {
-        DateTime cutoff = DateTime.UtcNow.AddDays(daysAhead);
-        return await dbContext.StockItems
-            .Where(s => s.BranchId == branchId && s.ExpiryDate != null && s.ExpiryDate <= cutoff && s.Quantity > 0)
+        DateTime now = DateTime.UtcNow;
+        List<StockItem> allWithExpiry = await dbContext.StockItems
+            .Where(s => s.BranchId == branchId && s.ExpiryDate != null && s.Quantity > 0)
             .OrderBy(s => s.ExpiryDate)
             .ToListAsync(cancellationToken);
+
+        return allWithExpiry
+            .Where(s => s.ExpiryDate!.Value <= now.AddDays(s.NotifyDaysBeforeExpiry))
+            .ToList();
     }
 
     public void Add(StockItem stockItem) => dbContext.StockItems.Add(stockItem);
 
     public void Update(StockItem stockItem) => dbContext.StockItems.Update(stockItem);
+
+    public void Remove(StockItem stockItem) => dbContext.StockItems.Remove(stockItem);
 }

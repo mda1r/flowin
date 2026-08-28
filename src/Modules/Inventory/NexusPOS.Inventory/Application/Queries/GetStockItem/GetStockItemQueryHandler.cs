@@ -27,6 +27,6 @@ internal sealed class GetStockItemQueryHandler(IStockItemRepository stockItemRep
             stockItem.Id.Value, stockItem.VariantId, stockItem.BranchId,
             stockItem.Quantity, stockItem.ReorderPoint, stockItem.ReorderQuantity,
             stockItem.Quantity <= stockItem.ReorderPoint && stockItem.ReorderPoint > 0,
-            stockItem.UpdatedAt, stockItem.ExpiryDate);
+            stockItem.UpdatedAt, stockItem.ExpiryDate, stockItem.NotifyDaysBeforeExpiry);
     }
 }

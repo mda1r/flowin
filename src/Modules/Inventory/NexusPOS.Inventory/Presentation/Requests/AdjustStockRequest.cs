@@ -6,4 +6,5 @@ public sealed record AdjustStockRequest(
     string? Notes = null,
     DateTime? ExpiryDate = null,
     decimal? ReorderPoint = null,
-    decimal? ReorderQuantity = null);
+    decimal? ReorderQuantity = null,
+    int? NotifyDaysBeforeExpiry = null);

@@ -9,4 +9,5 @@ public sealed record StockItemResponse(
     decimal ReorderQuantity,
     bool IsLowStock,
     DateTime UpdatedAt,
-    DateTime? ExpiryDate = null);
+    DateTime? ExpiryDate = null,
+    int NotifyDaysBeforeExpiry = 7);

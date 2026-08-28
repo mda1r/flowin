@@ -21,7 +21,7 @@ internal sealed class ListBranchStockQueryHandler(IStockItemRepository stockItem
             s.Id.Value, s.VariantId, s.BranchId,
             s.Quantity, s.ReorderPoint, s.ReorderQuantity,
             s.Quantity <= s.ReorderPoint && s.ReorderPoint > 0,
-            s.UpdatedAt, s.ExpiryDate)).ToList();
+            s.UpdatedAt, s.ExpiryDate, s.NotifyDaysBeforeExpiry)).ToList();
 
         return ErrorOrFactory.From(responses);
     }
