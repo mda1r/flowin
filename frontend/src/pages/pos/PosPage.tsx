@@ -20,6 +20,7 @@ import { HotelPosPage } from './HotelPosPage'
 import { GamingPosPage } from './GamingPosPage'
 import { CafePosPage } from './CafePosPage'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
+import { useI18n } from '@/i18n'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -61,6 +62,7 @@ function RetailPosPage() {
   const { lines, addLine, removeLine, updateQuantity, subtotal, clear } = useCartStore()
   const { hold, restore, carts: heldCarts } = useHeldCartsStore()
   const { branchId, tenantId } = useAuthStore()
+  const { t, lang } = useI18n()
 
   // أسعار المنتجات شاملة الضريبة — نستخرج الضريبة من الإجمالي
   const grossTotal = subtotal()
@@ -179,16 +181,16 @@ function RetailPosPage() {
       setAmountTendered('')
       setSplitCash('')
       setSplitCard('')
-      toast.success('تمت عملية الدفع', 'تمت معالجة الطلب بنجاح')
+      toast.success(t.pos.paymentSuccess, t.pos.orderProcessed)
     },
-    onError: () => toast.error('فشلت عملية الدفع', 'يرجى المحاولة مرة أخرى'),
+    onError: () => toast.error(t.pos.paymentFailed, 'يرجى المحاولة مرة أخرى'),
   })
 
   const handleHold = () => {
     if (lines.length === 0) return
     hold(lines)
     clear()
-    toast.success('تم تأجيل الفاتورة', 'يمكنك استردادها في أي وقت')
+    toast.success(t.pos.ordersHeld, 'يمكنك استردادها في أي وقت')
   }
 
   const handleRestore = (id: string) => {
@@ -200,13 +202,13 @@ function RetailPosPage() {
       for (let i = 0; i < quantity; i++) addLine(rest)
     }
     setShowHeld(false)
-    toast.success('تم استرداد الفاتورة')
+    toast.success(t.pos.orderResumed)
   }
 
   return (
     <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RETAIL_ACCENT}>
       <PageHeader
-        title="نقطة البيع"
+        title={t.pos.title}
         action={
           <div className="flex items-center gap-3">
             {shift ? (
@@ -225,7 +227,7 @@ function RetailPosPage() {
               style={lastScanned ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
             >
               <ScanBarcode className="h-4 w-4" />
-              {lastScanned ? `✓ ${lastScanned}` : 'السكنر جاهز'}
+              {lastScanned ? `✓ ${lastScanned}` : t.pos.barcodeHint}
             </div>
           </div>
         }
@@ -240,7 +242,7 @@ function RetailPosPage() {
               <Search className="absolute start-3 top-2.5 z-10 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="ابحث عن المنتجات..."
+                placeholder={t.pos.searchProducts}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input-3d ps-9"
@@ -288,13 +290,13 @@ function RetailPosPage() {
         {/* Cart — raised 3D panel */}
         <div className="glass-panel z-10 flex w-80 animate-float-up flex-col rounded-none border-y-0 border-e-0">
           <div className="border-b px-4 py-3" style={{ borderColor: 'var(--card-border)' }}>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">الطلب الحالي</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{t.pos.currentOrder}</h2>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {lines.length === 0 ? (
               <p className="mt-16 text-center text-sm text-gray-400">
-                أضف منتجات لبدء الطلب
+                {t.pos.addProducts}
               </p>
             ) : (
               <ul className="space-y-2 p-3">
@@ -307,7 +309,7 @@ function RetailPosPage() {
                         </p>
                         <p className="text-xs text-gray-500">{line.variantName}</p>
                         <p className="text-xs text-gray-400">
-                          {formatCurrency(line.unitPrice)} للوحدة
+                          {formatCurrency(line.unitPrice)} {t.pos.each}
                         </p>
                       </div>
                       <button
@@ -353,16 +355,16 @@ function RetailPosPage() {
           <div className="border-t p-4" style={{ borderColor: 'var(--card-border)' }}>
             <div className="mb-2 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>المجموع قبل الضريبة</span>
+                <span>{t.pos.subtotal}</span>
                 <span className="tabular-nums">{formatCurrency(preTaxAmount)}</span>
               </div>
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>ضريبة القيمة المضافة 15%</span>
+                <span>{t.pos.tax}</span>
                 <span className="tabular-nums">{formatCurrency(extractedTax)}</span>
               </div>
             </div>
             <div className="mb-4 flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--card-border)' }}>
-              <span className="font-medium text-gray-700 dark:text-gray-300">الإجمالي</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">{t.pos.total}</span>
               <span className="text-emboss text-xl font-bold text-gray-900 dark:text-gray-100">
                 {formatCurrency(grossTotal)}
               </span>
@@ -376,24 +378,24 @@ function RetailPosPage() {
                 className="flex-1"
               >
                 <X className="h-4 w-4" />
-                مسح
+                {t.pos.clear}
               </Button>
               {/* Hold current order */}
               <button
                 onClick={handleHold}
                 disabled={lines.length === 0}
-                title="تأجيل الفاتورة"
+                title={t.pos.holdOrder}
                 className="card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-amber-600 disabled:opacity-40 dark:text-amber-400"
               >
                 <PauseCircle className="h-4 w-4" />
-                هولد
+                {t.pos.holdOrder}
               </button>
               {/* Held orders badge */}
               {heldCarts.length > 0 && (
                 <button
                   onClick={() => setShowHeld(true)}
                   className="relative card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400"
-                  title="الفواتير المؤجلة"
+                  title={t.pos.heldOrders}
                 >
                   <PlayCircle className="h-4 w-4" />
                   <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
@@ -409,7 +411,7 @@ function RetailPosPage() {
               disabled={lines.length === 0}
               className="btn-3d w-full !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
             >
-              الدفع
+              {t.pos.payment}
             </Button>
           </div>
         </div>
@@ -421,14 +423,14 @@ function RetailPosPage() {
         <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RETAIL_ACCENT}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPayment(false)} />
           <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
-            <h2 className="mb-4 text-lg font-semibold">الدفع</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
             <div className="mb-4 space-y-1 text-sm">
               <div className="flex justify-between text-gray-500">
-                <span>قبل الضريبة</span>
+                <span>{t.pos.subtotal}</span>
                 <span>{formatCurrency(preTaxAmount)}</span>
               </div>
               <div className="flex justify-between text-gray-500">
-                <span>ضريبة القيمة المضافة 15%</span>
+                <span>{t.pos.tax}</span>
                 <span>{formatCurrency(extractedTax)}</span>
               </div>
             </div>
@@ -439,19 +441,19 @@ function RetailPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 18px var(--glow)',
               }}
             >
-              <p className="text-sm text-gray-500">المبلغ المستحق</p>
+              <p className="text-sm text-gray-500">{t.pos.amountDue}</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>
                 {formatCurrency(grossTotal)}
               </p>
             </div>
 
             {/* Payment mode selector */}
-            <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">طريقة الدفع</p>
+            <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t.pos.paymentMethod}</p>
             <div className="mb-4 grid grid-cols-3 gap-2">
               {([
-                { mode: 'Cash',  icon: <Banknote className="h-4 w-4" />,   label: 'نقداً'    },
-                { mode: 'Card',  icon: <CreditCard className="h-4 w-4" />, label: 'بطاقة'    },
-                { mode: 'Split', icon: <span className="text-sm font-black">½</span>, label: 'تقسيم' },
+                { mode: 'Cash',  icon: <Banknote className="h-4 w-4" />,   label: t.pos.cash    },
+                { mode: 'Card',  icon: <CreditCard className="h-4 w-4" />, label: t.pos.card    },
+                { mode: 'Split', icon: <span className="text-sm font-black">½</span>, label: t.pos.split },
               ] as { mode: PayMode; icon: React.ReactNode; label: string }[]).map(({ mode, icon, label }) => (
                 <button
                   key={mode}
@@ -472,7 +474,7 @@ function RetailPosPage() {
             {payMode === 'Cash' && (
               <div className="mb-4">
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  المبلغ المستلم (ر.س)
+                  {t.pos.tendered}
                 </label>
                 <input
                   type="number"
@@ -486,7 +488,7 @@ function RetailPosPage() {
                 />
                 {amountTendered && parseFloat(amountTendered) >= grossTotal && (
                   <p className="mt-1 text-sm text-green-600 dark:text-green-400">
-                    الباقي: {formatCurrency(parseFloat(amountTendered) - grossTotal)}
+                    {t.pos.changeDue}: {formatCurrency(parseFloat(amountTendered) - grossTotal)}
                   </p>
                 )}
               </div>
@@ -505,7 +507,7 @@ function RetailPosPage() {
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">نقداً (ر.س)</label>
+                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{t.pos.splitCash}</label>
                       <input
                         type="number"
                         min="0"
@@ -523,7 +525,7 @@ function RetailPosPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">بطاقة (ر.س)</label>
+                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{t.pos.splitCard}</label>
                       <input
                         type="number"
                         min="0"
@@ -554,7 +556,7 @@ function RetailPosPage() {
 
             <div className="flex gap-3">
               <Button variant="secondary" onClick={() => setShowPayment(false)} className="flex-1">
-                إلغاء
+                {t.common.cancel}
               </Button>
               <Button
                 variant="primary"
@@ -570,7 +572,7 @@ function RetailPosPage() {
                 }
                 className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
               >
-                تأكيد الدفع
+                {t.pos.confirmPayment}
               </Button>
             </div>
           </div>
@@ -583,13 +585,13 @@ function RetailPosPage() {
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowHeld(false)} />
           <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-5" dir="rtl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900 dark:text-gray-100">الفواتير المؤجلة</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">{t.pos.heldOrders}</h2>
               <button onClick={() => setShowHeld(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
             {heldCarts.length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-400">لا توجد فواتير مؤجلة</p>
+              <p className="py-8 text-center text-sm text-gray-400">{t.pos.noHeldOrders}</p>
             ) : (
               <ul className="space-y-2 max-h-80 overflow-y-auto">
                 {heldCarts.map((cart) => (
@@ -598,7 +600,7 @@ function RetailPosPage() {
                       <div className="flex items-center gap-2">
                         <Clock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                         <span className="text-xs text-gray-500">
-                          {new Date(cart.heldAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(cart.heldAt).toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <p className="mt-0.5 text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -615,7 +617,7 @@ function RetailPosPage() {
                       className="shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold"
                       style={{ background: 'var(--accent)', color: '#fff' }}
                     >
-                      استرداد
+                      {t.pos.resumeOrder}
                     </button>
                   </li>
                 ))}

@@ -5,18 +5,22 @@ import {
   CreditCard,
   LogOut,
   ShieldCheck,
+  Layers,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
-
-const navItems = [
-  { to: '/admin', label: 'لوحة التحكم', icon: LayoutDashboard, exact: true },
-  { to: '/admin/tenants', label: 'المستأجرون', icon: Building2 },
-  { to: '/admin/plans', label: 'خطط الاشتراك', icon: CreditCard },
-]
+import { useI18n } from '@/i18n'
 
 export function AdminLayout() {
   const { logout, user } = useAuthStore()
   const navigate = useNavigate()
+  const { t } = useI18n()
+
+  const navItems = [
+    { to: '/admin', label: t.nav.dashboard, icon: LayoutDashboard, exact: true },
+    { to: '/admin/tenants', label: t.admin.tenants.title, icon: Building2 },
+    { to: '/admin/brands', label: t.admin.brands.title, icon: Layers },
+    { to: '/admin/plans', label: t.admin.plans.title, icon: CreditCard },
+  ]
 
   const handleLogout = () => {
     logout()
@@ -34,7 +38,7 @@ export function AdminLayout() {
           </div>
           <div>
             <p className="text-sm font-bold text-white">flowin</p>
-            <p className="text-xs text-blue-400">لوحة المدير العام</p>
+            <p className="text-xs text-blue-400">{t.admin.dashboard.title}</p>
           </div>
         </div>
 
@@ -63,7 +67,7 @@ export function AdminLayout() {
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
           >
             <LogOut className="h-4 w-4" />
-            تسجيل الخروج
+            {t.nav.logout}
           </button>
         </div>
       </aside>

@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using NexusPOS.Sales.Application.Services;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.Sales.Domain.Repositories;
 using NexusPOS.Sales.Infrastructure.Persistence;
 using NexusPOS.Sales.Infrastructure.Persistence.Repositories;

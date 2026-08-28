@@ -39,6 +39,7 @@ import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { salesApi } from '@/api/sales'
+import { useI18n } from '@/i18n'
 
 /* ────────────────────────────────────────────────────────────────
    animated number counter — snappy ease-out + elastic settle pop.
@@ -196,37 +197,42 @@ function StatCardSkeleton({ entrance }: { entrance: string }) {
    ──────────────────────────────────────────────────────────────── */
 
 const PAYMENT_META: Record<PaymentMethod, {
-  label: string
   badge: 'green' | 'blue' | 'purple' | 'orange'
   Icon: LucideIcon
   iconWrap: string
   iconColor: string
 }> = {
-  Cash:         { label: 'نقدًا',        badge: 'green',  Icon: Banknote,   iconWrap: 'bg-emerald-50 dark:bg-emerald-900/30', iconColor: 'text-emerald-600' },
-  Card:         { label: 'بطاقة',       badge: 'blue',   Icon: CreditCard, iconWrap: 'bg-blue-50 dark:bg-blue-900/30',       iconColor: 'text-blue-600'    },
-  BankTransfer: { label: 'تحويل بنكي', badge: 'purple', Icon: Landmark,   iconWrap: 'bg-violet-50 dark:bg-violet-900/30',   iconColor: 'text-violet-600'  },
-  Voucher:      { label: 'قسيمة',       badge: 'orange', Icon: Ticket,     iconWrap: 'bg-amber-50 dark:bg-amber-900/30',     iconColor: 'text-amber-600'   },
-  Split:        { label: 'مختلط',       badge: 'orange', Icon: Banknote,   iconWrap: 'bg-orange-50 dark:bg-orange-900/30',   iconColor: 'text-orange-600'  },
+  Cash:         { badge: 'green',  Icon: Banknote,   iconWrap: 'bg-emerald-50 dark:bg-emerald-900/30', iconColor: 'text-emerald-600' },
+  Card:         { badge: 'blue',   Icon: CreditCard, iconWrap: 'bg-blue-50 dark:bg-blue-900/30',       iconColor: 'text-blue-600'    },
+  BankTransfer: { badge: 'purple', Icon: Landmark,   iconWrap: 'bg-violet-50 dark:bg-violet-900/30',   iconColor: 'text-violet-600'  },
+  Voucher:      { badge: 'orange', Icon: Ticket,     iconWrap: 'bg-amber-50 dark:bg-amber-900/30',     iconColor: 'text-amber-600'   },
+  Split:        { badge: 'orange', Icon: Banknote,   iconWrap: 'bg-orange-50 dark:bg-orange-900/30',   iconColor: 'text-orange-600'  },
 }
 
-function formatOrderTime(iso?: string): string {
+function formatOrderTime(iso?: string, lang?: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('ar-SA', { hour: 'numeric', minute: '2-digit' }).format(d)
-}
-
-function productCountLabel(n: number): string {
-  if (n === 1) return 'منتج واحد'
-  if (n === 2) return 'منتجان'
-  if (n >= 3 && n <= 10) return `${n} منتجات`
-  return `${n} منتجًا`
+  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit' }).format(d)
 }
 
 function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
+  const { t, lang } = useI18n()
+  function productCountLabel(n: number) {
+    if (n === 1) return t.dashboard.oneProduct
+    return t.dashboard.nProducts.replace('{n}', String(n))
+  }
+  const payLabels: Record<PaymentMethod, string> = {
+    Cash: t.dashboard.cash,
+    Card: t.dashboard.card,
+    BankTransfer: t.dashboard.bankTransfer,
+    Voucher: t.dashboard.voucher,
+    Split: t.dashboard.split,
+  }
   const pay = order.paymentMethod ? PAYMENT_META[order.paymentMethod] : undefined
+  const payLabel = order.paymentMethod ? payLabels[order.paymentMethod] : undefined
   const Icon = pay?.Icon ?? ShoppingCart
-  const time = formatOrderTime(order.completedAt ?? order.createdAt)
+  const time = formatOrderTime(order.completedAt ?? order.createdAt, lang)
 
   return (
     <div
@@ -239,7 +245,7 @@ function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
             pay?.iconWrap ?? 'bg-blue-50 dark:bg-blue-900/30',
           )}
-          title={pay?.label}
+          title={payLabel}
         >
           <Icon className={cn('h-4 w-4', pay?.iconColor ?? 'text-blue-600')} />
         </div>
@@ -257,7 +263,7 @@ function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
         <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
           {formatCurrency(order.totalAmount)}
         </p>
-        {pay ? <Badge variant={pay.badge}>{pay.label}</Badge> : <Badge variant="green">مكتمل</Badge>}
+        {pay ? <Badge variant={pay.badge}>{payLabel}</Badge> : <Badge variant="green">{t.dashboard.completed}</Badge>}
       </div>
     </div>
   )
@@ -320,19 +326,20 @@ function EmptyOrdersIllustration() {
 }
 
 function OrdersEmptyState() {
+  const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
       <EmptyOrdersIllustration />
       <p className="mt-5 text-sm font-bold text-gray-800 dark:text-gray-100">
-        لا توجد طلبات بعد — يومك يبدأ الآن
+        {t.dashboard.noRecentOrders}
       </p>
       <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-        بمجرد إتمام أول عملية بيع ستنبض هذه اللوحة بالأرقام، وفي انتظارك مفاجأة صغيرة 🎈
+        {t.dashboard.noRecentOrdersSub}
       </p>
       <a href="/pos" className="mt-5">
         <button className="btn-3d btn-shimmer inline-flex items-center gap-2 px-5 py-2.5 text-sm">
           <ShoppingCart className="h-4 w-4" />
-          ابدأ أول بيع
+          {t.dashboard.startFirstSale}
         </button>
       </a>
     </div>
@@ -351,51 +358,6 @@ interface QuickAction {
   wrap: string
 }
 
-const QUICK_ACTIONS: Partial<Record<BusinessType, QuickAction[]>> = {
-  Hotel: [
-    { label: 'واجهة الفندق',  icon: <HotelIcon className="h-5 w-5" />, to: '/hotel',           color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'   },
-    { label: 'عقود الإيجار',  icon: <FileText  className="h-5 w-5" />, to: '/hotel/contracts', color: 'text-indigo-600', wrap: 'bg-indigo-50 dark:bg-indigo-900/30' },
-    { label: 'العملاء',        icon: <Users     className="h-5 w-5" />, to: '/customers',       color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'  },
-    { label: 'المخزون',        icon: <Package   className="h-5 w-5" />, to: '/inventory',       color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
-  ],
-  Restaurant: [
-    { label: 'طلب جديد',  icon: <ShoppingCart    className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600', wrap: 'bg-blue-50 dark:bg-blue-900/30'  },
-    { label: 'المطعم',    icon: <UtensilsCrossed className="h-5 w-5" />, to: '/restaurant', color: 'text-red-600',  wrap: 'bg-red-50 dark:bg-red-900/30'    },
-    { label: 'العملاء',   icon: <Users           className="h-5 w-5" />, to: '/customers',  color: 'text-green-600', wrap: 'bg-green-50 dark:bg-green-900/30' },
-    { label: 'المخزون',   icon: <Package         className="h-5 w-5" />, to: '/inventory',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
-  ],
-  Gaming: [
-    { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',      color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-    { label: 'الألعاب',   icon: <Gamepad2     className="h-5 w-5" />, to: '/gaming',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
-    { label: 'العملاء',   icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600', wrap: 'bg-green-50 dark:bg-green-900/30'   },
-    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
-  ],
-  Cafe: [
-    { label: 'طلب جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-    { label: 'المنتجات',  icon: <Coffee       className="h-5 w-5" />, to: '/products',   color: 'text-amber-600',  wrap: 'bg-amber-50 dark:bg-amber-900/30'   },
-    { label: 'العملاء',   icon: <Users        className="h-5 w-5" />, to: '/customers',  color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
-    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',    color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
-  ],
-  Retail: [
-    { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-    { label: 'المنتجات',  icon: <Store        className="h-5 w-5" />, to: '/products',  color: 'text-pink-600',   wrap: 'bg-pink-50 dark:bg-pink-900/30'     },
-    { label: 'العملاء',   icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
-    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
-  ],
-  Supermarket: [
-    { label: 'بيع جديد',  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-    { label: 'المنتجات',  icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-emerald-600',wrap: 'bg-emerald-50 dark:bg-emerald-900/30'},
-    { label: 'المشتريات', icon: <ShoppingBag  className="h-5 w-5" />, to: '/purchasing',color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
-    { label: 'التقارير',  icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
-  ],
-}
-
-const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
-  { label: 'بيع جديد',     icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-  { label: 'إضافة منتج',  icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
-  { label: 'إضافة عميل',  icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
-  { label: 'التقارير',     icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
-]
 
 function QuickActionTile({ action }: { action: QuickAction }) {
   const [ripples, setRipples] = useState<Array<{ id: number; x: number; y: number }>>([])
@@ -493,6 +455,7 @@ interface ConfettiPiece {
 }
 
 function FirstSaleCelebration({ amount, onDone }: { amount: number; onDone: () => void }) {
+  const { t } = useI18n()
   const reducedMotion = useMemo(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     [],
@@ -559,11 +522,11 @@ function FirstSaleCelebration({ amount, onDone }: { amount: number; onDone: () =
           </span>
           <span>
             <span className="block text-sm font-extrabold" style={{ color: 'var(--color-text)' }}>
-              🎉 أول بيع اليوم!
+              {t.dashboard.firstSaleTitle}
             </span>
             <span className="block text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {amount > 0 ? `بداية موفقة — ${formatCurrency(amount)}. ` : 'بداية موفقة. '}
-              يوم رائع بانتظارك
+              {amount > 0 ? `${t.dashboard.firstSaleGreat} — ${formatCurrency(amount)}. ` : `${t.dashboard.firstSaleGreat}. `}
+              {t.dashboard.firstSaleGreatDay}
             </span>
           </span>
         </button>
@@ -597,6 +560,7 @@ const FALLBACK_ORDERS    = [2, 3, 2, 4, 3,  5, 4]
 const FALLBACK_AVG       = [5, 4, 6, 5, 7,  6, 8]
 
 export function DashboardPage() {
+  const { t, lang } = useI18n()
   const { user, branchId, tenantId } = useAuthStore()
   const businessType = user?.businessType as BusinessType | undefined
 
@@ -702,9 +666,9 @@ export function DashboardPage() {
   const milestone = MILESTONES.find((m) => netRevenue >= m.at)
 
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'صباح الخير' : 'مساء الخير'
+  const greeting = hour < 12 ? t.dashboard.goodMorning : t.dashboard.goodEvening
   const GreetIcon = hour < 12 ? Sun : hour < 18 ? Sunset : Moon
-  const todayLabel = new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
+  const todayLabel = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US-u-ca-gregory', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -718,7 +682,53 @@ export function DashboardPage() {
     ? chrono.map((_, i) => chrono.slice(0, i + 1).reduce((s, x) => s + x.totalAmount, 0) / (i + 1))
     : FALLBACK_AVG
 
-  const quickActions = (businessType ? QUICK_ACTIONS[businessType] : null) ?? DEFAULT_QUICK_ACTIONS
+  const quickActions = useMemo<QuickAction[]>(() => {
+    const byType: Partial<Record<BusinessType, QuickAction[]>> = {
+      Hotel: [
+        { label: t.dashboard.hotel,     icon: <HotelIcon className="h-5 w-5" />, to: '/hotel',           color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'    },
+        { label: t.dashboard.contracts, icon: <FileText  className="h-5 w-5" />, to: '/hotel/contracts', color: 'text-indigo-600', wrap: 'bg-indigo-50 dark:bg-indigo-900/30' },
+        { label: t.dashboard.customers, icon: <Users     className="h-5 w-5" />, to: '/customers',       color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+        { label: t.dashboard.inventory, icon: <Package   className="h-5 w-5" />, to: '/inventory',       color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+      ],
+      Restaurant: [
+        { label: t.dashboard.newOrder,   icon: <ShoppingCart    className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'    },
+        { label: t.dashboard.restaurant, icon: <UtensilsCrossed className="h-5 w-5" />, to: '/restaurant', color: 'text-red-600',    wrap: 'bg-red-50 dark:bg-red-900/30'      },
+        { label: t.dashboard.customers,  icon: <Users           className="h-5 w-5" />, to: '/customers',  color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'  },
+        { label: t.dashboard.inventory,  icon: <Package         className="h-5 w-5" />, to: '/inventory',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+      ],
+      Gaming: [
+        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+        { label: t.dashboard.gaming,    icon: <Gamepad2     className="h-5 w-5" />, to: '/gaming',    color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+        { label: t.dashboard.customers, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+      ],
+      Cafe: [
+        { label: t.dashboard.newOrder,  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+        { label: t.dashboard.products,  icon: <Coffee       className="h-5 w-5" />, to: '/products',  color: 'text-amber-600',  wrap: 'bg-amber-50 dark:bg-amber-900/30'   },
+        { label: t.dashboard.customers, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+      ],
+      Retail: [
+        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+        { label: t.dashboard.products,  icon: <Store        className="h-5 w-5" />, to: '/products',  color: 'text-pink-600',   wrap: 'bg-pink-50 dark:bg-pink-900/30'     },
+        { label: t.dashboard.customers, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+      ],
+      Supermarket: [
+        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',    wrap: 'bg-blue-50 dark:bg-blue-900/30'      },
+        { label: t.dashboard.products,  icon: <Package      className="h-5 w-5" />, to: '/products',   color: 'text-emerald-600', wrap: 'bg-emerald-50 dark:bg-emerald-900/30' },
+        { label: t.dashboard.purchases, icon: <ShoppingBag  className="h-5 w-5" />, to: '/purchasing', color: 'text-orange-600',  wrap: 'bg-orange-50 dark:bg-orange-900/30'  },
+        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',    color: 'text-purple-600',  wrap: 'bg-purple-50 dark:bg-purple-900/30'  },
+      ],
+    }
+    return (businessType ? byType[businessType] : null) ?? [
+      { label: t.dashboard.newSale,     icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+      { label: t.dashboard.addProduct,  icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+      { label: t.dashboard.addCustomer, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
+      { label: t.dashboard.reports,     icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
+    ]
+  }, [t, businessType])
+
   const statsLoading = ordersLoading
 
   return (
@@ -763,7 +773,7 @@ export function DashboardPage() {
 
               <div className="mt-5 flex flex-wrap gap-3">
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
-                  <p className="text-xs font-medium text-white/65">إيرادات اليوم</p>
+                  <p className="text-xs font-medium text-white/65">{t.dashboard.netRevenue}</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-20 animate-pulse rounded-md bg-white/25" />
                   ) : (
@@ -771,7 +781,7 @@ export function DashboardPage() {
                   )}
                 </div>
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
-                  <p className="text-xs font-medium text-white/65">الطلبات</p>
+                  <p className="text-xs font-medium text-white/65">{t.dashboard.ordersToday}</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-white/25" />
                   ) : (
@@ -779,7 +789,7 @@ export function DashboardPage() {
                   )}
                 </div>
                 <div className="rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
-                  <p className="text-xs font-medium text-white/65">العملاء</p>
+                  <p className="text-xs font-medium text-white/65">{t.dashboard.totalCustomers}</p>
                   {customersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-white/25" />
                   ) : (
@@ -791,7 +801,7 @@ export function DashboardPage() {
                     href="/inventory"
                     className="rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 backdrop-blur-sm transition-colors hover:bg-white/30"
                   >
-                    <p className="text-xs font-medium text-white/70">تنبيهات</p>
+                    <p className="text-xs font-medium text-white/70">{t.dashboard.inventoryAlerts}</p>
                     <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
                       {nearExpiryCount + lowStockCount}
                     </p>
@@ -803,7 +813,7 @@ export function DashboardPage() {
             <a href="/pos" className="shrink-0">
               <button className="btn-shimmer inline-flex items-center gap-2.5 rounded-xl bg-white px-5 py-3 text-sm font-bold text-gray-900 shadow-lg transition-all hover:bg-gray-100 hover:shadow-xl active:scale-95">
                 <ShoppingCart className="h-5 w-5" />
-                بيع جديد
+                {t.dashboard.newSale}
               </button>
             </a>
           </div>
@@ -828,7 +838,7 @@ export function DashboardPage() {
           ) : (
             <>
               <StatCard
-                title="صافي الإيرادات"
+                title={t.dashboard.netRevenue}
                 value={netRevenue}
                 format={(n) => formatCurrency(n)}
                 icon={<DollarSign className="h-5 w-5 text-blue-600" />}
@@ -850,7 +860,7 @@ export function DashboardPage() {
                 )}
               />
               <StatCard
-                title="طلبات اليوم"
+                title={t.dashboard.ordersToday}
                 value={stats.totalOrders}
                 icon={<ShoppingCart className="h-5 w-5 text-purple-600" />}
                 iconWrap="bg-purple-50 dark:bg-purple-900/30"
@@ -861,7 +871,7 @@ export function DashboardPage() {
                 entrance="entrance-3"
               />
               <StatCard
-                title="ضريبة القيمة المضافة"
+                title={t.dashboard.vatCollected}
                 value={stats.totalTax}
                 format={(n) => formatCurrency(n)}
                 icon={<Receipt className="h-5 w-5 text-amber-600" />}
@@ -873,7 +883,7 @@ export function DashboardPage() {
                 entrance="entrance-4"
               />
               <StatCard
-                title="متوسط قيمة الطلب"
+                title={t.dashboard.avgOrderValue}
                 value={stats.avgOrder}
                 format={(n) => formatCurrency(n)}
                 icon={<TrendingUp className="h-5 w-5 text-orange-600" />}
@@ -900,15 +910,15 @@ export function DashboardPage() {
               >
                 <div className="flex items-center gap-2.5">
                   <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    آخر الطلبات المكتملة
+                    {t.dashboard.recentCompleted}
                   </h2>
-                  <Badge variant="live">مباشر</Badge>
+                  <Badge variant="live">{t.dashboard.live}</Badge>
                 </div>
                 <a
                   href="/sales"
                   className="flex items-center gap-0.5 text-xs text-blue-600 hover:underline dark:text-blue-400"
                 >
-                  عرض الكل
+                  {t.dashboard.viewAll}
                   <ChevronLeft className="h-3 w-3" />
                 </a>
               </div>
@@ -937,7 +947,7 @@ export function DashboardPage() {
                 className="border-b px-6 py-4"
                 style={{ borderColor: 'var(--card-border)' }}
               >
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">إجراءات سريعة</h2>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.dashboard.quickActions}</h2>
               </div>
               <div className="grid grid-cols-2 gap-3 p-4">
                 {quickActions.map((action) => (
@@ -958,10 +968,10 @@ export function DashboardPage() {
               >
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">تنبيهات المخزون</h2>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.dashboard.inventoryAlerts}</h2>
                 </div>
                 <a href="/inventory" className="text-xs text-blue-600 hover:underline dark:text-blue-400">
-                  عرض الكل
+                  {t.dashboard.viewAll}
                 </a>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -979,11 +989,11 @@ export function DashboardPage() {
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
                         </p>
-                        <p className="text-xs text-gray-500">منتهية الصلاحية · الكمية: {a.quantity}</p>
+                        <p className="text-xs text-gray-500">{t.inventory.expiredLabel} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                      منتهية
+                      {t.dashboard.expiredBadge}
                     </span>
                   </a>
                 ))}
@@ -1001,11 +1011,11 @@ export function DashboardPage() {
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
                         </p>
-                        <p className="text-xs text-gray-500">تنتهي خلال {a.daysUntilExpiry} أيام · الكمية: {a.quantity}</p>
+                        <p className="text-xs text-gray-500">{t.inventory.expiresIn.replace('{days}', String(a.daysUntilExpiry))} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
-                      قريبًا
+                      {t.dashboard.expiringSoon}
                     </span>
                   </a>
                 ))}
@@ -1023,11 +1033,11 @@ export function DashboardPage() {
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
                         </p>
-                        <p className="text-xs text-gray-500">الكمية: {a.quantity} · حد الطلب: {a.reorderPoint}</p>
+                        <p className="text-xs text-gray-500">{t.inventory.quantity.replace('{n}', String(a.quantity))} · {t.inventory.reorderPoint.replace('{n}', String(a.reorderPoint))}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
-                      منخفض
+                      {t.dashboard.lowStockBadge}
                     </span>
                   </a>
                 ))}

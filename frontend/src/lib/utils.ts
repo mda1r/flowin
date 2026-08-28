@@ -8,9 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 export function formatCurrency(
   amount: number,
   currency = 'SAR',
-  locale = 'ar-SA',
+  locale?: string,
 ): string {
-  return new Intl.NumberFormat(locale, {
+  const loc = locale ?? (localStorage.getItem('flowin_lang') === 'ar' ? 'ar-SA' : 'en-US')
+  return new Intl.NumberFormat(loc, {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Sales.Application.Commands.AiCashier;
 using NexusPOS.Sales.Application.Commands.AiChat;
 using NexusPOS.Sales.Application.Queries.GetAiInsights;
-using NexusPOS.Sales.Application.Services;
+// using NexusPOS.Sales.Application.Services; // moved to SharedKernel
 using NexusPOS.Sales.Presentation.Requests;
 using NexusPOS.SharedKernel.Application.Services;
 using System.Security.Claims;
@@ -62,16 +62,19 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
     /// <summary>مساعد الذكاء الاصطناعي - محادثة</summary>
     [HttpPost("chat")]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
     public async Task<IActionResult> Chat(
         Guid branchId,
         [FromBody] AiChatRequest request,
         CancellationToken cancellationToken)
     {
-        var command = new AiChatCommand(
-            branchId,
-            request.Message,
-            request.History ?? []);
+        IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
+        if (!features.Contains("ai"))
+        {
+            return StatusCode(StatusCodes.Status402PaymentRequired, new { code = "feature_not_available", message = "ميزة الذكاء الاصطناعي غير مفعّلة لهذا الحساب." });
+        }
 
+        var command = new AiChatCommand(branchId, request.Message, request.History ?? []);
         var result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
     }
@@ -79,10 +82,17 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
     /// <summary>رؤى الذكاء الاصطناعي عن المبيعات</summary>
     [HttpGet("insights")]
     [ProducesResponseType(typeof(AiInsightsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
     public async Task<IActionResult> GetInsights(
         Guid branchId,
         CancellationToken cancellationToken)
     {
+        IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
+        if (!features.Contains("ai"))
+        {
+            return StatusCode(StatusCodes.Status402PaymentRequired, new { code = "feature_not_available", message = "ميزة الذكاء الاصطناعي غير مفعّلة لهذا الحساب." });
+        }
+
         var result = await mediator.Send(new GetAiInsightsQuery(branchId), cancellationToken);
         return result.Match(Ok, MapErrors);
     }

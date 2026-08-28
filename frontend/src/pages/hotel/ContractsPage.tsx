@@ -16,15 +16,10 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import type { RentalContractResponse, ContractStatus } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<ContractStatus, string> = {
-  Draft: 'مسودة',
-  Active: 'نشط',
-  Executed: 'موقّع',
-  Cancelled: 'ملغي',
-}
 
 const STATUS_BADGE: Record<ContractStatus, 'gray' | 'blue' | 'green' | 'red'> = {
   Draft: 'gray',
@@ -206,6 +201,7 @@ function printContract(contract: RentalContractResponse) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export function ContractsPage() {
+  const { t } = useI18n()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<RentalContractResponse | null>(null)
 
@@ -242,12 +238,12 @@ export function ContractsPage() {
   return (
     <div dir="rtl">
       <PageHeader
-        title="عقود الإيجار"
+        title={t.contracts.title}
         description="إنشاء عقود الإيجار وطباعتها وإدارتها"
         action={
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
-            عقد جديد
+            {t.contracts.newContract}
           </Button>
         }
       />
@@ -262,7 +258,7 @@ export function ContractsPage() {
         ) : contracts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <FileText className="mb-3 h-12 w-12 text-gray-300" />
-            <p className="font-medium text-gray-600 dark:text-gray-400">لا توجد عقود إيجار بعد</p>
+            <p className="font-medium text-gray-600 dark:text-gray-400">{t.contracts.noContracts}</p>
             <p className="text-sm text-gray-400">أنشئ أول عقد باستخدام زر "عقد جديد"</p>
           </div>
         ) : (
@@ -310,6 +306,8 @@ function ContractRow({
   onSign: () => void
   signPending: boolean
 }) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const canEdit = contract.status === 'Draft' || contract.status === 'Active'
   const canSign = contract.status === 'Active'
 
@@ -318,15 +316,20 @@ function ContractRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-semibold text-gray-900 dark:text-gray-100">{contract.tenantName}</p>
-          <Badge variant={STATUS_BADGE[contract.status]}>{STATUS_LABEL[contract.status]}</Badge>
+          <Badge variant={STATUS_BADGE[contract.status]}>
+            {contract.status === 'Draft' ? t.contracts.status.draft
+              : contract.status === 'Active' ? t.contracts.status.active
+              : contract.status === 'Executed' ? t.contracts.status.expired
+              : t.contracts.status.terminated}
+          </Badge>
         </div>
         <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-500">
-          <span>غرفة {contract.roomNumber}</span>
+          <span>{t.contracts.property} {contract.roomNumber}</span>
           <span>·</span>
-          <span>{formatCurrency(contract.monthlyRent, contract.currency)} / شهر</span>
+          <span>{formatCurrency(contract.monthlyRent, contract.currency)} / {t.contracts.monthlyRent}</span>
           <span>·</span>
           <span>
-            {formatDate(contract.startDate, 'ar-SA')} – {formatDate(contract.endDate, 'ar-SA')}
+            {formatDate(contract.startDate, locale)} – {formatDate(contract.endDate, locale)}
           </span>
           {contract.clauses.length > 0 && (
             <>
@@ -337,17 +340,17 @@ function ContractRow({
         </div>
         {contract.signedAt && (
           <p className="mt-0.5 text-xs text-green-600 dark:text-green-400">
-            وُقِّع في {formatDate(contract.signedAt, 'ar-SA')}
+            وُقِّع في {formatDate(contract.signedAt, locale)}
           </p>
         )}
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <Button size="sm" variant="secondary" onClick={onPrint} title="طباعة العقد">
+        <Button size="sm" variant="secondary" onClick={onPrint} title={t.contracts.printContract}>
           <Printer className="h-4 w-4" />
         </Button>
         {canEdit && (
-          <Button size="sm" variant="secondary" onClick={onEdit} title="تعديل">
+          <Button size="sm" variant="secondary" onClick={onEdit} title={t.contracts.editContract}>
             <Pencil className="h-4 w-4" />
           </Button>
         )}
@@ -377,6 +380,7 @@ function ContractModal({
   editing: RentalContractResponse | null
   onSuccess: () => void
 }) {
+  const { t } = useI18n()
   const {
     register,
     handleSubmit,
@@ -484,13 +488,13 @@ function ContractModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? 'تعديل العقد' : 'عقد إيجار جديد'}
+      title={editing ? t.contracts.editContract : t.contracts.newContract}
       size="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>إلغاء</Button>
+          <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
           <Button loading={isPending} onClick={handleSubmit(onSubmit)}>
-            {editing ? 'حفظ التعديلات' : 'إنشاء العقد'}
+            {editing ? t.common.save : t.contracts.newContract}
           </Button>
         </>
       }
@@ -583,7 +587,7 @@ function ContractModal({
               onClick={() => append({ title: '', body: '' })}
             >
               <Plus className="h-3 w-3" />
-              إضافة بند
+              {t.contracts.addClause}
             </Button>
           </div>
 

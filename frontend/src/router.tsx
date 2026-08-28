@@ -21,6 +21,8 @@ import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { TenantsPage } from '@/pages/admin/TenantsPage'
 import { TenantDetailPage } from '@/pages/admin/TenantDetailPage'
 import { PlansPage } from '@/pages/admin/PlansPage'
+import { BrandsPage } from '@/pages/admin/BrandsPage'
+import { BrandDetailPage } from '@/pages/admin/BrandDetailPage'
 import { UsersPage } from '@/pages/users/UsersPage'
 import { BranchesPage } from '@/pages/branches/BranchesPage'
 import { StockCountPage } from '@/pages/inventory/StockCountPage'
@@ -31,6 +33,7 @@ import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
 import { CafeKitchenPage } from '@/pages/pos/CafeKitchenPage'
 import { ShiftReportsPage } from '@/pages/pos/ShiftReportsPage'
 import { InvoicesPage } from '@/pages/pos/InvoicesPage'
+import { TaxCenterPage } from '@/pages/taxes/TaxCenterPage'
 
 const rootRoute = createRootRoute()
 
@@ -212,6 +215,18 @@ const adminPlansRoute = createRoute({
   component: PlansPage,
 })
 
+const adminBrandsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/admin/brands',
+  component: BrandsPage,
+})
+
+const adminBrandDetailRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/admin/brands/$id',
+  component: BrandDetailPage,
+})
+
 // ── Kitchen shell (full-screen, no sidebar) ──────────────────────────────────
 
 const kitchenShellRoute = createRoute({
@@ -249,6 +264,12 @@ const invoicesRoute = createRoute({
   component: InvoicesPage,
 })
 
+const taxesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/taxes',
+  component: TaxCenterPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -274,12 +295,15 @@ const routeTree = rootRoute.addChildren([
     activityLogsRoute,
     shiftReportsRoute,
     invoicesRoute,
+    taxesRoute,
   ]),
   adminRoute.addChildren([
     adminDashboardRoute,
     adminTenantsRoute,
     adminTenantDetailRoute,
     adminPlansRoute,
+    adminBrandsRoute,
+    adminBrandDetailRoute,
   ]),
   kitchenShellRoute.addChildren([restaurantKitchenRoute, cafeKitchenRoute]),
 ])

@@ -4,6 +4,7 @@ import { Plus, Check, X, SlidersHorizontal, Save } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
 import type { BusinessType, SubscriptionPlanResponse } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 const PREDEFINED_FEATURES: { key: string; label: string }[] = [
   { key: 'stock_count', label: 'الجرد المخزني' },
@@ -19,17 +20,19 @@ const PREDEFINED_FEATURES: { key: string; label: string }[] = [
   { key: 'ai_cashier', label: 'كاشير AI (كافيه)' },
 ]
 
-const BUSINESS_TYPES: { key: BusinessType; label: string; emoji: string }[] = [
-  { key: 'Restaurant', label: 'مطعم', emoji: '🍽️' },
-  { key: 'Hotel', label: 'فندق', emoji: '🏨' },
-  { key: 'Supermarket', label: 'سوبرماركت', emoji: '🛒' },
-  { key: 'Gaming', label: 'ألعاب', emoji: '🎮' },
-  { key: 'Retail', label: 'تجزئة', emoji: '🏪' },
-  { key: 'Cafe', label: 'كافيه', emoji: '☕' },
-]
-
 export function PlansPage() {
   const qc = useQueryClient()
+  const { t } = useI18n()
+
+  const BUSINESS_TYPES: { key: BusinessType; label: string; emoji: string }[] = [
+    { key: 'Restaurant', label: t.admin.dashboard.business.restaurant, emoji: '🍽️' },
+    { key: 'Hotel', label: t.admin.dashboard.business.hotel, emoji: '🏨' },
+    { key: 'Supermarket', label: 'سوبرماركت', emoji: '🛒' },
+    { key: 'Gaming', label: t.admin.dashboard.business.gaming, emoji: '🎮' },
+    { key: 'Retail', label: t.admin.dashboard.business.retail, emoji: '🏪' },
+    { key: 'Cafe', label: t.admin.dashboard.business.cafe, emoji: '☕' },
+  ]
+
   const [activeTab, setActiveTab] = useState<BusinessType>('Restaurant')
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
@@ -83,7 +86,7 @@ export function PlansPage() {
     <div className="p-8" dir="rtl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">خطط الاشتراك</h1>
+          <h1 className="text-2xl font-bold text-white">{t.admin.plans.title}</h1>
           <p className="mt-1 text-slate-400">{plans.length} خطة • منفصلة لكل نوع نشاط تجاري</p>
         </div>
         <button
@@ -91,7 +94,7 @@ export function PlansPage() {
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
         >
           <Plus className="h-4 w-4" />
-          خطة جديدة
+          {t.admin.plans.create}
         </button>
       </div>
 
@@ -125,11 +128,11 @@ export function PlansPage() {
       {showForm && (
         <div className="mb-8 rounded-xl border border-slate-700 bg-slate-900 p-6">
           <h2 className="mb-5 text-base font-semibold text-white">
-            إنشاء خطة جديدة
+            {t.admin.plans.create}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">اسم الخطة</label>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.name}</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -138,7 +141,7 @@ export function PlansPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">نوع النشاط</label>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.createTenant.businessType}</label>
               <select
                 value={businessType}
                 onChange={(e) => setBusinessType(e.target.value as BusinessType)}
@@ -152,7 +155,7 @@ export function PlansPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">السعر (ر.س / شهر)</label>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.price} (ر.س / شهر)</label>
               <input
                 type="number"
                 min="0"
@@ -163,7 +166,7 @@ export function PlansPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">أقصى فروع</label>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.maxBranches}</label>
               <input
                 type="number"
                 min="1"
@@ -173,7 +176,7 @@ export function PlansPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">أقصى مستخدمين</label>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.maxUsers}</label>
               <input
                 type="number"
                 min="1"
@@ -183,7 +186,7 @@ export function PlansPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">الميزات</label>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.features}</label>
               <div className="flex gap-2">
                 <input
                   value={featureInput}
@@ -225,13 +228,13 @@ export function PlansPage() {
               disabled={!name || createMut.isPending}
               className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {createMut.isPending ? 'جاري الحفظ...' : 'حفظ الخطة'}
+              {createMut.isPending ? t.common.loading : t.admin.plans.save}
             </button>
             <button
               onClick={() => setShowForm(false)}
               className="rounded-lg border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
             >
-              إلغاء
+              {t.common.cancel}
             </button>
           </div>
         </div>
@@ -246,7 +249,7 @@ export function PlansPage() {
         </div>
       ) : tabPlans.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-          <p className="text-lg">لا توجد خطط لهذا النشاط</p>
+          <p className="text-lg">{t.common.noData}</p>
           <p className="mt-1 text-sm">أضف خطة جديدة بالضغط على الزر أعلاه</p>
         </div>
       ) : (
@@ -261,6 +264,8 @@ export function PlansPage() {
 }
 
 function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdated: () => void }) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const [editingFeatures, setEditingFeatures] = useState(false)
   const [draftFeatures, setDraftFeatures] = useState<string[]>(plan.features)
 
@@ -287,13 +292,13 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
         <button
           onClick={() => { setDraftFeatures(plan.features); setEditingFeatures(v => !v) }}
           className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-          title="تعديل الميزات"
+          title={t.admin.plans.edit}
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
       </div>
       <p className="mb-4 text-2xl font-bold text-white">
-        {plan.price.toLocaleString('ar-SA')}
+        {plan.price.toLocaleString(locale)}
         <span className="text-sm font-normal text-slate-400"> ر.س / شهر</span>
       </p>
       <div className="mb-4 flex gap-4 text-xs text-slate-400">
@@ -303,7 +308,7 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
 
       {editingFeatures ? (
         <div className="mt-auto">
-          <p className="mb-3 text-xs font-medium text-slate-300">الميزات المتاحة</p>
+          <p className="mb-3 text-xs font-medium text-slate-300">{t.admin.plans.features}</p>
           <div className="space-y-2">
             {PREDEFINED_FEATURES.map(f => {
               const enabled = draftFeatures.includes(f.key)
@@ -332,13 +337,13 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
               className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               <Save className="h-3.5 w-3.5" />
-              {featureMut.isPending ? 'جاري...' : 'حفظ'}
+              {featureMut.isPending ? t.common.loading : t.common.save}
             </button>
             <button
               onClick={() => setEditingFeatures(false)}
               className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800 transition-colors"
             >
-              إلغاء
+              {t.common.cancel}
             </button>
           </div>
         </div>

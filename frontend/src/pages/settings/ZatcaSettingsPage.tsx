@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { zatcaApi } from '@/api/zatca'
 import { toast } from '@/components/ui/Toast'
+import { useI18n } from '@/i18n'
 
 export function ZatcaSettingsPage() {
   const qc = useQueryClient()
+  const { t } = useI18n()
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['zatca-settings'],
@@ -40,7 +42,7 @@ export function ZatcaSettingsPage() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['zatca-settings'] })
-      toast.success('تم حفظ إعدادات زاتكا')
+      toast.success(t.zatca.saved)
     },
     onError: () => toast.error('فشل حفظ الإعدادات'),
   })
@@ -51,8 +53,8 @@ export function ZatcaSettingsPage() {
   return (
     <div className="flex flex-col gap-6 p-6" dir="rtl">
       <PageHeader
-        title="إعدادات زاتكا"
-        description="ربط الفواتير الإلكترونية بهيئة الزكاة والضريبة والجمارك"
+        title={t.zatca.title}
+        description={t.zatca.description}
       />
 
       {/* Status banner */}
@@ -67,11 +69,11 @@ export function ZatcaSettingsPage() {
         <div className="text-sm">
           {isConfigured ? (
             <span className="font-medium text-emerald-800">
-              زاتكا مُفعّلة · {settings.invoiceCounter} فاتورة صادرة
+              {t.zatca.connected} · {settings.invoiceCounter} فاتورة صادرة
             </span>
           ) : (
             <span className="font-medium text-amber-800">
-              لم يتم تهيئة زاتكا بعد — أدخل بيانات المُزوِّد أدناه لتفعيل الفوترة الإلكترونية
+              {t.zatca.notConnected}
             </span>
           )}
         </div>
@@ -84,8 +86,8 @@ export function ZatcaSettingsPage() {
             <Shield className="h-5 w-5 text-emerald-600" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">بيانات المُزوِّد</h2>
-            <p className="text-xs text-gray-500">المعلومات التي ستظهر على الفواتير الإلكترونية</p>
+            <h2 className="text-sm font-semibold text-gray-900">{t.zatca.supplierData}</h2>
+            <p className="text-xs text-gray-500">{t.zatca.supplierDataHint}</p>
           </div>
         </div>
 
@@ -97,7 +99,7 @@ export function ZatcaSettingsPage() {
           <div className="flex flex-col gap-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                اسم المُزوِّد (اسم المنشأة)
+                {t.zatca.legalName}
               </label>
               <Input
                 value={sellerName}
@@ -109,7 +111,7 @@ export function ZatcaSettingsPage() {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                الرقم الضريبي (VAT)
+                {t.zatca.vatNumber}
               </label>
               <Input
                 value={vatNumber}
@@ -119,16 +121,16 @@ export function ZatcaSettingsPage() {
                 className={vatNumber && !vatValid ? 'border-red-300' : ''}
               />
               {vatNumber && !vatValid && (
-                <p className="mt-1 text-xs text-red-500">الرقم الضريبي يجب أن يكون 15 رقماً على الأقل</p>
+                <p className="mt-1 text-xs text-red-500">{t.zatca.vatLengthError}</p>
               )}
             </div>
 
             {/* Phase 2 toggle */}
             <div className="flex items-start gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">تفعيل المرحلة الثانية (Phase 2)</div>
+                <div className="text-sm font-medium text-gray-900">{t.zatca.enablePhase2}</div>
                 <div className="mt-0.5 text-xs text-gray-500">
-                  ربط الفواتير مباشرةً بمنصة فاتورة — يتطلب شهادة رقمية من الهيئة
+                  {t.zatca.phase2Hint}
                 </div>
               </div>
               <button
@@ -150,7 +152,7 @@ export function ZatcaSettingsPage() {
                 disabled={saveMutation.isPending || !sellerName.trim() || !vatValid}
               >
                 <Save className="h-4 w-4" />
-                {saveMutation.isPending ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+                {saveMutation.isPending ? t.common.loading : t.zatca.save}
               </Button>
             </div>
           </div>
@@ -161,14 +163,14 @@ export function ZatcaSettingsPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <InfoCard
           icon={<FileText className="h-5 w-5 text-blue-600" />}
-          title="المرحلة الأولى"
-          description="إنشاء فواتير XML وكود QR تلقائياً مع كل طلب مكتمل"
+          title={t.zatca.phase1}
+          description={t.zatca.phase1Info}
           active={isConfigured}
         />
         <InfoCard
           icon={<Shield className="h-5 w-5 text-emerald-600" />}
-          title="المرحلة الثانية"
-          description="إرسال الفواتير مباشرةً لمنصة فاتورة مع التوقيع الرقمي"
+          title={t.zatca.phase2}
+          description={t.zatca.phase2Info}
           active={isConfigured && settings?.isPhase2Enabled}
         />
       </div>

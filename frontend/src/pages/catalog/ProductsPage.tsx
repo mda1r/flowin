@@ -15,46 +15,25 @@ import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
 
-const categorySchema = z.object({
-  name: z.string().min(1, 'الاسم مطلوب'),
-  description: z.string().optional(),
-})
-
-type CategoryFormData = z.infer<typeof categorySchema>
-
-const createSchema = z.object({
-  name: z.string().min(1, 'الاسم مطلوب'),
-  sku: z.string().min(1, 'الرمز مطلوب'),
-  variantName: z.string().min(1, 'اسم النوع مطلوب'),
-  description: z.string().optional(),
-  costPrice: z.coerce.number().nonnegative(),
-  salePrice: z.coerce.number().positive('يجب أن يكون السعر موجباً'),
-  currency: z.string().length(3),
-  categoryId: z.string().optional(),
-  trackInventory: z.boolean().default(true),
-  initialQuantity: z.coerce.number().nonnegative().default(0),
-  expiryDate: z.string().optional(),
-})
-
-const editProductSchema = z.object({
-  name: z.string().min(1, 'الاسم مطلوب'),
-  description: z.string().optional(),
-  categoryId: z.string().optional(),
-  trackInventory: z.boolean().default(true),
-})
-
-const editVariantSchema = z.object({
-  name: z.string().min(1, 'اسم النوع مطلوب'),
-  costPrice: z.coerce.number().nonnegative(),
-  salePrice: z.coerce.number().positive('يجب أن يكون السعر موجباً'),
-  currency: z.string().length(3),
-})
-
-type CreateFormData = z.infer<typeof createSchema>
-type EditProductFormData = z.infer<typeof editProductSchema>
-type EditVariantFormData = z.infer<typeof editVariantSchema>
+type CategoryFormData = { name: string; description?: string }
+type CreateFormData = {
+  name: string
+  sku: string
+  variantName: string
+  description?: string
+  costPrice: number
+  salePrice: number
+  currency: string
+  categoryId?: string
+  trackInventory: boolean
+  initialQuantity: number
+  expiryDate?: string
+}
+type EditProductFormData = { name: string; description?: string; categoryId?: string; trackInventory: boolean }
+type EditVariantFormData = { name: string; costPrice: number; salePrice: number; currency: string }
 
 export function ProductsPage() {
   const [search, setSearch] = useState('')
@@ -66,6 +45,40 @@ export function ProductsPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
+
+  const categorySchema = z.object({
+    name: z.string().min(1, t.products.nameRequired),
+    description: z.string().optional(),
+  })
+
+  const createSchema = z.object({
+    name: z.string().min(1, t.products.nameRequired),
+    sku: z.string().min(1, t.products.nameRequired),
+    variantName: z.string().min(1, t.products.variantNameRequired),
+    description: z.string().optional(),
+    costPrice: z.coerce.number().nonnegative(),
+    salePrice: z.coerce.number().positive(t.products.pricePositive),
+    currency: z.string().length(3),
+    categoryId: z.string().optional(),
+    trackInventory: z.boolean().default(true),
+    initialQuantity: z.coerce.number().nonnegative().default(0),
+    expiryDate: z.string().optional(),
+  })
+
+  const editProductSchema = z.object({
+    name: z.string().min(1, t.products.nameRequired),
+    description: z.string().optional(),
+    categoryId: z.string().optional(),
+    trackInventory: z.boolean().default(true),
+  })
+
+  const editVariantSchema = z.object({
+    name: z.string().min(1, t.products.variantNameRequired),
+    costPrice: z.coerce.number().nonnegative(),
+    salePrice: z.coerce.number().positive(t.products.pricePositive),
+    currency: z.string().length(3),
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', tenantId, search],
@@ -145,10 +158,10 @@ export function ProductsPage() {
       qc.invalidateQueries({ queryKey: ['stock', branchId] })
       setShowCreateModal(false)
       createForm.reset()
-      toast.success('تم إنشاء المنتج')
+      toast.success(t.products.created)
     },
     onError: (err: unknown) => {
-      toast.error('فشل حفظ المنتج', extractApiError(err) ?? 'تحقق من البيانات')
+      toast.error(t.products.failed, extractApiError(err) ?? 'تحقق من البيانات')
     },
   })
 
@@ -191,9 +204,9 @@ export function ProductsPage() {
       qc.invalidateQueries({ queryKey: ['categories'] })
       setShowCategoryModal(false)
       categoryForm.reset()
-      toast.success('تم إنشاء التصنيف')
+      toast.success(t.products.categoryCreated)
     },
-    onError: (err: unknown) => toast.error('فشل إنشاء التصنيف', extractApiError(err) ?? undefined),
+    onError: (err: unknown) => toast.error(t.products.categoryFailed, extractApiError(err) ?? undefined),
   })
 
   const deactivate = useMutation({
@@ -201,9 +214,9 @@ export function ProductsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
       setDeactivatingProductId(null)
-      toast.success('تم إلغاء تفعيل المنتج')
+      toast.success(t.products.deleted)
     },
-    onError: () => toast.error('فشل إلغاء تفعيل المنتج'),
+    onError: () => toast.error(t.products.deleteFailed),
   })
 
   const openEdit = (product: ProductResponse) => {
@@ -232,13 +245,13 @@ export function ProductsPage() {
   return (
     <div className="page-fade" dir="rtl">
       <PageHeader
-        title="المنتجات"
-        description="إدارة كتالوج المنتجات"
+        title={t.products.title}
+        description={t.products.subtitle}
         action={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => { categoryForm.reset(); setShowCategoryModal(true) }}>
               <Plus className="h-4 w-4" />
-              تصنيف جديد
+              {t.products.newCategory}
             </Button>
             <Button onClick={() => {
               createForm.reset({
@@ -250,7 +263,7 @@ export function ProductsPage() {
               setShowCreateModal(true)
             }}>
               <Plus className="h-4 w-4" />
-              إضافة منتج
+              {t.products.addProduct}
             </Button>
           </div>
         }
@@ -262,7 +275,7 @@ export function ProductsPage() {
               <Search className="absolute end-3 top-2.5 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="ابحث في المنتجات..."
+                placeholder={t.products.searchProducts}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input pe-9"
@@ -277,7 +290,7 @@ export function ProductsPage() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <p className="p-10 text-center text-sm text-gray-400">لا توجد منتجات</p>
+            <p className="p-10 text-center text-sm text-gray-400">{t.products.noProducts}</p>
           ) : (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {products.map((product) => {
@@ -307,10 +320,10 @@ export function ProductsPage() {
                             </span>
                           )}
                           <Badge variant={product.isActive ? 'green' : 'gray'}>
-                            {product.isActive ? 'نشط' : 'غير نشط'}
+                            {product.isActive ? t.products.active : t.products.inactive}
                           </Badge>
                           <span className="text-xs text-gray-400">
-                            {product.variants.length} نوع
+                            {product.variants.length} {t.products.variants}
                           </span>
                           {isExpanded ? (
                             <ChevronUp className="h-4 w-4 text-gray-400" />
@@ -324,7 +337,7 @@ export function ProductsPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => openEdit(product)}
-                          title="تعديل"
+                          title={t.common.edit}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -333,7 +346,7 @@ export function ProductsPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => setDeactivatingProductId(product.id)}
-                            title="إلغاء التفعيل"
+                            title={t.common.delete}
                           >
                             <Trash2 className="h-3.5 w-3.5 text-red-500" />
                           </Button>
@@ -344,7 +357,7 @@ export function ProductsPage() {
                     {isExpanded && (
                       <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-800/50">
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-                          الأنواع
+                          {t.products.variants}
                         </p>
                         <div className="space-y-2">
                           {product.variants.map((v) => (
@@ -360,13 +373,13 @@ export function ProductsPage() {
                               </div>
                               <div className="flex items-center gap-4">
                                 <span className="text-xs text-gray-500">
-                                  تكلفة: {formatCurrency(v.costPrice, v.currency)}
+                                  {t.products.costPrice}: {formatCurrency(v.costPrice, v.currency)}
                                 </span>
                                 <span className="font-semibold text-blue-600 dark:text-blue-400">
                                   {formatCurrency(v.salePrice, v.currency)}
                                 </span>
                                 <Badge variant={v.isActive ? 'green' : 'gray'} className="text-xs">
-                                  {v.isActive ? 'نشط' : 'غير نشط'}
+                                  {v.isActive ? t.products.active : t.products.inactive}
                                 </Badge>
                                 <Button
                                   size="sm"
@@ -393,39 +406,39 @@ export function ProductsPage() {
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="منتج جديد"
+        title={t.products.newProduct}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>{t.common.cancel}</Button>
             <Button loading={create.isPending} onClick={createForm.handleSubmit((d) => create.mutate(d))}>
-              إنشاء
+              {t.common.add}
             </Button>
           </>
         }
       >
         <form className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input label="الاسم" error={createForm.formState.errors.name?.message} {...createForm.register('name')} />
-            <Select label="التصنيف" {...createForm.register('categoryId')}>
-              <option value="">بدون تصنيف</option>
+            <Input label={t.products.name} error={createForm.formState.errors.name?.message} {...createForm.register('name')} />
+            <Select label={t.products.category} {...createForm.register('categoryId')}>
+              <option value="">{t.products.noCategory}</option>
               {categories?.data?.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </Select>
           </div>
-          <Input label="الوصف" {...createForm.register('description')} />
+          <Input label={t.products.description} {...createForm.register('description')} />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="الرمز (SKU)" error={createForm.formState.errors.sku?.message} {...createForm.register('sku')} />
-            <Input label="اسم النوع" error={createForm.formState.errors.variantName?.message} {...createForm.register('variantName')} />
+            <Input label={t.products.sku} error={createForm.formState.errors.sku?.message} {...createForm.register('sku')} />
+            <Input label={t.products.variantName} error={createForm.formState.errors.variantName?.message} {...createForm.register('variantName')} />
           </div>
           <div className="grid grid-cols-3 gap-4">
-            <Input label="سعر التكلفة" type="number" step="0.01" min="0" error={createForm.formState.errors.costPrice?.message} {...createForm.register('costPrice')} />
-            <Input label="سعر البيع" type="number" step="0.01" min="0" error={createForm.formState.errors.salePrice?.message} {...createForm.register('salePrice')} />
-            <Input label="العملة" maxLength={3} placeholder="SAR" error={createForm.formState.errors.currency?.message} {...createForm.register('currency')} />
+            <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={createForm.formState.errors.costPrice?.message} {...createForm.register('costPrice')} />
+            <Input label={t.products.salePrice} type="number" step="0.01" min="0" error={createForm.formState.errors.salePrice?.message} {...createForm.register('salePrice')} />
+            <Input label={t.products.currency} maxLength={3} placeholder="SAR" error={createForm.formState.errors.currency?.message} {...createForm.register('currency')} />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input type="checkbox" {...createForm.register('trackInventory')} className="rounded" />
-            تتبع المخزون
+            {t.products.trackInventory}
           </label>
           {createForm.watch('trackInventory') && (
             <div className="grid grid-cols-2 gap-4 rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/30 dark:bg-blue-900/10">
@@ -454,30 +467,30 @@ export function ProductsPage() {
       <Modal
         open={!!editingProduct}
         onClose={() => setEditingProduct(null)}
-        title="تعديل المنتج"
+        title={t.products.editProduct}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditingProduct(null)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setEditingProduct(null)}>{t.common.cancel}</Button>
             <Button loading={updateProduct.isPending} onClick={editProductForm.handleSubmit((d) => updateProduct.mutate(d))}>
-              حفظ
+              {t.common.save}
             </Button>
           </>
         }
       >
         <form className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input label="الاسم" error={editProductForm.formState.errors.name?.message} {...editProductForm.register('name')} />
-            <Select label="التصنيف" {...editProductForm.register('categoryId')}>
-              <option value="">بدون تصنيف</option>
+            <Input label={t.products.name} error={editProductForm.formState.errors.name?.message} {...editProductForm.register('name')} />
+            <Select label={t.products.category} {...editProductForm.register('categoryId')}>
+              <option value="">{t.products.noCategory}</option>
               {categories?.data?.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </Select>
           </div>
-          <Input label="الوصف" {...editProductForm.register('description')} />
+          <Input label={t.products.description} {...editProductForm.register('description')} />
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input type="checkbox" {...editProductForm.register('trackInventory')} className="rounded" />
-            تتبع المخزون
+            {t.products.trackInventory}
           </label>
         </form>
       </Modal>
@@ -489,19 +502,19 @@ export function ProductsPage() {
         title="تعديل النوع"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditingVariant(null)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setEditingVariant(null)}>{t.common.cancel}</Button>
             <Button loading={updateVariant.isPending} onClick={editVariantForm.handleSubmit((d) => updateVariant.mutate(d))}>
-              حفظ
+              {t.common.save}
             </Button>
           </>
         }
       >
         <form className="space-y-4">
-          <Input label="اسم النوع" error={editVariantForm.formState.errors.name?.message} {...editVariantForm.register('name')} />
+          <Input label={t.products.variantName} error={editVariantForm.formState.errors.name?.message} {...editVariantForm.register('name')} />
           <div className="grid grid-cols-3 gap-4">
-            <Input label="سعر التكلفة" type="number" step="0.01" min="0" error={editVariantForm.formState.errors.costPrice?.message} {...editVariantForm.register('costPrice')} />
-            <Input label="سعر البيع" type="number" step="0.01" min="0" error={editVariantForm.formState.errors.salePrice?.message} {...editVariantForm.register('salePrice')} />
-            <Input label="العملة" maxLength={3} error={editVariantForm.formState.errors.currency?.message} {...editVariantForm.register('currency')} />
+            <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={editVariantForm.formState.errors.costPrice?.message} {...editVariantForm.register('costPrice')} />
+            <Input label={t.products.salePrice} type="number" step="0.01" min="0" error={editVariantForm.formState.errors.salePrice?.message} {...editVariantForm.register('salePrice')} />
+            <Input label={t.products.currency} maxLength={3} error={editVariantForm.formState.errors.currency?.message} {...editVariantForm.register('currency')} />
           </div>
         </form>
       </Modal>
@@ -510,20 +523,20 @@ export function ProductsPage() {
       <Modal
         open={showCategoryModal}
         onClose={() => setShowCategoryModal(false)}
-        title="تصنيف جديد"
+        title={t.products.newCategory}
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowCategoryModal(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowCategoryModal(false)}>{t.common.cancel}</Button>
             <Button loading={createCategory.isPending} onClick={categoryForm.handleSubmit((d) => createCategory.mutate(d))}>
-              إنشاء
+              {t.common.add}
             </Button>
           </>
         }
       >
         <form className="space-y-4">
-          <Input label="اسم التصنيف" error={categoryForm.formState.errors.name?.message} {...categoryForm.register('name')} />
-          <Input label="الوصف" {...categoryForm.register('description')} />
+          <Input label={t.products.categoryName} error={categoryForm.formState.errors.name?.message} {...categoryForm.register('name')} />
+          <Input label={t.products.description} {...categoryForm.register('description')} />
         </form>
       </Modal>
 
@@ -533,7 +546,7 @@ export function ProductsPage() {
         onClose={() => setDeactivatingProductId(null)}
         onConfirm={() => { if (deactivatingProductId) { deactivate.mutate(deactivatingProductId) } }}
         title="إلغاء تفعيل المنتج"
-        message="هل أنت متأكد من إلغاء تفعيل هذا المنتج؟ لن يظهر في نقطة البيع."
+        message={t.products.deleteConfirm}
         confirmLabel="إلغاء التفعيل"
         confirmVariant="danger"
         loading={deactivate.isPending}

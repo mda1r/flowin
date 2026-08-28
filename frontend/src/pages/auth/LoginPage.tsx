@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff } from 'lucide-react'
+import { useI18n } from '@/i18n'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/Button'
@@ -21,12 +22,7 @@ import {
   ShoppingBagIllus,
 } from './loginIllustrations'
 
-const schema = z.object({
-  email: z.string().email('يرجى إدخال بريد إلكتروني صحيح'),
-  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
-})
-
-type FormData = z.infer<typeof schema>
+type FormData = { email: string; password: string }
 
 /* ────────────────────────────────────────────────────────────────
    Business-type login themes — resolved from ?type= in the URL.
@@ -175,6 +171,12 @@ export function LoginPage() {
   const [phase, setPhase] = useState<LoginPhase>('idle')
   const [burst, setBurst] = useState<{ x: number; y: number } | null>(null)
 
+  const { t } = useI18n()
+  const schema = useMemo(() => z.object({
+    email: z.string().email(t.login.emailInvalid),
+    password: z.string().min(6, t.login.passwordMin),
+  }), [t])
+
   /* theme resolved once from the URL (?type=restaurant|cafe|…) */
   const theme = useMemo<LoginTheme | null>(() => {
     const type = new URLSearchParams(window.location.search).get('type')?.toLowerCase()
@@ -215,7 +217,7 @@ export function LoginPage() {
       timersRef.current.push(window.setTimeout(() => setPhase('exit'), EXIT_AT_MS))
       timersRef.current.push(window.setTimeout(() => navigate({ to }), NAVIGATE_AT_MS))
     } catch {
-      toast.error('فشل تسجيل الدخول', 'البريد الإلكتروني أو كلمة المرور غير صحيحة')
+      toast.error(t.login.loginFailed, t.login.invalidCredentials)
     } finally {
       setLoading(false)
     }
@@ -320,7 +322,7 @@ export function LoginPage() {
           <h1 className="logo-3d entrance-2 select-none text-4xl font-extrabold tracking-tight">
             flowin
           </h1>
-          <p className="entrance-2 mt-2 text-sm text-gray-500">سجّل الدخول إلى مساحة عملك</p>
+          <p className="entrance-2 mt-2 text-sm text-gray-500">{t.login.subtitle}</p>
 
           {theme && (
             <span className="biz-badge entrance-3 mt-3">
@@ -338,7 +340,7 @@ export function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="entrance-4 field-aura">
               <Input
-                label="البريد الإلكتروني"
+                label={t.login.email}
                 type="email"
                 autoComplete="email"
                 placeholder="you@company.com"
@@ -350,7 +352,7 @@ export function LoginPage() {
 
             <div className="entrance-4 field-aura relative">
               <Input
-                label="كلمة المرور"
+                label={t.login.password}
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 placeholder="••••••••"
@@ -388,7 +390,7 @@ export function LoginPage() {
                   loading ? ' btn-shimmer-loading' : ''
                 }`}
               >
-                {phase === 'idle' ? 'تسجيل الدخول' : 'أهلاً بك ✓'}
+                {phase === 'idle' ? t.login.signIn : `${t.login.welcome} ✓`}
               </Button>
             </div>
           </form>

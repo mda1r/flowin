@@ -43,7 +43,7 @@ export const ordersApi = {
   complete: (
     branchId: string,
     orderId: string,
-    data: { paymentMethod: PaymentMethod; amountTendered?: number },
+    data: { paymentMethod: PaymentMethod; amountTendered?: number; cashAmount?: number; cardAmount?: number },
   ) =>
     apiClient.post<OrderResponse>(
       `/api/v1/branches/${branchId}/orders/${orderId}/complete`,
@@ -62,6 +62,7 @@ export const ordersApi = {
     data: {
       refundMethod: RefundMethod
       lines: { lineId: string; quantity: number; reason: ReturnReason }[]
+      restockItems?: boolean
     },
   ) =>
     apiClient.post<ReturnOrderResponse>(

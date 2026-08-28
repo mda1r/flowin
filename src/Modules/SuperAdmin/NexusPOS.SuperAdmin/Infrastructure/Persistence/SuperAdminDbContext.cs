@@ -9,6 +9,8 @@ public sealed class SuperAdminDbContext(DbContextOptions<SuperAdminDbContext> op
 {
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<BrandAuditLog> BrandAuditLogs => Set<BrandAuditLog>();
+    public DbSet<TenantAiAccess> TenantAiAccesses => Set<TenantAiAccess>();
 
     public new async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
         await base.SaveChangesAsync(cancellationToken);

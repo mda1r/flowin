@@ -145,6 +145,7 @@ export interface StockItemResponse {
   isLowStock: boolean
   updatedAt: string
   expiryDate?: string
+  notifyDaysBeforeExpiry: number
 }
 
 export interface StockAlertItemResponse {
@@ -233,6 +234,8 @@ export interface OrderResponse {
   paymentMethod?: PaymentMethod
   amountTendered?: number
   changeDue?: number
+  splitCash?: number
+  splitCard?: number
   notes?: string
   createdAt: string
   completedAt?: string
@@ -574,6 +577,7 @@ export interface TenantWithSubscriptionResponse {
 
 export interface TenantDetailResponse extends TenantWithSubscriptionResponse {
   subscriptionHistory: TenantSubscriptionResponse[]
+  aiEnabled: boolean
 }
 
 export interface CreateSubscriptionRequest {

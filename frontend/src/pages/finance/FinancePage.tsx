@@ -15,21 +15,12 @@ import { financeApi } from '@/api/finance'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import type { ExpenseCategory, ExpenseStatus } from '@/types/api'
 
 const categories: ExpenseCategory[] = [
   'Rent', 'Utilities', 'Salaries', 'Supplies', 'Maintenance', 'Marketing', 'Other',
 ]
-
-const categoryLabel: Record<ExpenseCategory, string> = {
-  Rent: 'إيجار',
-  Utilities: 'مرافق',
-  Salaries: 'رواتب',
-  Supplies: 'مستلزمات',
-  Maintenance: 'صيانة',
-  Marketing: 'تسويق',
-  Other: 'أخرى',
-}
 
 const statusVariant: Record<ExpenseStatus, 'yellow' | 'green' | 'red'> = {
   Pending: 'yellow',
@@ -37,27 +28,45 @@ const statusVariant: Record<ExpenseStatus, 'yellow' | 'green' | 'red'> = {
   Voided: 'red',
 }
 
-const statusLabel: Record<ExpenseStatus, string> = {
-  Pending: 'قيد الموافقة',
-  Approved: 'معتمد',
-  Voided: 'ملغي',
+type FormData = {
+  category: 'Rent' | 'Utilities' | 'Salaries' | 'Supplies' | 'Maintenance' | 'Marketing' | 'Other'
+  amount: number
+  currency: string
+  description: string
+  expenseDate: string
+  notes?: string
 }
-
-const schema = z.object({
-  category: z.enum(['Rent', 'Utilities', 'Salaries', 'Supplies', 'Maintenance', 'Marketing', 'Other']),
-  amount: z.coerce.number().positive('يجب أن يكون المبلغ موجباً'),
-  currency: z.string().min(3).max(3),
-  description: z.string().min(1, 'الوصف مطلوب'),
-  expenseDate: z.string().min(1, 'التاريخ مطلوب'),
-  notes: z.string().optional(),
-})
-
-type FormData = z.infer<typeof schema>
 
 export function FinancePage() {
   const [showModal, setShowModal] = useState(false)
   const { branchId, tenantId, user } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
+
+  const categoryLabel: Record<ExpenseCategory, string> = {
+    Rent: t.finance.categories.rent,
+    Utilities: t.finance.categories.utilities,
+    Salaries: t.finance.categories.salary,
+    Supplies: t.finance.categories.supplies,
+    Maintenance: t.finance.categories.maintenance,
+    Marketing: t.finance.categories.marketing,
+    Other: t.finance.categories.other,
+  }
+
+  const statusLabel: Record<ExpenseStatus, string> = {
+    Pending: t.finance.status.pending,
+    Approved: t.finance.status.completed,
+    Voided: t.finance.status.cancelled,
+  }
+
+  const schema = z.object({
+    category: z.enum(['Rent', 'Utilities', 'Salaries', 'Supplies', 'Maintenance', 'Marketing', 'Other'] as const),
+    amount: z.coerce.number().positive(t.finance.amount),
+    currency: z.string().min(3).max(3),
+    description: z.string().min(1, t.finance.description),
+    expenseDate: z.string().min(1, t.finance.date),
+    notes: z.string().optional(),
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['expenses', branchId],
@@ -77,9 +86,9 @@ export function FinancePage() {
       qc.invalidateQueries({ queryKey: ['expenses', branchId] })
       setShowModal(false)
       reset({ currency: 'SAR', expenseDate: new Date().toISOString().slice(0, 10) })
-      toast.success('تم تسجيل المصروف')
+      toast.success(t.finance.created)
     },
-    onError: () => toast.error('فشل تسجيل المصروف'),
+    onError: () => toast.error(t.finance.failed),
   })
 
   const approve = useMutation({
@@ -87,18 +96,18 @@ export function FinancePage() {
       financeApi.approve(branchId!, expenseId, { approvedBy: user?.id ?? '' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['expenses', branchId] })
-      toast.success('تمت الموافقة على المصروف')
+      toast.success(t.finance.created)
     },
-    onError: () => toast.error('فشلت الموافقة'),
+    onError: () => toast.error(t.finance.failed),
   })
 
   const voidExpense = useMutation({
     mutationFn: (expenseId: string) => financeApi.void(branchId!, expenseId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['expenses', branchId] })
-      toast.success('تم إلغاء المصروف')
+      toast.success(t.finance.status.cancelled)
     },
-    onError: () => toast.error('فشل الإلغاء'),
+    onError: () => toast.error(t.finance.failed),
   })
 
   const expenses = data?.data ?? []
@@ -108,12 +117,12 @@ export function FinancePage() {
   return (
     <div>
       <PageHeader
-        title="المالية"
-        description="تتبع وإدارة مصاريف الشركة"
+        title={t.finance.title}
+        description={t.finance.subtitle}
         action={
           <Button onClick={() => setShowModal(true)}>
             <Plus className="h-4 w-4" />
-            تسجيل مصروف
+            {t.finance.newTransaction}
           </Button>
         }
       />
@@ -121,13 +130,13 @@ export function FinancePage() {
         {/* Summary */}
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-900/20">
-            <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">قيد الموافقة</p>
+            <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">{t.finance.status.pending}</p>
             <p className="mt-1 text-2xl font-bold text-yellow-900 dark:text-yellow-300 tabular-nums">
               {formatCurrency(totalPending)}
             </p>
           </div>
           <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-900/20">
-            <p className="text-xs font-medium text-green-700 dark:text-green-400">معتمد</p>
+            <p className="text-xs font-medium text-green-700 dark:text-green-400">{t.finance.status.completed}</p>
             <p className="mt-1 text-2xl font-bold text-green-900 dark:text-green-300 tabular-nums">
               {formatCurrency(totalApproved)}
             </p>
@@ -139,11 +148,11 @@ export function FinancePage() {
             loading={isLoading}
             data={expenses}
             keyExtractor={(r) => r.id}
-            emptyMessage="لا توجد مصاريف مسجلة"
+            emptyMessage={t.finance.noTransactions}
             columns={[
               {
                 key: 'description',
-                header: 'المصروف',
+                header: t.finance.description,
                 render: (r) => (
                   <div>
                     <p className="font-medium">{r.description}</p>
@@ -153,7 +162,7 @@ export function FinancePage() {
               },
               {
                 key: 'amount',
-                header: 'المبلغ',
+                header: t.finance.amount,
                 render: (r) => (
                   <span className="font-semibold tabular-nums">
                     {formatCurrency(r.amount, r.currency)}
@@ -162,12 +171,12 @@ export function FinancePage() {
               },
               {
                 key: 'expenseDate',
-                header: 'التاريخ',
+                header: t.finance.date,
                 render: (r) => formatDate(r.expenseDate),
               },
               {
                 key: 'status',
-                header: 'الحالة',
+                header: t.finance.type,
                 render: (r) => (
                   <Badge variant={statusVariant[r.status]}>{statusLabel[r.status]}</Badge>
                 ),
@@ -185,7 +194,7 @@ export function FinancePage() {
                           onClick={(e) => { e.stopPropagation(); approve.mutate(r.id) }}
                         >
                           <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                          موافقة
+                          {t.finance.status.completed}
                         </Button>
                         <Button
                           size="sm"
@@ -193,7 +202,7 @@ export function FinancePage() {
                           onClick={(e) => { e.stopPropagation(); voidExpense.mutate(r.id) }}
                         >
                           <XCircle className="h-3.5 w-3.5 text-red-500" />
-                          إلغاء
+                          {t.common.cancel}
                         </Button>
                       </>
                     )}
@@ -208,27 +217,27 @@ export function FinancePage() {
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title="تسجيل مصروف"
+        title={t.finance.newTransaction}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>{t.common.cancel}</Button>
             <Button loading={create.isPending} onClick={handleSubmit((d) => create.mutate(d))}>
-              تسجيل
+              {t.common.save}
             </Button>
           </>
         }
       >
         <form className="space-y-4">
-          <Select label="التصنيف" error={errors.category?.message} {...register('category')}>
+          <Select label={t.finance.category} error={errors.category?.message} {...register('category')}>
             {categories.map((c) => <option key={c} value={c}>{categoryLabel[c]}</option>)}
           </Select>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="المبلغ" type="number" step="0.01" error={errors.amount?.message} {...register('amount')} />
-            <Input label="العملة" maxLength={3} placeholder="SAR" {...register('currency')} />
+            <Input label={t.finance.amount} type="number" step="0.01" error={errors.amount?.message} {...register('amount')} />
+            <Input label={t.common.sar} maxLength={3} placeholder="SAR" {...register('currency')} />
           </div>
-          <Input label="الوصف" error={errors.description?.message} {...register('description')} />
-          <Input label="التاريخ" type="date" error={errors.expenseDate?.message} {...register('expenseDate')} />
-          <Input label="ملاحظات" {...register('notes')} />
+          <Input label={t.finance.description} error={errors.description?.message} {...register('description')} />
+          <Input label={t.finance.date} type="date" error={errors.expenseDate?.message} {...register('expenseDate')} />
+          <Input label={t.finance.notes} {...register('notes')} />
         </form>
       </Modal>
     </div>

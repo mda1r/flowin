@@ -1,5 +1,5 @@
 using ErrorOr;
-using NexusPOS.Sales.Application.Services;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.Sales.Domain.Entities;
 using NexusPOS.Sales.Domain.Repositories;
 using NexusPOS.SharedKernel.Application.Messaging;

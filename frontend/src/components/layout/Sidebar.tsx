@@ -1,5 +1,7 @@
-import { useEffect } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { aiCashierApi } from '@/api/aiCashier'
+import { Link, useRouterState, useRouter } from '@tanstack/react-router'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -9,6 +11,7 @@ import {
   TrendingUp,
   ShoppingBag,
   DollarSign,
+  Calculator,
   UtensilsCrossed,
   Hotel,
   FileText,
@@ -25,7 +28,9 @@ import {
   Activity,
   ChefHat,
   Receipt,
+  Bot,
 } from 'lucide-react'
+import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
@@ -70,6 +75,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-5 w-5" /> },
   { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-5 w-5" /> },
   { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-5 w-5" /> },
+  { labelKey: 'taxes', to: '/taxes', icon: <Calculator className="h-5 w-5" /> },
   { labelKey: 'reports', to: '/reports', icon: <BarChart2 className="h-5 w-5" /> },
   { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-5 w-5" /> },
@@ -119,8 +125,17 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { pathname } = useRouterState({ select: (s) => s.location })
-  const { user, logout, tenantId } = useAuthStore()
+  const { user, logout, tenantId, branchId } = useAuthStore()
   const { t, lang, setLang } = useI18n()
+  const router = useRouter()
+  const [aiOpen, setAiOpen] = useState(false)
+
+  const { data: aiFeature } = useQuery({
+    queryKey: ['ai-available', branchId],
+    queryFn: () => branchId ? aiCashierApi.isAvailable(branchId) : Promise.resolve({ available: false }),
+    enabled: !!branchId,
+  })
+  const aiAvailable = aiFeature?.available ?? false
 
   // inject the business-type accent identity globally
   useEffect(() => {
@@ -255,6 +270,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         )}
         <div className={cn('flex gap-1', collapsed ? 'flex-col items-center' : 'flex-wrap')}>
+          {aiAvailable && (
+            <button
+              onClick={() => setAiOpen(v => !v)}
+              className="nav-item !px-2 !py-2 text-sm"
+              title={collapsed ? 'AI' : undefined}
+            >
+              <span className="nav-icon"><Bot className="h-4 w-4" /></span>
+              {!collapsed && 'AI'}
+            </button>
+          )}
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
             className="nav-item !px-2 !py-2 text-xs"
@@ -272,7 +297,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {!collapsed && t.nav.settings}
           </Link>
           <button
-            onClick={logout}
+            onClick={() => { logout(); void router.navigate({ to: '/login' }) }}
             className="nav-item !px-2 !py-2 text-sm"
             title={collapsed ? t.nav.logout : undefined}
           >
@@ -281,6 +306,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </button>
         </div>
       </div>
+      <AiChatDrawer open={aiOpen} onClose={() => setAiOpen(false)} />
     </aside>
   )
 }

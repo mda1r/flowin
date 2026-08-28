@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Search, ArrowUpDown, Clock, XCircle, TrendingDown } from 'lucide-react'
+import { AlertTriangle, Search, ArrowUpDown, Clock, XCircle, TrendingDown, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,19 +9,21 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Table } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
 import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
+import { useI18n } from '@/i18n'
 import type { StockAlertItemResponse, StockItemResponse } from '@/types/api'
 
 const adjustSchema = z.object({
-  newQuantity: z.coerce.number().nonnegative('يجب أن تكون الكمية صفراً أو أكثر'),
+  newQuantity: z.coerce.number().nonnegative('Quantity must be 0 or more'),
   expiryDate: z.string().optional(),
   reorderPoint: z.coerce.number().nonnegative().optional(),
+  notifyDaysBeforeExpiry: z.coerce.number().int().positive().default(7),
   reference: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -44,6 +46,7 @@ function AlertCard({
   variantMap: Map<string, { productName: string; variantName: string; sku: string }>
 }) {
   const [expanded, setExpanded] = useState(false)
+  const { t, lang } = useI18n()
 
   if (count === 0) return null
 
@@ -60,7 +63,7 @@ function AlertCard({
             {count}
           </span>
         </div>
-        <span className="text-xs opacity-70">{expanded ? 'إخفاء ▲' : 'عرض ▼'}</span>
+        <span className="text-xs opacity-70">{expanded ? `${t.inventory.hide} ▲` : `${t.inventory.show} ▼`}</span>
       </button>
 
       {expanded && (
@@ -75,8 +78,8 @@ function AlertCard({
                 <div>
                   <p className="font-medium">{info?.productName ?? a.variantId}</p>
                   <p className="text-xs opacity-70">
-                    {info?.sku} · الكمية: {a.quantity}
-                    {a.expiryDate && ` · ${new Date(a.expiryDate).toLocaleDateString('ar-SA')}`}
+                    {info?.sku} · {t.inventory.quantity.replace('{n}', String(a.quantity))}
+                    {a.expiryDate && ` · ${new Date(a.expiryDate).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}`}
                   </p>
                 </div>
                 {a.daysUntilExpiry !== undefined && a.daysUntilExpiry !== null && (
@@ -85,7 +88,7 @@ function AlertCard({
                       ? 'منتهية'
                       : a.daysUntilExpiry === 0
                       ? 'اليوم'
-                      : `${a.daysUntilExpiry} أيام`}
+                      : t.inventory.expiresIn.replace('{days}', String(a.daysUntilExpiry))}
                   </span>
                 )}
               </div>
@@ -100,8 +103,10 @@ function AlertCard({
 export function InventoryPage() {
   const [search, setSearch] = useState('')
   const [adjustItem, setAdjustItem] = useState<StockItemResponse | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<StockItemResponse | null>(null)
   const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t, lang } = useI18n()
 
   const { data: stockData, isLoading } = useQuery({
     queryKey: ['stock', branchId],
@@ -132,6 +137,7 @@ export function InventoryPage() {
         newQuantity: formData.newQuantity,
         expiryDate: formData.expiryDate ? formData.expiryDate + 'T00:00:00Z' : null,
         reorderPoint: formData.reorderPoint !== undefined ? formData.reorderPoint : undefined,
+        notifyDaysBeforeExpiry: formData.notifyDaysBeforeExpiry,
         reference: formData.reference,
         notes: formData.notes,
       }),
@@ -150,9 +156,20 @@ export function InventoryPage() {
       qc.invalidateQueries({ queryKey: ['inventory-alerts', branchId] })
       setAdjustItem(null)
       reset()
-      toast.success('تم تعديل المخزون')
+      toast.success(t.inventory.adjusted)
     },
-    onError: () => toast.error('فشل التعديل'),
+    onError: () => toast.error(t.inventory.failed),
+  })
+
+  const deleteItem = useMutation({
+    mutationFn: () => inventoryApi.deleteItem(branchId!, deleteTarget!.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stock', branchId] })
+      qc.invalidateQueries({ queryKey: ['inventory-alerts', branchId] })
+      setDeleteTarget(null)
+      toast.success(t.inventory.itemDeleted)
+    },
+    onError: () => toast.error(t.inventory.deleteFailed),
   })
 
   // Build a map from variantId → product info
@@ -189,6 +206,7 @@ export function InventoryPage() {
       newQuantity: item.quantity,
       expiryDate: expiryStr,
       reorderPoint: item.reorderPoint ?? 0,
+      notifyDaysBeforeExpiry: item.notifyDaysBeforeExpiry ?? 7,
     })
   }
 
@@ -197,14 +215,14 @@ export function InventoryPage() {
   return (
     <div>
       <PageHeader
-        title="المخزون"
-        description="تتبع وإدارة مستويات المخزون"
+        title={t.inventory.title}
+        description={t.inventory.description}
         action={
           totalAlerts > 0 && (
             <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 dark:bg-red-900/30">
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <span className="text-sm font-medium text-red-700 dark:text-red-400">
-                {totalAlerts} تنبيه في المخزون
+                {totalAlerts} {t.inventory.alerts}
               </span>
             </div>
           )
@@ -214,11 +232,11 @@ export function InventoryPage() {
         {/* Alerts Section */}
         {alerts && totalAlerts > 0 && (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">تنبيهات المخزون</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.inventory.alerts}</h2>
 
             <AlertCard
               icon={<XCircle className="h-4 w-4 text-red-600" />}
-              label="منتجات منتهية الصلاحية"
+              label={t.inventory.expiredLabel}
               count={alerts.expired.length}
               colorClass="border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
               alerts={alerts.expired}
@@ -227,7 +245,7 @@ export function InventoryPage() {
 
             <AlertCard
               icon={<Clock className="h-4 w-4 text-orange-600" />}
-              label="تنتهي خلال 7 أيام"
+              label={t.inventory.expiringSoonLabel}
               count={alerts.expiringSoon.length}
               colorClass="border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-300"
               alerts={alerts.expiringSoon}
@@ -236,7 +254,7 @@ export function InventoryPage() {
 
             <AlertCard
               icon={<TrendingDown className="h-4 w-4 text-yellow-600" />}
-              label="مخزون منخفض"
+              label={t.inventory.lowStockAlert}
               count={alerts.lowStock.length}
               colorClass="border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
               alerts={alerts.lowStock}
@@ -252,7 +270,7 @@ export function InventoryPage() {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="ابحث في المنتجات..."
+                placeholder={t.inventory.searchProducts}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input pl-9"
@@ -263,11 +281,11 @@ export function InventoryPage() {
             loading={isLoading}
             data={filtered}
             keyExtractor={(r) => r.id}
-            emptyMessage="لا توجد عناصر في المخزون"
+            emptyMessage={t.common.noData}
             columns={[
               {
                 key: 'product',
-                header: 'المنتج',
+                header: t.inventory.product,
                 render: (r) => {
                   const info = variantMap.get(r.variantId)
                   return (
@@ -284,21 +302,21 @@ export function InventoryPage() {
               },
               {
                 key: 'quantity',
-                header: 'الكمية',
+                header: t.inventory.quantityHeader,
                 render: (r) => (
                   <span className="tabular-nums font-medium">{r.quantity}</span>
                 ),
               },
               {
                 key: 'reorderPoint',
-                header: 'حد إعادة الطلب',
+                header: t.inventory.reorderPointHeader,
                 render: (r) => (
                   <span className="tabular-nums text-gray-500">{r.reorderPoint}</span>
                 ),
               },
               {
                 key: 'expiryDate',
-                header: 'تاريخ الانتهاء',
+                header: t.inventory.expiryDate,
                 render: (r) => {
                   if (!r.expiryDate) return <span className="text-gray-400">—</span>
                   const d = new Date(r.expiryDate)
@@ -311,18 +329,22 @@ export function InventoryPage() {
                     : 'text-gray-700 dark:text-gray-300'
                   return (
                     <span className={`text-sm tabular-nums ${colorClass}`}>
-                      {d.toLocaleDateString('ar-SA')}
-                      {daysLeft < 0 ? ' (منتهية)' : daysLeft <= 7 ? ` (${daysLeft} أيام)` : ''}
+                      {d.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
+                      {daysLeft < 0
+                        ? ` (${t.inventory.expiredLabel})`
+                        : daysLeft <= 7
+                        ? ` (${t.inventory.expiresIn.replace('{days}', String(daysLeft))})`
+                        : ''}
                     </span>
                   )
                 },
               },
               {
                 key: 'status',
-                header: 'الحالة',
+                header: t.inventory.status,
                 render: (r) => (
                   <Badge variant={r.isLowStock ? 'yellow' : 'green'}>
-                    {r.isLowStock ? 'منخفض' : 'جيد'}
+                    {r.isLowStock ? t.inventory.lowStock : t.inventory.ok}
                   </Badge>
                 ),
               },
@@ -330,14 +352,24 @@ export function InventoryPage() {
                 key: 'actions',
                 header: '',
                 render: (r) => (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => { e.stopPropagation(); openAdjust(r) }}
-                  >
-                    <ArrowUpDown className="h-3.5 w-3.5" />
-                    تعديل
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); openAdjust(r) }}
+                    >
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                      {t.inventory.adjust}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
+                      className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 ),
               },
             ]}
@@ -348,50 +380,81 @@ export function InventoryPage() {
       <Modal
         open={!!adjustItem}
         onClose={() => { setAdjustItem(null); reset() }}
-        title={`تعديل المخزون — ${variantMap.get(adjustItem?.variantId ?? '')?.productName ?? ''}`}
+        title={`${t.inventory.adjustStock} — ${variantMap.get(adjustItem?.variantId ?? '')?.productName ?? ''}`}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setAdjustItem(null)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setAdjustItem(null)}>{t.common.cancel}</Button>
             <Button loading={adjust.isPending} onClick={handleSubmit((d) => adjust.mutate(d))}>
-              تطبيق
+              {t.inventory.apply}
             </Button>
           </>
         }
       >
         <form className="space-y-4">
           <p className="text-sm text-gray-500">
-            الكمية الحالية: <strong className="text-gray-900 dark:text-gray-100">{adjustItem?.quantity}</strong>
+            {t.inventory.current}: <strong className="text-gray-900 dark:text-gray-100">{adjustItem?.quantity}</strong>
           </p>
           <Input
-            label="الكمية الجديدة"
+            label={t.inventory.newQuantity}
             type="number"
             min="0"
             error={errors.newQuantity?.message}
             {...register('newQuantity')}
           />
           <Input
-            label="تاريخ الصلاحية"
+            label={t.inventory.expiryDate}
             type="date"
             {...register('expiryDate')}
           />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              {t.inventory.notifyBefore}
+            </label>
+            <select
+              {...register('notifyDaysBeforeExpiry')}
+              className="input w-full"
+            >
+              {[
+                { value: 2, label: t.inventory.days2 },
+                { value: 3, label: t.inventory.days3 },
+                { value: 7, label: t.inventory.days7 },
+                { value: 14, label: t.inventory.days14 },
+                { value: 30, label: t.inventory.days30 },
+                { value: 60, label: t.inventory.days60 },
+                { value: 90, label: t.inventory.days90 },
+              ].map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
           <Input
-            label="حد إعادة الطلب (تنبيه نقص المخزون)"
+            label={t.inventory.reorderPointHint}
             type="number"
             min="0"
             placeholder="0"
             {...register('reorderPoint')}
           />
           <Input
-            label="المرجع (اختياري)"
-            placeholder="مثال: استلام بضاعة، جرد..."
+            label={t.inventory.reference}
             {...register('reference')}
           />
           <Input
-            label="ملاحظات (اختياري)"
+            label={t.inventory.notes}
             {...register('notes')}
           />
         </form>
       </Modal>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteItem.mutate()}
+        loading={deleteItem.isPending}
+        title={t.inventory.deleteItem}
+        message={`${t.inventory.deleteItemConfirm}${deleteTarget ? ` — ${variantMap.get(deleteTarget.variantId)?.productName ?? ''}` : ''}`}
+        confirmLabel={t.common.delete}
+        confirmVariant="danger"
+      />
     </div>
   )
 }

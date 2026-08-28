@@ -9,4 +9,6 @@ public sealed class OrganizationDbContext(DbContextOptions<OrganizationDbContext
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Brand> Brands => Set<Brand>();
+    public DbSet<TenantBrandMembership> TenantBrandMemberships => Set<TenantBrandMembership>();
 }

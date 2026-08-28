@@ -18,6 +18,7 @@ import { restaurantApi } from '@/api/restaurant'
 import { aiCashierApi } from '@/api/aiCashier'
 import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
 import type { PaymentMethod, CategoryResponse, ProductResponse } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -311,6 +312,7 @@ function CustomerReceiptModal({
 
 export function CafePosPage() {
   const { branchId, tenantId } = useAuthStore()
+  const { t } = useI18n()
   const { shift } = useShift()
 
   // Order type & table
@@ -578,11 +580,11 @@ export function CafePosPage() {
       setSplitCash('')
       setSplitCard('')
       setPayMode('Cash')
-      toast.success('تم إتمام الطلب')
+      toast.success(t.pos.orderProcessed)
     },
     onError: (e: Error) => {
       if (e.message === 'empty') toast.error('السلة فارغة')
-      else toast.error('فشل إتمام الطلب')
+      else toast.error(t.pos.paymentFailed)
     },
   })
 
@@ -650,7 +652,7 @@ export function CafePosPage() {
       setAiCashierActive(false)
       toast.success('تم إتمام الطلب عبر كاشير AI')
     },
-    onError: () => toast.error('فشل إتمام الطلب'),
+    onError: () => toast.error(t.pos.paymentFailed),
   })
 
   const handleAiCompleteOrder = useCallback((paymentMethod: 'Cash' | 'Card') => {
@@ -666,7 +668,7 @@ export function CafePosPage() {
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-5 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center gap-3">
           <Coffee className="h-5 w-5 text-indigo-400" />
-          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">نقطة البيع — كافيه</h1>
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">{t.pos.title}</h1>
         </div>
         <div className="flex items-center gap-2">
           {aiCashierAvailable && (
@@ -713,7 +715,7 @@ export function CafePosPage() {
                       : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
                   )}
                 >
-                  هنا
+                  {t.pos.dineIn}
                 </button>
                 <button
                   onClick={() => { setOrderType('takeaway'); setTableNumber(null) }}
@@ -725,7 +727,7 @@ export function CafePosPage() {
                   )}
                 >
                   <ShoppingBag className="h-3.5 w-3.5" />
-                  تيك أواي
+                  {t.pos.takeaway}
                 </button>
               </div>
 
@@ -739,7 +741,7 @@ export function CafePosPage() {
                       : 'border-dashed border-indigo-300 bg-indigo-50/50 text-indigo-500 hover:border-indigo-400',
                   )}
                 >
-                  {tableNumber ? `طاولة ${tableNumber} ✏️` : '+ اختر طاولة'}
+                  {tableNumber ? `${t.pos.tableNumber} ${tableNumber} ✏️` : '+ اختر طاولة'}
                 </button>
               )}
             </div>
@@ -750,9 +752,9 @@ export function CafePosPage() {
               style={{ background: 'linear-gradient(to left, color-mix(in srgb, var(--accent) 8%, transparent), transparent)' }}
             >
               <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                الطلب
-                {orderType === 'takeaway' && <span className="mr-1 text-blue-500">— تيك أواي</span>}
-                {orderType === 'here' && tableNumber && <span className="mr-1 text-indigo-500">— طاولة {tableNumber}</span>}
+                {t.pos.currentOrder}
+                {orderType === 'takeaway' && <span className="mr-1 text-blue-500">— {t.pos.takeaway}</span>}
+                {orderType === 'here' && tableNumber && <span className="mr-1 text-indigo-500">— {t.pos.tableNumber} {tableNumber}</span>}
               </p>
             </div>
 
@@ -761,7 +763,7 @@ export function CafePosPage() {
               {cart.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-14 text-gray-300">
                   <Coffee className="h-8 w-8" />
-                  <p className="text-sm">أضف منتجات للطلب</p>
+                  <p className="text-sm">{t.pos.addProducts}</p>
                 </div>
               ) : (
                 cart.map((item) => (
@@ -837,15 +839,15 @@ export function CafePosPage() {
               <div className="border-t border-gray-200 p-4 space-y-3 dark:border-gray-800">
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-gray-500">
-                    <span>المجموع</span>
+                    <span>{t.pos.subtotal}</span>
                     <span className="tabular-nums">{formatCurrency(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-gray-500">
-                    <span>ضريبة 15%</span>
+                    <span>{t.pos.tax}</span>
                     <span className="tabular-nums">{formatCurrency(tax)}</span>
                   </div>
                   <div className="flex justify-between text-base font-bold text-gray-900 dark:text-gray-100">
-                    <span>الإجمالي</span>
+                    <span>{t.pos.total}</span>
                     <span className="tabular-nums">{formatCurrency(grandTotal)}</span>
                   </div>
                 </div>
@@ -866,7 +868,7 @@ export function CafePosPage() {
                       {m === 'Cash' && <Banknote className="h-3 w-3" />}
                       {m === 'Card' && <CreditCard className="h-3 w-3" />}
                       {m === 'Split' && <span className="text-[10px] font-bold">½</span>}
-                      {m === 'Cash' ? 'نقداً' : m === 'Card' ? 'بطاقة' : 'تقسيم'}
+                      {m === 'Cash' ? t.pos.cash : m === 'Card' ? t.pos.card : t.pos.split}
                     </button>
                   ))}
                 </div>
@@ -875,11 +877,11 @@ export function CafePosPage() {
                 {payMode === 'Split' && (
                   <div className="space-y-2 rounded-xl border border-dashed border-[var(--accent)]/40 bg-[var(--accent)]/5 p-3">
                     <p className="text-center text-xs font-semibold text-gray-500">
-                      الإجمالي: {(grandTotal).toFixed(2)} ر.س
+                      {t.pos.total}: {(grandTotal).toFixed(2)} ر.س
                     </p>
                     <div className="flex gap-2">
                       <div className="flex-1">
-                        <label className="mb-1 block text-[10px] font-medium text-gray-500">نقداً</label>
+                        <label className="mb-1 block text-[10px] font-medium text-gray-500">{t.pos.splitCash}</label>
                         <input
                           type="number"
                           min="0"
@@ -896,7 +898,7 @@ export function CafePosPage() {
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="mb-1 block text-[10px] font-medium text-gray-500">بطاقة</label>
+                        <label className="mb-1 block text-[10px] font-medium text-gray-500">{t.pos.splitCard}</label>
                         <input
                           type="number"
                           min="0"
@@ -927,7 +929,7 @@ export function CafePosPage() {
                   className="w-full rounded-xl py-3 text-sm font-bold text-white transition-all disabled:opacity-50"
                   style={{ background: 'var(--accent)' }}
                 >
-                  {checkout.isPending ? 'جاري...' : 'إتمام الطلب'}
+                  {checkout.isPending ? t.common.loading : t.pos.checkout}
                 </button>
               </div>
             )}

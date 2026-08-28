@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { saveUserPermissions, getUserPermissions } from '@/lib/userPermissions'
 import { logActivity } from '@/lib/activityLog'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
+import { useI18n } from '@/i18n'
 
 const ROLE_LABELS: Record<string, string> = {
   Owner: 'مالك',
@@ -64,11 +65,19 @@ const createSchema = z.object({
 type CreateForm = z.infer<typeof createSchema>
 
 function RoleBadge({ roles }: { roles: string[] }) {
+  const { t } = useI18n()
+  const roleLabels: Record<string, string> = {
+    Owner:      t.users.roles.owner,
+    Manager:    t.users.roles.admin,
+    Cashier:    t.users.roles.cashier,
+    Staff:      t.users.roles.viewer,
+    Accountant: t.users.accountant,
+  }
   const top = ['Owner', 'Manager', 'Cashier', 'Accountant', 'Staff'].find((r) => roles.includes(r)) ?? roles[0]
   if (!top) return null
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_COLORS[top] ?? 'bg-gray-100 text-gray-600'}`}>
-      {ROLE_LABELS[top] ?? top}
+      {roleLabels[top] ?? top}
     </span>
   )
 }
@@ -77,6 +86,7 @@ function RoleBadge({ roles }: { roles: string[] }) {
 
 function PermissionChip({ user: u, onClick }: { user: UserSummaryResponse; onClick: () => void }) {
   const { tenantId } = useAuthStore()
+  const { t } = useI18n()
   const perms = getUserPermissions(tenantId ?? '', u.id)
   const hasCustom = perms !== null
   return (
@@ -86,7 +96,7 @@ function PermissionChip({ user: u, onClick }: { user: UserSummaryResponse; onCli
       className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-300 transition-colors"
     >
       <ShieldCheck className={`h-3.5 w-3.5 ${hasCustom ? 'text-emerald-500' : 'text-gray-300'}`} />
-      {hasCustom ? `${perms!.length} صفحة` : 'كل الصفحات'}
+      {hasCustom ? t.users.xPages.replace('{n}', String(perms!.length)) : t.users.allPages}
     </button>
   )
 }
@@ -101,6 +111,7 @@ function PagePermModal({
   onClose: () => void
 }) {
   const { user: currentUser, tenantId } = useAuthStore()
+  const { t } = useI18n()
 
   // Filter available pages to only those relevant to this business type
   const allowedRoutes = currentUser?.businessType
@@ -137,7 +148,7 @@ function PagePermModal({
       action: 'تعديل صلاحيات الصفحات',
       details: `${target.fullName} — ${routes.length} صفحة`,
     })
-    toast.success('تم حفظ الصلاحيات')
+    toast.success(t.settings.saved)
     onClose()
   }
 
@@ -145,18 +156,18 @@ function PagePermModal({
     <Modal
       open
       onClose={onClose}
-      title={`صلاحيات ${target.fullName}`}
+      title={`${t.users.permissionsFor} ${target.fullName}`}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>إلغاء</Button>
-          <Button onClick={handleSave}>حفظ</Button>
+          <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
+          <Button onClick={handleSave}>{t.common.save}</Button>
         </>
       }
     >
       <div dir="rtl" className="space-y-3">
-        <p className="text-xs text-gray-500">اختر الصفحات التي يستطيع هذا المستخدم الوصول إليها.</p>
+        <p className="text-xs text-gray-500">{t.users.selectPages}</p>
         <div className="flex gap-2 text-xs">
-          <button onClick={selectAll} className="text-[var(--accent)] hover:underline">تحديد الكل</button>
+          <button onClick={selectAll} className="text-[var(--accent)] hover:underline">{t.users.selectAll}</button>
           <span className="text-gray-200">·</span>
           <button onClick={clearAll} className="text-gray-400 hover:underline">إلغاء الكل</button>
         </div>
@@ -185,6 +196,14 @@ function PagePermModal({
 
 export function UsersPage() {
   const { user: currentUser, tenantId } = useAuthStore()
+  const { t, lang } = useI18n()
+  const roleLabels: Record<string, string> = {
+    Owner:      t.users.roles.owner,
+    Manager:    t.users.roles.admin,
+    Cashier:    t.users.roles.cashier,
+    Staff:      t.users.roles.viewer,
+    Accountant: t.users.accountant,
+  }
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<UserSummaryResponse | null>(null)
@@ -216,13 +235,13 @@ export function UsersPage() {
         action: 'إضافة مستخدم',
         details: `${res.data.fullName} — ${ROLE_LABELS[res.data.roles[0]] ?? res.data.roles[0]}`,
       })
-      toast.success('تم إنشاء المستخدم', '')
+      toast.success(t.users.created, '')
       setShowCreate(false)
       reset()
       setNewlyCreated(res.data)
     },
     onError: (err: { response?: { data?: { detail?: string } } }) => {
-      toast.error('فشل إنشاء المستخدم', err?.response?.data?.detail ?? '')
+      toast.error(t.users.failed, err?.response?.data?.detail ?? '')
     },
   })
 
@@ -238,11 +257,11 @@ export function UsersPage() {
         action: 'حذف مستخدم',
         details: `${deleted.fullName} — ${deleted.email}`,
       })
-      toast.success('تم حذف المستخدم', '')
+      toast.success(t.users.updated, '')
       setDeleteTarget(null)
     },
     onError: (err: { response?: { data?: { detail?: string } } }) => {
-      toast.error('فشل الحذف', err?.response?.data?.detail ?? '')
+      toast.error(t.users.failed, err?.response?.data?.detail ?? '')
       setDeleteTarget(null)
     },
   })
@@ -262,9 +281,9 @@ export function UsersPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Users className="h-6 w-6" style={{ color: 'var(--accent)' }} />
-            المستخدمون
+            {t.users.title}
           </h1>
-          <p className="mt-1 text-gray-500">{users.length} مستخدم</p>
+          <p className="mt-1 text-gray-500">{t.users.xUsers.replace('{n}', String(users.length))}</p>
         </div>
         {canManage && (
           <button
@@ -272,7 +291,7 @@ export function UsersPage() {
             className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
           >
             <UserPlus className="h-4 w-4" />
-            إضافة مستخدم
+            {t.users.addUser}
           </button>
         )}
       </div>
@@ -282,7 +301,7 @@ export function UsersPage() {
         <table className="w-full text-sm">
           <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
             <tr>
-              {['الاسم', 'البريد الإلكتروني', 'الدور', 'الصفحات', 'آخر دخول', canManage ? 'حذف' : ''].filter(Boolean).map((h) => (
+              {[t.users.name, t.users.email, t.users.role, t.users.pages, t.users.lastLogin, canManage ? t.common.delete : ''].filter(Boolean).map((h) => (
                 <th key={h} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
                   {h}
                 </th>
@@ -312,7 +331,7 @@ export function UsersPage() {
                         </div>
                         <span className="font-medium text-gray-900 dark:text-gray-100">{u.fullName}</span>
                         {u.id === currentUser?.id && (
-                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700">أنت</span>
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700">{t.users.you}</span>
                         )}
                       </div>
                     </td>
@@ -327,8 +346,8 @@ export function UsersPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-400 text-xs">
                       {u.lastLoginAt
-                        ? new Date(u.lastLoginAt).toLocaleDateString('ar-SA')
-                        : 'لم يسجل دخول'}
+                        ? new Date(u.lastLoginAt).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')
+                        : t.users.never}
                     </td>
                     {canManage && (
                       <td className="px-4 py-3">
@@ -336,7 +355,7 @@ export function UsersPage() {
                           <button
                             onClick={() => setDeleteTarget(u)}
                             className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors dark:hover:bg-red-900/20"
-                            title="حذف"
+                            title={t.common.delete}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -348,7 +367,7 @@ export function UsersPage() {
           </tbody>
         </table>
         {!isLoading && users.length === 0 && (
-          <div className="py-16 text-center text-gray-400">لا يوجد مستخدمون</div>
+          <div className="py-16 text-center text-gray-400">{t.users.noUsers}</div>
         )}
       </div>
 
@@ -357,29 +376,29 @@ export function UsersPage() {
         <Modal
           open
           onClose={() => { setShowCreate(false); reset() }}
-          title="إضافة مستخدم جديد"
+          title={t.users.newUser}
           footer={
             <>
-              <Button variant="secondary" onClick={() => { setShowCreate(false); reset() }}>إلغاء</Button>
+              <Button variant="secondary" onClick={() => { setShowCreate(false); reset() }}>{t.common.cancel}</Button>
               <Button loading={createMut.isPending} onClick={handleSubmit((d) => createMut.mutate(d))}>
-                إنشاء
+                {t.common.save}
               </Button>
             </>
           }
         >
           <form className="space-y-4" dir="rtl">
             <div className="grid grid-cols-2 gap-4">
-              <Input label="الاسم الأول" error={errors.firstName?.message} {...register('firstName')} />
-              <Input label="اسم العائلة" error={errors.lastName?.message} {...register('lastName')} />
+              <Input label={t.settings.firstName} error={errors.firstName?.message} {...register('firstName')} />
+              <Input label={t.settings.lastName} error={errors.lastName?.message} {...register('lastName')} />
             </div>
-            <Input label="البريد الإلكتروني" type="email" error={errors.email?.message} {...register('email')} />
-            <Input label="كلمة المرور" type="password" error={errors.password?.message} {...register('password')} />
-            <Select label="الدور" error={errors.role?.message} {...register('role')}>
-              {Object.entries(ROLE_LABELS).map(([val, label]) => (
+            <Input label={t.users.email} type="email" error={errors.email?.message} {...register('email')} />
+            <Input label={t.users.password} type="password" error={errors.password?.message} {...register('password')} />
+            <Select label={t.users.role} error={errors.role?.message} {...register('role')}>
+              {Object.entries(roleLabels).map(([val, label]) => (
                 <option key={val} value={val}>{label}</option>
               ))}
             </Select>
-            <p className="text-xs text-gray-400">بعد الإنشاء ستتمكن من تحديد الصفحات المسموح بها لهذا المستخدم.</p>
+            <p className="text-xs text-gray-400">{t.users.afterCreation}</p>
           </form>
         </Modal>
       )}
@@ -389,22 +408,22 @@ export function UsersPage() {
         <Modal
           open
           onClose={() => setDeleteTarget(null)}
-          title="تأكيد الحذف"
+          title={t.users.confirmDelete}
           footer={
             <>
-              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>إلغاء</Button>
+              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t.common.cancel}</Button>
               <Button
                 loading={deleteMut.isPending}
                 className="bg-rose-600 hover:bg-rose-500"
                 onClick={() => deleteMut.mutate(deleteTarget)}
               >
-                حذف
+                {t.common.delete}
               </Button>
             </>
           }
         >
           <p className="text-gray-600 text-sm text-right" dir="rtl">
-            هل أنت متأكد من حذف المستخدم <span className="font-semibold text-gray-900">{deleteTarget.fullName}</span>؟
+            {t.users.confirmDeleteMessage} <span className="font-semibold text-gray-900">{deleteTarget.fullName}</span>؟
             <br />
             <span className="text-gray-400">{deleteTarget.email}</span>
           </p>

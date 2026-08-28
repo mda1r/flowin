@@ -4,6 +4,7 @@ import type {
   TenantDetailResponse,
   TenantSubscriptionResponse,
   SubscriptionPlanResponse,
+  BranchResponse,
   CreateSubscriptionRequest,
   CreateSubscriptionPlanRequest,
   CreateTenantRequest,
@@ -34,6 +35,12 @@ export const superAdminApi = {
 
   deleteTenant: (tenantId: string) =>
     apiClient.delete(`/api/v1/superadmin/tenants/${tenantId}`),
+
+  getTenantBranches: (tenantId: string) =>
+    apiClient.get<BranchResponse[]>(`/api/v1/superadmin/tenants/${tenantId}/branches`),
+
+  setTenantAiAccess: (tenantId: string, enabled: boolean) =>
+    apiClient.put(`/api/v1/superadmin/tenants/${tenantId}/ai`, { enabled }),
 
   // Plans
   listPlans: () =>

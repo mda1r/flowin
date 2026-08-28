@@ -15,6 +15,7 @@ import type {
   GameSessionBillResponse,
   StationType,
 } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 // ── Audio & Notifications ────────────────────────────────────────────────────
 
@@ -60,27 +61,7 @@ const TYPE_ICON: Record<StationType, string> = {
   Board: '♟️',
 }
 
-const TYPE_LABEL: Record<StationType, string> = {
-  Console: 'كونسول',
-  PC: 'كمبيوتر',
-  VR: 'واقع افتراضي',
-  Arcade: 'أركيد',
-  Board: 'ألعاب لوحية',
-}
-
 const STATION_TYPES: StationType[] = ['Console', 'PC', 'VR', 'Arcade', 'Board']
-
-const DURATION_PRESETS = [
-  { label: '30 دق', value: 30 },
-  { label: '1 ساعة', value: 60 },
-  { label: '2 ساعة', value: 120 },
-]
-
-const EXTEND_PRESETS = [
-  { label: '15 دق', value: 15 },
-  { label: '30 دق', value: 30 },
-  { label: '1 ساعة', value: 60 },
-]
 
 // ── Start Session State ──────────────────────────────────────────────────────
 
@@ -95,6 +76,28 @@ interface StartForm {
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export function GamingPage() {
+  const { t, lang } = useI18n()
+
+  const TYPE_LABEL: Record<StationType, string> = {
+    Console: t.gaming.types.ps5,
+    PC: t.gaming.types.pc,
+    VR: t.gaming.types.vr,
+    Arcade: t.gaming.types.other,
+    Board: t.gaming.types.billiards,
+  }
+
+  const DURATION_PRESETS = [
+    { label: `30 ${t.gaming.minutes}`, value: 30 },
+    { label: `1 ${t.gaming.hours}`, value: 60 },
+    { label: `2 ${t.gaming.hours}`, value: 120 },
+  ]
+
+  const EXTEND_PRESETS = [
+    { label: `15 ${t.gaming.minutes}`, value: 15 },
+    { label: `30 ${t.gaming.minutes}`, value: 30 },
+    { label: `1 ${t.gaming.hours}`, value: 60 },
+  ]
+
   const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
 
@@ -165,9 +168,9 @@ export function GamingPage() {
       invalidate()
       setCreateModal(false)
       setNewStation({ name: '', stationType: 'Console', hourlyRate: '', currency: 'SAR' })
-      toast.success('تم إنشاء المحطة بنجاح')
+      toast.success(t.gaming.created)
     },
-    onError: () => toast.error('فشل إنشاء المحطة'),
+    onError: () => toast.error(t.gaming.failed),
   })
 
   const startMut = useMutation({
@@ -300,12 +303,12 @@ export function GamingPage() {
   return (
     <div dir="rtl">
       <PageHeader
-        title="مركز الألعاب"
+        title={t.gaming.title}
         description="إدارة محطات الألعاب والجلسات"
         action={
           <Button onClick={() => setCreateModal(true)}>
             <Plus className="h-4 w-4" />
-            إضافة محطة
+            {t.gaming.newStation}
           </Button>
         }
       />
@@ -314,22 +317,22 @@ export function GamingPage() {
         {/* ── Summary Bar ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
-            label="محطات شغّالة"
+            label={t.gaming.activeStations}
             value={`${playingStations.length} / ${stations.length}`}
             color="blue"
           />
           <StatCard
-            label="محطات متاحة"
+            label={t.gaming.idle}
             value={String(availableCount)}
             color="green"
           />
           <StatCard
-            label="إيرادات تقديرية"
+            label={t.gaming.todayRevenue}
             value={formatCurrency(estimatedRevenue, currency)}
             color="purple"
           />
           <StatCard
-            label="إجمالي المحطات"
+            label={t.gaming.totalSessions}
             value={String(stations.length)}
             color="gray"
           />
@@ -348,8 +351,8 @@ export function GamingPage() {
         ) : stations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
             <Monitor className="h-12 w-12" />
-            <p className="text-lg">لا توجد محطات بعد</p>
-            <Button onClick={() => setCreateModal(true)}>إضافة محطة</Button>
+            <p className="text-lg">{t.gaming.noStations}</p>
+            <Button onClick={() => setCreateModal(true)}>{t.gaming.newStation}</Button>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -373,12 +376,12 @@ export function GamingPage() {
       <Modal
         open={createModal}
         onClose={() => setCreateModal(false)}
-        title="إضافة محطة جديدة"
+        title={t.gaming.newStation}
         size="md"
         footer={
           <>
             <Button variant="secondary" onClick={() => setCreateModal(false)}>
-              إلغاء
+              {t.common.cancel}
             </Button>
             <Button
               loading={createMut.isPending}
@@ -392,13 +395,13 @@ export function GamingPage() {
       >
         <div className="space-y-4">
           <Input
-            label="اسم المحطة"
+            label={t.gaming.stationName}
             placeholder="مثال: PS5 - 1"
             value={newStation.name}
             onChange={(e) => setNewStation((p) => ({ ...p, name: e.target.value }))}
           />
           <Select
-            label="نوع المحطة"
+            label={t.gaming.stationType}
             value={newStation.stationType}
             onChange={(e) =>
               setNewStation((p) => ({ ...p, stationType: e.target.value as StationType }))
@@ -412,7 +415,7 @@ export function GamingPage() {
           </Select>
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="السعر / ساعة"
+              label={t.gaming.perHour}
               type="number"
               min="0"
               step="0.5"
@@ -436,19 +439,19 @@ export function GamingPage() {
       <Modal
         open={!!startModal}
         onClose={() => setStartModal(null)}
-        title="بدء جلسة جديدة"
+        title={t.gaming.startSession}
         size="md"
         footer={
           <>
             <Button variant="secondary" onClick={() => setStartModal(null)}>
-              إلغاء
+              {t.common.cancel}
             </Button>
             <Button
               loading={startMut.isPending}
               disabled={!startForm.playerName}
               onClick={() => startMut.mutate()}
             >
-              بدء الجلسة
+              {t.gaming.startSession}
             </Button>
           </>
         }
@@ -469,7 +472,7 @@ export function GamingPage() {
             {/* Player name */}
             <Input
               label="اسم اللاعب"
-              placeholder="أدخل اسم اللاعب"
+              placeholder={t.gaming.stationName}
               value={startForm.playerName}
               onChange={(e) =>
                 setStartForm((p) => ({ ...p, playerName: e.target.value }))
@@ -479,7 +482,7 @@ export function GamingPage() {
             {/* Duration */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                المدة
+                {t.gaming.duration}
               </label>
               <div className="flex gap-2 flex-wrap">
                 {DURATION_PRESETS.map((preset) => (
@@ -537,7 +540,7 @@ export function GamingPage() {
             {/* Rate & estimated total */}
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="السعر / ساعة"
+                label={t.gaming.perHour}
                 type="number"
                 min="0"
                 step="0.5"
@@ -572,15 +575,15 @@ export function GamingPage() {
       <Modal
         open={!!extendModal}
         onClose={() => setExtendModal(null)}
-        title="تمديد الوقت"
+        title={t.gaming.extendSession}
         size="sm"
         footer={
           <>
             <Button variant="secondary" onClick={() => setExtendModal(null)}>
-              إلغاء
+              {t.common.cancel}
             </Button>
             <Button loading={extendMut.isPending} onClick={() => extendMut.mutate()}>
-              تمديد
+              {t.gaming.extendSession}
             </Button>
           </>
         }
@@ -592,7 +595,7 @@ export function GamingPage() {
             </p>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                الوقت الإضافي
+                {t.gaming.duration}
               </label>
               <div className="flex gap-2 flex-wrap">
                 {EXTEND_PRESETS.map((preset) => (
@@ -645,15 +648,15 @@ export function GamingPage() {
       <Modal
         open={!!billModal}
         onClose={() => setBillModal(null)}
-        title="الفاتورة"
+        title={t.gaming.bill}
         size="md"
         footer={
           <>
             <Button variant="secondary" onClick={() => setBillModal(null)}>
-              إغلاق
+              {t.common.cancel}
             </Button>
             <Button onClick={printReceipt}>
-              🖨️ طباعة الإيصال
+              🖨️ {t.gaming.printBill}
             </Button>
           </>
         }
@@ -672,19 +675,19 @@ export function GamingPage() {
             <div className="space-y-2 text-sm">
               {[
                 {
-                  label: 'بداية الجلسة',
-                  value: new Date(billModal.startTime).toLocaleString('ar-SA'),
+                  label: t.gaming.startSession,
+                  value: new Date(billModal.startTime).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US'),
                 },
                 {
-                  label: 'نهاية الجلسة',
-                  value: new Date(billModal.endTime).toLocaleString('ar-SA'),
+                  label: t.gaming.endSession,
+                  value: new Date(billModal.endTime).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US'),
                 },
                 {
-                  label: 'المدة الفعلية',
-                  value: `${Math.round(billModal.actualDurationMinutes)} دقيقة`,
+                  label: t.gaming.duration,
+                  value: `${Math.round(billModal.actualDurationMinutes)} ${t.gaming.minutes}`,
                 },
                 {
-                  label: 'السعر / ساعة',
+                  label: t.gaming.perHour,
                   value: formatCurrency(billModal.ratePerHour, billModal.currency),
                 },
               ].map(({ label, value }) => (
@@ -794,6 +797,16 @@ function StationCard({
   endLoading: boolean
   maintenanceLoading: boolean
 }) {
+  const { t } = useI18n()
+
+  const TYPE_LABEL: Record<StationType, string> = {
+    Console: t.gaming.types.ps5,
+    PC: t.gaming.types.pc,
+    VR: t.gaming.types.vr,
+    Arcade: t.gaming.types.other,
+    Board: t.gaming.types.billiards,
+  }
+
   const [timeLeftSec, setTimeLeftSec] = useState(0)
   const [isWarning, setIsWarning] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
@@ -869,13 +882,13 @@ function StationCard({
   // Status badge
   const statusBadge =
     station.status === 'Available' ? (
-      <Badge variant="green">متاح</Badge>
+      <Badge variant="green">{t.gaming.idle}</Badge>
     ) : station.status === 'InUse' ? (
       <Badge variant={isWarning || isExpired ? 'red' : 'blue'}>
-        {isExpired ? 'انتهى!' : 'يلعب'}
+        {isExpired ? t.gaming.endSession : t.gaming.active}
       </Badge>
     ) : (
-      <Badge variant="gray">صيانة</Badge>
+      <Badge variant="gray">{t.gaming.types.other}</Badge>
     )
 
   return (
@@ -894,7 +907,7 @@ function StationCard({
 
       {/* Rate */}
       <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-3">
-        {formatCurrency(station.hourlyRate, station.currency)} / ساعة
+        {formatCurrency(station.hourlyRate, station.currency)} / {t.gaming.perHour}
       </p>
 
       {/* ── InUse: player + timer ───────────────────────────────────────── */}
@@ -908,7 +921,7 @@ function StationCard({
           {isExpired ? (
             <div className="text-center py-1">
               <p className="text-red-600 dark:text-red-400 font-bold text-base">
-                انتهى الوقت!
+                {t.gaming.endSession}!
               </p>
             </div>
           ) : (
@@ -963,7 +976,7 @@ function StationCard({
             className="w-full justify-center"
             onClick={onStart}
           >
-            ▶ بدء جلسة
+            ▶ {t.gaming.startSession}
           </Button>
         )}
 
@@ -975,18 +988,18 @@ function StationCard({
               className="flex-1 justify-center text-xs"
               onClick={onExtend}
             >
-              + تمديد
+              + {t.gaming.extendSession}
             </Button>
             <Button
               variant="danger"
               size="sm"
               className="flex-1 justify-center text-xs"
               onClick={() => {
-                if (window.confirm(`إنهاء جلسة ${station.name}؟`)) onEnd()
+                if (window.confirm(t.gaming.confirmEnd)) onEnd()
               }}
               loading={endLoading}
             >
-              إنهاء
+              {t.gaming.endSession}
             </Button>
           </div>
         )}
@@ -1000,7 +1013,7 @@ function StationCard({
             loading={maintenanceLoading}
           >
             <Wrench className="h-3 w-3" />
-            صيانة
+            {t.gaming.types.other}
           </Button>
         )}
       </div>

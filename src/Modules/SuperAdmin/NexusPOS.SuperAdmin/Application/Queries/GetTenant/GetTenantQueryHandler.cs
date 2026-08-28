@@ -39,6 +39,12 @@ internal sealed class GetTenantQueryHandler(
         Domain.Entities.TenantSubscription? activeSub = subscriptions.FirstOrDefault(s =>
             s.Status is SubscriptionStatus.Active or SubscriptionStatus.Trial);
 
+        bool aiEnabled = await superAdminDb.TenantAiAccesses
+            .AsNoTracking()
+            .Where(a => a.TenantId == request.TenantId)
+            .Select(a => a.AiEnabled)
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new TenantDetailResponse(
             tenant.Id.Value,
             tenant.Name,
@@ -51,7 +57,8 @@ internal sealed class GetTenantQueryHandler(
             tenant.SuspendedAt,
             activeSub is not null ? MapSubscription(activeSub) : null,
             history,
-            tenant.BusinessType.ToString());
+            tenant.BusinessType.ToString(),
+            aiEnabled);
     }
 
     private static TenantSubscriptionResponse MapSubscription(Domain.Entities.TenantSubscription sub)

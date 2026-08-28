@@ -6,10 +6,12 @@ import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, cn } from '@/lib/utils'
 import { generateZatcaQr } from '@/lib/zatca'
+import { useI18n } from '@/i18n'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 
 export function InvoicesPage() {
   const { branchId } = useAuthStore()
+  const { t, lang } = useI18n()
   const [search, setSearch] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null)
 
@@ -47,12 +49,12 @@ export function InvoicesPage() {
   return (
     <div className="p-6" dir="rtl">
       <div className="mb-5 flex items-center justify-between gap-4">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">الفواتير</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t.invoices.title}</h1>
         <div className="relative w-64">
           <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="بحث في الفواتير..."
+            placeholder={t.invoices.search}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-4 pr-9 text-sm outline-none focus:border-[color:var(--accent)] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
@@ -67,7 +69,7 @@ export function InvoicesPage() {
       ) : orders.length === 0 ? (
         <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
           <Receipt className="h-12 w-12 text-gray-300" />
-          <p className="text-gray-500">لا توجد فواتير</p>
+          <p className="text-gray-500">{t.invoices.noInvoices}</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
@@ -75,11 +77,11 @@ export function InvoicesPage() {
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-800">
                 <th className="px-4 py-3 text-right font-semibold text-gray-500">#</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-500">التاريخ</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-500">المنتجات</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-500">الدفع</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-500">الإجمالي</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-500">الحالة</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-500">{t.invoices.columns.date}</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-500">{t.invoices.columns.items}</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-500">{t.invoices.columns.method}</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-500">{t.invoices.columns.amount}</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-500">{t.invoices.columns.status}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -98,7 +100,7 @@ export function InvoicesPage() {
                       #{order.id.slice(-6).toUpperCase()}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {new Date(order.completedAt ?? order.createdAt).toLocaleString('ar-SA', {
+                      {new Date(order.completedAt ?? order.createdAt).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', {
                         year: 'numeric', month: 'short', day: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })}
@@ -115,7 +117,7 @@ export function InvoicesPage() {
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
                       )}>
-                        {order.paymentMethod === 'Cash' ? 'نقد' : 'بطاقة'}
+                        {order.paymentMethod === 'Cash' ? t.invoices.payment.cash : t.invoices.payment.card}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-bold tabular-nums text-gray-900 dark:text-gray-100">
@@ -125,11 +127,11 @@ export function InvoicesPage() {
                       {isReturn ? (
                         <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
                           <RotateCcw className="h-3 w-3" />
-                          رجيع
+                          {t.invoices.refunded}
                         </span>
                       ) : (
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800">
-                          مكتملة
+                          {t.invoices.completed}
                         </span>
                       )}
                     </td>
@@ -137,10 +139,10 @@ export function InvoicesPage() {
                       <button
                         onClick={() => setSelectedOrder(order)}
                         className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                        title="طباعة / عرض"
+                        title={t.invoices.printReceipt}
                       >
                         <Printer className="h-3.5 w-3.5" />
-                        طباعة
+                        {t.common.print}
                       </button>
                     </td>
                   </tr>
@@ -172,6 +174,7 @@ function ReceiptModal({
   isReturn: boolean
   onClose: () => void
 }) {
+  const { t, lang } = useI18n()
   const { data: zatcaSettings } = useQuery({
     queryKey: ['zatca-settings'],
     queryFn: () => zatcaApi.getSettings(),
@@ -207,17 +210,17 @@ function ReceiptModal({
           {isReturn && (
             <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-sm font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
               <RotateCcw className="h-3.5 w-3.5" />
-              فاتورة رجيع
+              {t.invoices.refunded}
             </div>
           )}
           {sellerName && (
             <p className="text-base font-bold text-gray-900 dark:text-gray-100">{sellerName}</p>
           )}
           {vatNumber && (
-            <p className="text-xs text-gray-500">الرقم الضريبي: {vatNumber}</p>
+            <p className="text-xs text-gray-500">{t.zatca.vatNumber}: {vatNumber}</p>
           )}
           <p className="mt-1 text-xs text-gray-400">
-            {new Date(order.completedAt ?? order.createdAt).toLocaleString('ar-SA', {
+            {new Date(order.completedAt ?? order.createdAt).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', {
               year: 'numeric', month: 'short', day: 'numeric',
               hour: '2-digit', minute: '2-digit',
             })}
@@ -256,7 +259,7 @@ function ReceiptModal({
 
         {/* Payment */}
         <div className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500 dark:bg-gray-800">
-          {order.paymentMethod === 'Cash' ? 'نقداً' : 'بطاقة'}
+          {order.paymentMethod === 'Cash' ? t.invoices.payment.cash : t.invoices.payment.card}
           {order.amountTendered && order.amountTendered > order.totalAmount && (
             <span> · الباقي {formatCurrency(order.amountTendered - order.totalAmount)}</span>
           )}
@@ -272,7 +275,7 @@ function ReceiptModal({
             height={100}
             className="rounded-lg"
           />
-          <p className="text-[10px] text-gray-400">رمز ZATCA للتحقق</p>
+          <p className="text-[10px] text-gray-400">{t.invoices.qrVerification}</p>
         </div>
 
         <button
@@ -281,7 +284,7 @@ function ReceiptModal({
           style={{ background: 'var(--accent)' }}
         >
           <Printer className="h-4 w-4" />
-          طباعة
+          {t.common.print}
         </button>
       </div>
     </div>

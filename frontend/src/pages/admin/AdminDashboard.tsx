@@ -10,15 +10,7 @@ import {
 } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import type { TenantWithSubscriptionResponse, BusinessType } from '@/types/api'
-
-const BIZ_LABEL: Record<BusinessType, string> = {
-  Retail:      'تجزئة',
-  Supermarket: 'سوبرماركت',
-  Restaurant:  'مطعم',
-  Hotel:       'فندق',
-  Gaming:      'ألعاب',
-  Cafe:        'كافيه',
-}
+import { useI18n } from '@/i18n'
 
 const BIZ_COLOR: Record<BusinessType, string> = {
   Retail:      'bg-slate-500',
@@ -52,6 +44,18 @@ function computeStats(tenants: TenantWithSubscriptionResponse[]) {
 }
 
 export function AdminDashboard() {
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+
+  const BIZ_LABEL: Record<BusinessType, string> = {
+    Retail:      t.admin.dashboard.business.retail,
+    Supermarket: 'سوبرماركت',
+    Restaurant:  t.admin.dashboard.business.restaurant,
+    Hotel:       t.admin.dashboard.business.hotel,
+    Gaming:      t.admin.dashboard.business.gaming,
+    Cafe:        t.admin.dashboard.business.cafe,
+  }
+
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ['admin', 'tenants'],
     queryFn: () => superAdminApi.listTenants().then((r) => r.data),
@@ -80,7 +84,7 @@ export function AdminDashboard() {
   return (
     <div className="space-y-8 p-8" dir="rtl">
       <div>
-        <h1 className="text-2xl font-bold text-white">لوحة التحكم</h1>
+        <h1 className="text-2xl font-bold text-white">{t.admin.dashboard.title}</h1>
         <p className="mt-1 text-slate-400">نظرة شاملة على الإيرادات والمستأجرين</p>
       </div>
 
@@ -88,21 +92,21 @@ export function AdminDashboard() {
       <div>
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
           <TrendingUp className="h-4 w-4" />
-          الإيرادات
+          {t.admin.dashboard.revenue}
         </h2>
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-2xl border border-emerald-800/40 bg-emerald-900/20 p-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">MRR — الإيرادات الشهرية</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">MRR — {t.admin.dashboard.mrr}</p>
             <p className="mt-3 text-4xl font-black tabular-nums text-white">
-              {stats.mrr.toLocaleString('ar-SA')}
+              {stats.mrr.toLocaleString(locale)}
               <span className="mr-1 text-lg font-medium text-slate-400">ر.س</span>
             </p>
-            <p className="mt-1 text-xs text-slate-500">من {stats.active} اشتراك نشط</p>
+            <p className="mt-1 text-xs text-slate-500">من {stats.active} {t.admin.dashboard.activeTenants}</p>
           </div>
           <div className="rounded-2xl border border-blue-800/40 bg-blue-900/20 p-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-blue-400">ARR — الإيرادات السنوية</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-blue-400">ARR — {t.admin.dashboard.arr}</p>
             <p className="mt-3 text-4xl font-black tabular-nums text-white">
-              {stats.arr.toLocaleString('ar-SA')}
+              {stats.arr.toLocaleString(locale)}
               <span className="mr-1 text-lg font-medium text-slate-400">ر.س</span>
             </p>
             <p className="mt-1 text-xs text-slate-500">تقدير سنوي بناءً على MRR × 12</p>
@@ -114,7 +118,7 @@ export function AdminDashboard() {
       <div>
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
           <Building2 className="h-4 w-4" />
-          المستأجرون
+          {t.admin.dashboard.tenants}
         </h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
@@ -124,7 +128,7 @@ export function AdminDashboard() {
             color="slate"
           />
           <StatCard
-            label="اشتراكات نشطة"
+            label={t.admin.dashboard.activeTenants}
             value={stats.active}
             icon={<CheckCircle className="h-5 w-5 text-emerald-400" />}
             color="emerald"
@@ -150,7 +154,7 @@ export function AdminDashboard() {
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
           <h2 className="mb-5 text-base font-semibold text-white">توزيع أنواع الأعمال</h2>
           {Object.keys(stats.byType).length === 0 ? (
-            <p className="text-sm text-slate-400">لا توجد بيانات</p>
+            <p className="text-sm text-slate-400">{t.common.noData}</p>
           ) : (
             <div className="space-y-3">
               {(Object.entries(stats.byType) as [BusinessType, number][])
@@ -188,23 +192,23 @@ export function AdminDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {expiringTenants.map((t) => (
+              {expiringTenants.map((ten) => (
                 <div
-                  key={t.id}
+                  key={ten.id}
                   className="flex items-center justify-between rounded-xl bg-slate-800 px-4 py-3"
                 >
                   <div>
-                    <p className="text-sm font-medium text-white">{t.name}</p>
-                    <p className="text-xs text-slate-400">{t.adminEmail}</p>
+                    <p className="text-sm font-medium text-white">{ten.name}</p>
+                    <p className="text-xs text-slate-400">{ten.adminEmail}</p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      (t.activeSubscription?.daysRemaining ?? 0) <= 3
+                      (ten.activeSubscription?.daysRemaining ?? 0) <= 3
                         ? 'bg-rose-900/60 text-rose-300'
                         : 'bg-amber-900/60 text-amber-300'
                     }`}
                   >
-                    {t.activeSubscription?.daysRemaining} يوم
+                    {ten.activeSubscription?.daysRemaining} يوم
                   </span>
                 </div>
               ))}

@@ -2,7 +2,7 @@ using System.Text.Json;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Catalog.Infrastructure.Persistence;
-using NexusPOS.Sales.Application.Services;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Sales.Application.Commands.AiCashier;

@@ -11,25 +11,13 @@ import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
+import { useI18n } from '@/i18n'
 import type { StockCountType } from '@/types/api'
-
-const TYPE_LABELS: Record<string, string> = {
-  Daily: 'يومي',
-  Monthly: 'شهري',
-  Quarterly: 'ربع سنوي',
-  TaxAudit: 'تدقيق ضريبي',
-}
 
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-blue-50 text-blue-700',
   Completed: 'bg-emerald-50 text-emerald-700',
   Cancelled: 'bg-gray-100 text-gray-500',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  InProgress: 'قيد التنفيذ',
-  Completed: 'مكتمل',
-  Cancelled: 'ملغي',
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -39,6 +27,20 @@ export function StockCountPage() {
   const { branchId: branchIdRaw, tenantId } = useAuthStore()
   const branchId = branchIdRaw ?? ''
   const queryClient = useQueryClient()
+  const { t, lang } = useI18n()
+
+  const TYPE_LABELS: Record<string, string> = {
+    Daily: t.stockCount.daily,
+    Monthly: t.stockCount.monthly,
+    Quarterly: t.stockCount.quarterly,
+    TaxAudit: t.stockCount.taxAudit,
+  }
+
+  const STATUS_LABELS: Record<string, string> = {
+    InProgress: t.stockCount.inProgress,
+    Completed: t.stockCount.completed,
+    Cancelled: t.stockCount.cancelled,
+  }
 
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({
@@ -91,36 +93,36 @@ export function StockCountPage() {
       })
     },
     onSuccess: res => {
-      toast.success('تم إنشاء جلسة الجرد')
+      toast.success(t.stockCount.createSuccess)
       queryClient.invalidateQueries({ queryKey: ['stock-counts', branchId] })
       setShowCreate(false)
       void navigate({ to: '/stock-counts/$sessionId', params: { sessionId: res.data.id } })
     },
-    onError: () => toast.error('فشل إنشاء الجرد'),
+    onError: () => toast.error(t.stockCount.createFailed),
   })
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title="الجرد"
-        description="جرد المخزون ومراجعة الكميات"
+        title={t.stockCount.title}
+        description={t.stockCount.description}
         action={
           <Button onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
-            جرد جديد
+            {t.stockCount.newCount}
           </Button>
         }
       />
 
       {isLoading ? (
-        <div className="py-16 text-center text-sm text-gray-400">جاري التحميل...</div>
+        <div className="py-16 text-center text-sm text-gray-400">{t.common.loading}</div>
       ) : sessions.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-20 text-gray-400">
           <ClipboardList className="h-14 w-14 opacity-25" />
-          <p className="text-base">لا توجد جلسات جرد بعد</p>
+          <p className="text-base">{t.stockCount.noSessions}</p>
           <Button variant="secondary" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
-            إنشاء أول جرد
+            {t.stockCount.startFirst}
           </Button>
         </div>
       ) : (
@@ -128,7 +130,15 @@ export function StockCountPage() {
           <table className="w-full text-sm" dir="rtl">
             <thead className="bg-gray-50">
               <tr>
-                {['النوع', 'الفترة', 'الحالة', 'العناصر', 'الفروقات', 'قيمة النظام', 'التاريخ'].map(h => (
+                {[
+                  t.stockCount.type,
+                  t.stockCount.period,
+                  t.stockCount.status,
+                  t.stockCount.totalItems,
+                  t.stockCount.discrepancies,
+                  t.stockCount.systemValue,
+                  t.common.date,
+                ].map(h => (
                   <th key={h} className="px-4 py-3 text-right font-medium text-gray-600">{h}</th>
                 ))}
               </tr>
@@ -144,9 +154,9 @@ export function StockCountPage() {
                     {TYPE_LABELS[session.type] ?? session.type}
                   </td>
                   <td className="px-4 py-3 text-gray-600 text-xs">
-                    {new Date(session.periodStart).toLocaleDateString('ar-SA')}
+                    {new Date(session.periodStart).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
                     {' – '}
-                    {new Date(session.periodEnd).toLocaleDateString('ar-SA')}
+                    {new Date(session.periodEnd).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[session.status] ?? ''}`}>
@@ -162,10 +172,10 @@ export function StockCountPage() {
                       : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3 text-gray-600 tabular-nums">
-                    {session.totalSystemValue.toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س
+                    {session.totalSystemValue.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', { minimumFractionDigits: 2 })} {t.common.sar}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-400">
-                    {new Date(session.createdAt).toLocaleDateString('ar-SA')}
+                    {new Date(session.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
                   </td>
                 </tr>
               ))}
@@ -174,23 +184,23 @@ export function StockCountPage() {
         </div>
       )}
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="جرد جديد">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t.stockCount.newCount}>
         <div className="flex flex-col gap-4" dir="rtl">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">نوع الجرد</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">{t.stockCount.type}</label>
             <div className="grid grid-cols-2 gap-2">
-              {(['Daily', 'Monthly', 'Quarterly', 'TaxAudit'] as const).map(t => (
+              {(['Daily', 'Monthly', 'Quarterly', 'TaxAudit'] as const).map(typeKey => (
                 <button
-                  key={t}
+                  key={typeKey}
                   type="button"
-                  onClick={() => setForm(f => ({ ...f, type: t }))}
+                  onClick={() => setForm(f => ({ ...f, type: typeKey }))}
                   className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${
-                    form.type === t
+                    form.type === typeKey
                       ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,white)] text-[var(--accent)]'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  {TYPE_LABELS[t]}
+                  {TYPE_LABELS[typeKey]}
                 </button>
               ))}
             </div>
@@ -198,7 +208,7 @@ export function StockCountPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">من</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t.stockCount.periodFrom}</label>
               <Input
                 type="date"
                 value={form.periodStart}
@@ -206,7 +216,7 @@ export function StockCountPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">إلى</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t.stockCount.periodTo}</label>
               <Input
                 type="date"
                 value={form.periodEnd}
@@ -216,7 +226,7 @@ export function StockCountPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">ملاحظات (اختياري)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t.stockCount.notes}</label>
             <Input
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
@@ -225,12 +235,12 @@ export function StockCountPage() {
           </div>
 
           <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t.common.cancel}</Button>
             <Button
               onClick={() => createMutation.mutate()}
               disabled={createMutation.isPending || !form.periodStart || !form.periodEnd}
             >
-              {createMutation.isPending ? 'جاري الإنشاء...' : 'إنشاء الجرد'}
+              {createMutation.isPending ? t.common.loading : t.stockCount.newCount}
             </Button>
           </div>
         </div>

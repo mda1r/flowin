@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
+import { useI18n } from '@/i18n'
 
 interface Props {
   tenantId: string
@@ -13,6 +14,8 @@ interface Props {
 
 export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType, onClose }: Props) {
   const qc = useQueryClient()
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const [planId, setPlanId] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [expiryDate, setExpiryDate] = useState(
@@ -53,7 +56,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-white">اشتراك جديد</h2>
+            <h2 className="text-base font-semibold text-white">{t.admin.subscription.newSubscription}</h2>
             <p className="text-xs text-slate-400 mt-0.5">{tenantName}</p>
           </div>
           <button
@@ -68,7 +71,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
         <div className="space-y-4 p-6">
           <div>
             <label className="mb-1.5 block text-xs font-medium text-slate-300">
-              خطة الاشتراك
+              {t.admin.subscription.plan}
             </label>
             <select
               value={planId}
@@ -80,7 +83,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
                 .filter((p) => p.isActive && (!tenantBusinessType || p.businessType === tenantBusinessType))
                 .map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} — {p.price.toLocaleString('ar-SA')} ر.س / شهر
+                    {p.name} — {p.price.toLocaleString(locale)} ر.س / شهر
                   </option>
                 ))}
             </select>
@@ -89,7 +92,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-300">
-                تاريخ البداية
+                {t.admin.subscription.startDate}
               </label>
               <input
                 type="date"
@@ -131,14 +134,14 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
             onClick={onClose}
             className="flex-1 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
           >
-            إلغاء
+            {t.common.cancel}
           </button>
           <button
             onClick={() => mutation.mutate()}
             disabled={!planId || mutation.isPending}
             className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {mutation.isPending ? 'جاري الحفظ...' : 'حفظ الاشتراك'}
+            {mutation.isPending ? t.common.loading : t.admin.subscription.create}
           </button>
         </div>
       </div>

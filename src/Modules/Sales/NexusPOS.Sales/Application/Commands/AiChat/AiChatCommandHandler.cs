@@ -4,7 +4,7 @@ using NexusPOS.Catalog.Infrastructure.Persistence;
 using NexusPOS.Inventory.Infrastructure.Persistence;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Infrastructure.Persistence;
-using NexusPOS.Sales.Application.Services;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.Sales.Domain.Repositories;
 using NexusPOS.SharedKernel.Application.Messaging;
 

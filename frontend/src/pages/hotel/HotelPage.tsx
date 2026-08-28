@@ -18,25 +18,13 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
-import type { RoomResponse, ReservationResponse, RoomType, RoomStatus } from '@/types/api'
+import type { RoomResponse, ReservationResponse, RoomStatus } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type Tab = 'dashboard' | 'cashier' | 'cleaning'
 
-const ROOM_TYPE_LABELS: Record<RoomType, string> = {
-  Standard: 'غرفة مفردة',
-  Deluxe: 'غرفة مزدوجة',
-  Suite: 'جناح',
-  Presidential: 'جناح رئاسي',
-}
-
-const STATUS_LABELS: Record<RoomStatus, string> = {
-  Available: 'متاحة',
-  Occupied: 'مشغولة',
-  Reserved: 'محجوزة',
-  Maintenance: 'صيانة',
-}
 
 const STATUS_BADGE: Record<RoomStatus, 'green' | 'red' | 'blue' | 'gray'> = {
   Available: 'green',
@@ -115,6 +103,7 @@ function isCheckoutOverdue(checkOut: string): boolean {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function HotelPage() {
+  const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [showAddRoom, setShowAddRoom] = useState(false)
   const [checkoutReceipt, setCheckoutReceipt] = useState<ReservationResponse | null>(null)
@@ -216,7 +205,7 @@ export function HotelPage() {
   return (
     <div dir="rtl">
       <PageHeader
-        title="إدارة الفندق"
+        title={t.hotel.title}
         description="إدارة الغرف والحجوزات والتنظيف"
         action={
           <Button onClick={() => setShowAddRoom(true)}>
@@ -348,14 +337,16 @@ function DashboardTab({
   needsCleaningRooms: number
   todayCheckouts: ReservationResponse[]
 }) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   return (
     <div className="space-y-6">
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="إجمالي الغرف" value={totalRooms} color="gray" icon={<BedDouble className="h-5 w-5" />} />
-        <StatCard label="مشغولة" value={occupiedRooms} color="red" icon={<Users className="h-5 w-5" />} />
-        <StatCard label="متاحة" value={availableRooms} color="green" icon={<CheckCircle className="h-5 w-5" />} />
-        <StatCard label="تحتاج تنظيف" value={needsCleaningRooms} color="orange" icon={<Brush className="h-5 w-5" />} />
+        <StatCard label={t.hotel.totalRooms} value={totalRooms} color="gray" icon={<BedDouble className="h-5 w-5" />} />
+        <StatCard label={t.hotel.occupied} value={occupiedRooms} color="red" icon={<Users className="h-5 w-5" />} />
+        <StatCard label={t.hotel.status.available} value={availableRooms} color="green" icon={<CheckCircle className="h-5 w-5" />} />
+        <StatCard label={t.hotel.maintenance} value={needsCleaningRooms} color="orange" icon={<Brush className="h-5 w-5" />} />
       </div>
 
       {/* Today's checkouts */}
@@ -372,7 +363,7 @@ function DashboardTab({
                   <div>
                     <p className="font-medium text-gray-900 dark:text-gray-100">{r.guestName}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(r.checkOut).toLocaleTimeString('ar-SA', {
+                      {new Date(r.checkOut).toLocaleTimeString(locale, {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
@@ -459,6 +450,8 @@ function StatCard({
 }
 
 function RoomCard({ room }: { room: RoomResponse }) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const res = room.activeReservation
   const daysLeft = res ? daysUntilCheckout(res.checkOut) : null
   const overdue = res ? isCheckoutOverdue(res.checkOut) : false
@@ -492,12 +485,20 @@ function RoomCard({ room }: { room: RoomResponse }) {
 
       <div className="mb-2 flex items-center justify-between gap-1 flex-wrap">
         <BedDouble className="h-4 w-4 text-gray-400 shrink-0" />
-        <Badge variant={STATUS_BADGE[room.status]}>{STATUS_LABELS[room.status]}</Badge>
+        <Badge variant={STATUS_BADGE[room.status]}>
+          {room.status === 'Available' ? t.hotel.status.available
+            : room.status === 'Occupied' ? t.hotel.status.occupied
+            : room.status === 'Reserved' ? t.hotel.status.reserved
+            : t.hotel.status.maintenance}
+        </Badge>
       </div>
 
       <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{room.roomNumber}</p>
       <p className="text-xs text-gray-500 mb-2">
-        {ROOM_TYPE_LABELS[room.roomType]} · ط{room.floor}
+        {room.roomType === 'Standard' ? t.hotel.roomTypes.standard
+          : room.roomType === 'Deluxe' ? t.hotel.roomTypes.deluxe
+          : room.roomType === 'Suite' ? t.hotel.roomTypes.suite
+          : t.hotel.roomTypes.penthouse} · {t.hotel.floor.replace('{n}', String(room.floor))}
       </p>
 
       <Badge variant={cleaning.variant} className="mb-2">{cleaning.label}</Badge>
@@ -515,14 +516,14 @@ function RoomCard({ room }: { room: RoomResponse }) {
             )}
           </p>
           <p className="text-xs text-gray-400">
-            {formatDate(res.checkOut, 'ar-SA')}
+            {formatDate(res.checkOut, locale)}
           </p>
         </div>
       )}
 
       {!res && (
         <p className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
-          {formatCurrency(room.nightlyRate, room.currency)} / ليلة
+          {formatCurrency(room.nightlyRate, room.currency)} / {t.hotel.perNight}
         </p>
       )}
     </div>
@@ -546,6 +547,8 @@ function CashierTab({
   onCheckoutSuccess: (reservation: ReservationResponse, roomNumber: string) => void
   onDataChange: () => void
 }) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<CheckInFormData>({
     resolver: zodResolver(checkInSchema),
     defaultValues: {
@@ -627,7 +630,7 @@ function CashierTab({
             <option value="">اختر غرفة متاحة...</option>
             {availableRooms.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.roomNumber} — {ROOM_TYPE_LABELS[r.roomType]} (ط{r.floor}) — {formatCurrency(r.nightlyRate, r.currency)}/ليلة
+                {r.roomNumber} — {r.roomType === 'Standard' ? t.hotel.roomTypes.standard : r.roomType === 'Deluxe' ? t.hotel.roomTypes.deluxe : r.roomType === 'Suite' ? t.hotel.roomTypes.suite : t.hotel.roomTypes.penthouse} ({t.hotel.floor.replace('{n}', String(r.floor))}) — {formatCurrency(r.nightlyRate, r.currency)}/{t.hotel.perNight}
               </option>
             ))}
           </Select>
@@ -641,13 +644,13 @@ function CashierTab({
           {/* Guest info */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
-              label="الاسم الكامل"
+              label={t.hotel.guestName}
               placeholder="محمد أحمد السعيد"
               error={errors.guestName?.message}
               {...register('guestName')}
             />
             <Input
-              label="رقم الهوية / الجواز"
+              label={t.hotel.idNumber}
               placeholder="1234567890"
               error={errors.guestNationalId?.message}
               {...register('guestNationalId')}
@@ -665,13 +668,13 @@ function CashierTab({
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="تاريخ الوصول"
+              label={t.hotel.arrivalDate}
               type="date"
               error={errors.checkIn?.message}
               {...register('checkIn')}
             />
             <Input
-              label="تاريخ المغادرة المتوقعة"
+              label={t.hotel.departureDate}
               type="date"
               error={errors.checkOut?.message}
               {...register('checkOut')}
@@ -762,9 +765,9 @@ function CashierTab({
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {formatDate(res.checkIn, 'ar-SA')} — {formatDate(res.checkOut, 'ar-SA')}
+                          {formatDate(res.checkIn, locale)} — {formatDate(res.checkOut, locale)}
                         </span>
-                        <span>{res.nights} ليلة</span>
+                        <span>{res.nights} {t.hotel.nights}</span>
                       </div>
                       <p className="mt-1 text-xs font-semibold text-green-700 dark:text-green-400">
                         {formatCurrency(res.totalAmount)} (قبل الضريبة)
@@ -807,6 +810,7 @@ function CleaningTab({
   onMarkClean: (roomId: string) => void
   markCleanPending: boolean
 }) {
+  const { t } = useI18n()
   const dirtyRooms = rooms.filter(
     (r) => r.isActive && (r.cleaningStatus === 'NeedsClean' || r.cleaningStatus === 'InProgress'),
   )
@@ -850,7 +854,7 @@ function CleaningTab({
                     {room.roomNumber}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {ROOM_TYPE_LABELS[room.roomType]} · الطابق {room.floor}
+                    {room.roomType === 'Standard' ? t.hotel.roomTypes.standard : room.roomType === 'Deluxe' ? t.hotel.roomTypes.deluxe : room.roomType === 'Suite' ? t.hotel.roomTypes.suite : t.hotel.roomTypes.penthouse} · {t.hotel.floor.replace('{n}', String(room.floor))}
                   </p>
                 </div>
                 <Badge
@@ -891,6 +895,7 @@ function AddRoomModal({
   tenantId: string
   onSuccess: () => void
 }) {
+  const { t } = useI18n()
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AddRoomFormData>({
     resolver: zodResolver(addRoomSchema),
     defaultValues: {
@@ -930,7 +935,7 @@ function AddRoomModal({
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>إلغاء</Button>
+          <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
           <Button loading={create.isPending} onClick={handleSubmit((d) => create.mutate(d))}>
             إضافة
           </Button>
@@ -946,9 +951,10 @@ function AddRoomModal({
             {...register('roomNumber')}
           />
           <Select label="نوع الغرفة" {...register('roomType')}>
-            {(Object.entries(ROOM_TYPE_LABELS) as [RoomType, string][]).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
+            <option value="Standard">{t.hotel.roomTypes.standard}</option>
+            <option value="Deluxe">{t.hotel.roomTypes.deluxe}</option>
+            <option value="Suite">{t.hotel.roomTypes.suite}</option>
+            <option value="Presidential">{t.hotel.roomTypes.penthouse}</option>
           </Select>
         </div>
         <div className="grid grid-cols-3 gap-4">
@@ -1002,6 +1008,8 @@ function HotelReceiptModal({
   roomNumber: string
   onClose: () => void
 }) {
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const { data: zatcaSettings } = useQuery({
     queryKey: ['zatca-settings'],
     queryFn: () => zatcaApi.getSettings(),
@@ -1026,7 +1034,7 @@ function HotelReceiptModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900">
         <div className="mb-4 text-center">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">فاتورة ضريبية</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t.hotel.taxInvoice}</h2>
           <p className="text-xs text-gray-500">flowin</p>
           {vatNumber && <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
@@ -1037,29 +1045,29 @@ function HotelReceiptModal({
             <span className="font-medium text-gray-900 dark:text-gray-100">{reservation.guestName}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">الهوية</span>
+            <span className="text-gray-500">{t.hotel.idNumber}</span>
             <span className="text-gray-700 dark:text-gray-300">{reservation.guestNationalId}</span>
           </div>
           {roomNumber && (
             <div className="flex justify-between py-0.5">
-              <span className="text-gray-500">الغرفة</span>
+              <span className="text-gray-500">{t.hotel.room}</span>
               <span className="text-gray-700 dark:text-gray-300">{roomNumber}</span>
             </div>
           )}
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">تاريخ الوصول</span>
-            <span className="text-gray-700 dark:text-gray-300">{formatDate(reservation.checkIn, 'ar-SA')}</span>
+            <span className="text-gray-500">{t.hotel.arrivalDate}</span>
+            <span className="text-gray-700 dark:text-gray-300">{formatDate(reservation.checkIn, locale)}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">تاريخ المغادرة</span>
-            <span className="text-gray-700 dark:text-gray-300">{formatDate(reservation.checkOut, 'ar-SA')}</span>
+            <span className="text-gray-500">{t.hotel.departureDate}</span>
+            <span className="text-gray-700 dark:text-gray-300">{formatDate(reservation.checkOut, locale)}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">عدد الليالي</span>
+            <span className="text-gray-500">{t.hotel.nights}</span>
             <span className="text-gray-700 dark:text-gray-300">{reservation.nights}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">سعر الليلة</span>
+            <span className="text-gray-500">{t.hotel.perNight}</span>
             <span className="text-gray-700 dark:text-gray-300">{formatCurrency(reservation.ratePerNight)}</span>
           </div>
         </div>
@@ -1094,8 +1102,8 @@ function HotelReceiptModal({
         </div>
 
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onClose} className="flex-1">إغلاق</Button>
-          <Button variant="primary" onClick={() => window.print()} className="flex-1">طباعة</Button>
+          <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.cancel}</Button>
+          <Button variant="primary" onClick={() => window.print()} className="flex-1">{t.common.print}</Button>
         </div>
       </div>
     </div>

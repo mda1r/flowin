@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
-  Bot, X, Send, Loader2, Sparkles, TrendingUp, Package,
-  DollarSign, BarChart2, RefreshCw, Lightbulb,
+  X, Send, Loader2, Sparkles, TrendingUp, Package,
+  DollarSign, BarChart2, RefreshCw, Lightbulb, Bot,
 } from 'lucide-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { aiApi, type AiChatMessage } from '@/api/ai'
@@ -122,9 +122,17 @@ function InsightsPanel({ branchId }: { branchId: string }) {
 
 // ── Main drawer ───────────────────────────────────────────────────────────────
 
-export function AiChatDrawer() {
+interface AiChatDrawerProps {
+  open: boolean
+  onClose: () => void
+}
+
+export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
+  const setOpen = (v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === 'function' ? v(open) : v
+    if (!next) onClose()
+  }
   const branchId = useAuthStore(s => s.branchId ?? '')
-  const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('insights')
   const [messages, setMessages] = useState<AiChatMessage[]>([
     {
@@ -181,19 +189,6 @@ export function AiChatDrawer() {
 
   return (
     <>
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen(v => !v)}
-        aria-label="فتح المساعد الذكي"
-        className={cn(
-          'fixed bottom-6 left-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all duration-200 hover:scale-105 active:scale-95',
-          open ? 'bg-gray-700 text-white' : 'bg-[var(--accent)] text-white',
-        )}
-        style={{ boxShadow: open ? undefined : '0 0 20px var(--glow)' }}
-      >
-        {open ? <X className="h-5 w-5" /> : <Bot className="h-6 w-6" />}
-      </button>
-
       {/* Drawer */}
       {open && (
         <div

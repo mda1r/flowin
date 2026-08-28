@@ -20,6 +20,7 @@ import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import type {
   MenuItemResponse,
   MenuCategory,
@@ -75,11 +76,12 @@ type Tab = 'cashier' | 'manager'
 export function RestaurantPage() {
   const [activeTab, setActiveTab] = useState<Tab>('cashier')
   const { branchId } = useAuthStore()
+  const { t } = useI18n()
 
   return (
     <div className="flex h-[calc(100vh-0px)] flex-col" dir="rtl">
       <PageHeader
-        title="المطعم"
+        title={t.restaurant.title}
         action={
           <div className="flex items-center gap-2">
             <a
@@ -122,6 +124,7 @@ export function RestaurantPage() {
 function CashierView({ branchId }: { branchId: string }) {
   const { tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
 
   const [selectedTable, setSelectedTable] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null)
@@ -291,7 +294,7 @@ function CashierView({ branchId }: { branchId: string }) {
       <div className="flex flex-1 flex-col overflow-hidden border-l border-gray-200 dark:border-gray-800">
         {/* Table grid */}
         <div className="border-b border-gray-200 p-4 dark:border-gray-800">
-          <p className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">اختر الطاولة</p>
+          <p className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">{t.restaurant.selectTable}</p>
           <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
             {Array.from({ length: TOTAL_TABLES }, (_, i) => i + 1).map((n) => {
               const color = getTableColor(n, orders)
@@ -310,8 +313,8 @@ function CashierView({ branchId }: { branchId: string }) {
                     selectedTable === n && color === 'ready' && 'ring-orange-500',
                   )}
                   title={
-                    color === 'empty' ? 'فارغة' :
-                    color === 'busy' ? 'مشغولة' : 'جاهزة للخدمة'
+                    color === 'empty' ? t.restaurant.available :
+                    color === 'busy' ? t.restaurant.occupied : 'جاهزة للخدمة'
                   }
                 >
                   {n}
@@ -320,9 +323,9 @@ function CashierView({ branchId }: { branchId: string }) {
             })}
           </div>
           <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-green-400" />فارغة</span>
-            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-red-400" />مشغولة</span>
-            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-orange-400" />جاهزة</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-green-400" />{t.restaurant.available}</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-red-400" />{t.restaurant.occupied}</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-orange-400" />{t.kitchen.ready}</span>
           </div>
         </div>
 
@@ -340,7 +343,7 @@ function CashierView({ branchId }: { branchId: string }) {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400',
                 )}
               >
-                الكل
+                {t.restaurant.all}
               </button>
               {CATEGORY_LIST.map((cat) => (
                 <button
@@ -394,7 +397,7 @@ function CashierView({ branchId }: { branchId: string }) {
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
               <ChefHat className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-              <p className="text-sm text-gray-400">اختر طاولة لبدء الطلب</p>
+              <p className="text-sm text-gray-400">{t.restaurant.selectTable}</p>
             </div>
           </div>
         )}
@@ -404,7 +407,7 @@ function CashierView({ branchId }: { branchId: string }) {
       <div className="flex w-80 flex-col bg-white dark:bg-gray-900">
         <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
           <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-            {selectedTable ? `الطاولة ${selectedTable}` : 'الطلب الحالي'}
+            {selectedTable ? t.restaurant.orderFor.replace('{n}', String(selectedTable)) : 'الطلب الحالي'}
           </h2>
           {tableOrder && (
             <span className={cn(
@@ -416,7 +419,7 @@ function CashierView({ branchId }: { branchId: string }) {
             )}>
               {tableOrder.status === 'Pending' && 'قيد الانتظار'}
               {tableOrder.status === 'InKitchen' && 'في المطبخ'}
-              {tableOrder.status === 'Ready' && 'جاهز'}
+              {tableOrder.status === 'Ready' && t.kitchen.ready}
               {tableOrder.status === 'Served' && 'تم التقديم'}
             </span>
           )}
@@ -437,8 +440,8 @@ function CashierView({ branchId }: { branchId: string }) {
                     item.status === 'Ready' ? 'text-green-600' :
                     item.status === 'Preparing' ? 'text-blue-600' : 'text-gray-400',
                   )}>
-                    {item.status === 'Ready' ? 'جاهز' :
-                     item.status === 'Preparing' ? 'يتحضر' : 'انتظار'}
+                    {item.status === 'Ready' ? t.kitchen.ready :
+                     item.status === 'Preparing' ? t.kitchen.preparing : 'انتظار'}
                   </span>
                 </li>
               ))}
@@ -524,7 +527,7 @@ function CashierView({ branchId }: { branchId: string }) {
                 discount.isValid ? 'text-green-600' : 'text-red-500',
               )}>
                 {discount.isValid
-                  ? `خصم: ${formatCurrency(discount.discountAmount)}`
+                  ? `${t.restaurant.discount}: ${formatCurrency(discount.discountAmount)}`
                   : discount.errorMessage}
               </p>
             )}
@@ -536,21 +539,21 @@ function CashierView({ branchId }: { branchId: string }) {
           {cart.length > 0 && (
             <div className="mb-3 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>المجموع الجزئي</span>
+                <span>{t.restaurant.subtotal}</span>
                 <span className="tabular-nums">{formatCurrency(subTotal)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>الخصم</span>
+                  <span>{t.restaurant.discount}</span>
                   <span className="tabular-nums">- {formatCurrency(discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>ضريبة القيمة المضافة 15%</span>
+                <span>{t.restaurant.tax}</span>
                 <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
               </div>
               <div className="flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800">
-                <span className="font-medium text-gray-700 dark:text-gray-300">الإجمالي</span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">{t.restaurant.total}</span>
                 <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {formatCurrency(total)}
                 </span>
@@ -561,21 +564,21 @@ function CashierView({ branchId }: { branchId: string }) {
           {tableOrder && cart.length === 0 && (
             <div className="mb-3 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>المجموع الجزئي</span>
+                <span>{t.restaurant.subtotal}</span>
                 <span className="tabular-nums">{formatCurrency(tableOrder.subTotal)}</span>
               </div>
               {tableOrder.discountAmount > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>الخصم</span>
+                  <span>{t.restaurant.discount}</span>
                   <span className="tabular-nums">- {formatCurrency(tableOrder.discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>ضريبة القيمة المضافة 15%</span>
+                <span>{t.restaurant.tax}</span>
                 <span className="tabular-nums">{formatCurrency(tableOrder.taxAmount)}</span>
               </div>
               <div className="flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800">
-                <span className="font-medium text-gray-700 dark:text-gray-300">الإجمالي</span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">{t.restaurant.total}</span>
                 <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {formatCurrency(tableOrder.total)}
                 </span>
@@ -592,7 +595,7 @@ function CashierView({ branchId }: { branchId: string }) {
               className="flex-1"
             >
               <X className="h-4 w-4" />
-              مسح
+              {t.restaurant.clear}
             </Button>
 
             {cart.length > 0 && (
@@ -605,7 +608,7 @@ function CashierView({ branchId }: { branchId: string }) {
                 className="flex-1"
               >
                 <ChefHat className="h-4 w-4" />
-                إرسال للمطبخ
+                {t.kitchen.sendToKitchen}
               </Button>
             )}
 
@@ -617,7 +620,7 @@ function CashierView({ branchId }: { branchId: string }) {
                 className="flex-1"
               >
                 <CreditCard className="h-4 w-4" />
-                دفع
+                {t.restaurant.pay}
               </Button>
             )}
           </div>
@@ -670,6 +673,7 @@ function PaymentModal({
   onConfirm: () => void
   isPending: boolean
 }) {
+  const { t } = useI18n()
   const total = order.total
   const tendered = parseFloat(amountTendered) || 0
 
@@ -677,20 +681,20 @@ function PaymentModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 mx-4">
-        <h2 className="mb-1 text-lg font-semibold">الدفع — طاولة {order.tableNumber}</h2>
+        <h2 className="mb-1 text-lg font-semibold">{t.restaurant.pay} — {t.restaurant.table} {order.tableNumber}</h2>
         <div className="mb-4 space-y-1 text-sm">
           <div className="flex justify-between text-gray-500">
-            <span>المجموع الجزئي</span>
+            <span>{t.restaurant.subtotal}</span>
             <span>{formatCurrency(order.subTotal)}</span>
           </div>
           {order.discountAmount > 0 && (
             <div className="flex justify-between text-green-600">
-              <span>الخصم</span>
+              <span>{t.restaurant.discount}</span>
               <span>- {formatCurrency(order.discountAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-gray-500">
-            <span>ضريبة القيمة المضافة 15%</span>
+            <span>{t.restaurant.tax}</span>
             <span>{formatCurrency(order.taxAmount)}</span>
           </div>
         </div>
@@ -739,7 +743,7 @@ function PaymentModal({
           </div>
         )}
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onClose} className="flex-1">إلغاء</Button>
+          <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.cancel}</Button>
           <Button
             variant="primary"
             onClick={onConfirm}
@@ -764,6 +768,7 @@ function RestaurantReceiptModal({
   order: RestaurantOrderResponse
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const { data: zatcaSettings } = useQuery({
     queryKey: ['zatca-settings'],
     queryFn: () => zatcaApi.getSettings(),
@@ -828,7 +833,7 @@ function RestaurantReceiptModal({
           />
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onClose} className="flex-1">إغلاق</Button>
+          <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.close}</Button>
           <Button variant="primary" onClick={() => window.print()} className="flex-1">طباعة</Button>
         </div>
       </div>
@@ -862,6 +867,7 @@ type MenuFormData = z.infer<typeof menuSchema>
 function ManagerView({ branchId }: { branchId: string }) {
   const { tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
   const [showDiscountModal, setShowDiscountModal] = useState(false)
   const [showMenuModal, setShowMenuModal] = useState(false)
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItemResponse | null>(null)
@@ -1012,7 +1018,7 @@ function ManagerView({ branchId }: { branchId: string }) {
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {menuLoading && (
-            <div className="p-4 text-center text-sm text-gray-400">جاري التحميل...</div>
+            <div className="p-4 text-center text-sm text-gray-400">{t.common.loading}</div>
           )}
           {menuItems.map((item) => (
             <div
@@ -1097,7 +1103,7 @@ function ManagerView({ branchId }: { branchId: string }) {
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>{t.common.cancel}</Button>
             <Button
               loading={createDiscountMutation.isPending}
               onClick={discountForm.handleSubmit((d) => createDiscountMutation.mutate(d))}
@@ -1159,7 +1165,7 @@ function ManagerView({ branchId }: { branchId: string }) {
         footer={
           <>
             <Button variant="secondary" onClick={() => { setShowMenuModal(false); setEditingMenuItem(null) }}>
-              إلغاء
+              {t.common.cancel}
             </Button>
             <Button
               loading={saveMenuMutation.isPending}

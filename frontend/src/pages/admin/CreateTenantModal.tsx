@@ -10,6 +10,7 @@ import { Input, Select } from '@/components/ui/Input'
 import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
 import type { BusinessType, TenantWithSubscriptionResponse } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 const schema = z.object({
   name: z.string().min(1, 'الاسم مطلوب'),
@@ -25,15 +26,6 @@ const schema = z.object({
 })
 
 type FormData = z.infer<typeof schema>
-
-const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
-  Retail: 'بيع بالتجزئة',
-  Supermarket: 'سوبرماركت',
-  Restaurant: 'مطعم',
-  Hotel: 'فندق',
-  Gaming: 'ألعاب',
-  Cafe: 'كافيه',
-}
 
 interface Props {
   onClose: () => void
@@ -65,7 +57,17 @@ function CredentialRow({ label, value }: { label: string; value: string }) {
 
 export function CreateTenantModal({ onClose }: Props) {
   const qc = useQueryClient()
+  const { t } = useI18n()
   const [created, setCreated] = useState<TenantWithSubscriptionResponse | null>(null)
+
+  const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+    Retail:      t.admin.dashboard.business.retail,
+    Supermarket: 'سوبرماركت',
+    Restaurant:  t.admin.dashboard.business.restaurant,
+    Hotel:       t.admin.dashboard.business.hotel,
+    Gaming:      t.admin.dashboard.business.gaming,
+    Cafe:        t.admin.dashboard.business.cafe,
+  }
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -92,8 +94,8 @@ export function CreateTenantModal({ onClose }: Props) {
       <Modal
         open
         onClose={onClose}
-        title="تم إنشاء الحساب بنجاح"
-        footer={<Button onClick={onClose}>إغلاق</Button>}
+        title={t.admin.createTenant.success}
+        footer={<Button onClick={onClose}>{t.common.close}</Button>}
       >
         <div className="space-y-4" dir="rtl">
           <div className="flex items-center gap-3 rounded-xl bg-emerald-900/30 border border-emerald-700/50 px-4 py-3">
@@ -104,8 +106,8 @@ export function CreateTenantModal({ onClose }: Props) {
             </p>
           </div>
           <div className="space-y-2">
-            <CredentialRow label="البريد الإلكتروني" value={created.adminEmail} />
-            <CredentialRow label="كلمة المرور" value={created.defaultPassword ?? 'Nexus@123!'} />
+            <CredentialRow label={t.admin.createTenant.email} value={created.adminEmail} />
+            <CredentialRow label={t.admin.createTenant.password} value={created.defaultPassword ?? 'Nexus@123!'} />
           </div>
           <p className="text-xs text-slate-500 text-center">يُنصح بتغيير كلمة المرور عند أول تسجيل دخول.</p>
         </div>
@@ -117,22 +119,22 @@ export function CreateTenantModal({ onClose }: Props) {
     <Modal
       open
       onClose={onClose}
-      title="إضافة مستأجر جديد"
+      title={t.admin.createTenant.title}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>إلغاء</Button>
+          <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
           <Button
             loading={createMut.isPending}
             onClick={handleSubmit((d) => createMut.mutate(d))}
           >
-            إنشاء
+            {t.admin.createTenant.submit}
           </Button>
         </>
       }
     >
       <form className="space-y-4" dir="rtl">
         <Input
-          label="اسم الشركة / المنشأة"
+          label={t.admin.createTenant.businessName}
           placeholder="مثال: سوبرماركت الأمين"
           error={errors.name?.message}
           {...register('name')}
@@ -144,13 +146,13 @@ export function CreateTenantModal({ onClose }: Props) {
           {...register('subdomain')}
         />
         <Input
-          label="البريد الإلكتروني للمدير"
+          label={t.admin.createTenant.email}
           type="email"
           placeholder="admin@alamin.sa"
           error={errors.adminEmail?.message}
           {...register('adminEmail')}
         />
-        <Select label="نوع النشاط التجاري" error={errors.businessType?.message} {...register('businessType')}>
+        <Select label={t.admin.createTenant.businessType} error={errors.businessType?.message} {...register('businessType')}>
           {(Object.entries(BUSINESS_TYPE_LABELS) as [BusinessType, string][]).map(([val, label]) => (
             <option key={val} value={val}>{label}</option>
           ))}

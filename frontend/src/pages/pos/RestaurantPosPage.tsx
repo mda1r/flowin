@@ -8,6 +8,7 @@ import { restaurantApi } from '@/api/restaurant'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { MenuCategory, MenuItemResponse } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 const VAT = 0.15
 
@@ -37,6 +38,7 @@ interface OrderLine {
 export function RestaurantPosPage() {
   const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
   const [category, setCategory] = useState<MenuCategory | 'All'>('All')
   const [tableNumber, setTableNumber] = useState(1)
   const [isTakeaway, setIsTakeaway] = useState(false)
@@ -81,13 +83,13 @@ export function RestaurantPosPage() {
       await restaurantApi.payOrder(branchId!, order.id, { paymentMethod: payMethod, amountTendered: tendered })
     },
     onSuccess: () => {
-      toast.success('تمت عملية الدفع', isTakeaway ? 'تيك أواي' : `طاولة ${tableNumber}`)
+      toast.success(t.pos.paymentSuccess, isTakeaway ? t.restaurant.takeaway : `${t.restaurant.table} ${tableNumber}`)
       setLines([])
       setShowPayment(false)
       setAmountTendered('')
       qc.invalidateQueries({ queryKey: ['restaurant'] })
     },
-    onError: () => toast.error('فشلت العملية', 'يرجى المحاولة مرة أخرى'),
+    onError: () => toast.error(t.pos.paymentFailed),
   })
 
   return (
@@ -172,13 +174,13 @@ export function RestaurantPosPage() {
                 onClick={() => setIsTakeaway(false)}
                 className={cn('tab-3d flex-1', !isTakeaway ? 'tab-3d-active' : 'tab-3d-idle')}
               >
-                طاولة
+                {t.restaurant.table}
               </button>
               <button
                 onClick={() => setIsTakeaway(true)}
                 className={cn('tab-3d flex-1', isTakeaway ? 'tab-3d-active' : 'tab-3d-idle')}
               >
-                تيك أواي
+                {t.restaurant.takeaway}
               </button>
             </div>
             {!isTakeaway && (
@@ -191,7 +193,7 @@ export function RestaurantPosPage() {
                       key={n}
                       onClick={() => setTableNumber(n)}
                       className="group flex flex-col items-center gap-1 rounded-md py-1.5 transition-colors"
-                      title={`طاولة ${n}`}
+                      title={`${t.restaurant.table} ${n}`}
                     >
                       <span
                         className="iso-tile block h-4 w-4 rounded-[3px] border group-hover:scale-110"
@@ -264,19 +266,19 @@ export function RestaurantPosPage() {
           <div className="border-t p-4" style={{ borderColor: 'var(--card-border)' }}>
             <div className="mb-2 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>المجموع</span><span className="tabular-nums">{formatCurrency(subtotal)}</span>
+                <span>{t.restaurant.subtotal}</span><span className="tabular-nums">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>ضريبة 15%</span><span className="tabular-nums">{formatCurrency(vat)}</span>
+                <span>{t.restaurant.tax} 15%</span><span className="tabular-nums">{formatCurrency(vat)}</span>
               </div>
             </div>
             <div className="mb-4 flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--card-border)' }}>
-              <span className="font-medium text-gray-700 dark:text-gray-300">الإجمالي</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">{t.restaurant.total}</span>
               <span className="text-emboss text-xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(total)}</span>
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" onClick={() => setLines([])} disabled={lines.length === 0} className="flex-1">
-                مسح
+                {t.restaurant.clear}
               </Button>
               <Button
                 variant="primary"
@@ -285,7 +287,7 @@ export function RestaurantPosPage() {
                 disabled={lines.length === 0}
                 className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
               >
-                الدفع
+                {t.restaurant.pay}
               </Button>
             </div>
           </div>
@@ -297,7 +299,7 @@ export function RestaurantPosPage() {
         <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RESTAURANT_ACCENT}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPayment(false)} />
           <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
-            <h2 className="mb-4 text-lg font-semibold">الدفع</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
             <div
               className="mb-6 rounded-xl p-4"
               style={{
@@ -305,7 +307,7 @@ export function RestaurantPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 18px var(--glow)',
               }}
             >
-              <p className="text-sm text-gray-500">{isTakeaway ? 'تيك أواي' : `طاولة ${tableNumber}`}</p>
+              <p className="text-sm text-gray-500">{isTakeaway ? t.restaurant.takeaway : `${t.restaurant.table} ${tableNumber}`}</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>{formatCurrency(total)}</p>
             </div>
             <div className="mb-6 grid grid-cols-2 gap-2">
@@ -320,7 +322,7 @@ export function RestaurantPosPage() {
                   style={payMethod === m ? { color: 'var(--accent)' } : undefined}
                 >
                   {m === 'Cash' ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
-                  {m === 'Cash' ? 'نقداً' : 'بطاقة'}
+                  {m === 'Cash' ? t.pos.cash : t.pos.card}
                 </button>
               ))}
             </div>
@@ -341,7 +343,7 @@ export function RestaurantPosPage() {
               </div>
             )}
             <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setShowPayment(false)} className="flex-1">إلغاء</Button>
+              <Button variant="secondary" onClick={() => setShowPayment(false)} className="flex-1">{t.common.cancel}</Button>
               <Button
                 variant="primary"
                 onClick={() => createOrder.mutate()}
@@ -349,7 +351,7 @@ export function RestaurantPosPage() {
                 disabled={payMethod === 'Cash' && !!amountTendered && parseFloat(amountTendered) < total}
                 className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
               >
-                تأكيد الدفع
+                {t.common.confirm}
               </Button>
             </div>
           </div>

@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
 import { logActivity } from '@/lib/activityLog'
+import { useI18n } from '@/i18n'
 import type { ShiftResponse, OrderResponse } from '@/types/api'
 
 // ── Open Shift Modal ──────────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ import type { ShiftResponse, OrderResponse } from '@/types/api'
 export function OpenShiftModal({ onClose }: { onClose: () => void }) {
   const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
   const [openingCash, setOpeningCash] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -35,7 +37,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
         details: `رصيد الفتح: ${amount} ر.س`,
         branchId: branchId ?? undefined,
       })
-      toast.success('تم فتح الشفت')
+      toast.success(t.shiftGate.shiftOpen)
       onClose()
     } catch {
       toast.error('فشل فتح الشفت')
@@ -48,18 +50,18 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
     <Modal
       open
       onClose={onClose}
-      title="فتح شفت جديد"
+      title={t.shiftGate.openShift}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>إلغاء</Button>
-          <Button loading={loading} onClick={handleOpen}>فتح الشفت</Button>
+          <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
+          <Button loading={loading} onClick={handleOpen}>{t.shiftGate.open}</Button>
         </>
       }
     >
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">أدخل رصيد النقد الموجود في الصندوق عند بداية الشفت.</p>
+        <p className="text-sm text-gray-500">{t.shiftGate.enterOpeningCash}</p>
         <Input
-          label="رصيد الصندوق عند الفتح (ر.س)"
+          label={t.shiftGate.openingCash}
           type="number"
           min="0"
           step="0.01"
@@ -78,6 +80,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
 export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onClose: () => void }) {
   const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
   const [closingCash, setClosingCash] = useState('')
   const [closingCard, setClosingCard] = useState('')
   const [notes, setNotes] = useState('')
@@ -98,15 +101,18 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
     const orders = shiftOrders ?? []
     const cashSales = orders.filter((o) => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0)
     const cardSales = orders.filter((o) => o.paymentMethod === 'Card').reduce((s, o) => s + o.totalAmount, 0)
-    const splitSales = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + o.totalAmount, 0)
-    return { cashSales, cardSales, splitSales, totalSales: cashSales + cardSales + splitSales, totalOrders: orders.length }
+    const splitCash = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + (o.splitCash ?? 0), 0)
+    const splitCard = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + (o.splitCard ?? 0), 0)
+    const totalCash = cashSales + splitCash
+    const totalCard = cardSales + splitCard
+    return { cashSales: totalCash, cardSales: totalCard, totalSales: totalCash + totalCard, totalOrders: orders.length }
   }, [shiftOrders])
 
   const cashAmount = parseFloat(closingCash) || 0
   const cardAmount = parseFloat(closingCard) || 0
   const expectedCash = shift.openingCash + computed.cashSales
-  const cashVariance = cashAmount - expectedCash
-  const cardVariance = cardAmount - computed.cardSales
+  const cashVariance = Math.round((cashAmount - expectedCash) * 100) / 100
+  const cardVariance = Math.round((cardAmount - computed.cardSales) * 100) / 100
 
   const duration = () => {
     const ms = Date.now() - new Date(shift.openedAt).getTime()
@@ -142,7 +148,6 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       <hr/>
       <div class="row"><span class="lbl">مبيعات نقدية</span><span class="val">${formatCurrency(computed.cashSales)}</span></div>
       <div class="row"><span class="lbl">مبيعات بطاقة</span><span class="val">${formatCurrency(computed.cardSales)}</span></div>
-      ${computed.splitSales > 0 ? `<div class="row"><span class="lbl">مبيعات مختلطة (نقد+بطاقة)</span><span class="val">${formatCurrency(computed.splitSales)}</span></div>` : ''}
       <hr/>
       <div class="row"><span class="lbl">النقد المتوقع</span><span class="val">${formatCurrency(expectedCash)}</span></div>
       <div class="row"><span class="lbl">النقد الفعلي</span><span class="val">${formatCurrency(cashAmount)}</span></div>
@@ -151,7 +156,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       <div class="row"><span class="lbl">إجمالي البطاقة الفعلي</span><span class="val">${formatCurrency(cardAmount)}</span></div>
       <div class="variance ${cardVariance >= 0 ? 'ok' : 'bad'}">${cardVariance >= 0 ? 'فائض بطاقة' : 'عجز بطاقة'}: ${formatCurrency(Math.abs(cardVariance))}</div>
       <hr/>
-      <div class="total">الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة${computed.splitSales > 0 ? ` و ${formatCurrency(computed.splitSales)} مختلط` : ''}، المجموع ${formatCurrency(computed.totalSales)}</div>
+      <div class="total">الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة، المجموع ${formatCurrency(computed.totalSales)}</div>
       ${notes ? `<hr/><div style="color:#555;font-size:11px">ملاحظة: ${notes}</div>` : ''}
       </body></html>
     `)
@@ -196,7 +201,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           branchId: branchId ?? undefined,
         })
       }
-      toast.success('تم إغلاق الشفت بنجاح')
+      toast.success(t.shiftGate.shiftClosed)
       onClose()
     } catch {
       toast.error('فشل إغلاق الشفت')
@@ -211,24 +216,24 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
     <Modal
       open
       onClose={onClose}
-      title="إغلاق الشفت"
+      title={t.shiftGate.closeShift}
       footer={
         <div className="flex w-full flex-col gap-2">
           {hasVariance && (
             <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span>تحذير: يوجد فارق في الجرد — تأكد من المبلغ قبل الإغلاق</span>
+              <span>{t.shiftGate.confirmClose}</span>
             </div>
           )}
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={onClose}>إلغاء</Button>
+            <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
             <Button variant="secondary" onClick={handlePrint} className="gap-1">
               <Printer className="h-4 w-4" />
-              طباعة
+              {t.common.print}
             </Button>
             <Button variant="danger" loading={loading} onClick={handleClose}>
               <Lock className="h-4 w-4" />
-              إغلاق الشفت
+              {t.shiftGate.close}
             </Button>
           </div>
         </div>
@@ -238,38 +243,32 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         {/* summary cards */}
         <div className="grid grid-cols-2 gap-3">
           <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={String(computed.totalOrders)} />
-          <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label="إجمالي المبيعات" value={formatCurrency(computed.totalSales)} />
-          <SummaryCard icon={<Banknote className="h-4 w-4" />} label="مبيعات نقدية" value={formatCurrency(computed.cashSales)} />
-          <SummaryCard icon={<CreditCard className="h-4 w-4" />} label="مبيعات بطاقة" value={formatCurrency(computed.cardSales)} />
+          <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label={t.shiftGate.totalSales} value={formatCurrency(computed.totalSales)} />
+          <SummaryCard icon={<Banknote className="h-4 w-4" />} label={t.shiftGate.cashSales} value={formatCurrency(computed.cashSales)} />
+          <SummaryCard icon={<CreditCard className="h-4 w-4" />} label={t.shiftGate.cardSales} value={formatCurrency(computed.cardSales)} />
           <SummaryCard icon={<Clock className="h-4 w-4" />} label="مدة الشفت" value={duration()} />
-          <SummaryCard icon={<Banknote className="h-4 w-4" />} label="رصيد الفتح" value={formatCurrency(shift.openingCash)} />
+          <SummaryCard icon={<Banknote className="h-4 w-4" />} label={t.shiftGate.openingCash} value={formatCurrency(shift.openingCash)} />
         </div>
 
         {/* daily income summary */}
         <div className="rounded-xl bg-gray-50 p-3 text-center text-sm dark:bg-gray-800">
-          <span className="text-gray-500">الدخل اليوم: </span>
+          <span className="text-gray-500">{t.shiftGate.dailyIncome}: </span>
           <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cashSales)} كاش</span>
           <span className="text-gray-400"> و </span>
           <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cardSales)} بطاقة</span>
-          {computed.splitSales > 0 && (
-            <>
-              <span className="text-gray-400"> و </span>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.splitSales)} مختلط</span>
-            </>
-          )}
           <span className="text-gray-400">، المجموع </span>
           <span className="font-bold text-[color:var(--accent)]">{formatCurrency(computed.totalSales)}</span>
         </div>
 
         {/* cash section */}
         <div className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-          <p className="text-xs font-medium text-gray-500">جرد النقد</p>
+          <p className="text-xs font-medium text-gray-500">{t.shiftGate.cashCount}</p>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">المتوقع في الصندوق</span>
+            <span className="text-gray-500">{t.shiftGate.expectedCash}</span>
             <span className="font-bold tabular-nums">{formatCurrency(expectedCash)}</span>
           </div>
           <Input
-            label="النقد الفعلي في الصندوق (ر.س)"
+            label={t.shiftGate.closingCash}
             type="number"
             min="0"
             step="0.01"
@@ -279,19 +278,19 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
             autoFocus
           />
           {closingCash && (
-            <VarianceBadge label="نقد" variance={cashVariance} />
+            <VarianceBadge label={t.shiftGate.cashCount} variance={cashVariance} />
           )}
         </div>
 
         {/* card section */}
         <div className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-          <p className="text-xs font-medium text-gray-500">جرد البطاقة</p>
+          <p className="text-xs font-medium text-gray-500">{t.shiftGate.cardCount}</p>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">المتوقع من الجهاز</span>
+            <span className="text-gray-500">{t.shiftGate.expectedCard}</span>
             <span className="font-bold tabular-nums">{formatCurrency(computed.cardSales)}</span>
           </div>
           <Input
-            label="إجمالي البطاقة من الجهاز (ر.س)"
+            label={t.shiftGate.cardCount}
             type="number"
             min="0"
             step="0.01"
@@ -300,7 +299,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
             onChange={(e) => setClosingCard(e.target.value)}
           />
           {closingCard && (
-            <VarianceBadge label="بطاقة" variance={cardVariance} />
+            <VarianceBadge label={t.shiftGate.cardCount} variance={cardVariance} />
           )}
         </div>
 
@@ -316,6 +315,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
 }
 
 function VarianceBadge({ label, variance }: { label: string; variance: number }) {
+  const { t } = useI18n()
   const exact = variance === 0
   return (
     <div className={`flex items-center gap-2 rounded-lg p-2.5 text-sm font-medium ${
@@ -326,10 +326,10 @@ function VarianceBadge({ label, variance }: { label: string; variance: number })
       {!exact && <AlertTriangle className="h-4 w-4 shrink-0" />}
       <span>
         {exact
-          ? `${label} مطابق`
+          ? `${label} ${t.shiftGate.balanced}`
           : variance > 0
-          ? `فائض ${label}: ${formatCurrency(variance)}`
-          : `عجز ${label}: ${formatCurrency(Math.abs(variance))}`}
+          ? `${t.shiftGate.surplus} ${label}: ${formatCurrency(variance)}`
+          : `${t.shiftGate.deficit} ${label}: ${formatCurrency(Math.abs(variance))}`}
       </span>
     </div>
   )
@@ -350,18 +350,19 @@ function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: str
 // ── Shift Lock Screen ─────────────────────────────────────────────────────────
 
 function ShiftLockScreen({ onOpen }: { onOpen: () => void }) {
+  const { t } = useI18n()
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 p-8 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
         <Lock className="h-9 w-9 text-gray-400" />
       </div>
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">لا يوجد شفت مفتوح</h2>
-        <p className="mt-1 text-sm text-gray-500">يجب فتح شفت قبل بدء البيع</p>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t.shiftGate.locked}</h2>
+        <p className="mt-1 text-sm text-gray-500">{t.shiftGate.startShiftToBegin}</p>
       </div>
       <Button onClick={onOpen} className="gap-2">
         <Unlock className="h-4 w-4" />
-        فتح شفت جديد
+        {t.shiftGate.openShift}
       </Button>
     </div>
   )
@@ -370,19 +371,20 @@ function ShiftLockScreen({ onOpen }: { onOpen: () => void }) {
 // ── Shift Badge (shown in POS header) ────────────────────────────────────────
 
 export function ShiftBadge({ shift, onCloseShift }: { shift: ShiftResponse; onCloseShift: () => void }) {
+  const { t, lang } = useI18n()
   const openedAt = new Date(shift.openedAt)
-  const timeStr = openedAt.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+  const timeStr = openedAt.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })
 
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-sm dark:bg-green-900/20">
         <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-        <span className="font-medium text-green-700 dark:text-green-400">شفت مفتوح</span>
-        <span className="text-green-600/70 dark:text-green-500/70">منذ {timeStr}</span>
+        <span className="font-medium text-green-700 dark:text-green-400">{t.shiftGate.shiftOpen}</span>
+        <span className="text-green-600/70 dark:text-green-500/70">{t.shiftGate.openedAt} {timeStr}</span>
       </div>
       <Button size="sm" variant="danger" onClick={onCloseShift} className="gap-1">
         <Lock className="h-3.5 w-3.5" />
-        إغلاق الشفت
+        {t.shiftGate.closeShift}
       </Button>
     </div>
   )

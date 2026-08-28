@@ -2,14 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChefHat, Clock, CheckCircle, Loader2, X, WifiOff, ArrowRight } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useI18n } from '@/i18n'
 import { restaurantApi } from '@/api/restaurant'
 import type { RestaurantOrderResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
 
-const STATUS_CONFIG = {
-  pending:   { label: 'جديد',     color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',        border: 'border-amber-300 dark:border-amber-700' },
-  preparing: { label: 'يتحضر',   color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',            border: 'border-blue-400 dark:border-blue-600' },
-  ready:     { label: 'جاهز ✓',  color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', border: 'border-emerald-400 dark:border-emerald-600' },
+const STATUS_STYLE = {
+  pending:   { color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',        border: 'border-amber-300 dark:border-amber-700' },
+  preparing: { color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',            border: 'border-blue-400 dark:border-blue-600' },
+  ready:     { color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', border: 'border-emerald-400 dark:border-emerald-600' },
 }
 
 type KitchenStatus = 'pending' | 'preparing' | 'ready'
@@ -20,10 +21,10 @@ function mapStatus(s: RestaurantOrderResponse['status']): KitchenStatus {
   return 'ready'
 }
 
-function elapsed(ts: string) {
+function elapsed(ts: string, t: { kitchen: { seconds: string; minutes: string } }) {
   const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000)
-  if (diff < 60) return `${diff} ث`
-  return `${Math.floor(diff / 60)} د`
+  if (diff < 60) return `${diff} ${t.kitchen.seconds}`
+  return `${Math.floor(diff / 60)} ${t.kitchen.minutes}`
 }
 
 function TicketCard({
@@ -37,8 +38,12 @@ function TicketCard({
   onReady: (id: string) => void
   onDismiss: (id: string) => void
 }) {
+  const { t } = useI18n()
   const status = mapStatus(order.status)
-  const cfg = STATUS_CONFIG[status]
+  const cfg = {
+    ...STATUS_STYLE[status],
+    label: status === 'pending' ? t.kitchen.statusNew : status === 'preparing' ? t.kitchen.preparing : t.kitchen.ready,
+  }
   const isTakeaway = order.tableNumber === 99
 
   return (
@@ -56,7 +61,7 @@ function TicketCard({
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 text-xs text-gray-400">
             <Clock className="h-3 w-3" />
-            {elapsed(order.createdAt)}
+            {elapsed(order.createdAt, t)}
           </span>
           {status === 'ready' && (
             <button
@@ -73,11 +78,11 @@ function TicketCard({
       <div className="mb-3">
         {isTakeaway ? (
           <span className="inline-flex items-center rounded-lg bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
-            🛍 تيك أواي
+            🛍 {t.kitchen.takeaway}
           </span>
         ) : (
           <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-0.5 text-sm font-bold text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-            طاولة {order.tableNumber}
+            {t.kitchen.table} {order.tableNumber}
           </span>
         )}
       </div>
@@ -114,7 +119,7 @@ function TicketCard({
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-500 py-2 text-sm font-bold text-white hover:bg-blue-600"
           >
             <Loader2 className="h-4 w-4" />
-            يتحضر
+            {t.kitchen.preparing}
           </button>
         )}
         {status === 'preparing' && (
@@ -123,7 +128,7 @@ function TicketCard({
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 text-sm font-bold text-white hover:bg-emerald-600"
           >
             <CheckCircle className="h-4 w-4" />
-            جاهز
+            {t.kitchen.ready}
           </button>
         )}
         {status === 'ready' && (
@@ -143,6 +148,7 @@ function TicketCard({
 export function CafeKitchenPage() {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
   const navigate = useNavigate()
 
   const { data: orders = [], isError } = useQuery({
@@ -186,9 +192,9 @@ export function CafeKitchenPage() {
   const ready     = kitchenOrders.filter((o) => o.status === 'Ready')
 
   const columns = [
-    { key: 'pending',   label: 'جديد',   count: pending.length,   items: pending,   accent: 'text-amber-500' },
-    { key: 'preparing', label: 'يتحضر',  count: preparing.length, items: preparing, accent: 'text-blue-500' },
-    { key: 'ready',     label: 'جاهز',   count: ready.length,     items: ready,     accent: 'text-emerald-500' },
+    { key: 'pending',   label: t.kitchen.statusNew, count: pending.length,   items: pending,   accent: 'text-amber-500' },
+    { key: 'preparing', label: t.kitchen.preparing,  count: preparing.length, items: preparing, accent: 'text-blue-500' },
+    { key: 'ready',     label: t.kitchen.ready,      count: ready.length,     items: ready,     accent: 'text-emerald-500' },
   ]
 
   return (
@@ -201,10 +207,10 @@ export function CafeKitchenPage() {
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
           >
             <ArrowRight className="h-4 w-4" />
-            <span className="text-xs">رجوع</span>
+            <span className="text-xs">{t.common.back}</span>
           </button>
           <ChefHat className="h-6 w-6 text-amber-400" />
-          <h1 className="text-lg font-black tracking-wide text-white">شاشة المطبخ</h1>
+          <h1 className="text-lg font-black tracking-wide text-white">{t.kitchen.title}</h1>
           <span className="rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-bold text-amber-400">
             {kitchenOrders.filter((o) => o.status !== 'Ready').length} طلب نشط
           </span>
@@ -213,7 +219,7 @@ export function CafeKitchenPage() {
           {isError && (
             <span className="flex items-center gap-1 text-xs text-rose-400">
               <WifiOff className="h-3.5 w-3.5" />
-              تعذّر الاتصال
+              {t.kitchen.connectionError}
             </span>
           )}
           <p className="text-xs text-gray-500">يتحدث كل 5 ثوانٍ</p>
@@ -245,7 +251,7 @@ export function CafeKitchenPage() {
               {col.items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-16 text-gray-700">
                   <ChefHat className="h-8 w-8" />
-                  <p className="text-xs">لا يوجد</p>
+                  <p className="text-xs">{t.kitchen.noOrders}</p>
                 </div>
               ) : (
                 col.items.map((order) => (

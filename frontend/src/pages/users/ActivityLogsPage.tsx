@@ -6,6 +6,7 @@ import { resolveDisplayName } from '@/lib/activityLog'
 import type { LogCategory } from '@/lib/activityLog'
 import type { ActivityLogResponse } from '@/types/api'
 import { useAuthStore } from '@/stores/authStore'
+import { useI18n } from '@/i18n'
 
 const CATEGORY_LABELS: Record<LogCategory, string> = {
   shift:         'الشفت',
@@ -33,14 +34,22 @@ function categoryColor(cat: string): string {
   return CATEGORY_COLORS[cat as LogCategory] ?? CATEGORY_COLORS.other
 }
 
-function exportCsv(logs: ActivityLogResponse[]) {
+function exportCsv(logs: ActivityLogResponse[], t: ReturnType<typeof useI18n>['t'], lang: string) {
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const rows = [
-    ['التاريخ', 'الوقت', 'المستخدم', 'التصنيف', 'الإجراء', 'التفاصيل'],
+    [
+      t.activityLogs.csvColumns.date,
+      t.activityLogs.csvColumns.time,
+      t.activityLogs.csvColumns.user,
+      t.activityLogs.csvColumns.category,
+      t.activityLogs.csvColumns.action,
+      t.activityLogs.csvColumns.details,
+    ],
     ...logs.map((l) => {
       const d = new Date(l.timestamp)
       return [
-        d.toLocaleDateString('ar-SA'),
-        d.toLocaleTimeString('ar-SA'),
+        d.toLocaleDateString(locale),
+        d.toLocaleTimeString(locale),
         l.userName || l.userId,
         categoryLabel(l.category),
         l.action,
@@ -60,6 +69,7 @@ function exportCsv(logs: ActivityLogResponse[]) {
 
 export function ActivityLogsPage() {
   const { branchId } = useAuthStore()
+  const { t, lang } = useI18n()
   const [filterCategory, setFilterCategory] = useState<LogCategory | 'all'>('all')
   const [filterUser, setFilterUser] = useState('')
   const [filterFrom, setFilterFrom] = useState('')
@@ -94,10 +104,10 @@ export function ActivityLogsPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
             <Activity className="h-6 w-6" style={{ color: 'var(--accent)' }} />
-            سجل النشاطات
+            {t.activityLogs.title}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            {isLoading ? 'جاري التحميل…' : `${logs.length} سجل`}
+            {isLoading ? t.common.loading : `${logs.length} سجل`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -110,12 +120,12 @@ export function ActivityLogsPage() {
             تحديث
           </button>
           <button
-            onClick={() => exportCsv(logs)}
+            onClick={() => exportCsv(logs, t, lang)}
             disabled={logs.length === 0}
             className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
           >
             <Download className="h-4 w-4" />
-            تصدير CSV
+            {t.activityLogs.exportCsv}
           </button>
         </div>
       </div>
@@ -125,13 +135,13 @@ export function ActivityLogsPage() {
         <Filter className="h-4 w-4 text-gray-400 mt-5 shrink-0" />
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">التصنيف</label>
+          <label className="text-xs text-gray-500">{t.activityLogs.category}</label>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value as LogCategory | 'all')}
             className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
           >
-            <option value="all">الكل</option>
+            <option value="all">{t.activityLogs.all}</option>
             {(Object.keys(CATEGORY_LABELS) as LogCategory[]).map((k) => (
               <option key={k} value={k}>{CATEGORY_LABELS[k]}</option>
             ))}
@@ -139,12 +149,12 @@ export function ActivityLogsPage() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">المستخدم</label>
+          <label className="text-xs text-gray-500">{t.activityLogs.user}</label>
           <input
             type="text"
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            placeholder="ابحث..."
+            placeholder={t.common.search}
             className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
           />
         </div>
@@ -183,12 +193,12 @@ export function ActivityLogsPage() {
       {isLoading ? (
         <div className="flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-20 dark:border-gray-700 dark:bg-gray-900">
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-          <span className="text-gray-400">جاري تحميل السجلات…</span>
+          <span className="text-gray-400">{t.common.loading}</span>
         </div>
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-20 text-center dark:border-gray-700 dark:bg-gray-900">
           <Activity className="h-10 w-10 text-gray-200 dark:text-gray-700" />
-          <p className="text-gray-400">لا توجد سجلات</p>
+          <p className="text-gray-400">{t.activityLogs.noLogs}</p>
           <p className="text-xs text-gray-300 dark:text-gray-600">
             ستظهر هنا نشاطات فتح الشفت وتعديل المخزون والجرد
           </p>
@@ -199,8 +209,14 @@ export function ActivityLogsPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
                 <tr>
-                  {['التاريخ والوقت', 'المستخدم', 'التصنيف', 'الإجراء', 'التفاصيل'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  {[
+                    `${t.activityLogs.date} ${t.activityLogs.time}`,
+                    t.activityLogs.user,
+                    t.activityLogs.category,
+                    t.activityLogs.action,
+                    t.activityLogs.details,
+                  ].map((h, i) => (
+                    <th key={i} className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                       {h}
                     </th>
                   ))}
@@ -225,8 +241,8 @@ export function ActivityLogsPage() {
                       }
                     >
                       <td className="px-4 py-3 tabular-nums text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        <p className="text-xs">{d.toLocaleDateString('ar-SA')}</p>
-                        <p className="text-[11px] text-gray-400">{d.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-xs">{d.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}</p>
+                        <p className="text-[11px] text-gray-400">{d.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">

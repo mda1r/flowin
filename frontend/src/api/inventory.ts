@@ -16,7 +16,7 @@ export const inventoryApi = {
   adjustStock: (
     branchId: string,
     itemId: string,
-    data: { newQuantity: number; reference?: string; notes?: string; expiryDate?: string | null; reorderPoint?: number; reorderQuantity?: number },
+    data: { newQuantity: number; reference?: string; notes?: string; expiryDate?: string | null; reorderPoint?: number; reorderQuantity?: number; notifyDaysBeforeExpiry?: number },
   ) =>
     apiClient.post<StockItemResponse>(
       `/api/v1/branches/${branchId}/stock/${itemId}/adjust`,
@@ -35,4 +35,7 @@ export const inventoryApi = {
       `/api/v1/branches/${branchId}/inventory/alerts`,
       { params: { daysAhead } },
     ),
+
+  deleteItem: (branchId: string, itemId: string) =>
+    apiClient.delete(`/api/v1/branches/${branchId}/stock/${itemId}`),
 }

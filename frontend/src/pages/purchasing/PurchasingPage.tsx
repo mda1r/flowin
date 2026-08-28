@@ -75,9 +75,9 @@ export function PurchasingPage() {
       qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] })
       setShowNewOrder(false)
       reset()
-      toast.success('تم إنشاء أمر الشراء', '')
+      toast.success(t.purchasing.created, '')
     },
-    onError: () => toast.error('فشل إنشاء أمر الشراء', ''),
+    onError: () => toast.error(t.purchasing.failed, ''),
   })
 
   const createSupplier = useMutation({
@@ -92,9 +92,9 @@ export function PurchasingPage() {
       qc.invalidateQueries({ queryKey: ['suppliers', tenantId] })
       setShowNewSupplier(false)
       supplierForm.reset()
-      toast.success('تم إضافة المورد')
+      toast.success(t.purchasing.created)
     },
-    onError: () => toast.error('فشل إضافة المورد'),
+    onError: () => toast.error(t.purchasing.failed),
   })
 
   const changeStatus = useMutation({
@@ -106,7 +106,7 @@ export function PurchasingPage() {
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] }),
-    onError: () => toast.error('فشل تحديث حالة الأمر', ''),
+    onError: () => toast.error(t.purchasing.failed, ''),
   })
 
   const statusLabel: Record<PurchaseOrderStatus, string> = {
@@ -130,7 +130,7 @@ export function PurchasingPage() {
           view === 'suppliers' ? (
             <Button onClick={() => setShowNewSupplier(true)}>
               <Plus className="h-4 w-4" />
-              إضافة مورد
+              {t.purchasing.newSupplier}
             </Button>
           ) : (
             <Button onClick={() => setShowNewOrder(true)}>
@@ -275,7 +275,7 @@ export function PurchasingPage() {
       <Modal
         open={showNewSupplier}
         onClose={() => { setShowNewSupplier(false); supplierForm.reset() }}
-        title="إضافة مورد جديد"
+        title={t.purchasing.newSupplier}
         footer={
           <>
             <Button variant="secondary" onClick={() => { setShowNewSupplier(false); supplierForm.reset() }}>{t.common.cancel}</Button>
@@ -286,10 +286,10 @@ export function PurchasingPage() {
         }
       >
         <form className="space-y-4">
-          <Input label="الاسم" error={supplierForm.formState.errors.name?.message} {...supplierForm.register('name')} />
-          <Input label="البريد الإلكتروني" type="email" error={supplierForm.formState.errors.contactEmail?.message} {...supplierForm.register('contactEmail')} />
-          <Input label="رقم الهاتف" {...supplierForm.register('contactPhone')} />
-          <Input label="العنوان" {...supplierForm.register('address')} />
+          <Input label={t.purchasing.supplierName} error={supplierForm.formState.errors.name?.message} {...supplierForm.register('name')} />
+          <Input label={t.purchasing.supplierEmail} type="email" error={supplierForm.formState.errors.contactEmail?.message} {...supplierForm.register('contactEmail')} />
+          <Input label={t.purchasing.supplierPhone} {...supplierForm.register('contactPhone')} />
+          <Input label={t.purchasing.supplierAddress} {...supplierForm.register('address')} />
         </form>
       </Modal>
 

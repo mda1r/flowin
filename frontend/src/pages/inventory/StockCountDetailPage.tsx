@@ -9,24 +9,12 @@ import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
-
-const TYPE_LABELS: Record<string, string> = {
-  Daily: 'يومي',
-  Monthly: 'شهري',
-  Quarterly: 'ربع سنوي',
-  TaxAudit: 'تدقيق ضريبي',
-}
+import { useI18n } from '@/i18n'
 
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-blue-50 text-blue-700 border-blue-200',
   Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  InProgress: 'قيد التنفيذ',
-  Completed: 'مكتمل',
-  Cancelled: 'ملغي',
 }
 
 export function StockCountDetailPage() {
@@ -35,6 +23,20 @@ export function StockCountDetailPage() {
   const { user, tenantId, branchId: branchIdRaw } = useAuthStore()
   const branchId = branchIdRaw ?? ''
   const queryClient = useQueryClient()
+  const { t, lang } = useI18n()
+
+  const TYPE_LABELS: Record<string, string> = {
+    Daily: t.stockCount.daily,
+    Monthly: t.stockCount.monthly,
+    Quarterly: t.stockCount.quarterly,
+    TaxAudit: t.stockCount.taxAudit,
+  }
+
+  const STATUS_LABELS: Record<string, string> = {
+    InProgress: t.stockCount.inProgress,
+    Completed: t.stockCount.completed,
+    Cancelled: t.stockCount.cancelled,
+  }
 
   const [counts, setCounts] = useState<Record<string, string>>({})
   const [showComplete, setShowComplete] = useState(false)
@@ -87,10 +89,10 @@ export function StockCountDetailPage() {
       return stockCountApi.saveItems(branchId, sessionId, items)
     },
     onSuccess: res => {
-      toast.success('تم حفظ الكميات')
+      toast.success(t.stockCount.saveSuccess)
       queryClient.setQueryData(['stock-count', branchId, sessionId], res.data)
     },
-    onError: () => toast.error('فشل حفظ الكميات'),
+    onError: () => toast.error(t.stockCount.saveFailed),
   })
 
   const completeMutation = useMutation({
@@ -105,18 +107,18 @@ export function StockCountDetailPage() {
         details: `جلسة ${sessionId.slice(0, 8)} · ${autoAdjust ? 'مع تعديل تلقائي للمخزون' : 'بدون تعديل تلقائي'}`,
         branchId: branchId ?? undefined,
       })
-      toast.success('تم إتمام الجرد')
+      toast.success(t.stockCount.completeSuccess)
       queryClient.setQueryData(['stock-count', branchId, sessionId], res.data)
       queryClient.invalidateQueries({ queryKey: ['stock-counts', branchId] })
       setShowComplete(false)
     },
-    onError: () => toast.error('فشل إتمام الجرد'),
+    onError: () => toast.error(t.stockCount.completeFailed),
   })
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24 text-sm text-gray-400">
-        جاري التحميل...
+        {t.common.loading}
       </div>
     )
   }
@@ -125,8 +127,8 @@ export function StockCountDetailPage() {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-gray-400">
         <ClipboardList className="h-12 w-12 opacity-25" />
-        <p>لم يتم العثور على الجرد</p>
-        <Button variant="secondary" onClick={() => void navigate({ to: '/stock-counts' })}>العودة</Button>
+        <p>{t.common.noData}</p>
+        <Button variant="secondary" onClick={() => void navigate({ to: '/stock-counts' })}>{t.stockCount.backToList}</Button>
       </div>
     )
   }
@@ -135,6 +137,8 @@ export function StockCountDetailPage() {
   const progress = session.totalItems > 0
     ? Math.round((session.countedItems / session.totalItems) * 100)
     : 0
+
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
 
   return (
     <div className="flex flex-col gap-6 p-6" dir="rtl">
@@ -146,7 +150,7 @@ export function StockCountDetailPage() {
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
           >
             <ArrowRight className="h-4 w-4 rotate-180" />
-            الجرد
+            {t.stockCount.title}
           </button>
           <span className="text-gray-300">/</span>
           <span className="text-sm font-medium text-gray-800">{TYPE_LABELS[session.type] ?? session.type}</span>
@@ -164,14 +168,14 @@ export function StockCountDetailPage() {
                 disabled={saveMutation.isPending}
               >
                 <Save className="h-4 w-4" />
-                {saveMutation.isPending ? 'جاري الحفظ...' : 'حفظ الكميات'}
+                {saveMutation.isPending ? t.common.loading : t.stockCount.saveCounts}
               </Button>
               <Button
                 onClick={() => setShowComplete(true)}
                 disabled={completeMutation.isPending}
               >
                 <CheckCircle className="h-4 w-4" />
-                إتمام الجرد
+                {t.stockCount.complete}
               </Button>
             </>
           )}
@@ -181,27 +185,27 @@ export function StockCountDetailPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <SummaryCard
-          label="إجمالي العناصر"
+          label={t.stockCount.totalItems}
           value={String(session.totalItems)}
-          sub="منتج"
+          sub={t.stockCount.product}
         />
         <SummaryCard
-          label="التقدم"
+          label={t.stockCount.progress}
           value={`${session.countedItems} / ${session.totalItems}`}
           sub={`${progress}%`}
           accent
         />
         <SummaryCard
-          label="الفروقات"
+          label={t.stockCount.discrepancies}
           value={String(session.discrepancyCount)}
-          sub="فرق في الكمية"
+          sub={t.stockCount.discrepancies}
           warn={session.discrepancyCount > 0}
         />
         <SummaryCard
-          label="قيمة النظام"
-          value={`${session.totalSystemValue.toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س`}
+          label={t.stockCount.systemValue}
+          value={`${session.totalSystemValue.toLocaleString(locale, { minimumFractionDigits: 2 })} ${t.common.sar}`}
           sub={session.status === 'Completed'
-            ? `مجود: ${session.totalCountedValue.toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س`
+            ? `${t.stockCount.countedValue}: ${session.totalCountedValue.toLocaleString(locale, { minimumFractionDigits: 2 })} ${t.common.sar}`
             : undefined}
         />
       </div>
@@ -209,7 +213,7 @@ export function StockCountDetailPage() {
       {/* Progress bar */}
       <div>
         <div className="mb-1 flex justify-between text-xs text-gray-500">
-          <span>تقدم الجرد</span>
+          <span>{t.stockCount.progress}</span>
           <span>{progress}%</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-gray-100">
@@ -225,13 +229,13 @@ export function StockCountDetailPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">المنتج</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-600">{t.stockCount.product}</th>
               <th className="px-4 py-3 text-right font-medium text-gray-600">SKU</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">كمية النظام</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">الكمية المجودة</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">الفرق</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">سعر الوحدة</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">القيمة</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.systemQty}</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-600">{t.stockCount.countedQty}</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.difference}</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.unitCost}</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.value}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -288,10 +292,10 @@ export function StockCountDetailPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 tabular-nums text-gray-600">
-                    {item.unitCost.toLocaleString('ar-SA', { minimumFractionDigits: 2 })}
+                    {item.unitCost.toLocaleString(locale, { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-4 py-3 tabular-nums text-gray-600">
-                    {item.systemValue.toLocaleString('ar-SA', { minimumFractionDigits: 2 })}
+                    {item.systemValue.toLocaleString(locale, { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
               )
@@ -306,21 +310,21 @@ export function StockCountDetailPage() {
           <h3 className="mb-3 font-semibold text-amber-900">ملخص التدقيق الضريبي</h3>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <div className="text-amber-700">قيمة المخزون المجود</div>
+              <div className="text-amber-700">{t.stockCount.countedValue}</div>
               <div className="mt-1 text-xl font-bold text-amber-900 tabular-nums">
-                {session.totalCountedValue.toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س
+                {session.totalCountedValue.toLocaleString(locale, { minimumFractionDigits: 2 })} {t.common.sar}
               </div>
             </div>
             <div>
-              <div className="text-amber-700">ضريبة القيمة المضافة (15%)</div>
+              <div className="text-amber-700">{t.stockCount.taxAmount}</div>
               <div className="mt-1 text-xl font-bold text-amber-900 tabular-nums">
-                {session.totalTaxAmount.toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س
+                {session.totalTaxAmount.toLocaleString(locale, { minimumFractionDigits: 2 })} {t.common.sar}
               </div>
             </div>
             <div>
               <div className="text-amber-700">الإجمالي شامل الضريبة</div>
               <div className="mt-1 text-xl font-bold text-amber-900 tabular-nums">
-                {(session.totalCountedValue + session.totalTaxAmount).toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س
+                {(session.totalCountedValue + session.totalTaxAmount).toLocaleString(locale, { minimumFractionDigits: 2 })} {t.common.sar}
               </div>
             </div>
           </div>
@@ -328,13 +332,13 @@ export function StockCountDetailPage() {
       )}
 
       {/* Complete modal */}
-      <Modal open={showComplete} onClose={() => setShowComplete(false)} title="إتمام الجرد">
+      <Modal open={showComplete} onClose={() => setShowComplete(false)} title={t.stockCount.complete}>
         <div className="flex flex-col gap-5" dir="rtl">
           {session.discrepancyCount > 0 && (
             <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
               <div className="text-sm text-amber-800">
-                يوجد <strong>{session.discrepancyCount}</strong> فرق في الكميات. هل تريد ضبط المخزون تلقائياً؟
+                {t.stockCount.confirmComplete}
               </div>
             </div>
           )}
@@ -346,16 +350,16 @@ export function StockCountDetailPage() {
               onChange={e => setAutoAdjust(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 accent-[var(--accent)]"
             />
-            <span className="text-sm text-gray-700">ضبط المخزون تلقائياً وفق الكميات المجودة</span>
+            <span className="text-sm text-gray-700">{t.stockCount.autoAdjust}</span>
           </label>
 
           <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
-            <Button variant="secondary" onClick={() => setShowComplete(false)}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => setShowComplete(false)}>{t.common.cancel}</Button>
             <Button
               onClick={() => completeMutation.mutate()}
               disabled={completeMutation.isPending}
             >
-              {completeMutation.isPending ? 'جاري الإتمام...' : 'إتمام الجرد'}
+              {completeMutation.isPending ? t.common.loading : t.stockCount.complete}
             </Button>
           </div>
         </div>

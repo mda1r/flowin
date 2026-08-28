@@ -62,7 +62,7 @@ function PasswordInput({ placeholder, ...props }: React.InputHTMLAttributes<HTML
 
 export function SettingsPage() {
   const { user, setUser, tenantId, branchId } = useAuthStore()
-  const { lang, setLang } = useI18n()
+  const { t, lang, setLang } = useI18n()
 
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -78,7 +78,7 @@ export function SettingsPage() {
     mutationFn: (d: ProfileForm) => authApi.updateProfile(d.firstName, d.lastName),
     onSuccess: (_, d) => {
       if (user) setUser({ ...user, firstName: d.firstName, lastName: d.lastName })
-      toast.success('تم تحديث الملف الشخصي', '')
+      toast.success(t.settings.saved, '')
     },
     onError: () => toast.error('فشل التحديث', ''),
   })
@@ -105,15 +105,15 @@ export function SettingsPage() {
   return (
     <div className="p-6 max-w-2xl space-y-6" dir="rtl">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">الإعدادات</h1>
-        <p className="text-sm text-gray-500 mt-1">إدارة حسابك وتفضيلات النظام</p>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.settings.title}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t.settings.description}</p>
       </div>
 
       {/* Profile card */}
       <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
           <User className="h-4 w-4 text-gray-400" />
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">الملف الشخصي</h2>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.settings.profile}</h2>
         </div>
         <div className="px-5 py-4">
           <div className="flex items-center gap-4 mb-5">
@@ -126,7 +126,7 @@ export function SettingsPage() {
               </p>
               <p className="text-sm text-gray-500">{user?.email}</p>
               <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                {user?.role === 'SuperAdmin' ? 'مدير النظام' : user?.role === 'Owner' ? 'المالك' : user?.role === 'Manager' ? 'مدير' : user?.role === 'Staff' ? 'موظف' : user?.role}
+                {user?.role === 'SuperAdmin' ? 'مدير النظام' : user?.role === 'Owner' ? t.settings.roles.owner : user?.role === 'Manager' ? t.settings.roles.admin : user?.role === 'Cashier' ? t.settings.roles.cashier : user?.role === 'Staff' ? t.settings.roles.viewer : user?.role}
               </span>
             </div>
           </div>
@@ -138,23 +138,23 @@ export function SettingsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  الاسم الأول
+                  {t.settings.firstName}
                 </label>
                 <input
                   {...profileForm.register('firstName')}
                   className={inputClass}
-                  placeholder="الاسم الأول"
+                  placeholder={t.settings.firstName}
                 />
                 <FieldError msg={profileForm.formState.errors.firstName?.message} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  اسم العائلة
+                  {t.settings.lastName}
                 </label>
                 <input
                   {...profileForm.register('lastName')}
                   className={inputClass}
-                  placeholder="اسم العائلة"
+                  placeholder={t.settings.lastName}
                 />
                 <FieldError msg={profileForm.formState.errors.lastName?.message} />
               </div>
@@ -162,7 +162,7 @@ export function SettingsPage() {
             <div className="flex justify-start">
               <Button type="submit" loading={profileMut.isPending} className="gap-2">
                 <Save className="h-4 w-4" />
-                حفظ الاسم
+                {t.settings.save}
               </Button>
             </div>
           </form>
@@ -181,7 +181,7 @@ export function SettingsPage() {
         >
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-              كلمة المرور الحالية
+              {t.settings.currentPassword}
             </label>
             <PasswordInput
               {...passwordForm.register('currentPassword')}
@@ -191,7 +191,7 @@ export function SettingsPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-              كلمة المرور الجديدة
+              {t.settings.newPassword}
             </label>
             <PasswordInput
               {...passwordForm.register('newPassword')}
@@ -224,7 +224,7 @@ export function SettingsPage() {
       {/* Language */}
       <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">اللغة</h2>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.settings.language}</h2>
         </div>
         <div className="flex gap-3 px-5 py-4">
           <button
@@ -235,7 +235,7 @@ export function SettingsPage() {
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400'
             }`}
           >
-            العربية
+            {t.settings.arabic}
           </button>
           <button
             onClick={() => setLang('en')}
@@ -245,7 +245,7 @@ export function SettingsPage() {
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400'
             }`}
           >
-            English
+            {t.settings.english}
           </button>
         </div>
       </div>
@@ -253,7 +253,7 @@ export function SettingsPage() {
       {/* Workspace info */}
       <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">معلومات المنشأة</h2>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.settings.business}</h2>
         </div>
         <div className="space-y-3 px-5 py-4 text-sm">
           <div className="flex items-center justify-between">

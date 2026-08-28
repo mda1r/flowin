@@ -8,6 +8,7 @@ import { gamingApi } from '@/api/gaming'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { GameStationResponse, GameSessionBillResponse, StationType } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 /* neon gaming accent scoped to this page */
 const GAMING_ACCENT: React.CSSProperties = {
@@ -22,22 +23,6 @@ const CABINET_BEZEL: React.CSSProperties = {
   transformOrigin: 'top center',
 }
 
-const STATION_TYPE_AR: Record<StationType, string> = {
-  Console: 'كونسول',
-  PC: 'كمبيوتر',
-  VR: 'واقع افتراضي',
-  Arcade: 'أركيد',
-  Board: 'ألعاب ورقية',
-}
-
-const DURATION_OPTIONS = [
-  { label: '30 دقيقة', value: 30 },
-  { label: 'ساعة', value: 60 },
-  { label: 'ساعة ونصف', value: 90 },
-  { label: 'ساعتان', value: 120 },
-  { label: 'مفتوح', value: 999 },
-]
-
 function getElapsedMinutes(startTime: string): number {
   return Math.floor((Date.now() - new Date(startTime).getTime()) / 60000)
 }
@@ -45,6 +30,23 @@ function getElapsedMinutes(startTime: string): number {
 export function GamingPosPage() {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
+
+  const stationTypeLabel = (type: StationType): string => ({
+    Console: t.gaming.types.other,
+    PC: t.gaming.types.pc,
+    VR: t.gaming.types.vr,
+    Arcade: t.gaming.types.other,
+    Board: t.gaming.types.billiards,
+  } as Record<StationType, string>)[type] ?? type
+
+  const DURATION_OPTIONS = [
+    { label: `30 ${t.gaming.minutes}`, value: 30 },
+    { label: t.gaming.hours, value: 60 },
+    { label: `1.5 ${t.gaming.hours}`, value: 90 },
+    { label: `2 ${t.gaming.hours}`, value: 120 },
+    { label: 'مفتوح', value: 999 },
+  ]
 
   const [renderKey, setRenderKey] = useState(0)
   const [startStation, setStartStation] = useState<GameStationResponse | null>(null)
@@ -78,11 +80,11 @@ export function GamingPosPage() {
         ratePerHour: startStation!.hourlyRate,
       }),
     onSuccess: () => {
-      toast.success('بدأت الجلسة', `${startStation!.name} — ${playerName}`)
+      toast.success(t.gaming.startSession, `${startStation!.name} — ${playerName}`)
       qc.invalidateQueries({ queryKey: ['gaming', 'stations'] })
       closeStart()
     },
-    onError: () => toast.error('فشل بدء الجلسة', 'يرجى المحاولة مرة أخرى'),
+    onError: () => toast.error(t.pos.paymentFailed),
   })
 
   const endMut = useMutation({
@@ -92,7 +94,7 @@ export function GamingPosPage() {
       setBill(result.data)
       qc.invalidateQueries({ queryKey: ['gaming', 'stations'] })
     },
-    onError: () => toast.error('فشل إنهاء الجلسة', 'يرجى المحاولة مرة أخرى'),
+    onError: () => toast.error(t.pos.paymentFailed),
   })
 
   const closeStart = () => {
@@ -121,10 +123,10 @@ export function GamingPosPage() {
       {/* Stats bar */}
       <div className="flex gap-3 px-6 py-3">
         <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
-          متاح: <strong className="text-blue-500">{availableCount}</strong>
+          {t.gaming.idle}: <strong className="text-blue-500">{availableCount}</strong>
         </span>
         <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
-          في جلسة: <strong style={{ color: 'var(--accent)' }}>{inUseCount}</strong>
+          {t.gaming.active}: <strong style={{ color: 'var(--accent)' }}>{inUseCount}</strong>
         </span>
         <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
           الكل: <strong className="text-gray-900 dark:text-gray-100">{activeStations.length}</strong>
@@ -185,7 +187,7 @@ export function GamingPosPage() {
                       )}
                       style={isInUse && !isOvertime ? { color: 'var(--accent)' } : undefined}
                     >
-                      {isAvail ? 'متاح' : isInUse ? (isOvertime ? 'تجاوز الوقت!' : 'في جلسة') : 'صيانة'}
+                      {isAvail ? t.gaming.idle : isInUse ? (isOvertime ? 'تجاوز الوقت!' : t.gaming.active) : 'صيانة'}
                     </span>
                     <Gamepad2
                       className={cn(
@@ -197,8 +199,8 @@ export function GamingPosPage() {
                   </div>
 
                   <p className="text-emboss truncate font-bold text-gray-900 dark:text-gray-100">{station.name}</p>
-                  <p className="text-xs text-gray-500">{STATION_TYPE_AR[station.type]}</p>
-                  <p className="text-xs text-gray-500">{formatCurrency(station.hourlyRate)} / ساعة</p>
+                  <p className="text-xs text-gray-500">{stationTypeLabel(station.type)}</p>
+                  <p className="text-xs text-gray-500">{formatCurrency(station.hourlyRate)} / {t.gaming.perHour}</p>
 
                   {isInUse && session && (
                     <div
@@ -221,7 +223,7 @@ export function GamingPosPage() {
                         >
                           {elapsed}/{planned === 999 ? '∞' : planned}
                         </span>
-                        <span className="text-[10px] text-gray-500">دق</span>
+                        <span className="text-[10px] text-gray-500">{t.gaming.minutes}</span>
                       </div>
                       {planned !== 999 && (
                         <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 shadow-inner dark:bg-gray-700">
@@ -244,7 +246,7 @@ export function GamingPosPage() {
                         onClick={() => setStartStation(station)}
                         className="btn-3d w-full py-1.5 text-xs"
                       >
-                        ابدأ جلسة
+                        {t.gaming.startSession}
                       </button>
                     )}
                     {isInUse && (
@@ -258,7 +260,7 @@ export function GamingPosPage() {
                             : undefined
                         }
                       >
-                        {endMut.isPending && endStation?.id === station.id ? 'جاري الإنهاء...' : 'إنهاء الجلسة'}
+                        {endMut.isPending && endStation?.id === station.id ? t.common.loading : t.gaming.endSession}
                       </button>
                     )}
                   </div>
@@ -279,9 +281,9 @@ export function GamingPosPage() {
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">بدء جلسة</h2>
+                <h2 className="text-base font-semibold">{t.gaming.startSession}</h2>
                 <p className="text-xs text-gray-500">
-                  {startStation.name} — {STATION_TYPE_AR[startStation.type]}
+                  {startStation.name} — {stationTypeLabel(startStation.type)}
                 </p>
               </div>
               <button onClick={closeStart}>
@@ -305,7 +307,7 @@ export function GamingPosPage() {
 
               <div>
                 <label className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  مدة الجلسة
+                  {t.gaming.duration}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {DURATION_OPTIONS.map(opt => (
@@ -336,15 +338,15 @@ export function GamingPosPage() {
                   </span>
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs text-gray-400">
-                  <span>{formatCurrency(startStation.hourlyRate)} / ساعة</span>
-                  {duration !== 999 && <span>{duration} دقيقة</span>}
+                  <span>{formatCurrency(startStation.hourlyRate)} / {t.gaming.perHour}</span>
+                  {duration !== 999 && <span>{duration} {t.gaming.minutes}</span>}
                 </div>
               </div>
             </div>
 
             <div className="mt-4 flex gap-3">
               <Button variant="secondary" onClick={closeStart} className="flex-1">
-                إلغاء
+                {t.common.cancel}
               </Button>
               <Button
                 variant="primary"
@@ -354,7 +356,7 @@ export function GamingPosPage() {
                 className="btn-3d flex-1 !bg-[color:var(--accent)] shadow-glow-accent hover:!bg-[color:var(--accent)]"
               >
                 <Zap className="ms-1.5 h-4 w-4" />
-                ابدأ الجلسة
+                {t.gaming.startSession}
               </Button>
             </div>
           </div>
@@ -369,7 +371,7 @@ export function GamingPosPage() {
             className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6"
             style={{ borderColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' }}
           >
-            <h2 className="mb-4 text-base font-semibold">فاتورة الجلسة</h2>
+            <h2 className="mb-4 text-base font-semibold">{t.gaming.bill}</h2>
 
             <div className="mb-4 space-y-2 text-sm">
               <div className="flex justify-between">
@@ -382,7 +384,7 @@ export function GamingPosPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">المدة الفعلية</span>
-                <span className="seg-display">{bill.actualDurationMinutes} دقيقة</span>
+                <span className="seg-display">{bill.actualDurationMinutes} {t.gaming.minutes}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">السعر / ساعة</span>
@@ -397,7 +399,7 @@ export function GamingPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.18), 0 0 22px var(--glow)',
               }}
             >
-              <p className="text-xs text-gray-500">الإجمالي</p>
+              <p className="text-xs text-gray-500">{t.pos.total}</p>
               <p className="text-emboss seg-display text-3xl font-bold" style={{ color: 'var(--accent)' }}>
                 {formatCurrency(bill.totalAmount)}
               </p>
@@ -408,7 +410,7 @@ export function GamingPosPage() {
               onClick={closeBill}
               className="btn-3d w-full !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
             >
-              تم الاستلام
+              {t.common.confirm}
             </Button>
           </div>
         </div>

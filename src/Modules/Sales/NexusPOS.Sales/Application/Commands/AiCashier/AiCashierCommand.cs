@@ -1,4 +1,4 @@
-using NexusPOS.Sales.Application.Services;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Sales.Application.Commands.AiCashier;

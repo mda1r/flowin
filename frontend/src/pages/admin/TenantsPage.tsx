@@ -17,12 +17,16 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { NewSubscriptionModal } from './NewSubscriptionModal'
 import { CreateTenantModal } from './CreateTenantModal'
+import { useI18n } from '@/i18n'
+import type { Translations } from '@/i18n/en'
 
-function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean) {
+type T = Translations
+
+function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean, t: T) {
   if (!isActive) {
     return (
       <span className="rounded-full bg-rose-900/60 px-2.5 py-0.5 text-xs font-semibold text-rose-300">
-        معلّق
+        {t.admin.tenants.statuses.suspended}
       </span>
     )
   }
@@ -34,10 +38,10 @@ function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean) 
     )
   }
   const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
-    Active: { bg: 'bg-emerald-900/60 text-emerald-300', label: 'نشط' },
-    Trial: { bg: 'bg-blue-900/60 text-blue-300', label: 'تجريبي' },
-    Expired: { bg: 'bg-rose-900/60 text-rose-300', label: 'منتهي' },
-    Suspended: { bg: 'bg-amber-900/60 text-amber-300', label: 'معلّق' },
+    Active:    { bg: 'bg-emerald-900/60 text-emerald-300', label: t.admin.tenants.statuses.active },
+    Trial:     { bg: 'bg-blue-900/60 text-blue-300',       label: 'تجريبي' },
+    Expired:   { bg: 'bg-rose-900/60 text-rose-300',       label: t.admin.tenants.statuses.expired },
+    Suspended: { bg: 'bg-amber-900/60 text-amber-300',     label: t.admin.tenants.statuses.suspended },
   }
   const { bg, label } = map[status]
   return (
@@ -47,16 +51,7 @@ function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean) 
   )
 }
 
-const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
-  Retail: 'تجزئة',
-  Supermarket: 'سوبرماركت',
-  Restaurant: 'مطعم',
-  Hotel: 'فندق',
-  Gaming: 'ألعاب',
-  Cafe: 'كافيه',
-}
-
-function businessTypeBadge(bt: BusinessType | undefined) {
+function businessTypeBadge(bt: BusinessType | undefined, labels: Record<BusinessType, string>) {
   if (!bt) return null
   const colors: Record<BusinessType, string> = {
     Retail:       'bg-slate-700 text-slate-300',
@@ -68,14 +63,14 @@ function businessTypeBadge(bt: BusinessType | undefined) {
   }
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${colors[bt]}`}>
-      {BUSINESS_TYPE_LABELS[bt]}
+      {labels[bt]}
     </span>
   )
 }
 
-function daysChip(days: number | undefined) {
+function daysChip(days: number | undefined, t: T) {
   if (days === undefined) return null
-  if (days < 0) return <span className="text-xs text-rose-400">منتهي</span>
+  if (days < 0) return <span className="text-xs text-rose-400">{t.admin.tenants.statuses.expired}</span>
   if (days <= 7)
     return (
       <span className="rounded-full bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-300">
@@ -87,10 +82,21 @@ function daysChip(days: number | undefined) {
 
 export function TenantsPage() {
   const qc = useQueryClient()
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const [search, setSearch] = useState('')
   const [showCreateTenant, setShowCreateTenant] = useState(false)
   const [subscribeTarget, setSubscribeTarget] = useState<TenantWithSubscriptionResponse | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+
+  const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+    Retail:      t.admin.dashboard.business.retail,
+    Supermarket: 'سوبرماركت',
+    Restaurant:  t.admin.dashboard.business.restaurant,
+    Hotel:       t.admin.dashboard.business.hotel,
+    Gaming:      t.admin.dashboard.business.gaming,
+    Cafe:        t.admin.dashboard.business.cafe,
+  }
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ['admin', 'tenants'],
@@ -98,8 +104,8 @@ export function TenantsPage() {
   })
 
   const suspendMut = useMutation({
-    mutationFn: (t: TenantWithSubscriptionResponse) =>
-      superAdminApi.suspendTenant(t.id, 'تعليق يدوي من لوحة المدير العام'),
+    mutationFn: (ten: TenantWithSubscriptionResponse) =>
+      superAdminApi.suspendTenant(ten.id, 'تعليق يدوي من لوحة المدير العام'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
       toast.success('تم تعليق الحساب', '')
@@ -108,8 +114,8 @@ export function TenantsPage() {
   })
 
   const activateMut = useMutation({
-    mutationFn: (t: TenantWithSubscriptionResponse) =>
-      superAdminApi.activateTenant(t.id),
+    mutationFn: (ten: TenantWithSubscriptionResponse) =>
+      superAdminApi.activateTenant(ten.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
       toast.success('تم تفعيل الحساب', '')
@@ -118,8 +124,8 @@ export function TenantsPage() {
   })
 
   const deleteMut = useMutation({
-    mutationFn: (t: TenantWithSubscriptionResponse) =>
-      superAdminApi.deleteTenant(t.id),
+    mutationFn: (ten: TenantWithSubscriptionResponse) =>
+      superAdminApi.deleteTenant(ten.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
       toast.success('تم حذف المستأجر', '')
@@ -129,10 +135,10 @@ export function TenantsPage() {
   })
 
   const filtered = tenants.filter(
-    (t) =>
-      t.name.includes(search) ||
-      t.adminEmail.toLowerCase().includes(search.toLowerCase()) ||
-      t.subdomain.includes(search),
+    (ten) =>
+      ten.name.includes(search) ||
+      ten.adminEmail.toLowerCase().includes(search.toLowerCase()) ||
+      ten.subdomain.includes(search),
   )
 
   return (
@@ -140,7 +146,7 @@ export function TenantsPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">المستأجرون</h1>
+          <h1 className="text-2xl font-bold text-white">{t.admin.tenants.title}</h1>
           <p className="mt-1 text-slate-400">
             {tenants.length} مستأجر مسجل
           </p>
@@ -170,16 +176,24 @@ export function TenantsPage() {
         <table className="w-full text-sm">
           <thead className="border-b border-slate-800 bg-slate-900">
             <tr>
-              {['الاسم', 'النطاق', 'النشاط', 'الخطة', 'الحالة', 'تاريخ الانتهاء', 'المتبقي', 'الإجراءات', ''].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider"
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
+              {[
+                t.admin.tenants.name,
+                'النطاق',
+                t.admin.tenants.businessType,
+                t.admin.tenants.plan,
+                t.admin.tenants.status,
+                t.admin.tenants.expires,
+                'المتبقي',
+                'الإجراءات',
+                '',
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 bg-slate-900/60">
@@ -193,61 +207,61 @@ export function TenantsPage() {
                     ))}
                   </tr>
                 ))
-              : filtered.map((t) => {
-                  const sub = t.activeSubscription
-                  const rowBg = !t.isActive
+              : filtered.map((ten) => {
+                  const sub = ten.activeSubscription
+                  const rowBg = !ten.isActive
                     ? 'opacity-60'
                     : sub?.daysRemaining !== undefined && sub.daysRemaining <= 7 && sub.daysRemaining >= 0
                     ? 'bg-amber-950/20'
                     : ''
                   return (
-                    <tr key={t.id} className={`hover:bg-slate-800/50 transition-colors ${rowBg}`}>
+                    <tr key={ten.id} className={`hover:bg-slate-800/50 transition-colors ${rowBg}`}>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-white">{t.name}</p>
-                        <p className="text-xs text-slate-400">{t.adminEmail}</p>
+                        <p className="font-medium text-white">{ten.name}</p>
+                        <p className="text-xs text-slate-400">{ten.adminEmail}</p>
                       </td>
-                      <td className="px-4 py-3 text-slate-300">{t.subdomain}</td>
-                      <td className="px-4 py-3">{businessTypeBadge(t.businessType)}</td>
+                      <td className="px-4 py-3 text-slate-300">{ten.subdomain}</td>
+                      <td className="px-4 py-3">{businessTypeBadge(ten.businessType, BUSINESS_TYPE_LABELS)}</td>
                       <td className="px-4 py-3 text-slate-300">{sub?.planName ?? '—'}</td>
                       <td className="px-4 py-3">
-                        {statusBadge(sub?.status, t.isActive)}
+                        {statusBadge(sub?.status, ten.isActive, t)}
                       </td>
                       <td className="px-4 py-3 text-slate-300">
                         {sub?.expiryDate
-                          ? new Date(sub.expiryDate).toLocaleDateString('ar-SA')
+                          ? new Date(sub.expiryDate).toLocaleDateString(locale)
                           : '—'}
                       </td>
-                      <td className="px-4 py-3">{daysChip(sub?.daysRemaining)}</td>
+                      <td className="px-4 py-3">{daysChip(sub?.daysRemaining, t)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Link
                             to="/admin/tenants/$id"
-                            params={{ id: t.id }}
+                            params={{ id: ten.id }}
                             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                            title="عرض التفاصيل"
+                            title={t.admin.tenants.viewDetails}
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
                           <button
-                            onClick={() => setSubscribeTarget(t)}
+                            onClick={() => setSubscribeTarget(ten)}
                             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-blue-400 transition-colors"
-                            title="اشتراك جديد"
+                            title={t.admin.subscription.newSubscription}
                           >
                             <Plus className="h-4 w-4" />
                           </button>
-                          {t.isActive ? (
+                          {ten.isActive ? (
                             <button
-                              onClick={() => suspendMut.mutate(t)}
+                              onClick={() => suspendMut.mutate(ten)}
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-amber-400 transition-colors"
-                              title="تعليق الحساب"
+                              title={t.admin.tenants.suspend}
                             >
                               <PauseCircle className="h-4 w-4" />
                             </button>
                           ) : (
                             <button
-                              onClick={() => activateMut.mutate(t)}
+                              onClick={() => activateMut.mutate(ten)}
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-emerald-400 transition-colors"
-                              title="تفعيل الحساب"
+                              title={t.admin.tenants.activate}
                             >
                               <PlayCircle className="h-4 w-4" />
                             </button>
@@ -256,9 +270,9 @@ export function TenantsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => setDeleteTarget(t)}
+                          onClick={() => setDeleteTarget(ten)}
                           className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-700 hover:text-rose-400 transition-colors"
-                          title="حذف المستأجر"
+                          title={t.admin.tenants.delete}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -269,7 +283,7 @@ export function TenantsPage() {
           </tbody>
         </table>
         {!isLoading && filtered.length === 0 && (
-          <div className="py-16 text-center text-slate-400">لا توجد نتائج</div>
+          <div className="py-16 text-center text-slate-400">{t.common.noData}</div>
         )}
       </div>
 
@@ -292,13 +306,13 @@ export function TenantsPage() {
           title="تأكيد حذف المستأجر"
           footer={
             <>
-              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>إلغاء</Button>
+              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t.common.cancel}</Button>
               <Button
                 loading={deleteMut.isPending}
                 className="bg-rose-600 hover:bg-rose-500"
                 onClick={() => deleteMut.mutate(deleteTarget)}
               >
-                حذف نهائي
+                {t.common.delete}
               </Button>
             </>
           }

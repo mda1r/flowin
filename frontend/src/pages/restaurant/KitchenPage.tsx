@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Clock, CheckCircle, ChefHat } from 'lucide-react'
 import { restaurantApi } from '@/api/restaurant'
 import { useAuthStore } from '@/stores/authStore'
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import type { RestaurantOrderResponse, OrderItemStatus } from '@/types/api'
 
@@ -24,9 +25,9 @@ function timeBorderColor(minutes: number): string {
   return 'border-red-500'
 }
 
-function itemStatusLabel(status: OrderItemStatus): string {
-  if (status === 'Ready') return 'جاهز'
-  if (status === 'Preparing') return 'يتحضر'
+function itemStatusLabel(status: OrderItemStatus, t: { kitchen: { ready: string; preparing: string } }): string {
+  if (status === 'Ready') return t.kitchen.ready
+  if (status === 'Preparing') return t.kitchen.preparing
   return 'انتظار'
 }
 
@@ -59,6 +60,7 @@ function OrderCard({
   onOrderReady: (orderId: string) => void
   onSendToKitchen?: (orderId: string) => void
 }) {
+  const { t } = useI18n()
   const minutes = minutesSince(order.createdAt)
   const allReady = order.items.every((i) => i.status === 'Ready')
 
@@ -73,12 +75,12 @@ function OrderCard({
       <div className="mb-4 flex items-center justify-between">
         <div>
           <span className="text-4xl font-black text-white">#{order.tableNumber}</span>
-          <p className="text-xs text-gray-400">طاولة</p>
+          <p className="text-xs text-gray-400">{t.kitchen.table}</p>
         </div>
         <div className={cn('text-right', timeColor(minutes))}>
           <div className="flex items-center gap-1.5 justify-end">
             <Clock className="h-4 w-4" />
-            <span className="text-lg font-bold">{minutes} دقيقة</span>
+            <span className="text-lg font-bold">{minutes} {t.kitchen.minutes}</span>
           </div>
           {order.notes && (
             <p className="mt-1 text-xs text-gray-400 max-w-[120px] text-right">
@@ -120,7 +122,7 @@ function OrderCard({
               item.status === 'Ready' ? 'text-green-400' :
               item.status === 'Preparing' ? 'text-blue-400' : 'text-gray-500',
             )}>
-              {itemStatusLabel(item.status)}
+              {itemStatusLabel(item.status, t)}
             </span>
           </li>
         ))}
@@ -132,7 +134,7 @@ function OrderCard({
           onClick={() => onSendToKitchen(order.id)}
           className="w-full rounded-xl bg-blue-500 py-2 text-sm font-bold text-white transition-all hover:bg-blue-400"
         >
-          إرسال للمطبخ
+          {t.kitchen.sendToKitchen}
         </button>
       )}
 
@@ -147,7 +149,7 @@ function OrderCard({
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600',
           )}
         >
-          {allReady ? '✓ الطلب جاهز' : 'الطلب جاهز'}
+          {allReady ? t.kitchen.markReady : 'الطلب جاهز'}
         </button>
       )}
 
@@ -165,6 +167,7 @@ function OrderCard({
 export function KitchenPage() {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
+  const { t, lang } = useI18n()
   const audioCtxRef = useRef<AudioContext | null>(null)
   const prevOrderIdsRef = useRef<Set<string>>(new Set())
   const [initialized, setInitialized] = useState(false)
@@ -228,11 +231,11 @@ export function KitchenPage() {
       <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
         <div className="flex items-center gap-3">
           <ChefHat className="h-7 w-7 text-orange-400" />
-          <h1 className="text-xl font-bold">شاشة المطبخ</h1>
+          <h1 className="text-xl font-bold">{t.kitchen.title}</h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-400">
-            {new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+            {new Date().toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
           </div>
           {!initialized && (
             <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-400">
@@ -250,7 +253,7 @@ export function KitchenPage() {
             </span>
             <span>
               <span className="inline-block h-2 w-2 rounded-full bg-green-500 ml-1" />
-              جاهز: {readyOrders.length}
+              {t.kitchen.ready}: {readyOrders.length}
             </span>
           </div>
         </div>
@@ -277,7 +280,7 @@ export function KitchenPage() {
               />
             ))}
             {pendingOrders.length === 0 && (
-              <p className="py-12 text-center text-sm text-gray-700">لا طلبات قيد الانتظار</p>
+              <p className="py-12 text-center text-sm text-gray-700">{t.kitchen.noOrders}</p>
             )}
           </div>
         </div>
@@ -300,7 +303,7 @@ export function KitchenPage() {
               />
             ))}
             {inKitchenOrders.length === 0 && (
-              <p className="py-12 text-center text-sm text-gray-700">لا طلبات قيد التحضير</p>
+              <p className="py-12 text-center text-sm text-gray-700">{t.kitchen.noOrders}</p>
             )}
           </div>
         </div>
@@ -308,7 +311,7 @@ export function KitchenPage() {
         {/* جاهز */}
         <div className="flex flex-col overflow-hidden">
           <div className="border-b border-gray-800 bg-green-500/10 px-4 py-3">
-            <h2 className="font-bold text-green-400">جاهز</h2>
+            <h2 className="font-bold text-green-400">{t.kitchen.ready}</h2>
             <p className="text-xs text-gray-500">{readyOrders.length} طلب</p>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -323,7 +326,7 @@ export function KitchenPage() {
               />
             ))}
             {readyOrders.length === 0 && (
-              <p className="py-12 text-center text-sm text-gray-700">لا طلبات جاهزة</p>
+              <p className="py-12 text-center text-sm text-gray-700">{t.kitchen.noOrders}</p>
             )}
           </div>
         </div>

@@ -15,15 +15,8 @@ import { branchesApi, type CreateBranchPayload } from '@/api/branches'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import type { BranchResponse, BranchType } from '@/types/api'
+import { useI18n } from '@/i18n'
 
-const BRANCH_TYPE_LABELS: Record<BranchType, string> = {
-  Retail: 'تجزئة',
-  Restaurant: 'مطعم',
-  Hotel: 'فندق',
-  Gaming: 'ألعاب',
-  Warehouse: 'مستودع',
-  Office: 'مكتب',
-}
 
 const BRANCH_TYPES: BranchType[] = ['Retail', 'Restaurant', 'Hotel', 'Gaming', 'Warehouse', 'Office']
 
@@ -40,8 +33,17 @@ type BranchFormData = z.infer<typeof branchSchema>
 
 export function BranchesPage() {
   const { tenantId, user } = useAuthStore()
+  const { t } = useI18n()
   const role = user?.role
   const qc = useQueryClient()
+  const typeLabels: Record<BranchType, string> = {
+    Retail:     t.branches.types.retail,
+    Restaurant: t.branches.types.restaurant,
+    Hotel:      t.branches.types.hotel,
+    Gaming:     t.branches.types.gaming,
+    Warehouse:  'مستودع',
+    Office:     'مكتب',
+  }
 
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<BranchResponse | null>(null)
@@ -68,10 +70,10 @@ export function BranchesPage() {
       qc.invalidateQueries({ queryKey: ['branches', tenantId] })
       setShowCreate(false)
       reset()
-      toast.success('تم إنشاء الفرع', '')
+      toast.success(t.branches.created, '')
     },
     onError: (err: { response?: { data?: { detail?: string } } }) =>
-      toast.error('فشل إنشاء الفرع', err?.response?.data?.detail ?? ''),
+      toast.error(t.branches.failed, err?.response?.data?.detail ?? ''),
   })
 
   const updateMut = useMutation({
@@ -81,10 +83,10 @@ export function BranchesPage() {
       qc.invalidateQueries({ queryKey: ['branches', tenantId] })
       setEditing(null)
       reset()
-      toast.success('تم تحديث الفرع', '')
+      toast.success(t.branches.updated, '')
     },
     onError: (err: { response?: { data?: { detail?: string } } }) =>
-      toast.error('فشل تحديث الفرع', err?.response?.data?.detail ?? ''),
+      toast.error(t.branches.failed, err?.response?.data?.detail ?? ''),
   })
 
   const deactivateMut = useMutation({
@@ -94,7 +96,7 @@ export function BranchesPage() {
       setDeactivating(null)
       toast.success('تم تعطيل الفرع', '')
     },
-    onError: () => toast.error('فشل تعطيل الفرع', ''),
+    onError: () => toast.error(t.branches.failed, ''),
   })
 
   const openEdit = (branch: BranchResponse) => {
@@ -114,13 +116,13 @@ export function BranchesPage() {
   return (
     <div>
       <PageHeader
-        title="الفروع"
+        title={t.branches.title}
         description="إدارة فروع المنشأة"
         action={
           canManage ? (
             <Button onClick={() => { reset({ type: 'Retail' }); setShowCreate(true) }}>
               <Plus className="h-4 w-4" />
-              إضافة فرع
+              {t.branches.addBranch}
             </Button>
           ) : undefined
         }
@@ -130,17 +132,17 @@ export function BranchesPage() {
         {/* Summary cards */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-xs text-gray-500">إجمالي الفروع</p>
+            <p className="text-xs text-gray-500">{t.branches.totalBranches}</p>
             <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{branches.length}</p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-xs text-gray-500">فروع نشطة</p>
+            <p className="text-xs text-gray-500">{t.branches.activeBranches}</p>
             <p className="mt-1 text-2xl font-bold text-green-600">
               {branches.filter((b) => b.isActive).length}
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-xs text-gray-500">فروع معطّلة</p>
+            <p className="text-xs text-gray-500">{t.branches.inactiveBranches}</p>
             <p className="mt-1 text-2xl font-bold text-red-600">
               {branches.filter((b) => !b.isActive).length}
             </p>
@@ -152,11 +154,11 @@ export function BranchesPage() {
             loading={isLoading}
             data={branches}
             keyExtractor={(r) => r.id}
-            emptyMessage="لا توجد فروع"
+            emptyMessage={t.branches.noBranches}
             columns={[
               {
                 key: 'name',
-                header: 'اسم الفرع',
+                header: t.branches.name,
                 render: (r) => (
                   <div className="flex items-center gap-2">
                     <GitBranch className="h-4 w-4 text-gray-400 shrink-0" />
@@ -164,7 +166,7 @@ export function BranchesPage() {
                       <p className="font-medium text-gray-900 dark:text-gray-100">{r.name}</p>
                       {r.isMainBranch && (
                         <span className="flex items-center gap-0.5 text-xs text-yellow-600">
-                          <Star className="h-3 w-3" /> رئيسي
+                          <Star className="h-3 w-3" /> {t.branches.mainBranch}
                         </span>
                       )}
                     </div>
@@ -173,16 +175,16 @@ export function BranchesPage() {
               },
               {
                 key: 'type',
-                header: 'النوع',
+                header: t.branches.type,
                 render: (r) => (
                   <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {BRANCH_TYPE_LABELS[r.type] ?? r.type}
+                    {typeLabels[r.type] ?? r.type}
                   </span>
                 ),
               },
               {
                 key: 'contact',
-                header: 'التواصل',
+                header: t.branches.contact,
                 render: (r) => (
                   <div className="text-xs text-gray-500">
                     {r.phoneNumber && <p>{r.phoneNumber}</p>}
@@ -193,7 +195,7 @@ export function BranchesPage() {
               },
               {
                 key: 'city',
-                header: 'المدينة',
+                header: t.branches.city,
                 render: (r) => (
                   <span className="text-sm text-gray-600 dark:text-gray-400">
                     {[r.city, r.country].filter(Boolean).join('، ') || '—'}
@@ -202,10 +204,10 @@ export function BranchesPage() {
               },
               {
                 key: 'status',
-                header: 'الحالة',
+                header: t.branches.status,
                 render: (r) => (
                   <Badge variant={r.isActive ? 'green' : 'gray'}>
-                    {r.isActive ? 'نشط' : 'معطّل'}
+                    {r.isActive ? t.common.active : t.common.inactive}
                   </Badge>
                 ),
               },
@@ -246,12 +248,12 @@ export function BranchesPage() {
       <Modal
         open={showCreate}
         onClose={() => { setShowCreate(false); reset() }}
-        title="إضافة فرع جديد"
+        title={t.branches.newBranch}
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setShowCreate(false); reset() }}>إلغاء</Button>
+            <Button variant="secondary" onClick={() => { setShowCreate(false); reset() }}>{t.common.cancel}</Button>
             <Button loading={createMut.isPending} onClick={handleSubmit((d) => createMut.mutate(d))}>
-              إنشاء
+              {t.common.save}
             </Button>
           </>
         }
@@ -264,12 +266,12 @@ export function BranchesPage() {
         <Modal
           open
           onClose={() => { setEditing(null); reset() }}
-          title={`تعديل — ${editing.name}`}
+          title={`${t.branches.editBranch} — ${editing.name}`}
           footer={
             <>
-              <Button variant="secondary" onClick={() => { setEditing(null); reset() }}>إلغاء</Button>
+              <Button variant="secondary" onClick={() => { setEditing(null); reset() }}>{t.common.cancel}</Button>
               <Button loading={updateMut.isPending} onClick={handleSubmit((d) => updateMut.mutate(d))}>
-                حفظ
+                {t.common.save}
               </Button>
             </>
           }
@@ -302,23 +304,32 @@ function BranchForm({
   register: ReturnType<typeof useForm<z.infer<typeof branchSchema>>>['register']
   errors: ReturnType<typeof useForm<z.infer<typeof branchSchema>>>['formState']['errors']
 }) {
+  const { t } = useI18n()
+  const typeLabels: Record<BranchType, string> = {
+    Retail:     t.branches.types.retail,
+    Restaurant: t.branches.types.restaurant,
+    Hotel:      t.branches.types.hotel,
+    Gaming:     t.branches.types.gaming,
+    Warehouse:  'مستودع',
+    Office:     'مكتب',
+  }
   return (
     <form className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Input label="اسم الفرع" error={errors.name?.message} {...register('name')} />
-        <Select label="النوع" error={errors.type?.message} {...register('type')}>
-          {BRANCH_TYPES.map((t) => (
-            <option key={t} value={t}>{BRANCH_TYPE_LABELS[t]}</option>
+        <Input label={t.branches.name} error={errors.name?.message} {...register('name')} />
+        <Select label={t.branches.type} error={errors.type?.message} {...register('type')}>
+          {BRANCH_TYPES.map((bt) => (
+            <option key={bt} value={bt}>{typeLabels[bt]}</option>
           ))}
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Input label="رقم الهاتف" {...register('phoneNumber')} />
-        <Input label="البريد الإلكتروني" type="email" error={errors.email?.message} {...register('email')} />
+        <Input label={t.branches.phone} {...register('phoneNumber')} />
+        <Input label={t.users.email} type="email" error={errors.email?.message} {...register('email')} />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Input label="المدينة" {...register('city')} />
-        <Input label="الدولة" {...register('country')} />
+        <Input label={t.branches.city} {...register('city')} />
+        <Input label={t.branches.country} {...register('country')} />
       </div>
     </form>
   )

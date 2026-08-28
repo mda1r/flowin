@@ -22,6 +22,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { salesApi } from '@/api/sales'
 import { ordersApi } from '@/api/orders'
+import { useI18n } from '@/i18n'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
@@ -64,9 +65,9 @@ function getDateRange(period: Period, customFrom?: string, customTo?: string): {
   }
 }
 
-function getQuarterLabel(): string {
+function getQuarterLabel(quarterTemplate: string): string {
   const q = Math.floor(new Date().getMonth() / 3) + 1
-  return `الربع ${['الأول', 'الثاني', 'الثالث', 'الرابع'][q - 1]} ${new Date().getFullYear()}`
+  return quarterTemplate.replace('{n}', String(q))
 }
 
 // ── Analytics helpers ──────────────────────────────────────────────────────────
@@ -87,8 +88,13 @@ function computeStats(orders: OrderResponse[]) {
 
   const byPayment: Record<string, number> = {}
   for (const o of orders) {
-    const m = o.paymentMethod ?? 'Unknown'
-    byPayment[m] = (byPayment[m] ?? 0) + o.totalAmount
+    if (o.paymentMethod === 'Split') {
+      byPayment['Cash'] = (byPayment['Cash'] ?? 0) + (o.splitCash ?? 0)
+      byPayment['Card'] = (byPayment['Card'] ?? 0) + (o.splitCard ?? 0)
+    } else {
+      const m = o.paymentMethod ?? 'Unknown'
+      byPayment[m] = (byPayment[m] ?? 0) + o.totalAmount
+    }
   }
 
   const productMap = new Map<string, ProductStat>()
@@ -104,25 +110,6 @@ function computeStats(orders: OrderResponse[]) {
     .slice(0, 10)
 
   return { totalRevenue, totalTax, totalSubtotal, totalOrders, avgOrder, byPayment, topProducts }
-}
-
-// ── Period tab config ──────────────────────────────────────────────────────────
-
-const PERIODS: { key: Period; label: string }[] = [
-  { key: 'today',   label: 'اليوم' },
-  { key: 'week',    label: 'هذا الأسبوع' },
-  { key: 'month',   label: 'هذا الشهر' },
-  { key: 'quarter', label: 'هذا الربع' },
-  { key: 'year',    label: 'هذه السنة' },
-  { key: 'custom',  label: 'مخصص' },
-]
-
-const PAYMENT_LABELS: Record<string, { ar: string; icon: React.ReactNode; color: string }> = {
-  Cash:         { ar: 'نقداً',       icon: <Banknote   className="h-4 w-4" />, color: 'text-emerald-600' },
-  Card:         { ar: 'بطاقة',      icon: <CreditCard className="h-4 w-4" />, color: 'text-blue-600'    },
-  BankTransfer: { ar: 'تحويل بنكي', icon: <Landmark   className="h-4 w-4" />, color: 'text-violet-600'  },
-  Voucher:      { ar: 'قسيمة',      icon: <Ticket     className="h-4 w-4" />, color: 'text-amber-600'   },
-  Split:        { ar: 'مختلط',      icon: <Banknote   className="h-4 w-4" />, color: 'text-orange-600'  },
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -162,9 +149,10 @@ function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrde
   totalSubtotal: number
   totalOrders: number
 }) {
+  const { t } = useI18n()
   const taxBase = totalSubtotal
   const taxRate = totalSubtotal > 0 && totalTax > 0 ? ((totalTax / totalSubtotal) * 100).toFixed(0) : '15'
-  const quarterLabel = getQuarterLabel()
+  const quarterLabel = getQuarterLabel(t.reports.quarter)
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 dark:border-amber-800/40 dark:bg-amber-900/10">
@@ -174,35 +162,35 @@ function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrde
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">تقرير ضريبة القيمة المضافة (VAT)</h3>
+            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{t.reports.vatReport}</h3>
             <Badge variant="orange">{quarterLabel}</Badge>
           </div>
           <p className="mt-0.5 text-sm text-gray-500">
-            {dateFrom} – {dateTo} · هيئة الزكاة والضريبة والجمارك (زاتكا)
+            {dateFrom} – {dateTo}
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl bg-white p-4 dark:bg-gray-800 shadow-sm">
-              <p className="text-xs font-medium text-gray-400">الإيرادات (قبل الضريبة)</p>
+              <p className="text-xs font-medium text-gray-400">{t.reports.totalRevenue}</p>
               <p className="mt-1.5 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(taxBase)}</p>
             </div>
             <div className="rounded-xl bg-white p-4 dark:bg-gray-800 shadow-sm">
-              <p className="text-xs font-medium text-gray-400">نسبة الضريبة</p>
+              <p className="text-xs font-medium text-gray-400">{t.reports.vatSummary}</p>
               <p className="mt-1.5 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{taxRate}%</p>
             </div>
             <div className="rounded-xl bg-amber-100 p-4 dark:bg-amber-900/30 shadow-sm">
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">إجمالي الضريبة المستحقة</p>
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{t.reports.totalVat}</p>
               <p className="mt-1.5 text-lg font-bold tabular-nums text-amber-800 dark:text-amber-300">{formatCurrency(totalTax)}</p>
             </div>
             <div className="rounded-xl bg-white p-4 dark:bg-gray-800 shadow-sm">
-              <p className="text-xs font-medium text-gray-400">عدد الفواتير</p>
+              <p className="text-xs font-medium text-gray-400">{t.reports.totalOrders}</p>
               <p className="mt-1.5 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{totalOrders}</p>
             </div>
           </div>
 
           <div className="mt-4 flex items-start gap-2 rounded-xl bg-white/70 p-3 text-xs text-gray-500 dark:bg-gray-800/50">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-            <span>يُرجى تقديم إقرار ضريبة القيمة المضافة على منصة زاتكا بحلول نهاية الشهر التالي للربع.</span>
+            <span>{t.reports.vatDisclaimer}</span>
           </div>
         </div>
       </div>
@@ -214,9 +202,27 @@ function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrde
 
 export function ReportsPage() {
   const { branchId } = useAuthStore()
+  const { t } = useI18n()
   const [period, setPeriod] = useState<Period>('month')
   const [customFrom, setCustomFrom] = useState(localDateStr(new Date()))
   const [customTo, setCustomTo] = useState(localDateStr(new Date()))
+
+  const PERIODS: { key: Period; label: string }[] = [
+    { key: 'today',   label: t.reports.periods.today },
+    { key: 'week',    label: t.reports.periods.last7 },
+    { key: 'month',   label: t.reports.periods.thisMonth },
+    { key: 'quarter', label: t.reports.periods.thisQuarter },
+    { key: 'year',    label: t.reports.periods.thisYear },
+    { key: 'custom',  label: t.reports.periods.custom },
+  ]
+
+  const PAYMENT_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+    Cash:         { label: t.reports.paymentMethods.cash,         icon: <Banknote   className="h-4 w-4" />, color: 'text-emerald-600' },
+    Card:         { label: t.reports.paymentMethods.card,         icon: <CreditCard className="h-4 w-4" />, color: 'text-blue-600'    },
+    BankTransfer: { label: t.reports.paymentMethods.bankTransfer, icon: <Landmark   className="h-4 w-4" />, color: 'text-violet-600'  },
+    Voucher:      { label: t.reports.paymentMethods.voucher,      icon: <Ticket     className="h-4 w-4" />, color: 'text-amber-600'   },
+    Split:        { label: t.reports.paymentMethods.split,        icon: <Banknote   className="h-4 w-4" />, color: 'text-orange-600'  },
+  }
 
   const { dateFrom, dateTo } = useMemo(
     () => getDateRange(period, customFrom, customTo),
@@ -272,7 +278,7 @@ export function ReportsPage() {
       <div className="space-y-6 p-6">
 
         <PageHeader
-          title="التقارير"
+          title={t.reports.title}
           description={periodLabel}
         />
 
@@ -299,14 +305,14 @@ export function ReportsPage() {
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
             <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
             <div className="flex items-center gap-2 flex-wrap">
-              <label className="text-sm text-gray-500">من</label>
+              <label className="text-sm text-gray-500">{t.reports.from}</label>
               <input
                 type="date"
                 value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
                 className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
-              <label className="text-sm text-gray-500">إلى</label>
+              <label className="text-sm text-gray-500">{t.reports.to}</label>
               <input
                 type="date"
                 value={customTo}
@@ -326,28 +332,28 @@ export function ReportsPage() {
           </div>
         ) : isError ? (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-            تعذّر تحميل البيانات. يرجى المحاولة مجدداً.
+            {t.common.noData}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <KpiCard
-                title="صافي الإيرادات"
+                title={t.sales.netRevenue}
                 value={formatCurrency(stats.totalRevenue - returnStats.total)}
-                sub={`${stats.totalOrders} طلب`}
+                sub={String(stats.totalOrders)}
                 icon={<DollarSign className="h-5 w-5 text-blue-600" />}
                 iconWrap="bg-blue-50 dark:bg-blue-900/30"
                 accent="#3b82f6"
               />
               <KpiCard
-                title="عدد الطلبات"
+                title={t.reports.totalOrders}
                 value={String(stats.totalOrders)}
                 icon={<ShoppingCart className="h-5 w-5 text-purple-600" />}
                 iconWrap="bg-purple-50 dark:bg-purple-900/30"
                 accent="#a855f7"
               />
               <KpiCard
-                title="متوسط قيمة الطلب"
+                title={t.reports.avgOrderValue}
                 value={formatCurrency(stats.avgOrder)}
                 icon={<TrendingUp className="h-5 w-5 text-green-600" />}
                 iconWrap="bg-green-50 dark:bg-green-900/30"
@@ -356,23 +362,23 @@ export function ReportsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <KpiCard
-                title="إجمالي ضريبة القيمة المضافة"
+                title={t.reports.totalVat}
                 value={formatCurrency(stats.totalTax)}
-                sub="15% ضريبة القيمة المضافة"
+                sub={t.reports.vatSummary}
                 icon={<Receipt className="h-5 w-5 text-amber-600" />}
                 iconWrap="bg-amber-50 dark:bg-amber-900/30"
                 accent="#f59e0b"
               />
               <KpiCard
-                title="عدد الإرجاعات"
+                title={t.sales.returns}
                 value={String(returnStats.count)}
-                sub={returnStats.count > 0 ? `إجمالي ${formatCurrency(returnStats.total)}` : 'لا توجد إرجاعات'}
+                sub={returnStats.count > 0 ? formatCurrency(returnStats.total) : t.common.noData}
                 icon={<RotateCcw className="h-5 w-5 text-red-600" />}
                 iconWrap="bg-red-50 dark:bg-red-900/30"
                 accent="#ef4444"
               />
               <KpiCard
-                title="إجمالي الإيرادات (قبل الإرجاع)"
+                title={t.reports.totalRevenue}
                 value={formatCurrency(stats.totalRevenue)}
                 icon={<TrendingDown className="h-5 w-5 text-gray-500" />}
                 iconWrap="bg-gray-100 dark:bg-gray-800"
@@ -403,15 +409,15 @@ export function ReportsPage() {
                   >
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-gray-400" />
-                      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">المنتجات الأكثر مبيعاً</h2>
+                      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.reports.topProducts}</h2>
                     </div>
-                    <Badge variant="gray">{stats.topProducts.length} منتج</Badge>
+                    <Badge variant="gray">{stats.topProducts.length}</Badge>
                   </div>
 
                   {stats.topProducts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <Package className="mb-3 h-10 w-10 text-gray-200 dark:text-gray-700" />
-                      <p className="text-sm text-gray-400">لا توجد بيانات مبيعات في هذه الفترة</p>
+                      <p className="text-sm text-gray-400">{t.common.noData}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -436,7 +442,7 @@ export function ReportsPage() {
                             </div>
                             <div className="shrink-0 text-right">
                               <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(p.revenue)}</p>
-                              <p className="text-xs text-gray-400">{p.quantity} وحدة</p>
+                              <p className="text-xs text-gray-400">{p.quantity} {t.reports.quantity}</p>
                             </div>
                           </div>
                         )
@@ -453,11 +459,11 @@ export function ReportsPage() {
                     className="border-b px-6 py-4"
                     style={{ borderColor: 'var(--card-border)' }}
                   >
-                    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">طرق الدفع</h2>
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.sales.method}</h2>
                   </div>
                   <div className="p-4 space-y-3">
                     {Object.entries(stats.byPayment).length === 0 ? (
-                      <p className="py-4 text-center text-sm text-gray-400">لا توجد بيانات</p>
+                      <p className="py-4 text-center text-sm text-gray-400">{t.common.noData}</p>
                     ) : (
                       Object.entries(stats.byPayment)
                         .sort(([, a], [, b]) => b - a)
@@ -469,7 +475,7 @@ export function ReportsPage() {
                               <div className="flex items-center justify-between">
                                 <div className={cn('flex items-center gap-2 text-sm', meta?.color ?? 'text-gray-600')}>
                                   {meta?.icon}
-                                  <span>{meta?.ar ?? method}</span>
+                                  <span>{meta?.label ?? method}</span>
                                 </div>
                                 <div className="text-right">
                                   <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(amount)}</span>
@@ -495,15 +501,15 @@ export function ReportsPage() {
                     className="border-b px-6 py-4"
                     style={{ borderColor: 'var(--card-border)' }}
                   >
-                    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">ملخص الفترة</h2>
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.reports.vatSummary}</h2>
                   </div>
                   <div className="divide-y divide-gray-100 p-0 dark:divide-gray-800">
                     {[
-                      { label: 'الإيرادات قبل الضريبة', value: formatCurrency(stats.totalSubtotal) },
-                      { label: 'ضريبة القيمة المضافة (15%)', value: formatCurrency(stats.totalTax) },
-                      { label: 'الإجمالي شامل الضريبة', value: formatCurrency(stats.totalRevenue) },
-                      { label: 'إجمالي الإرجاعات', value: returnStats.total > 0 ? `- ${formatCurrency(returnStats.total)}` : formatCurrency(0), red: returnStats.total > 0 },
-                      { label: 'صافي الإيرادات', value: formatCurrency(stats.totalRevenue - returnStats.total), bold: true },
+                      { label: t.reports.totalRevenue,  value: formatCurrency(stats.totalSubtotal) },
+                      { label: t.reports.totalVat,      value: formatCurrency(stats.totalTax) },
+                      { label: t.sales.totalRevenue,    value: formatCurrency(stats.totalRevenue) },
+                      { label: t.sales.returns,         value: returnStats.total > 0 ? `- ${formatCurrency(returnStats.total)}` : formatCurrency(0), red: returnStats.total > 0 },
+                      { label: t.sales.netRevenue,      value: formatCurrency(stats.totalRevenue - returnStats.total), bold: true },
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between px-6 py-3">
                         <span className="text-sm text-gray-500">{row.label}</span>

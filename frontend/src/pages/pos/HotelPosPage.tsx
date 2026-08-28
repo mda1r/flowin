@@ -8,6 +8,7 @@ import { hotelApi } from '@/api/hotel'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { RoomResponse, RoomType } from '@/types/api'
+import { useI18n } from '@/i18n'
 
 /* hotel accent scoped to this page */
 const HOTEL_ACCENT: React.CSSProperties = {
@@ -15,16 +16,16 @@ const HOTEL_ACCENT: React.CSSProperties = {
   '--glow': 'rgba(30,64,175,0.35)',
 } as React.CSSProperties
 
-const ROOM_TYPE_AR: Record<RoomType, string> = {
-  Standard: 'قياسي',
-  Deluxe: 'ديلوكس',
-  Suite: 'جناح',
-  Presidential: 'رئاسي',
-}
-
 export function HotelPosPage() {
   const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const { t } = useI18n()
+  const roomTypeLabel = (type: RoomType): string => ({
+    Standard: t.hotel.roomTypes.standard,
+    Deluxe: t.hotel.roomTypes.deluxe,
+    Suite: t.hotel.roomTypes.suite,
+    Presidential: t.hotel.roomTypes.penthouse,
+  } as Record<RoomType, string>)[type]
 
   const [selectedRoom, setSelectedRoom] = useState<RoomResponse | null>(null)
   const [showCheckIn, setShowCheckIn] = useState(false)
@@ -72,22 +73,22 @@ export function HotelPosPage() {
         notes: notes || undefined,
       }),
     onSuccess: () => {
-      toast.success('تم تسجيل الدخول', `الغرفة ${selectedRoom!.roomNumber} — ${guestName}`)
+      toast.success(t.hotel.checkIn, `${selectedRoom!.roomNumber} — ${guestName}`)
       qc.invalidateQueries({ queryKey: ['hotel', 'rooms'] })
       closeCheckIn()
     },
-    onError: () => toast.error('فشل تسجيل الدخول', 'يرجى المحاولة مرة أخرى'),
+    onError: () => toast.error(t.pos.paymentFailed),
   })
 
   const checkOutMut = useMutation({
     mutationFn: () =>
       hotelApi.checkOut(branchId!, selectedRoom!.activeReservation!.id),
     onSuccess: () => {
-      toast.success('تم تسجيل الخروج', `الغرفة ${selectedRoom!.roomNumber}`)
+      toast.success(t.hotel.checkOut, `${selectedRoom!.roomNumber}`)
       qc.invalidateQueries({ queryKey: ['hotel', 'rooms'] })
       closeCheckOut()
     },
-    onError: () => toast.error('فشل تسجيل الخروج', 'يرجى المحاولة مرة أخرى'),
+    onError: () => toast.error(t.pos.paymentFailed),
   })
 
   const closeCheckIn = () => {
@@ -123,10 +124,10 @@ export function HotelPosPage() {
       {/* Stats bar */}
       <div className="flex gap-3 px-6 py-3">
         <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
-          متاح: <strong style={{ color: 'var(--accent)' }}>{availableCount}</strong>
+          {t.hotel.status.available}: <strong style={{ color: 'var(--accent)' }}>{availableCount}</strong>
         </span>
         <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
-          مشغول: <strong className="text-amber-600">{occupiedCount}</strong>
+          {t.hotel.status.occupied}: <strong className="text-amber-600">{occupiedCount}</strong>
         </span>
         <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
           الكل: <strong className="text-gray-900 dark:text-gray-100">{activeRooms.length}</strong>
@@ -159,7 +160,7 @@ export function HotelPosPage() {
                       boxShadow: '2px 2px 0 color-mix(in srgb, var(--accent) 45%, black)',
                     }}
                   />
-                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">الطابق {floor}</h3>
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{t.hotel.floor.replace('{n}', String(floor))}</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
                   {activeRooms.filter(r => r.floor === floor).map(room => {
@@ -206,7 +207,7 @@ export function HotelPosPage() {
                             )}
                             style={isAvail ? { color: 'var(--accent)' } : undefined}
                           >
-                            {isAvail ? 'متاح' : isOccupied ? (room.checkOutAlert ? 'خروج اليوم!' : 'مشغول') : 'صيانة'}
+                            {isAvail ? t.hotel.status.available : isOccupied ? (room.checkOutAlert ? t.hotel.checkOut : t.hotel.status.occupied) : t.hotel.status.maintenance}
                           </span>
                           <div className="flex items-center gap-1">
                             {needsClean && <Sparkles className="h-3.5 w-3.5 text-yellow-400" />}
@@ -221,17 +222,17 @@ export function HotelPosPage() {
                           {room.roomNumber}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {ROOM_TYPE_AR[room.roomType]} · ط{room.floor}
+                          {roomTypeLabel(room.roomType)} · {t.hotel.floor.replace('{n}', String(room.floor))}
                         </p>
 
                         {isOccupied && reservation && (
                           <p className="mt-2 text-xs text-gray-400">
-                            خروج: {new Date(reservation.checkOut).toLocaleDateString('ar-SA')}
+                            {t.hotel.checkOut}: {new Date(reservation.checkOut).toLocaleDateString('ar-SA')}
                           </p>
                         )}
 
                         <p className="mt-auto pt-2 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                          {formatCurrency(room.nightlyRate)} / ليلة
+                          {formatCurrency(room.nightlyRate)} / {t.hotel.perNight}
                         </p>
 
                         {(isAvail || isOccupied) && (
@@ -247,7 +248,7 @@ export function HotelPosPage() {
                                 : undefined
                             }
                           >
-                            {isAvail ? 'تسجيل دخول' : 'تسجيل خروج'}
+                            {isAvail ? t.hotel.checkIn : t.hotel.checkOut}
                           </button>
                         )}
                       </div>
@@ -270,9 +271,9 @@ export function HotelPosPage() {
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">تسجيل دخول</h2>
+                <h2 className="text-base font-semibold">{t.hotel.checkIn}</h2>
                 <p className="text-xs text-gray-500">
-                  غرفة {selectedRoom.roomNumber} — {ROOM_TYPE_AR[selectedRoom.roomType]}
+                  غرفة {selectedRoom.roomNumber} — {roomTypeLabel(selectedRoom.roomType)}
                 </p>
               </div>
               <button onClick={closeCheckIn}>
@@ -283,7 +284,7 @@ export function HotelPosPage() {
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  اسم الضيف
+                  {t.hotel.guestName}
                 </label>
                 <input
                   value={guestName}
@@ -319,7 +320,7 @@ export function HotelPosPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    تاريخ الدخول
+                    {t.hotel.checkIn}
                   </label>
                   <input
                     type="date"
@@ -330,7 +331,7 @@ export function HotelPosPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    تاريخ الخروج
+                    {t.hotel.checkOut}
                   </label>
                   <input
                     type="date"
@@ -343,7 +344,7 @@ export function HotelPosPage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  ملاحظات (اختياري)
+                  {t.hotel.notes}
                 </label>
                 <input
                   value={notes}
@@ -361,7 +362,7 @@ export function HotelPosPage() {
                 }}
               >
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">{nights} {nights === 1 ? 'ليلة' : 'ليالٍ'} × {formatCurrency(selectedRoom.nightlyRate)}</span>
+                  <span className="text-gray-500">{nights} {t.hotel.nights} × {formatCurrency(selectedRoom.nightlyRate)}</span>
                   <span className="font-bold" style={{ color: 'var(--accent)' }}>
                     {formatCurrency(selectedRoom.nightlyRate * nights)}
                   </span>
@@ -371,7 +372,7 @@ export function HotelPosPage() {
 
             <div className="mt-4 flex gap-3">
               <Button variant="secondary" onClick={closeCheckIn} className="flex-1">
-                إلغاء
+                {t.common.cancel}
               </Button>
               <Button
                 variant="primary"
@@ -381,7 +382,7 @@ export function HotelPosPage() {
                 className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
               >
                 <LogIn className="ms-1.5 h-4 w-4" />
-                تسجيل الدخول
+                {t.hotel.checkIn}
               </Button>
             </div>
           </div>
@@ -398,7 +399,7 @@ export function HotelPosPage() {
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">تسجيل خروج</h2>
+                <h2 className="text-base font-semibold">{t.hotel.checkOut}</h2>
                 <p className="text-xs text-gray-500">غرفة {selectedRoom.roomNumber}</p>
               </div>
               <button onClick={closeCheckOut}>
@@ -408,7 +409,7 @@ export function HotelPosPage() {
 
             <div className="mb-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">الضيف</span>
+                <span className="text-gray-500">{t.hotel.guestName}</span>
                 <span className="font-medium">{selectedRoom.activeReservation.guestName}</span>
               </div>
               <div className="flex justify-between">
@@ -416,16 +417,16 @@ export function HotelPosPage() {
                 <span>{selectedRoom.activeReservation.guestPhone}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">تاريخ الدخول</span>
+                <span className="text-gray-500">{t.hotel.checkIn}</span>
                 <span>{new Date(selectedRoom.activeReservation.checkIn).toLocaleDateString('ar-SA')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">تاريخ الخروج</span>
+                <span className="text-gray-500">{t.hotel.checkOut}</span>
                 <span>{new Date(selectedRoom.activeReservation.checkOut).toLocaleDateString('ar-SA')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">عدد الليالي</span>
-                <span>{selectedRoom.activeReservation.nights} ليالٍ</span>
+                <span className="text-gray-500">{t.hotel.nights}</span>
+                <span>{selectedRoom.activeReservation.nights} {t.hotel.nights}</span>
               </div>
             </div>
 
@@ -436,7 +437,7 @@ export function HotelPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 18px var(--glow)',
               }}
             >
-              <p className="text-xs text-gray-500">الإجمالي المستحق</p>
+              <p className="text-xs text-gray-500">{t.pos.total}</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>
                 {formatCurrency(selectedRoom.activeReservation.totalAmount)}
               </p>
@@ -444,7 +445,7 @@ export function HotelPosPage() {
 
             <div className="flex gap-3">
               <Button variant="secondary" onClick={closeCheckOut} className="flex-1">
-                إلغاء
+                {t.common.cancel}
               </Button>
               <Button
                 variant="primary"
@@ -453,7 +454,7 @@ export function HotelPosPage() {
                 className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
               >
                 <LogOut className="ms-1.5 h-4 w-4" />
-                تأكيد الخروج
+                {t.common.confirm}
               </Button>
             </div>
           </div>

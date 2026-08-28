@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Modules\Hotel\NexusPOS.Hotel\NexusPOS.Hotel.csproj" />
     <ProjectReference Include="..\Modules\Gaming\NexusPOS.Gaming\NexusPOS.Gaming.csproj" />
     <ProjectReference Include="..\Modules\SuperAdmin\NexusPOS.SuperAdmin\NexusPOS.SuperAdmin.csproj" />
+    <ProjectReference Include="..\Modules\Tax\NexusPOS.Tax\NexusPOS.Tax.csproj" />
     <ProjectReference Include="..\Modules\Zatca\NexusPOS.Zatca\NexusPOS.Zatca.csproj" />
   </ItemGroup>
 
