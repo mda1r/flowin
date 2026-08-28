@@ -29,6 +29,7 @@ COPY ["src/Modules/Hotel/NexusPOS.Hotel/NexusPOS.Hotel.csproj", "src/Modules/Hot
 COPY ["src/Modules/Gaming/NexusPOS.Gaming/NexusPOS.Gaming.csproj", "src/Modules/Gaming/NexusPOS.Gaming/"]
 COPY ["src/Modules/SuperAdmin/NexusPOS.SuperAdmin/NexusPOS.SuperAdmin.csproj", "src/Modules/SuperAdmin/NexusPOS.SuperAdmin/"]
 COPY ["src/Modules/Zatca/NexusPOS.Zatca/NexusPOS.Zatca.csproj", "src/Modules/Zatca/NexusPOS.Zatca/"]
+COPY ["src/Modules/Tax/NexusPOS.Tax/NexusPOS.Tax.csproj", "src/Modules/Tax/NexusPOS.Tax/"]
 
 RUN dotnet restore "src/NexusPOS.Api/NexusPOS.Api.csproj"
 
