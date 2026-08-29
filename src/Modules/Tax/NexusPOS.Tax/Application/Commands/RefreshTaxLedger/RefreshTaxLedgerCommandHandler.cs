@@ -1,13 +1,16 @@
 using System.Diagnostics.CodeAnalysis;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.Tax.Domain.Entities;
 using NexusPOS.Tax.Infrastructure.Persistence;
 
 namespace NexusPOS.Tax.Application.Commands.RefreshTaxLedger;
 
-internal sealed class RefreshTaxLedgerCommandHandler(TaxConfigDbContext db)
+internal sealed class RefreshTaxLedgerCommandHandler(
+    TaxConfigDbContext db,
+    ILogger<RefreshTaxLedgerCommandHandler> logger)
     : ICommandHandler<RefreshTaxLedgerCommand, int>
 {
     public async Task<ErrorOr<int>> Handle(
@@ -28,8 +31,9 @@ internal sealed class RefreshTaxLedgerCommandHandler(TaxConfigDbContext db)
         string schemaName = $"tenant_{request.TenantId:N}";
         ValidateSchemaName(schemaName);
 
-        DateTime startTs = period.StartDate.ToDateTime(TimeOnly.MinValue);
-        DateTime endTs = period.EndDate.ToDateTime(TimeOnly.MaxValue);
+        // Must be Utc — Npgsql 9 rejects Unspecified when binding against timestamptz columns.
+        DateTime startTs = DateTime.SpecifyKind(period.StartDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        DateTime endTs   = DateTime.SpecifyKind(period.EndDate.ToDateTime(TimeOnly.MaxValue),   DateTimeKind.Utc);
 
         List<SaleRow> sales;
         try
@@ -44,8 +48,9 @@ internal sealed class RefreshTaxLedgerCommandHandler(TaxConfigDbContext db)
                      """)
                 .ToListAsync(cancellationToken);
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogError(ex, "RefreshTaxLedger: cross-schema query failed for tenant {TenantId} period {PeriodId}", request.TenantId, request.PeriodId);
             return 0;
         }
 
