@@ -31,15 +31,23 @@ internal sealed class RefreshTaxLedgerCommandHandler(TaxConfigDbContext db)
         DateTime startTs = period.StartDate.ToDateTime(TimeOnly.MinValue);
         DateTime endTs = period.EndDate.ToDateTime(TimeOnly.MaxValue);
 
-        List<SaleRow> sales = await db.Database
-            .SqlQuery<SaleRow>(
-                $"""
-                 SELECT id, tax_amount, subtotal_amount, completed_at
-                 FROM "{schemaName}".sale_records
-                 WHERE completed_at >= {startTs}
-                   AND completed_at <= {endTs}
-                 """)
-            .ToListAsync(cancellationToken);
+        List<SaleRow> sales;
+        try
+        {
+            sales = await db.Database
+                .SqlQuery<SaleRow>(
+                    $"""
+                     SELECT id, tax_amount, subtotal_amount, completed_at
+                     FROM "{schemaName}".sale_records
+                     WHERE completed_at >= {startTs}
+                       AND completed_at <= {endTs}
+                     """)
+                .ToListAsync(cancellationToken);
+        }
+        catch
+        {
+            return 0;
+        }
 
         HashSet<Guid> existingRefs = [..await db.TaxLedgerEntries
             .Where(e => e.TenantId == request.TenantId &&

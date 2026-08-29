@@ -72,7 +72,15 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
         [FromQuery] Guid periodId,
         CancellationToken cancellationToken)
     {
-        await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
+        try
+        {
+            await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
+        }
+        catch
+        {
+            // Refresh is best-effort; a failure must not block the overview read.
+        }
+
         ErrorOr<TaxOverviewResponse> result =
             await mediator.Send(new GetTaxOverviewQuery(periodId, TenantId), cancellationToken);
         return result.Match(Ok, MapErrors);
