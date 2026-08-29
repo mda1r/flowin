@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using NexusPOS.Catalog.Infrastructure.Persistence;
 using NexusPOS.Sales.Application.Commands.AiCashier;
-using NexusPOS.Sales.Application.Services;
+using NexusPOS.SharedKernel.Application.Services;
 
 namespace NexusPOS.Sales.UnitTests.Application.AiCashier;
 
