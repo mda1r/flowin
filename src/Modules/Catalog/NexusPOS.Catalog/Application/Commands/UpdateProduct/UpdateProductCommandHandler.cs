@@ -30,7 +30,7 @@ internal sealed class UpdateProductCommandHandler(
             ? new CategoryId(request.CategoryId.Value)
             : null;
 
-        product.Update(request.Name, request.Description, categoryId, request.TaxClass, request.TrackInventory, request.ImageUrl);
+        product.Update(request.Name, request.Description, categoryId, request.TaxClass, request.TrackInventory, request.ImageUrl, request.UnitType);
 
         productRepository.Update(product);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -47,6 +47,7 @@ internal sealed class UpdateProductCommandHandler(
         p.TaxClass,
         p.IsActive,
         p.TrackInventory,
+        p.UnitType,
         p.ImageUrl,
         p.CreatedAt,
         p.Variants.Select(v => new ProductVariantResponse(

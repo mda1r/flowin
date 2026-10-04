@@ -71,6 +71,7 @@ internal static class DatabaseInitializerExtensions
             await EnsureCreatedAsync<TaxConfigDbContext>(sp, logger);
             await EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
 
+            await MigrateCatalogColumnsAsync(sp, logger);
             await ApplySchemaPatches(sp, logger);
             await SeedAdminUserAsync(sp, logger);
             await SeedSuperAdminUserAsync(sp, logger);
@@ -252,6 +253,21 @@ internal static class DatabaseInitializerExtensions
         {
             try { await invDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "Inventory migration skipped: {Sql}", sql); }
+        }
+    }
+
+    internal static async Task MigrateCatalogColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_type INT NOT NULL DEFAULT 1",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await catalogDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Catalog migration skipped: {Sql}", sql); }
         }
     }
 
@@ -897,6 +913,7 @@ internal static class DatabaseInitializerExtensions
                 await EnsureCreatedAsync<PosDbContext>(sp, logger);
                 await MigratePosColumnsAsync(sp, logger);
                 await MigrateInventoryColumnsAsync(sp, logger);
+                await MigrateCatalogColumnsAsync(sp, logger);
                 await EnsureCreatedAsync<SalesDbContext>(sp, logger);
                 await EnsureCreatedAsync<CrmDbContext>(sp, logger);
                 await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);

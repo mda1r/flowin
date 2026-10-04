@@ -11,4 +11,5 @@ public sealed record UpdateProductCommand(
     Guid? CategoryId,
     TaxClass TaxClass,
     bool TrackInventory,
-    string? ImageUrl = null) : ICommand<ProductResponse>;
+    string? ImageUrl = null,
+    UnitType UnitType = UnitType.Piece) : ICommand<ProductResponse>;

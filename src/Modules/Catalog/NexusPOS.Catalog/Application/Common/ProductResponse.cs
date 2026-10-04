@@ -11,6 +11,7 @@ public sealed record ProductResponse(
     TaxClass TaxClass,
     bool IsActive,
     bool TrackInventory,
+    UnitType UnitType,
     string? ImageUrl,
     DateTime CreatedAt,
     IReadOnlyList<ProductVariantResponse> Variants);

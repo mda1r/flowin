@@ -32,6 +32,7 @@ export const catalogApi = {
     type?: string
     taxClass?: string
     trackInventory?: boolean
+    unitType?: string
     sku: string
     variantName: string
     costPrice: number
@@ -46,6 +47,7 @@ export const catalogApi = {
     categoryId?: string
     taxClass?: string
     trackInventory?: boolean
+    unitType?: string
     imageUrl?: string
   }) => apiClient.put<ProductResponse>(`/api/v1/products/${productId}`, data),
 

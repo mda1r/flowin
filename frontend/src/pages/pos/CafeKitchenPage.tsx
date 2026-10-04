@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChefHat, Clock, CheckCircle, Loader2, X, WifiOff, ArrowRight } from 'lucide-react'
+import { ChefHat, Clock, CheckCircle, Loader2, X, WifiOff, ArrowRight, RotateCcw } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
@@ -31,11 +32,13 @@ function TicketCard({
   order,
   onPreparing,
   onReady,
+  onReturn,
   onDismiss,
 }: {
   order: RestaurantOrderResponse
   onPreparing: (id: string) => void
   onReady: (id: string) => void
+  onReturn: (id: string) => void
   onDismiss: (id: string) => void
 }) {
   const { t } = useI18n()
@@ -132,13 +135,22 @@ function TicketCard({
           </button>
         )}
         {status === 'ready' && (
-          <button
-            onClick={() => onDismiss(order.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400"
-          >
-            <X className="h-4 w-4" />
-            إزالة
-          </button>
+          <>
+            <button
+              onClick={() => onReturn(order.id)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-300 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/20"
+              title="إرجاع للتحضير"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onDismiss(order.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400"
+            >
+              <X className="h-4 w-4" />
+              إزالة
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -181,6 +193,12 @@ export function CafeKitchenPage() {
     onSuccess: invalidate,
   })
 
+  const returnMut = useMutation({
+    mutationFn: (orderId: string) =>
+      branchId ? restaurantApi.returnToKitchen(branchId, orderId) : Promise.reject(),
+    onSuccess: invalidate,
+  })
+
   const dismissMut = useMutation({
     mutationFn: (orderId: string) =>
       branchId ? restaurantApi.serveOrder(branchId, orderId) : Promise.reject(),
@@ -191,8 +209,17 @@ export function CafeKitchenPage() {
   const preparing = kitchenOrders.filter((o) => o.status === 'InKitchen')
   const ready     = kitchenOrders.filter((o) => o.status === 'Ready')
 
+  // Auto-advance Pending orders straight to InKitchen — no "new" column shown.
+  useEffect(() => {
+    for (const order of pending) {
+      if (!preparingMut.isPending) {
+        preparingMut.mutate(order.id)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending.map((o) => o.id).join(',')])
+
   const columns = [
-    { key: 'pending',   label: t.kitchen.statusNew, count: pending.length,   items: pending,   accent: 'text-amber-500' },
     { key: 'preparing', label: t.kitchen.preparing,  count: preparing.length, items: preparing, accent: 'text-blue-500' },
     { key: 'ready',     label: t.kitchen.ready,      count: ready.length,     items: ready,     accent: 'text-emerald-500' },
   ]
@@ -260,6 +287,7 @@ export function CafeKitchenPage() {
                     order={order}
                     onPreparing={(id) => preparingMut.mutate(id)}
                     onReady={(id) => readyMut.mutate(id)}
+                    onReturn={(id) => returnMut.mutate(id)}
                     onDismiss={(id) => dismissMut.mutate(id)}
                   />
                 ))

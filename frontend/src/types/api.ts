@@ -93,6 +93,8 @@ export interface ProductVariantResponse {
   expiryDate?: string
 }
 
+export type UnitType = 'Piece' | 'Kilogram' | 'Gram' | 'Liter' | 'Milliliter' | 'Meter' | 'Box'
+
 export interface ProductResponse {
   id: string
   name: string
@@ -102,6 +104,7 @@ export interface ProductResponse {
   taxClass: string
   isActive: boolean
   trackInventory: boolean
+  unitType: UnitType
   imageUrl?: string
   createdAt: string
   variants: ProductVariantResponse[]

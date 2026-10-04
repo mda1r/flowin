@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "flowIn",
+    "slug": "nexuspos-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nexuspos.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "مسح الباركود للمنتجات",
+        "NSBluetoothAlwaysUsageDescription": "الاتصال بطابعة الإيصالات",
+        "NSBluetoothPeripheralUsageDescription": "الاتصال بطابعة الإيصالات"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.nexuspos.mobile",
+      "permissions": [
+        "CAMERA",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_SCAN",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "مسح الباركود للمنتجات"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#10b981"
+        }
+      ],
+      "expo-asset"
+    ],
+    "scheme": "nexuspos",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

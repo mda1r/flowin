@@ -128,6 +128,18 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         return Result.Success;
     }
 
+    public ErrorOr<Success> ReturnToKitchen()
+    {
+        if (Status != RestaurantOrderStatus.Ready)
+        {
+            return RestaurantErrors.OrderNotReady;
+        }
+
+        Status = RestaurantOrderStatus.InKitchen;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success;
+    }
+
     public ErrorOr<Success> Serve()
     {
         if (Status != RestaurantOrderStatus.Ready)

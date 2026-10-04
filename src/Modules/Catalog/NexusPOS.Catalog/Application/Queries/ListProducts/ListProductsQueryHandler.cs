@@ -34,6 +34,7 @@ internal sealed class ListProductsQueryHandler(IProductRepository productReposit
         p.TaxClass,
         p.IsActive,
         p.TrackInventory,
+        p.UnitType,
         p.ImageUrl,
         p.CreatedAt,
         p.Variants.Select(v => new ProductVariantResponse(

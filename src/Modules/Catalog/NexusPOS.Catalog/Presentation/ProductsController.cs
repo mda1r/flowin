@@ -60,7 +60,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
             request.Name, request.Description, request.CategoryId,
             request.Type, request.TaxClass, request.TrackInventory,
             request.Sku, request.VariantName,
-            request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.ExpiryDate);
+            request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.ExpiryDate, request.UnitType);
 
         ErrorOr<ProductResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -81,7 +81,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
     {
         UpdateProductCommand command = new(
             id, request.Name, request.Description, request.CategoryId,
-            request.TaxClass, request.TrackInventory, request.ImageUrl);
+            request.TaxClass, request.TrackInventory, request.ImageUrl, request.UnitType);
 
         ErrorOr<ProductResponse> result = await mediator.Send(command, cancellationToken);
 

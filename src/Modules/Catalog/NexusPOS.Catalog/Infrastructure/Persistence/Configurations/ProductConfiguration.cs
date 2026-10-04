@@ -54,6 +54,11 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasColumnName("track_inventory")
             .HasDefaultValue(true);
 
+        builder.Property(p => p.UnitType)
+            .HasColumnName("unit_type")
+            .HasConversion<int>()
+            .HasDefaultValue(UnitType.Piece);
+
         builder.Property(p => p.ImageUrl)
             .HasColumnName("image_url")
             .HasMaxLength(2048);

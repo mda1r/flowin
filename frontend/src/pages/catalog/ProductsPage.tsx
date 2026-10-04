@@ -29,10 +29,11 @@ type CreateFormData = {
   currency: string
   categoryId?: string
   trackInventory: boolean
+  unitType: string
   initialQuantity: number
   expiryDate?: string
 }
-type EditProductFormData = { name: string; description?: string; categoryId?: string; trackInventory: boolean }
+type EditProductFormData = { name: string; description?: string; categoryId?: string; trackInventory: boolean; unitType: string }
 type EditVariantFormData = { name: string; costPrice: number; salePrice: number; currency: string }
 
 export function ProductsPage() {
@@ -62,6 +63,7 @@ export function ProductsPage() {
     currency: z.string().length(3),
     categoryId: z.string().optional(),
     trackInventory: z.boolean().default(true),
+    unitType: z.string().default('Piece'),
     initialQuantity: z.coerce.number().nonnegative().default(0),
     expiryDate: z.string().optional(),
   })
@@ -71,6 +73,7 @@ export function ProductsPage() {
     description: z.string().optional(),
     categoryId: z.string().optional(),
     trackInventory: z.boolean().default(true),
+    unitType: z.string().default('Piece'),
   })
 
   const editVariantSchema = z.object({
@@ -93,7 +96,7 @@ export function ProductsPage() {
 
   const createForm = useForm<CreateFormData>({
     resolver: zodResolver(createSchema),
-    defaultValues: { currency: 'SAR', variantName: 'افتراضي', trackInventory: true },
+    defaultValues: { currency: 'SAR', variantName: 'افتراضي', trackInventory: true, unitType: 'Piece' },
   })
 
   const categoryForm = useForm<CategoryFormData>({
@@ -128,6 +131,7 @@ export function ProductsPage() {
         type: 'Standard',
         taxClass: 'Standard',
         trackInventory: data.trackInventory,
+        unitType: data.unitType,
         sku: data.sku,
         variantName: data.variantName,
         costPrice: data.costPrice,
@@ -173,6 +177,7 @@ export function ProductsPage() {
         categoryId: data.categoryId || undefined,
         taxClass: 'Standard',
         trackInventory: data.trackInventory,
+        unitType: data.unitType,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
@@ -225,6 +230,7 @@ export function ProductsPage() {
       description: product.description ?? '',
       categoryId: product.categoryId ?? '',
       trackInventory: product.trackInventory,
+      unitType: product.unitType ?? 'Piece',
     })
     setEditingProduct(product)
   }
@@ -311,7 +317,14 @@ export function ProductsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900 dark:text-gray-100">{product.name}</p>
-                          <p className="text-xs text-gray-500">{product.description ?? '—'}</p>
+                          <p className="text-xs text-gray-500">
+                            {product.description ?? '—'}
+                            {product.unitType && product.unitType !== 'Piece' && (
+                              <span className="ms-2 rounded bg-blue-50 px-1.5 py-0.5 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                                {{'Kilogram':'كيلو','Gram':'جرام','Liter':'لتر','Milliliter':'مللي','Meter':'متر','Box':'صندوق'}[product.unitType] ?? product.unitType}
+                              </span>
+                            )}
+                          </p>
                         </div>
                         <div className="flex items-center gap-3">
                           {firstVariant && (
@@ -436,6 +449,15 @@ export function ProductsPage() {
             <Input label={t.products.salePrice} type="number" step="0.01" min="0" error={createForm.formState.errors.salePrice?.message} {...createForm.register('salePrice')} />
             <Input label={t.products.currency} maxLength={3} placeholder="SAR" error={createForm.formState.errors.currency?.message} {...createForm.register('currency')} />
           </div>
+          <Select label="وحدة القياس" {...createForm.register('unitType')}>
+            <option value="Piece">عدد (قطعة)</option>
+            <option value="Kilogram">كيلوجرام (كغ)</option>
+            <option value="Gram">جرام (جم)</option>
+            <option value="Liter">لتر (ل)</option>
+            <option value="Milliliter">مللي لتر (مل)</option>
+            <option value="Meter">متر (م)</option>
+            <option value="Box">صندوق</option>
+          </Select>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input type="checkbox" {...createForm.register('trackInventory')} className="rounded" />
             {t.products.trackInventory}
@@ -488,6 +510,15 @@ export function ProductsPage() {
             </Select>
           </div>
           <Input label={t.products.description} {...editProductForm.register('description')} />
+          <Select label="وحدة القياس" {...editProductForm.register('unitType')}>
+            <option value="Piece">عدد (قطعة)</option>
+            <option value="Kilogram">كيلوجرام (كغ)</option>
+            <option value="Gram">جرام (جم)</option>
+            <option value="Liter">لتر (ل)</option>
+            <option value="Milliliter">مللي لتر (مل)</option>
+            <option value="Meter">متر (م)</option>
+            <option value="Box">صندوق</option>
+          </Select>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input type="checkbox" {...editProductForm.register('trackInventory')} className="rounded" />
             {t.products.trackInventory}

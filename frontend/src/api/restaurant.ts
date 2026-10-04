@@ -116,6 +116,11 @@ export const restaurantApi = {
       `/api/v1/branches/${branchId}/restaurant/orders/${orderId}/mark-ready`,
     ),
 
+  returnToKitchen: (branchId: string, orderId: string) =>
+    apiClient.post<RestaurantOrderResponse>(
+      `/api/v1/branches/${branchId}/restaurant/orders/${orderId}/return-to-kitchen`,
+    ),
+
   serveOrder: (branchId: string, orderId: string) =>
     apiClient.post<RestaurantOrderResponse>(
       `/api/v1/branches/${branchId}/restaurant/orders/${orderId}/serve`,

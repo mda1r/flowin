@@ -32,6 +32,7 @@ internal sealed class GetProductByIdQueryHandler(IProductRepository productRepos
             product.TaxClass,
             product.IsActive,
             product.TrackInventory,
+            product.UnitType,
             product.ImageUrl,
             product.CreatedAt,
             product.Variants.Select(v => new ProductVariantResponse(

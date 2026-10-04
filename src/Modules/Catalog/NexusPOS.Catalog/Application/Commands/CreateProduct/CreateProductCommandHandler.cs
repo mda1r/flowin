@@ -52,7 +52,8 @@ internal sealed class CreateProductCommandHandler(
             categoryId,
             request.Type,
             request.TaxClass,
-            request.TrackInventory);
+            request.TrackInventory,
+            request.UnitType);
 
         ErrorOr<ProductVariant> variantResult = product.AddVariant(
             skuResult.Value,
@@ -82,6 +83,7 @@ internal sealed class CreateProductCommandHandler(
         p.TaxClass,
         p.IsActive,
         p.TrackInventory,
+        p.UnitType,
         p.ImageUrl,
         p.CreatedAt,
         p.Variants.Select(v => new ProductVariantResponse(

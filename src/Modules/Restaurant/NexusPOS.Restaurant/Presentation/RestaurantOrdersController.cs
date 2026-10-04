@@ -8,6 +8,7 @@ using NexusPOS.Restaurant.Application.Commands.CreateRestaurantOrder;
 using NexusPOS.Restaurant.Application.Commands.MarkItemReady;
 using NexusPOS.Restaurant.Application.Commands.MarkOrderReady;
 using NexusPOS.Restaurant.Application.Commands.PayOrder;
+using NexusPOS.Restaurant.Application.Commands.ReturnToKitchen;
 using NexusPOS.Restaurant.Application.Commands.SendToKitchen;
 using NexusPOS.Restaurant.Application.Commands.ServeOrder;
 using NexusPOS.Restaurant.Application.Common;
@@ -110,6 +111,21 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
         CancellationToken cancellationToken)
     {
         MarkOrderReadyCommand command = new(orderId, branchId);
+        ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrors);
+    }
+
+    /// <summary>Return a ready order back to in-kitchen (undo mark-ready).</summary>
+    [HttpPost("{orderId:guid}/return-to-kitchen")]
+    [ProducesResponseType(typeof(RestaurantOrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReturnToKitchen(
+        Guid branchId,
+        Guid orderId,
+        CancellationToken cancellationToken)
+    {
+        ReturnToKitchenCommand command = new(orderId, branchId);
         ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
     }

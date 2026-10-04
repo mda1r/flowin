@@ -17,4 +17,5 @@ public sealed record CreateProductCommand(
     decimal SalePrice,
     string Currency,
     string? Barcode = null,
-    DateTime? ExpiryDate = null) : ICommand<ProductResponse>;
+    DateTime? ExpiryDate = null,
+    UnitType UnitType = UnitType.Piece) : ICommand<ProductResponse>;

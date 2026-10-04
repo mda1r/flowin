@@ -15,6 +15,7 @@ public sealed class Product : AggregateRoot<ProductId>
     public TaxClass TaxClass { get; private set; }
     public bool IsActive { get; private set; }
     public bool TrackInventory { get; private set; }
+    public UnitType UnitType { get; private set; }
     public string? ImageUrl { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
@@ -28,7 +29,8 @@ public sealed class Product : AggregateRoot<ProductId>
         CategoryId? categoryId,
         ProductType type,
         TaxClass taxClass,
-        bool trackInventory)
+        bool trackInventory,
+        UnitType unitType = UnitType.Piece)
     {
         Product product = new()
         {
@@ -40,6 +42,7 @@ public sealed class Product : AggregateRoot<ProductId>
             TaxClass = taxClass,
             IsActive = true,
             TrackInventory = trackInventory,
+            UnitType = unitType,
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -89,7 +92,8 @@ public sealed class Product : AggregateRoot<ProductId>
         CategoryId? categoryId,
         TaxClass taxClass,
         bool trackInventory,
-        string? imageUrl)
+        string? imageUrl,
+        UnitType unitType = UnitType.Piece)
     {
         Name = name.Trim();
         Description = description?.Trim();
@@ -97,6 +101,7 @@ public sealed class Product : AggregateRoot<ProductId>
         TaxClass = taxClass;
         TrackInventory = trackInventory;
         ImageUrl = imageUrl?.Trim();
+        UnitType = unitType;
     }
 
     public void Deactivate()
