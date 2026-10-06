@@ -549,10 +549,12 @@ const MILESTONES = [
 
 function computeStats(orders: OrderResponse[]) {
   const totalRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
+  const totalSubtotal = orders.reduce((s, o) => s + o.subtotalAmount, 0)
   const totalTax = orders.reduce((s, o) => s + o.taxAmount, 0)
+  const totalCogs = orders.reduce((s, o) => s + o.lines.reduce((ls, l) => ls + (l.costPrice ?? 0) * l.quantity, 0), 0)
   const totalOrders = orders.length
   const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
-  return { totalRevenue, totalTax, totalOrders, avgOrder }
+  return { totalRevenue, totalSubtotal, totalTax, totalCogs, totalOrders, avgOrder }
 }
 
 const FALLBACK_REVENUE   = [4, 6, 5, 8, 7, 10, 9]
@@ -632,7 +634,7 @@ export function DashboardPage() {
 
   const stats = useMemo(() => computeStats(orders), [orders])
   const returnTotal = todayReturns.reduce((s, r) => s + r.refundAmount, 0)
-  const netRevenue = stats.totalRevenue - returnTotal
+  const netRevenue = stats.totalSubtotal - stats.totalCogs - returnTotal
   const alerts = alertsData?.data
 
   const nearExpiryCount = (alerts?.expired.length ?? 0) + (alerts?.expiringSoon.length ?? 0)
