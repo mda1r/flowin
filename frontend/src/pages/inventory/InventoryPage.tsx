@@ -43,7 +43,7 @@ function AlertCard({
   count: number
   colorClass: string
   alerts: StockAlertItemResponse[]
-  variantMap: Map<string, { productName: string; variantName: string; sku: string }>
+  variantMap: Map<string, { productName: string; variantName: string; sku: string; unitType?: string }>
 }) {
   const [expanded, setExpanded] = useState(false)
   const { t, lang } = useI18n()
@@ -173,10 +173,10 @@ export function InventoryPage() {
   })
 
   // Build a map from variantId → product info
-  const variantMap = new Map<string, { productName: string; variantName: string; sku: string }>()
+  const variantMap = new Map<string, { productName: string; variantName: string; sku: string; unitType?: string }>()
   productsData?.data?.forEach((p) => {
     p.variants.forEach((v) => {
-      variantMap.set(v.id, { productName: p.name, variantName: v.name, sku: v.sku })
+      variantMap.set(v.id, { productName: p.name, variantName: v.name, sku: v.sku, unitType: p.unitType })
     })
   })
 
@@ -288,11 +288,21 @@ export function InventoryPage() {
                 header: t.inventory.product,
                 render: (r) => {
                   const info = variantMap.get(r.variantId)
+                  const unitLabel = info?.unitType && info.unitType !== 'Piece'
+                    ? ({'Kilogram':'كيلو','Gram':'جرام','Liter':'لتر','Milliliter':'مللي','Meter':'متر','Box':'صندوق'} as Record<string, string>)[info.unitType] ?? info.unitType
+                    : null
                   return (
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
-                        {info?.productName ?? '—'}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                          {info?.productName ?? '—'}
+                        </p>
+                        {unitLabel && (
+                          <span className="shrink-0 rounded-md bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                            {unitLabel}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-400">
                         {info?.variantName} · {info?.sku}
                       </p>

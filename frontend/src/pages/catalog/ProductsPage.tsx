@@ -316,15 +316,15 @@ export function ProductsPage() {
                           {product.name[0]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 dark:text-gray-100">{product.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {product.description ?? '—'}
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900 dark:text-gray-100">{product.name}</p>
                             {product.unitType && product.unitType !== 'Piece' && (
-                              <span className="ms-2 rounded bg-blue-50 px-1.5 py-0.5 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                                {{'Kilogram':'كيلو','Gram':'جرام','Liter':'لتر','Milliliter':'مللي','Meter':'متر','Box':'صندوق'}[product.unitType] ?? product.unitType}
+                              <span className="shrink-0 rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                {({'Kilogram':'كيلو','Gram':'جرام','Liter':'لتر','Milliliter':'مللي','Meter':'متر','Box':'صندوق'} as Record<string, string>)[product.unitType] ?? product.unitType}
                               </span>
                             )}
-                          </p>
+                          </div>
+                          <p className="text-xs text-gray-500">{product.description ?? '—'}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           {firstVariant && (
