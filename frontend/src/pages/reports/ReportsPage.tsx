@@ -24,6 +24,7 @@ import { salesApi } from '@/api/sales'
 import { ordersApi } from '@/api/orders'
 import { useI18n } from '@/i18n'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
+import { ReportsCharts } from './ReportsCharts'
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 
@@ -386,6 +387,13 @@ export function ReportsPage() {
                 accent="#6b7280"
               />
             </div>
+
+            {/* ── Charts ── */}
+            <ReportsCharts
+              orders={orders}
+              stats={{ totalSubtotal: stats.totalSubtotal, totalTax: stats.totalTax, totalCogs: stats.totalCogs }}
+              returnTotal={returnStats.total}
+            />
 
             {/* ── VAT Report (shown for quarter and year) ── */}
             {(period === 'quarter' || period === 'year') && (
