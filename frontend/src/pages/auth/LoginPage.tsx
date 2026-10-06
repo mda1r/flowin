@@ -152,7 +152,7 @@ const BURST_PARTICLES = Array.from({ length: 16 }, (_, i) => ({
   dur: 0.66 + ((i * 3) % 5) * 0.07,
 }))
 
-const BURST_COLORS = ['var(--accent)', 'color-mix(in srgb, var(--accent) 30%, white)', '#62E6C7']
+const BURST_COLORS = ['var(--accent)', 'color-mix(in srgb, var(--accent) 30%, white)', '#13D9A0']
 
 /* login success sequence:
    t=0      flash + logo spin-lock + particle burst
@@ -311,10 +311,14 @@ export function LoginPage() {
               {theme ? (
                 <span className="text-2xl leading-none" aria-hidden="true">{theme.emojis[0]}</span>
               ) : (
-                <svg viewBox="0 0 28 28" fill="none" className="h-7 w-7" aria-hidden="true">
-                    <circle cx="10" cy="14" r="5.5" stroke="white" strokeWidth="3.5" />
-                    <rect x="18.5" y="6" width="4" height="16" rx="2" fill="white" />
-                  </svg>
+                <svg viewBox="0 0 32 32" fill="none" className="h-7 w-7" aria-hidden="true">
+                  {/* "o" — hollow teal circle */}
+                  <circle cx="10" cy="20" r="7.5" fill="none" stroke="#13D9A0" strokeWidth="3" />
+                  {/* "i" dot — filled teal */}
+                  <circle cx="24" cy="7" r="4" fill="#13D9A0" />
+                  {/* "i" stem — white */}
+                  <rect x="21.5" y="13" width="5" height="14" rx="2.5" fill="white" fillOpacity={0.9} />
+                </svg>
               )}
             </div>
           </div>

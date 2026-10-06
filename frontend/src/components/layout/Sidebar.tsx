@@ -40,12 +40,12 @@ import type { BusinessType } from '@/types/api'
 
 /* business-type accent identity, injected as CSS variables on :root */
 const BUSINESS_ACCENTS: Record<BusinessType, { accent: string; glow: string }> = {
-  Restaurant:  { accent: '#FF7B5B', glow: 'rgba(255,123,91,0.30)' },
-  Hotel:       { accent: '#4F7EF7', glow: 'rgba(79,126,247,0.28)' },
+  Restaurant:  { accent: '#FF7B5B', glow: 'rgba(255,123,91,0.30)'  },
+  Hotel:       { accent: '#4F7EF7', glow: 'rgba(79,126,247,0.28)'  },
   Gaming:      { accent: '#A78BFA', glow: 'rgba(167,139,250,0.35)' },
-  Supermarket: { accent: '#34D399', glow: 'rgba(52,211,153,0.30)' },
+  Supermarket: { accent: '#13D9A0', glow: 'rgba(19,217,160,0.30)'  },
   Retail:      { accent: '#F472B6', glow: 'rgba(244,114,182,0.30)' },
-  Cafe:        { accent: '#34D399', glow: 'rgba(52,211,153,0.30)' },
+  Cafe:        { accent: '#13D9A0', glow: 'rgba(19,217,160,0.30)'  },
 }
 
 /* themed identity chip shown under the brand name */
@@ -163,25 +163,38 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         style={{ borderColor: 'var(--card-border)' }}
       >
         <div className="flex items-center justify-between">
+          {collapsed && (
+            <svg viewBox="0 0 32 32" className="logo-breathe h-7 w-7 shrink-0" aria-hidden="true">
+              <circle cx="10" cy="20" r="7.5" fill="none" stroke="#13D9A0" strokeWidth="3" />
+              <circle cx="24" cy="7" r="4" fill="#13D9A0" />
+              <rect x="21.5" y="13" width="5" height="14" rx="2.5" fill="white" fillOpacity={0.85} />
+            </svg>
+          )}
           {!collapsed && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              {/* flowin brand mark: hollow "o" + dotted "i" */}
               <svg
                 viewBox="0 0 48 48"
                 className="logo-breathe h-8 w-8 shrink-0"
                 xmlns="http://www.w3.org/2000/svg"
                 aria-hidden="true"
               >
-                <circle cx="16" cy="24" r="11.5" fill="none" stroke="#62E6C7" strokeWidth="4.5" strokeLinecap="round" />
-                <rect x="31" y="7" width="8" height="34" rx="4" fill="#62E6C7" />
+                {/* The "o" — hollow circle */}
+                <circle cx="15" cy="29" r="11" fill="none" stroke="#13D9A0" strokeWidth="4" />
+                {/* The "i" dot — filled circle */}
+                <circle cx="36" cy="9" r="5.5" fill="#13D9A0" />
+                {/* The "i" stem — white */}
+                <rect x="32.5" y="18" width="7" height="21" rx="3.5" fill="white" fillOpacity={0.88} />
               </svg>
               <span
                 className="select-none text-xl font-extrabold tracking-tight"
                 style={{
                   color: '#ffffff',
-                  textShadow: '0 0 20px color-mix(in srgb, var(--accent) 40%, transparent)',
+                  textShadow: '0 0 20px rgba(19,217,160,0.35)',
+                  letterSpacing: '-0.01em',
                 }}
               >
-                flow<span style={{ color: '#62E6C7' }}>I</span>n
+                flowin
               </span>
             </div>
           )}
@@ -257,8 +270,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <div
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
               style={{
-                background: '#62E6C7',
-                color: '#23262D',
+                background: '#13D9A0',
+                color: '#111318',
               }}
             >
               {initials}
