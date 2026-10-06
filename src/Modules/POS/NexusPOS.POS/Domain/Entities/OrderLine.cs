@@ -10,12 +10,14 @@ public sealed class OrderLine : Entity<OrderLineId>
     public string ProductName { get; private set; } = string.Empty;
     public string VariantName { get; private set; } = string.Empty;
     public Money UnitPrice { get; private set; } = null!;
+    public decimal CostPrice { get; private set; }
     public decimal Quantity { get; private set; }
     public Discount LineDiscount { get; private set; } = Discount.None();
 
     public decimal LineSubtotal => UnitPrice.Amount * Quantity;
     public decimal LineDiscountAmount => LineDiscount.ComputeAmount(LineSubtotal);
     public decimal LineTotal => LineSubtotal - LineDiscountAmount;
+    public decimal LineCost => CostPrice * Quantity;
 
     private OrderLine() { }
 
@@ -24,6 +26,7 @@ public sealed class OrderLine : Entity<OrderLineId>
         string productName,
         string variantName,
         Money unitPrice,
+        decimal costPrice,
         decimal quantity,
         Discount? lineDiscount = null)
     {
@@ -34,6 +37,7 @@ public sealed class OrderLine : Entity<OrderLineId>
             ProductName = productName.Trim(),
             VariantName = variantName.Trim(),
             UnitPrice = unitPrice,
+            CostPrice = costPrice,
             Quantity = quantity,
             LineDiscount = lineDiscount ?? Discount.None(),
         };

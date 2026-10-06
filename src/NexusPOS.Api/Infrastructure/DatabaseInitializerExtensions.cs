@@ -232,6 +232,7 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS card_variance NUMERIC(18,4)",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cash_amount NUMERIC(18,4)",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_amount NUMERIC(18,4)",
+            "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS cost_price NUMERIC(18,4) NOT NULL DEFAULT 0",
         ];
 
         foreach (string sql in patches)

@@ -5,6 +5,7 @@ export interface CartLine {
   productName: string
   variantName: string
   unitPrice: number
+  costPrice: number
   quantity: number
 }
 

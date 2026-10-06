@@ -5,4 +5,5 @@ public sealed record AddOrderLineRequest(
     string ProductName,
     string VariantName,
     decimal UnitPrice,
+    decimal CostPrice,
     decimal Quantity);

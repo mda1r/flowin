@@ -6,6 +6,7 @@ public sealed record OrderLineResponse(
     string ProductName,
     string VariantName,
     decimal UnitPrice,
+    decimal CostPrice,
     decimal Quantity,
     decimal LineSubtotal,
     decimal LineDiscountAmount,

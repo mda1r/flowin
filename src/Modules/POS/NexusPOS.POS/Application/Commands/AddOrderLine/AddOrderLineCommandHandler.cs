@@ -31,6 +31,7 @@ internal sealed class AddOrderLineCommandHandler(
             request.ProductName,
             request.VariantName,
             request.UnitPrice,
+            request.CostPrice,
             request.Quantity);
 
         if (lineResult.IsError)

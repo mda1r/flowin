@@ -27,6 +27,7 @@ export const ordersApi = {
       productName: string
       variantName: string
       unitPrice: number
+      costPrice: number
       quantity: number
     },
   ) =>

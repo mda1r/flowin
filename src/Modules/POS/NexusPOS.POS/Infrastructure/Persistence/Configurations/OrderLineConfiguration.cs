@@ -27,6 +27,11 @@ internal sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLin
             m.Property(p => p.Currency).HasColumnName("unit_price_currency").HasMaxLength(3);
         });
 
+        builder.Property(l => l.CostPrice)
+            .HasColumnName("cost_price")
+            .HasPrecision(18, 4)
+            .HasDefaultValue(0m);
+
         builder.OwnsOne(l => l.LineDiscount, d =>
         {
             d.Property(p => p.Type).HasColumnName("line_discount_type");

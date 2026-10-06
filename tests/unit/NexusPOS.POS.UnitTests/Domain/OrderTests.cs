@@ -1,4 +1,4 @@
-using ErrorOr;
+﻿using ErrorOr;
 using FluentAssertions;
 using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
@@ -14,7 +14,7 @@ public sealed class OrderTests
     private static readonly Guid _branchId = Guid.NewGuid();
     private static readonly Guid _variantId = Guid.NewGuid();
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Create_WithValidArgs_CreatesOpenOrderWithEvent()
@@ -38,14 +38,14 @@ public sealed class OrderTests
         order.Currency.Should().Be("SAR");
     }
 
-    // ── AddLine ───────────────────────────────────────────────────────────────
+    // â”€â”€ AddLine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AddLine_ValidItem_AddsLineAndRecalculatesTotals()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
 
-        ErrorOr<OrderLine> result = order.AddLine(_variantId, "Widget", "Red", 10m, 3m);
+        ErrorOr<OrderLine> result = order.AddLine(_variantId, "Widget", "Red", 10m, 0m, 3m);
 
         result.IsError.Should().BeFalse();
         order.Lines.Should().ContainSingle();
@@ -57,9 +57,9 @@ public sealed class OrderTests
     public void AddLine_SameVariant_AccumulatesQuantity()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        order.AddLine(_variantId, "Widget", "Red", 10m, 2m);
+        order.AddLine(_variantId, "Widget", "Red", 10m, 0m, 2m);
 
-        order.AddLine(_variantId, "Widget", "Red", 10m, 3m);
+        order.AddLine(_variantId, "Widget", "Red", 10m, 0m, 3m);
 
         order.Lines.Should().ContainSingle();
         order.Lines[0].Quantity.Should().Be(5m);
@@ -71,7 +71,7 @@ public sealed class OrderTests
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
 
-        ErrorOr<OrderLine> result = order.AddLine(_variantId, "Widget", "Red", 10m, 0m);
+        ErrorOr<OrderLine> result = order.AddLine(_variantId, "Widget", "Red", 10m, 0m, 0m);
 
         result.IsError.Should().BeTrue();
         result.FirstError.Should().Be(PosErrors.InvalidQuantity);
@@ -82,19 +82,19 @@ public sealed class OrderTests
     {
         Order order = CreateCompletedOrder();
 
-        ErrorOr<OrderLine> result = order.AddLine(Guid.NewGuid(), "Widget", "Red", 10m, 1m);
+        ErrorOr<OrderLine> result = order.AddLine(Guid.NewGuid(), "Widget", "Red", 10m, 0m, 1m);
 
         result.IsError.Should().BeTrue();
         result.FirstError.Should().Be(PosErrors.OrderNotOpen);
     }
 
-    // ── RemoveLine ────────────────────────────────────────────────────────────
+    // â”€â”€ RemoveLine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void RemoveLine_ExistingLine_RemovesAndRecalculates()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        ErrorOr<OrderLine> addResult = order.AddLine(_variantId, "Widget", "Red", 10m, 2m);
+        ErrorOr<OrderLine> addResult = order.AddLine(_variantId, "Widget", "Red", 10m, 0m, 2m);
         OrderLineId lineId = addResult.Value.Id;
 
         ErrorOr<Success> result = order.RemoveLine(lineId);
@@ -115,13 +115,13 @@ public sealed class OrderTests
         result.FirstError.Should().Be(PosErrors.OrderLineNotFound);
     }
 
-    // ── ApplyDiscount ─────────────────────────────────────────────────────────
+    // â”€â”€ ApplyDiscount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void ApplyDiscount_TenPercent_ReducesTotalCorrectly()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        order.AddLine(_variantId, "Widget", "Red", 100m, 1m);
+        order.AddLine(_variantId, "Widget", "Red", 100m, 0m, 1m);
 
         ErrorOr<Success> result = order.ApplyDiscount(DiscountType.Percentage, 10m);
 
@@ -134,7 +134,7 @@ public sealed class OrderTests
     public void ApplyDiscount_Fixed50_ReducesTotalCorrectly()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        order.AddLine(_variantId, "Widget", "Red", 200m, 1m);
+        order.AddLine(_variantId, "Widget", "Red", 200m, 0m, 1m);
 
         order.ApplyDiscount(DiscountType.Fixed, 50m);
 
@@ -153,25 +153,25 @@ public sealed class OrderTests
         result.FirstError.Should().Be(PosErrors.DiscountPercentageExceedsHundred);
     }
 
-    // ── Tax ───────────────────────────────────────────────────────────────────
+    // â”€â”€ Tax â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Create_WithTaxRate_TaxIsIncludedInTotal()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD", taxRate: 15m);
-        order.AddLine(_variantId, "Widget", "Red", 100m, 1m);
+        order.AddLine(_variantId, "Widget", "Red", 100m, 0m, 1m);
 
         order.TaxAmount.Should().Be(15m);
         order.TotalAmount.Should().Be(115m);
     }
 
-    // ── Complete ──────────────────────────────────────────────────────────────
+    // â”€â”€ Complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Complete_WithSufficientPayment_CompletesOrderAndRaisesEvent()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        order.AddLine(_variantId, "Widget", "Red", 50m, 2m);
+        order.AddLine(_variantId, "Widget", "Red", 50m, 0m, 2m);
         order.ClearDomainEvents();
 
         ErrorOr<Success> result = order.Complete(PaymentMethod.Cash, 100m);
@@ -189,7 +189,7 @@ public sealed class OrderTests
     public void Complete_WithOverpayment_ComputesChangeDue()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        order.AddLine(_variantId, "Widget", "Red", 75m, 1m);
+        order.AddLine(_variantId, "Widget", "Red", 75m, 0m, 1m);
 
         order.Complete(PaymentMethod.Cash, 100m);
 
@@ -211,7 +211,7 @@ public sealed class OrderTests
     public void Complete_InsufficientPayment_ReturnsError()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        order.AddLine(_variantId, "Widget", "Red", 100m, 1m);
+        order.AddLine(_variantId, "Widget", "Red", 100m, 0m, 1m);
 
         ErrorOr<Success> result = order.Complete(PaymentMethod.Cash, 50m);
 
@@ -220,7 +220,7 @@ public sealed class OrderTests
         order.Status.Should().Be(OrderStatus.Open);
     }
 
-    // ── Cancel ────────────────────────────────────────────────────────────────
+    // â”€â”€ Cancel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Cancel_OpenOrder_CancelsAndRaisesEvent()
@@ -247,12 +247,12 @@ public sealed class OrderTests
         result.FirstError.Should().Be(PosErrors.OrderNotOpen);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private static Order CreateCompletedOrder()
     {
         Order order = Order.Create(_tenantId, _branchId, "USD");
-        order.AddLine(_variantId, "Widget", "Red", 10m, 1m);
+        order.AddLine(_variantId, "Widget", "Red", 10m, 0m, 1m);
         order.Complete(PaymentMethod.Cash, 10m);
         return order;
     }

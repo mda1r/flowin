@@ -92,6 +92,7 @@ function RetailPosPage() {
             productName: hit.product.name,
             variantName: hit.variant.name,
             unitPrice: hit.variant.salePrice,
+            costPrice: hit.variant.costPrice,
           })
           toast.success('تمت الإضافة', `${hit.product.name} — ${formatCurrency(hit.variant.salePrice)}`)
         }
@@ -159,6 +160,7 @@ function RetailPosPage() {
           productName: line.productName,
           variantName: line.variantName,
           unitPrice: Math.round((line.unitPrice / preTaxRate) * 10000) / 10000,
+          costPrice: line.costPrice,
           quantity: line.quantity,
         })
       }
@@ -277,6 +279,7 @@ function RetailPosPage() {
                           productName: product.name,
                           variantName: variant.name,
                           unitPrice: variant.salePrice,
+                          costPrice: variant.costPrice,
                         })
                       }}
                     />

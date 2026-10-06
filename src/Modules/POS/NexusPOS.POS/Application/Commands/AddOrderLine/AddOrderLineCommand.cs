@@ -10,4 +10,5 @@ public sealed record AddOrderLineCommand(
     string ProductName,
     string VariantName,
     decimal UnitPrice,
+    decimal CostPrice,
     decimal Quantity) : ICommand<OrderResponse>;

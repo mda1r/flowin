@@ -27,6 +27,7 @@ interface CafeCartItem {
   productName: string
   variantName: string
   unitPrice: number
+  costPrice: number
   quantity: number
   notes: string
 }
@@ -425,6 +426,7 @@ export function CafePosPage() {
     productName: string,
     variantName: string,
     unitPrice: number,
+    costPrice: number,
   ) => {
     if (!canAddMore(variantId)) {
       toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
@@ -433,7 +435,7 @@ export function CafePosPage() {
     setCart((prev) => {
       const existing = prev.find((i) => i.variantId === variantId)
       if (existing) return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + 1 } : i)
-      return [...prev, { variantId, productName, variantName, unitPrice, quantity: 1, notes: '' }]
+      return [...prev, { variantId, productName, variantName, unitPrice, costPrice, quantity: 1, notes: '' }]
     })
   }
 
@@ -456,7 +458,7 @@ export function CafePosPage() {
           if (existing) {
             return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + qty, notes: notes || i.notes } : i)
           }
-          return [...prev, { variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, quantity: qty, notes: notes ?? '' }]
+          return [...prev, { variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: notes ?? '' }]
         })
         break
       }
@@ -509,6 +511,7 @@ export function CafePosPage() {
             productName: item.productName,
             variantName: item.variantName,
             unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
+            costPrice: item.costPrice,
             quantity: item.quantity,
           }),
         ),
@@ -612,6 +615,7 @@ export function CafePosPage() {
             productName: item.productName,
             variantName: item.variantName,
             unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
+            costPrice: item.costPrice,
             quantity: item.quantity,
           }),
         ),
@@ -989,7 +993,7 @@ export function CafePosPage() {
                         <button
                           key={variant.id}
                           onClick={() =>
-                            addToCart(variant.id, product.name, variant.name, variant.salePrice)
+                            addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)
                           }
                           className="group relative flex flex-col items-start overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-right transition-all duration-200 hover:border-indigo-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] dark:border-gray-700 dark:bg-gray-800"
                         >

@@ -58,6 +58,7 @@ public sealed class Order : AggregateRoot<OrderId>
         string productName,
         string variantName,
         decimal unitPriceAmount,
+        decimal costPrice,
         decimal quantity,
         Discount? lineDiscount = null)
     {
@@ -81,7 +82,7 @@ public sealed class Order : AggregateRoot<OrderId>
         }
 
         Money unitPrice = Money.Of(unitPriceAmount, Currency);
-        OrderLine line = OrderLine.Create(variantId, productName, variantName, unitPrice, quantity, lineDiscount);
+        OrderLine line = OrderLine.Create(variantId, productName, variantName, unitPrice, costPrice, quantity, lineDiscount);
         Lines.Add(line);
         RecalculateTotals();
         UpdatedAt = DateTime.UtcNow;

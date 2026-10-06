@@ -219,6 +219,7 @@ export interface OrderLineResponse {
   variantName: string
   quantity: number
   unitPrice: number
+  costPrice: number
   lineTotal: number
 }
 

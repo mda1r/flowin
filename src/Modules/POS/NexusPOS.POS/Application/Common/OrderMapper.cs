@@ -32,6 +32,7 @@ internal static class OrderMapper
                 l.ProductName,
                 l.VariantName,
                 l.UnitPrice.Amount,
+                l.CostPrice,
                 l.Quantity,
                 l.LineSubtotal,
                 l.LineDiscountAmount,

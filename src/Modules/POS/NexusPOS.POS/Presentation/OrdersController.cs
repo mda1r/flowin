@@ -90,7 +90,7 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
     {
         AddOrderLineCommand command = new(
             orderId, branchId, request.VariantId, request.ProductName,
-            request.VariantName, request.UnitPrice, request.Quantity);
+            request.VariantName, request.UnitPrice, request.CostPrice, request.Quantity);
 
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
 

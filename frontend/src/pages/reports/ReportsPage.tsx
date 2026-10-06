@@ -83,6 +83,7 @@ function computeStats(orders: OrderResponse[]) {
   const totalRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
   const totalTax = orders.reduce((s, o) => s + o.taxAmount, 0)
   const totalSubtotal = orders.reduce((s, o) => s + o.subtotalAmount, 0)
+  const totalCogs = orders.reduce((s, o) => s + o.lines.reduce((ls, l) => ls + (l.costPrice ?? 0) * l.quantity, 0), 0)
   const totalOrders = orders.length
   const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
 
@@ -109,7 +110,7 @@ function computeStats(orders: OrderResponse[]) {
     .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
     .slice(0, 10)
 
-  return { totalRevenue, totalTax, totalSubtotal, totalOrders, avgOrder, byPayment, topProducts }
+  return { totalRevenue, totalTax, totalSubtotal, totalCogs, totalOrders, avgOrder, byPayment, topProducts }
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -339,7 +340,7 @@ export function ReportsPage() {
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <KpiCard
                 title={t.sales.netRevenue}
-                value={formatCurrency(stats.totalRevenue - returnStats.total)}
+                value={formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total)}
                 sub={String(stats.totalOrders)}
                 icon={<DollarSign className="h-5 w-5 text-blue-600" />}
                 iconWrap="bg-blue-50 dark:bg-blue-900/30"
@@ -506,10 +507,10 @@ export function ReportsPage() {
                   <div className="divide-y divide-gray-100 p-0 dark:divide-gray-800">
                     {[
                       { label: t.reports.totalRevenue,  value: formatCurrency(stats.totalSubtotal) },
-                      { label: t.reports.totalVat,      value: formatCurrency(stats.totalTax) },
-                      { label: t.sales.totalRevenue,    value: formatCurrency(stats.totalRevenue) },
+                      { label: t.reports.totalVat,      value: `- ${formatCurrency(stats.totalTax)}`, red: true },
+                      { label: 'تكلفة المنتجات',        value: `- ${formatCurrency(stats.totalCogs)}`, red: true },
                       { label: t.sales.returns,         value: returnStats.total > 0 ? `- ${formatCurrency(returnStats.total)}` : formatCurrency(0), red: returnStats.total > 0 },
-                      { label: t.sales.netRevenue,      value: formatCurrency(stats.totalRevenue - returnStats.total), bold: true },
+                      { label: t.sales.netRevenue,      value: formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total), bold: true },
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between px-6 py-3">
                         <span className="text-sm text-gray-500">{row.label}</span>
