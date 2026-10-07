@@ -163,39 +163,57 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         style={{ borderColor: 'var(--card-border)' }}
       >
         <div className="flex items-center justify-between">
+          {/* collapsed: just the "o" hollow circle */}
           {collapsed && (
-            <svg viewBox="0 0 32 32" className="logo-breathe h-7 w-7 shrink-0" aria-hidden="true">
-              <circle cx="10" cy="20" r="7.5" fill="none" stroke="#13D9A0" strokeWidth="3" />
-              <circle cx="24" cy="7" r="4" fill="#13D9A0" />
-              <rect x="21.5" y="13" width="5" height="14" rx="2.5" fill="white" fillOpacity={0.85} />
-            </svg>
+            <div
+              className="logo-breathe shrink-0"
+              style={{
+                width: '26px',
+                height: '26px',
+                border: '3px solid #13D9A0',
+                borderRadius: '50%',
+              }}
+            />
           )}
+
+          {/* expanded: styled "flowin" wordmark — no separate icon */}
           {!collapsed && (
-            <div className="flex items-center gap-2.5">
-              {/* flowin brand mark: hollow "o" + dotted "i" */}
-              <svg
-                viewBox="0 0 48 48"
-                className="logo-breathe h-8 w-8 shrink-0"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                {/* The "o" — hollow circle */}
-                <circle cx="15" cy="29" r="11" fill="none" stroke="#13D9A0" strokeWidth="4" />
-                {/* The "i" dot — filled circle */}
-                <circle cx="36" cy="9" r="5.5" fill="#13D9A0" />
-                {/* The "i" stem — white */}
-                <rect x="32.5" y="18" width="7" height="21" rx="3.5" fill="white" fillOpacity={0.88} />
-              </svg>
-              <span
-                className="select-none text-xl font-extrabold tracking-tight"
-                style={{
-                  color: '#ffffff',
-                  textShadow: '0 0 20px rgba(19,217,160,0.35)',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                flowin
+            <div
+              className="logo-breathe select-none"
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 800,
+                letterSpacing: '-0.015em',
+                lineHeight: 1.1,
+              }}
+            >
+              {/* fl — white */}
+              <span style={{ color: '#f0f2f5' }}>fl</span>
+              {/* o — hollow teal circle (transparent fill + teal stroke) */}
+              <span style={{ color: 'transparent', WebkitTextStroke: '2.5px #13D9A0' }}>o</span>
+              {/* w — white */}
+              <span style={{ color: '#f0f2f5' }}>w</span>
+              {/* i — white dotless stem + oversized teal dot above */}
+              <span style={{ position: 'relative', display: 'inline-block' }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: '-5px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '7px',
+                    height: '7px',
+                    background: '#13D9A0',
+                    borderRadius: '50%',
+                    display: 'block',
+                  }}
+                />
+                {/* ı = dotless i (U+0131) so we control the dot */}
+                <span style={{ color: '#f0f2f5' }}>ı</span>
               </span>
+              {/* n — white */}
+              <span style={{ color: '#f0f2f5' }}>n</span>
             </div>
           )}
           <button
