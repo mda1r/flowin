@@ -21,6 +21,18 @@ internal sealed class DeleteStockMaterialCommandHandler(InventoryDbContext db)
             return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
         }
 
+        int recipeUses = await db.RecipeLines
+            .Where(r => r.TenantId == request.TenantId && r.MaterialId == material.Id)
+            .Select(r => r.VariantId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+        if (recipeUses > 0)
+        {
+            return Error.Conflict(
+                "Inventory.MaterialUsedInRecipes",
+                $"لا يمكن حذف المادة لأنها مستخدمة في وصفة {recipeUses} منتج. احذفها من الوصفات أولاً.");
+        }
+
         db.StockMaterials.Remove(material);
         await db.SaveChangesAsync(cancellationToken);
 

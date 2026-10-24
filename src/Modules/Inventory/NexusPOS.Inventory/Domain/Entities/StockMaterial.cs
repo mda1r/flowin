@@ -121,6 +121,18 @@ public sealed class StockMaterial
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // Stock may go negative so recorded sales are never silently dropped; low-stock alerts surface it.
+    public void Consume(decimal componentQuantity)
+    {
+        if (componentQuantity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(componentQuantity), "Consumed quantity must be positive.");
+        }
+
+        CurrentQuantityInStorageUnits -= Math.Round(componentQuantity / ConversionFactor, 4);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public decimal CostPerComponentUnit => ConversionFactor > 0 ? Math.Round(CurrentCost / ConversionFactor, 6) : 0m;
 
     public void UpdateCost(decimal newCost)

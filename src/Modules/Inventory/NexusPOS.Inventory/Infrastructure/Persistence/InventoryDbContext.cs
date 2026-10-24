@@ -14,4 +14,5 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<StockMaterialCategory> StockMaterialCategories => Set<StockMaterialCategory>();
     public DbSet<StockMaterial> StockMaterials => Set<StockMaterial>();
     public DbSet<StockMaterialMovement> StockMaterialMovements => Set<StockMaterialMovement>();
+    public DbSet<RecipeLine> RecipeLines => Set<RecipeLine>();
 }

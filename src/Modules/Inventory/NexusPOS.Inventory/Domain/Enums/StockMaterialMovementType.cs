@@ -4,4 +4,5 @@ public enum StockMaterialMovementType
 {
     Receive = 1,
     Adjustment = 2,
+    Consumption = 3,
 }

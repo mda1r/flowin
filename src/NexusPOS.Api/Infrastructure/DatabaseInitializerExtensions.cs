@@ -329,6 +329,17 @@ internal static class DatabaseInitializerExtensions
             )
             """,
             "CREATE INDEX IF NOT EXISTS ix_stock_material_movements_material ON stock_material_movements (tenant_id, material_id, created_at)",
+            """
+            CREATE TABLE IF NOT EXISTS recipe_lines (
+                id UUID PRIMARY KEY,
+                tenant_id UUID NOT NULL,
+                variant_id UUID NOT NULL,
+                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE RESTRICT,
+                quantity NUMERIC(18,4) NOT NULL,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                CONSTRAINT ix_recipe_lines_variant_material UNIQUE (tenant_id, variant_id, material_id)
+            )
+            """,
         ];
 
         foreach (string sql in patches)

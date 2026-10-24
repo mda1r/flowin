@@ -27,7 +27,7 @@ export interface StockMaterialResponse {
   costPerComponentUnit: number
 }
 
-export type StockMaterialMovementType = 'Receive' | 'Adjustment'
+export type StockMaterialMovementType = 'Receive' | 'Adjustment' | 'Consumption'
 
 export interface StockMaterialMovementResponse {
   id: string
@@ -81,4 +81,25 @@ export interface UpdateStockMaterialPayload {
   minLevel?: number
   maxLevel?: number
   reorderLevel?: number
+}
+
+export interface RecipeLineResponse {
+  materialId: string
+  materialName: string
+  componentUnit: string
+  quantity: number
+  costPerComponentUnit: number
+  lineCost: number
+}
+
+export interface RecipeResponse {
+  variantId: string
+  lines: RecipeLineResponse[]
+  totalCost: number
+}
+
+export interface RecipeSummaryResponse {
+  variantId: string
+  lineCount: number
+  totalCost: number
 }

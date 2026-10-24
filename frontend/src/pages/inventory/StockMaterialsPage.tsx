@@ -367,6 +367,7 @@ function ReceiveModal({ material, onClose }: { material: StockMaterialResponse; 
 const MOVEMENT_LABELS: Record<string, string> = {
   Receive: 'استلام',
   Adjustment: 'تعديل يدوي',
+  Consumption: 'استهلاك بيع',
 }
 
 function MovementsModal({ material, onClose }: { material: StockMaterialResponse; onClose: () => void }) {
@@ -414,7 +415,7 @@ function MovementsModal({ material, onClose }: { material: StockMaterialResponse
                     })}
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className={r.type === 'Receive' ? 'badge-green' : 'badge-gray'}>{MOVEMENT_LABELS[r.type] ?? r.type}</span>
+                    <span className={r.type === 'Receive' ? 'badge-green' : r.type === 'Consumption' ? 'badge-blue' : 'badge-gray'}>{MOVEMENT_LABELS[r.type] ?? r.type}</span>
                   </td>
                   <td
                     className={cn(

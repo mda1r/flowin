@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, FlaskConical } from 'lucide-react'
+import { recipesApi } from '@/api/recipes'
+import { RecipeModal } from './RecipeModal'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -47,6 +49,13 @@ export function ProductsPage() {
   const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const { t } = useI18n()
+  const [recipeVariant, setRecipeVariant] = useState<{ id: string; name: string; salePrice: number; currency: string } | null>(null)
+  const { data: recipeSummaries } = useQuery({
+    queryKey: ['recipe-summaries', tenantId],
+    queryFn: () => recipesApi.listSummaries(tenantId!),
+    enabled: !!tenantId,
+  })
+  const recipeByVariant = new Map((recipeSummaries?.data ?? []).map((r) => [r.variantId, r]))
 
   const categorySchema = z.object({
     name: z.string().min(1, t.products.nameRequired),
@@ -391,9 +400,28 @@ export function ProductsPage() {
                                 <span className="font-semibold text-info">
                                   {formatCurrency(v.salePrice, v.currency)}
                                 </span>
+                                {recipeByVariant.get(v.id) && (
+                                  <span className="text-xs tabular-nums text-muted">
+                                    تكلفة الوصفة {recipeByVariant.get(v.id)!.totalCost.toFixed(2)} ر.س
+                                    {v.salePrice > 0 && (
+                                      <span className="ms-1">
+                                        · هامش {(((v.salePrice - recipeByVariant.get(v.id)!.totalCost) / v.salePrice) * 100).toFixed(0)}%
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
                                 <Badge variant={v.isActive ? 'green' : 'gray'} className="text-xs">
                                   {v.isActive ? t.products.active : t.products.inactive}
                                 </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => setRecipeVariant({ id: v.id, name: `${product.name} - ${v.name}`, salePrice: v.salePrice, currency: v.currency })}
+                                  aria-label={`وصفة ${v.name}`}
+                                >
+                                  <FlaskConical className="h-3.5 w-3.5" />
+                                  {recipeByVariant.get(v.id) ? 'الوصفة' : 'إضافة وصفة'}
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -414,6 +442,8 @@ export function ProductsPage() {
           )}
         </Card>
       </div>
+
+      {recipeVariant && <RecipeModal variant={recipeVariant} onClose={() => setRecipeVariant(null)} />}
 
       {/* Create modal */}
       <Modal
