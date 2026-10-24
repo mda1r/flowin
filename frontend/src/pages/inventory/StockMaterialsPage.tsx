@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FlaskConical, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { stockMaterialApi } from '@/api/stockMaterial'
 import { useAuthStore } from '@/stores/authStore'
-import { useI18n } from '@/i18n'
 import type {
   StockMaterialCategoryResponse,
   StockMaterialResponse,
@@ -188,8 +187,6 @@ function MaterialModal({ categories, initial, onSave, onClose, saving }: Materia
 export function StockMaterialsPage() {
   const { tenantId } = useAuthStore()
   const qc = useQueryClient()
-  const { lang } = useI18n()
-
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [showAddMat, setShowAddMat] = useState(false)
@@ -198,13 +195,14 @@ export function StockMaterialsPage() {
   const [newCatName, setNewCatName] = useState('')
   const [lowStockOnly, setLowStockOnly] = useState(false)
 
-  const { data: categories = [] } = useQuery({
+  const { data: catResp } = useQuery({
     queryKey: ['stock-material-categories', tenantId],
     queryFn: () => stockMaterialApi.listCategories(tenantId!),
     enabled: !!tenantId,
   })
+  const categories: StockMaterialCategoryResponse[] = catResp?.data ?? []
 
-  const { data: materials = [], isLoading } = useQuery({
+  const { data: matResp, isLoading } = useQuery({
     queryKey: ['stock-materials', tenantId, selectedCatId, lowStockOnly, search],
     queryFn: () =>
       stockMaterialApi.listMaterials(tenantId!, {
@@ -214,6 +212,7 @@ export function StockMaterialsPage() {
       }),
     enabled: !!tenantId,
   })
+  const materials: StockMaterialResponse[] = matResp?.data ?? []
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
