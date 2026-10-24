@@ -12,6 +12,7 @@ using NexusPOS.Inventory.Application.Queries.ListStockMaterialMovements;
 using NexusPOS.Inventory.Application.Commands.UpdateStockMaterial;
 using NexusPOS.Inventory.Application.Commands.UpdateStockMaterialCategory;
 using NexusPOS.Inventory.Application.Common;
+using NexusPOS.Inventory.Application.Queries.GetMaterialsReceiptStatus;
 using NexusPOS.Inventory.Application.Queries.GetStockMaterial;
 using NexusPOS.Inventory.Application.Queries.ListStockMaterialCategories;
 using NexusPOS.Inventory.Application.Queries.ListStockMaterials;
@@ -148,6 +149,16 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
         ErrorOr<StockMaterialResponse> result = await mediator.Send(
             new ReceiveStockMaterialCommand(tenantId, materialId, request.Quantity, request.UnitCost, request.Note),
             cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpGet("purchase-receipts/{purchaseOrderId:guid}")]
+    [ProducesResponseType(typeof(MaterialsReceiptStatusResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPurchaseReceiptStatus(
+        Guid tenantId, Guid purchaseOrderId, CancellationToken cancellationToken)
+    {
+        ErrorOr<MaterialsReceiptStatusResponse> result =
+            await mediator.Send(new GetMaterialsReceiptStatusQuery(tenantId, purchaseOrderId), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 

@@ -125,16 +125,35 @@ public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
             Id.Value, TenantId, BranchId,
             Lines.Where(l => !l.IsMaterial).Select(l => (l.VariantId, l.OrderedQuantity)).ToList()));
 
+        RaiseMaterialsPurchased();
+
+        return Result.Success;
+    }
+
+    // Re-sends the raw-material receipt to Inventory, which applies each order at most once.
+    public ErrorOr<Success> RetryMaterialsReceipt()
+    {
+        if (Status != PurchaseOrderStatus.Received)
+        {
+            return PurchasingErrors.PurchaseOrderNotReceived;
+        }
+
+        return RaiseMaterialsPurchased() ? Result.Success : PurchasingErrors.NoMaterialLines;
+    }
+
+    private bool RaiseMaterialsPurchased()
+    {
         List<StockMaterialsPurchasedDomainEvent.Line> materialLines = Lines
             .Where(l => l.IsMaterial)
             .Select(l => new StockMaterialsPurchasedDomainEvent.Line(l.StockMaterialId!.Value, l.OrderedQuantity, l.UnitCost))
             .ToList();
-        if (materialLines.Count > 0)
+        if (materialLines.Count == 0)
         {
-            RaiseDomainEvent(new StockMaterialsPurchasedDomainEvent(TenantId, Id.Value, materialLines));
+            return false;
         }
 
-        return Result.Success;
+        RaiseDomainEvent(new StockMaterialsPurchasedDomainEvent(TenantId, Id.Value, materialLines));
+        return true;
     }
 
     public ErrorOr<Success> Cancel(string? reason = null)

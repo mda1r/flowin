@@ -84,6 +84,11 @@ export const purchasingApi = {
       `/api/v1/branches/${branchId}/purchase-orders/${orderId}/receive`,
     ),
 
+  retryMaterials: (branchId: string, orderId: string) =>
+    apiClient.post<PurchaseOrderResponse>(
+      `/api/v1/branches/${branchId}/purchase-orders/${orderId}/retry-materials`,
+    ),
+
   cancel: (branchId: string, orderId: string) =>
     apiClient.post<PurchaseOrderResponse>(
       `/api/v1/branches/${branchId}/purchase-orders/${orderId}/cancel`,

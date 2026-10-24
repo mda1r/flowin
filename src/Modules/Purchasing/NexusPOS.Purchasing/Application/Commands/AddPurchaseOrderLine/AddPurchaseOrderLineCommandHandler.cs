@@ -5,13 +5,15 @@ using NexusPOS.Purchasing.Domain.Entities;
 using NexusPOS.Purchasing.Domain.Repositories;
 using NexusPOS.Purchasing.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.Purchasing.Infrastructure.Persistence;
 
 namespace NexusPOS.Purchasing.Application.Commands.AddPurchaseOrderLine;
 
 internal sealed class AddPurchaseOrderLineCommandHandler(
     IPurchaseOrderRepository purchaseOrderRepository,
-    PurchasingDbContext dbContext)
+    PurchasingDbContext dbContext,
+    IStockMaterialDirectory stockMaterials)
     : ICommandHandler<AddPurchaseOrderLineCommand, PurchaseOrderResponse>
 {
     public async Task<ErrorOr<PurchaseOrderResponse>> Handle(
@@ -24,6 +26,12 @@ internal sealed class AddPurchaseOrderLineCommandHandler(
         if (order is null || order.BranchId != request.BranchId)
         {
             return PurchasingErrors.PurchaseOrderNotFound;
+        }
+
+        if (request.StockMaterialId is Guid requestedMaterial
+            && !await stockMaterials.ExistsAsync(order.TenantId, requestedMaterial, cancellationToken))
+        {
+            return PurchasingErrors.StockMaterialNotFound;
         }
 
         ErrorOr<PurchaseOrderLine> lineResult = request.StockMaterialId is Guid materialId

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, FlaskConical, PackageCheck, Send, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, FlaskConical, PackageCheck, Send, AlertTriangle, CheckCircle2, RotateCw } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -137,16 +137,31 @@ function OrderDetailModal({
       void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
       void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId] })
       setConfirmReceive(false)
-      const materialLines = order?.lines.filter((l) => l.stockMaterialId).length ?? 0
-      toast.success(
-        'تم استلام أمر الشراء',
-        materialLines > 0 ? `تمت إضافة ${materialLines.toLocaleString('ar-SA')} مادة إلى المخزون وتحديث تكلفتها` : undefined,
-      )
+      void qc.invalidateQueries({ queryKey: ['po-materials-receipt', tenantId, orderId] })
+      toast.success('تم استلام أمر الشراء')
     },
     onError: (err) => {
       setConfirmReceive(false)
       toast.error('تعذّر الاستلام', apiErrorMessage(err))
     },
+  })
+
+  const hasMaterialLines = !!order?.lines.some((l) => l.stockMaterialId)
+  const { data: receiptResp, isLoading: receiptLoading } = useQuery({
+    queryKey: ['po-materials-receipt', tenantId, orderId],
+    queryFn: () => stockMaterialApi.purchaseReceiptStatus(tenantId!, orderId),
+    enabled: !!tenantId && order?.status === 'Received' && hasMaterialLines,
+  })
+  const materialsApplied = receiptResp?.data.applied
+
+  const retryMaterials = useMutation({
+    mutationFn: () => purchasingApi.retryMaterials(branchId!, orderId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['po-materials-receipt', tenantId, orderId] })
+      void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
+      void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId] })
+    },
+    onError: (err) => toast.error('تعذّرت إعادة المحاولة', apiErrorMessage(err)),
   })
 
   const q = parseFloat(qty)
@@ -195,6 +210,24 @@ function OrderDetailModal({
               <span className="text-muted">أُنشئ {formatDate(order.createdAt)}</span>
               {order.notes && <span className="text-muted">· {order.notes}</span>}
             </div>
+
+            {order.status === 'Received' && hasMaterialLines && !receiptLoading && materialsApplied !== undefined && (
+              materialsApplied ? (
+                <div className="flex items-center gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  أُضيفت المواد الخام إلى المخزون وحُدّثت تكلفتها
+                </div>
+              ) : (
+                <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">الطلب مستلم، لكن لم تُضف المواد الخام إلى المخزون بعد.</span>
+                  <Button size="sm" variant="secondary" onClick={() => retryMaterials.mutate()} loading={retryMaterials.isPending}>
+                    <RotateCw className="h-4 w-4" />
+                    إعادة المحاولة
+                  </Button>
+                </div>
+              )
+            )}
 
             {order.lines.length === 0 ? (
               <p className="rounded-xl bg-surface-2 px-4 py-6 text-center text-sm text-muted">

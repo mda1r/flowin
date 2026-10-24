@@ -8,6 +8,7 @@ using NexusPOS.Purchasing.Application.Commands.CancelPurchaseOrder;
 using NexusPOS.Purchasing.Application.Commands.CreatePurchaseOrder;
 using NexusPOS.Purchasing.Application.Commands.ReceivePurchaseOrder;
 using NexusPOS.Purchasing.Application.Commands.RemovePurchaseOrderLine;
+using NexusPOS.Purchasing.Application.Commands.RetryMaterialsReceipt;
 using NexusPOS.Purchasing.Application.Commands.SendPurchaseOrder;
 using NexusPOS.Purchasing.Application.Common;
 using NexusPOS.Purchasing.Application.Queries.GetPurchaseOrder;
@@ -116,6 +117,17 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
     {
         ReceivePurchaseOrderCommand command = new(purchaseOrderId, branchId);
         ErrorOr<PurchaseOrderResponse> result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpPost("{purchaseOrderId:guid}/retry-materials")]
+    [ProducesResponseType(typeof(PurchaseOrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RetryMaterialsReceipt(Guid branchId, Guid purchaseOrderId, CancellationToken cancellationToken)
+    {
+        ErrorOr<PurchaseOrderResponse> result = await mediator.Send(
+            new RetryMaterialsReceiptCommand(purchaseOrderId, branchId), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 

@@ -250,6 +250,19 @@ internal static class DatabaseInitializerExtensions
         string[] patches =
         [
             "ALTER TABLE purchase_order_lines ADD COLUMN IF NOT EXISTS stock_material_id UUID",
+            // Orders received before receipt tracking existed were already applied by the earlier handler;
+            // mark them so a retry can never add their materials twice. The cutoff keeps this to old orders only.
+            """
+            INSERT INTO stock_material_receipts (purchase_order_id, tenant_id, line_count, applied_at)
+            SELECT po.id, po.tenant_id, COUNT(l.id), COALESCE(po.received_at, NOW())
+            FROM purchase_orders po
+            JOIN purchase_order_lines l ON l.purchase_order_id = po.id
+            WHERE po.status = 'Received'
+              AND l.stock_material_id IS NOT NULL
+              AND po.received_at < TIMESTAMP '2026-10-24 23:45:00'
+            GROUP BY po.id, po.tenant_id, po.received_at
+            ON CONFLICT (purchase_order_id) DO NOTHING
+            """,
         ];
 
         foreach (string sql in patches)
@@ -338,6 +351,14 @@ internal static class DatabaseInitializerExtensions
                 quantity NUMERIC(18,4) NOT NULL,
                 created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
                 CONSTRAINT ix_recipe_lines_variant_material UNIQUE (tenant_id, variant_id, material_id)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS stock_material_receipts (
+                purchase_order_id UUID PRIMARY KEY,
+                tenant_id UUID NOT NULL,
+                line_count INT NOT NULL,
+                applied_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
             )
             """,
         ];

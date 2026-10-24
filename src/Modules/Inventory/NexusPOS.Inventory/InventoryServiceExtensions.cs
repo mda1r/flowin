@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using NexusPOS.Inventory.Application.Services;
 using NexusPOS.Inventory.Domain.Repositories;
 using NexusPOS.Inventory.Infrastructure.Persistence;
 using NexusPOS.Inventory.Infrastructure.Persistence.Repositories;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Inventory;
@@ -22,6 +24,7 @@ public static class InventoryServiceExtensions
 
         services.AddScoped<IStockItemRepository, StockItemRepository>();
         services.AddScoped<IStockCountRepository, StockCountRepository>();
+        services.AddScoped<IStockMaterialDirectory, StockMaterialDirectory>();
 
         return services;
     }
