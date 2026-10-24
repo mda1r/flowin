@@ -138,6 +138,7 @@ function OrderDetailModal({
       void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId] })
       setConfirmReceive(false)
       void qc.invalidateQueries({ queryKey: ['po-materials-receipt', tenantId, orderId] })
+      void qc.invalidateQueries({ queryKey: ['stock', branchId] })
       toast.success('تم استلام أمر الشراء')
     },
     onError: (err) => {
@@ -147,18 +148,26 @@ function OrderDetailModal({
   })
 
   const hasMaterialLines = !!order?.lines.some((l) => l.stockMaterialId)
+  const hasProductLines = !!order?.lines.some((l) => !l.stockMaterialId)
   const { data: receiptResp, isLoading: receiptLoading } = useQuery({
     queryKey: ['po-materials-receipt', tenantId, orderId],
     queryFn: () => stockMaterialApi.purchaseReceiptStatus(tenantId!, orderId),
-    enabled: !!tenantId && order?.status === 'Received' && hasMaterialLines,
+    enabled: !!tenantId && order?.status === 'Received',
   })
-  const materialsApplied = receiptResp?.data.applied
+  const receipt = receiptResp?.data
+  const pending = receipt
+    ? [
+        hasProductLines && !receipt.productsApplied ? 'المنتجات' : null,
+        hasMaterialLines && !receipt.applied ? 'المواد الخام' : null,
+      ].filter(Boolean)
+    : []
 
   const retryMaterials = useMutation({
-    mutationFn: () => purchasingApi.retryMaterials(branchId!, orderId),
+    mutationFn: () => purchasingApi.retryReceipt(branchId!, orderId),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['po-materials-receipt', tenantId, orderId] })
       void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
+      void qc.invalidateQueries({ queryKey: ['stock', branchId] })
       void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId] })
     },
     onError: (err) => toast.error('تعذّرت إعادة المحاولة', apiErrorMessage(err)),
@@ -211,16 +220,16 @@ function OrderDetailModal({
               {order.notes && <span className="text-muted">· {order.notes}</span>}
             </div>
 
-            {order.status === 'Received' && hasMaterialLines && !receiptLoading && materialsApplied !== undefined && (
-              materialsApplied ? (
+            {order.status === 'Received' && !receiptLoading && receipt && (
+              pending.length === 0 ? (
                 <div className="flex items-center gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm text-success">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  أُضيفت المواد الخام إلى المخزون وحُدّثت تكلفتها
+                  أُضيفت كميات الطلب إلى المخزون
                 </div>
               ) : (
                 <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <span className="flex-1">الطلب مستلم، لكن لم تُضف المواد الخام إلى المخزون بعد.</span>
+                  <span className="flex-1">الطلب مستلم، لكن لم تُضف {pending.join(' و')} إلى المخزون بعد.</span>
                   <Button size="sm" variant="secondary" onClick={() => retryMaterials.mutate()} loading={retryMaterials.isPending}>
                     <RotateCw className="h-4 w-4" />
                     إعادة المحاولة

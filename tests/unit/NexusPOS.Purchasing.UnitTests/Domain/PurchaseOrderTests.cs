@@ -5,6 +5,7 @@ using NexusPOS.Purchasing.Domain.Entities;
 using NexusPOS.Purchasing.Domain.Enums;
 using NexusPOS.Purchasing.Domain.Events;
 using NexusPOS.Purchasing.Domain.ValueObjects;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.Purchasing.UnitTests.Domain;
 

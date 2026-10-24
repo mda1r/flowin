@@ -7,15 +7,15 @@ using NexusPOS.Purchasing.Domain.ValueObjects;
 using NexusPOS.Purchasing.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 
-namespace NexusPOS.Purchasing.Application.Commands.RetryMaterialsReceipt;
+namespace NexusPOS.Purchasing.Application.Commands.RetryInventoryReceipt;
 
-internal sealed class RetryMaterialsReceiptCommandHandler(
+internal sealed class RetryInventoryReceiptCommandHandler(
     IPurchaseOrderRepository purchaseOrderRepository,
     PurchasingDbContext dbContext)
-    : ICommandHandler<RetryMaterialsReceiptCommand, PurchaseOrderResponse>
+    : ICommandHandler<RetryInventoryReceiptCommand, PurchaseOrderResponse>
 {
     public async Task<ErrorOr<PurchaseOrderResponse>> Handle(
-        RetryMaterialsReceiptCommand request,
+        RetryInventoryReceiptCommand request,
         CancellationToken cancellationToken)
     {
         PurchaseOrder? order = await purchaseOrderRepository.FindByIdAsync(
@@ -26,7 +26,7 @@ internal sealed class RetryMaterialsReceiptCommandHandler(
             return PurchasingErrors.PurchaseOrderNotFound;
         }
 
-        ErrorOr<Success> result = order.RetryMaterialsReceipt();
+        ErrorOr<Success> result = order.RetryInventoryReceipt();
         if (result.IsError)
         {
             return result.Errors;

@@ -37,9 +37,6 @@ public static class PurchasingErrors
     public static readonly Error PurchaseOrderNotReceived =
         Error.Validation("Purchasing.PurchaseOrderNotReceived", "Purchase order has not been received yet.");
 
-    public static readonly Error NoMaterialLines =
-        Error.Validation("Purchasing.NoMaterialLines", "Purchase order has no raw-material lines.");
-
     public static readonly Error StockMaterialNotFound =
         Error.Validation("Purchasing.StockMaterialNotFound", "المادة الخام غير موجودة في متجرك.");
 }

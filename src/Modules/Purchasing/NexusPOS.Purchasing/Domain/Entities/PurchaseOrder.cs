@@ -121,24 +121,38 @@ public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
         ReceivedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        RaiseDomainEvent(new PurchaseOrderReceivedDomainEvent(
-            Id.Value, TenantId, BranchId,
-            Lines.Where(l => !l.IsMaterial).Select(l => (l.VariantId, l.OrderedQuantity)).ToList()));
-
+        RaiseProductsReceived();
         RaiseMaterialsPurchased();
 
         return Result.Success;
     }
 
-    // Re-sends the raw-material receipt to Inventory, which applies each order at most once.
-    public ErrorOr<Success> RetryMaterialsReceipt()
+    // Re-sends the receipt to Inventory, which applies each order's products and materials at most once.
+    public ErrorOr<Success> RetryInventoryReceipt()
     {
         if (Status != PurchaseOrderStatus.Received)
         {
             return PurchasingErrors.PurchaseOrderNotReceived;
         }
 
-        return RaiseMaterialsPurchased() ? Result.Success : PurchasingErrors.NoMaterialLines;
+        bool products = RaiseProductsReceived();
+        bool materials = RaiseMaterialsPurchased();
+        return products || materials ? Result.Success : PurchasingErrors.EmptyPurchaseOrder;
+    }
+
+    private bool RaiseProductsReceived()
+    {
+        List<(Guid VariantId, decimal Quantity)> productLines = Lines
+            .Where(l => !l.IsMaterial)
+            .Select(l => (l.VariantId, l.OrderedQuantity))
+            .ToList();
+        if (productLines.Count == 0)
+        {
+            return false;
+        }
+
+        RaiseDomainEvent(new PurchaseOrderReceivedDomainEvent(Id.Value, TenantId, BranchId, productLines));
+        return true;
     }
 
     private bool RaiseMaterialsPurchased()

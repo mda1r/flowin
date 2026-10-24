@@ -23,7 +23,7 @@ public sealed class PurchaseOrderMaterialsRetryTests
         order.ReceiveAll();
         order.ClearDomainEvents();
 
-        ErrorOr<Success> result = order.RetryMaterialsReceipt();
+        ErrorOr<Success> result = order.RetryInventoryReceipt();
 
         result.IsError.Should().BeFalse();
         StockMaterialsPurchasedDomainEvent evt = order.DomainEvents.OfType<StockMaterialsPurchasedDomainEvent>().Single();
@@ -38,17 +38,35 @@ public sealed class PurchaseOrderMaterialsRetryTests
         order.AddMaterialLine(_coffee, "بن قهوة", 45m, 3m);
         order.Send();
 
-        order.RetryMaterialsReceipt().FirstError.Should().Be(PurchasingErrors.PurchaseOrderNotReceived);
+        order.RetryInventoryReceipt().FirstError.Should().Be(PurchasingErrors.PurchaseOrderNotReceived);
     }
 
     [Fact]
-    public void Retry_WithoutMaterialLines_IsRejected()
+    public void Retry_WithProductLines_RaisesProductReceiptAgain()
     {
+        Guid variant = Guid.NewGuid();
         PurchaseOrder order = Draft();
-        order.AddLine(Guid.NewGuid(), "منتج", 10m, 1m);
+        order.AddLine(variant, "منتج", 10m, 4m);
         order.Send();
         order.ReceiveAll();
+        order.ClearDomainEvents();
 
-        order.RetryMaterialsReceipt().FirstError.Should().Be(PurchasingErrors.NoMaterialLines);
+        order.RetryInventoryReceipt().IsError.Should().BeFalse();
+
+        PurchaseOrderReceivedDomainEvent evt = order.DomainEvents.OfType<PurchaseOrderReceivedDomainEvent>().Single();
+        evt.ReceivedItems.Should().ContainSingle().Which.Should().Be((variant, 4m));
+        order.DomainEvents.OfType<StockMaterialsPurchasedDomainEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Receive_MaterialOnlyOrder_RaisesNoProductEvent()
+    {
+        PurchaseOrder order = Draft();
+        order.AddMaterialLine(_coffee, "بن قهوة", 45m, 3m);
+        order.Send();
+
+        order.ReceiveAll();
+
+        order.DomainEvents.OfType<PurchaseOrderReceivedDomainEvent>().Should().BeEmpty();
     }
 }

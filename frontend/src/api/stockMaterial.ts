@@ -47,7 +47,7 @@ export const stockMaterialApi = {
     apiClient.post<StockMaterialResponse>(`${base(tenantId)}/${materialId}/receive`, data),
 
   purchaseReceiptStatus: (tenantId: string, purchaseOrderId: string) =>
-    apiClient.get<{ purchaseOrderId: string; applied: boolean; appliedAt?: string; lineCount: number }>(
+    apiClient.get<{ purchaseOrderId: string; applied: boolean; appliedAt?: string; lineCount: number; productsApplied: boolean }>(
       `${base(tenantId)}/purchase-receipts/${purchaseOrderId}`,
     ),
 
