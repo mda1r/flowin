@@ -1,4 +1,5 @@
 using ErrorOr;
+using Microsoft.EntityFrameworkCore;
 using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
@@ -26,7 +27,13 @@ internal sealed class PayOrderCommandHandler(
             return RestaurantErrors.OrderNotFound;
         }
 
-        ErrorOr<Success> result = order.Pay(request.PaymentMethod, request.AmountTendered);
+        List<MenuItemId> itemIds = [.. order.Items.Select(i => new MenuItemId(i.MenuItemId)).Distinct()];
+        HashSet<Guid> menuItemIds = [.. await dbContext.MenuItems
+            .Where(m => itemIds.Contains(m.Id))
+            .Select(m => m.Id.Value)
+            .ToListAsync(cancellationToken)];
+
+        ErrorOr<Success> result = order.Pay(request.PaymentMethod, request.AmountTendered, menuItemIds);
         if (result.IsError)
         {
             return result.Errors;

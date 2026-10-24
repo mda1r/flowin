@@ -9,6 +9,7 @@ public sealed class RestaurantOrderPaymentTests
 {
     private static readonly Guid _burger = Guid.NewGuid();
     private static readonly Guid _juice = Guid.NewGuid();
+    private static readonly HashSet<Guid> _menu = [_burger, _juice];
 
     private static RestaurantOrder NewOrder()
     {
@@ -26,7 +27,7 @@ public sealed class RestaurantOrderPaymentTests
     {
         RestaurantOrder order = NewOrder();
 
-        order.Pay("Cash", 1000m).IsError.Should().BeFalse();
+        order.Pay("Cash", 1000m, _menu).IsError.Should().BeFalse();
 
         RecipeItemsSoldDomainEvent sold = order.DomainEvents.OfType<RecipeItemsSoldDomainEvent>().Single();
         sold.TenantId.Should().Be(order.TenantId);
@@ -43,7 +44,7 @@ public sealed class RestaurantOrderPaymentTests
     {
         RestaurantOrder order = NewOrder();
 
-        order.Pay("Cash", 1m).IsError.Should().BeTrue();
+        order.Pay("Cash", 1m, _menu).IsError.Should().BeTrue();
 
         order.DomainEvents.OfType<RecipeItemsSoldDomainEvent>().Should().BeEmpty();
     }
@@ -52,10 +53,31 @@ public sealed class RestaurantOrderPaymentTests
     public void Pay_Twice_DeductsOnlyOnce()
     {
         RestaurantOrder order = NewOrder();
-        order.Pay("Cash", 1000m);
+        order.Pay("Cash", 1000m, _menu);
 
-        order.Pay("Cash", 1000m).IsError.Should().BeTrue();
+        order.Pay("Cash", 1000m, _menu).IsError.Should().BeTrue();
 
         order.DomainEvents.OfType<RecipeItemsSoldDomainEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Pay_IgnoresItemsThatAreNotRealMenuItems()
+    {
+        RestaurantOrder order = NewOrder();
+
+        order.Pay("Cash", 1000m, new HashSet<Guid> { _juice });
+
+        order.DomainEvents.OfType<RecipeItemsSoldDomainEvent>().Single().Lines
+            .Should().ContainSingle().Which.ItemId.Should().Be(_juice);
+    }
+
+    [Fact]
+    public void Pay_MirroredCafeOrder_RaisesNoRecipeSale()
+    {
+        RestaurantOrder order = NewOrder();
+
+        order.Pay("Cash", 1000m, new HashSet<Guid>()).IsError.Should().BeFalse();
+
+        order.DomainEvents.OfType<RecipeItemsSoldDomainEvent>().Should().BeEmpty();
     }
 }

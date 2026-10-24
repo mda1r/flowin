@@ -154,7 +154,9 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         return Result.Success;
     }
 
-    public ErrorOr<Success> Pay(string paymentMethod, decimal amountTendered)
+    // menuItemIds: which order items are real menu items. Orders mirrored from the cafe cashier for the kitchen
+    // reuse catalog ids that the POS sale already deducted, so only genuine menu items count as recipe sales.
+    public ErrorOr<Success> Pay(string paymentMethod, decimal amountTendered, IReadOnlySet<Guid> menuItemIds)
     {
         if (Status == RestaurantOrderStatus.Paid)
         {
@@ -177,10 +179,16 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         PaidAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        RaiseDomainEvent(new RecipeItemsSoldDomainEvent(
-            TenantId,
-            Id.Value,
-            [.. Items.Select(i => new RecipeItemsSoldDomainEvent.Line(i.MenuItemId, i.Quantity))]));
+        List<RecipeItemsSoldDomainEvent.Line> recipeLines =
+        [
+            .. Items
+                .Where(i => menuItemIds.Contains(i.MenuItemId))
+                .Select(i => new RecipeItemsSoldDomainEvent.Line(i.MenuItemId, i.Quantity)),
+        ];
+        if (recipeLines.Count > 0)
+        {
+            RaiseDomainEvent(new RecipeItemsSoldDomainEvent(TenantId, Id.Value, recipeLines));
+        }
 
         return Result.Success;
     }
