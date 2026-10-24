@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useRouterState } from '@tanstack/react-router'
+import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Menu } from 'lucide-react'
 import { Sidebar, FlowinWordmark } from './Sidebar'
 import { authApi } from '@/api/auth'
@@ -9,7 +9,14 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const { setUser } = useAuthStore()
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  // The route guard only runs on navigation; a session cleared mid-page (failed token refresh) must also leave.
+  useEffect(() => {
+    if (!accessToken) void navigate({ to: '/login', replace: true })
+  }, [accessToken, navigate])
 
   useEffect(() => {
     authApi.me().then(({ data }) => setUser(data)).catch(() => {})
