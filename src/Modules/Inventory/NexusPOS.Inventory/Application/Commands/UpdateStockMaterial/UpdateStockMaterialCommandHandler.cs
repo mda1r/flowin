@@ -34,7 +34,7 @@ internal sealed class UpdateStockMaterialCommandHandler(InventoryDbContext db)
 
         material.Update(request.Code, request.NameAr, request.NameEn, request.CategoryId,
             request.StorageUnit, request.ComponentUnit, request.ConversionFactor,
-            request.CostMethod, request.ManualCost, request.MinLevel, request.MaxLevel, request.ReorderLevel);
+            request.CostMethod, request.ManualCost, request.ManualQuantity, request.MinLevel, request.MaxLevel, request.ReorderLevel);
 
         await db.SaveChangesAsync(cancellationToken);
 

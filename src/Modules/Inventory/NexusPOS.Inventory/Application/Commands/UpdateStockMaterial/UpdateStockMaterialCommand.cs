@@ -16,6 +16,7 @@ public sealed record UpdateStockMaterialCommand(
     decimal ConversionFactor,
     CostMethod CostMethod,
     decimal? ManualCost,
+    decimal? ManualQuantity,
     decimal? MinLevel,
     decimal? MaxLevel,
     decimal? ReorderLevel) : ICommand<StockMaterialResponse>;

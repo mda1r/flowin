@@ -12,6 +12,7 @@ public sealed record CreateStockMaterialRequest(
     decimal ConversionFactor,
     CostMethod CostMethod,
     decimal InitialCost = 0m,
+    decimal InitialQuantity = 0m,
     decimal? MinLevel = null,
     decimal? MaxLevel = null,
     decimal? ReorderLevel = null);
@@ -26,6 +27,7 @@ public sealed record UpdateStockMaterialRequest(
     decimal ConversionFactor,
     CostMethod CostMethod,
     decimal? ManualCost = null,
+    decimal? ManualQuantity = null,
     decimal? MinLevel = null,
     decimal? MaxLevel = null,
     decimal? ReorderLevel = null);

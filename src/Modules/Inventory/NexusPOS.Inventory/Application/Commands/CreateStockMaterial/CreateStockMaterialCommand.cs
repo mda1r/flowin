@@ -15,6 +15,7 @@ public sealed record CreateStockMaterialCommand(
     decimal ConversionFactor,
     CostMethod CostMethod,
     decimal InitialCost = 0m,
+    decimal InitialQuantity = 0m,
     decimal? MinLevel = null,
     decimal? MaxLevel = null,
     decimal? ReorderLevel = null) : ICommand<StockMaterialResponse>;

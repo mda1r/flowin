@@ -40,6 +40,7 @@ export interface CreateStockMaterialPayload {
   conversionFactor: number
   costMethod: number
   initialCost?: number
+  initialQuantity?: number
   minLevel?: number
   maxLevel?: number
   reorderLevel?: number
@@ -55,6 +56,7 @@ export interface UpdateStockMaterialPayload {
   conversionFactor: number
   costMethod: number
   manualCost?: number
+  manualQuantity?: number
   minLevel?: number
   maxLevel?: number
   reorderLevel?: number

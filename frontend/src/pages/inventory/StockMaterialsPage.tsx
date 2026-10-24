@@ -34,6 +34,7 @@ interface MaterialForm {
   conversionFactor: string
   costMethod: string
   initialCost: string
+  quantity: string
   minLevel: string
   maxLevel: string
   reorderLevel: string
@@ -49,6 +50,7 @@ const EMPTY_FORM: MaterialForm = {
   conversionFactor: '1',
   costMethod: '1',
   initialCost: '0',
+  quantity: '0',
   minLevel: '',
   maxLevel: '',
   reorderLevel: '',
@@ -65,6 +67,7 @@ function toPayload(f: MaterialForm): CreateStockMaterialPayload {
     conversionFactor: parseFloat(f.conversionFactor) || 1,
     costMethod: parseInt(f.costMethod),
     initialCost: parseFloat(f.initialCost) || 0,
+    initialQuantity: parseFloat(f.quantity) || 0,
     minLevel: parseMaybeNum(f.minLevel),
     maxLevel: parseMaybeNum(f.maxLevel),
     reorderLevel: parseMaybeNum(f.reorderLevel),
@@ -92,6 +95,7 @@ function MaterialModal({ categories, initial, onSave, onClose, saving }: Materia
           conversionFactor: String(initial.conversionFactor),
           costMethod: initial.costMethod === 'WeightedAverage' ? '2' : '1',
           initialCost: String(initial.currentCost),
+          quantity: String(initial.currentQuantityInStorageUnits),
           minLevel: initial.minLevel != null ? String(initial.minLevel) : '',
           maxLevel: initial.maxLevel != null ? String(initial.maxLevel) : '',
           reorderLevel: initial.reorderLevel != null ? String(initial.reorderLevel) : '',
@@ -152,6 +156,10 @@ function MaterialModal({ categories, initial, onSave, onClose, saving }: Materia
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-400">التكلفة الحالية (ريال)</label>
             <input type="number" className="input w-full" value={f.initialCost} onChange={field('initialCost')} min="0" step="0.01" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-400">الكمية الحالية ({f.storageUnit || 'وحدة تخزين'})</label>
+            <input type="number" className="input w-full" value={f.quantity} onChange={field('quantity')} min="0" step="0.001" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-400">الحد الأدنى للطلب</label>
@@ -471,7 +479,15 @@ export function StockMaterialsPage() {
         <MaterialModal
           categories={categories}
           initial={editMat}
-          onSave={p => updateMatMut.mutate({ id: editMat.id, payload: p as UpdateStockMaterialPayload })}
+          onSave={p => {
+            const { initialQuantity, initialCost, ...rest } = p as CreateStockMaterialPayload & { initialCost?: number; initialQuantity?: number }
+            const updatePayload: UpdateStockMaterialPayload = {
+              ...rest,
+              manualCost: initialCost,
+              manualQuantity: initialQuantity,
+            }
+            updateMatMut.mutate({ id: editMat.id, payload: updatePayload })
+          }}
           onClose={() => setEditMat(null)}
           saving={updateMatMut.isPending}
         />

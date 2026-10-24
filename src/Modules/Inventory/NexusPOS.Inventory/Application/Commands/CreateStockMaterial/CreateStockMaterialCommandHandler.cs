@@ -27,7 +27,7 @@ internal sealed class CreateStockMaterialCommandHandler(InventoryDbContext db)
             request.TenantId, request.Code, request.NameAr, request.NameEn,
             request.CategoryId, request.StorageUnit, request.ComponentUnit,
             request.ConversionFactor, request.CostMethod, request.InitialCost,
-            request.MinLevel, request.MaxLevel, request.ReorderLevel);
+            request.InitialQuantity, request.MinLevel, request.MaxLevel, request.ReorderLevel);
 
         db.StockMaterials.Add(material);
         await db.SaveChangesAsync(cancellationToken);
