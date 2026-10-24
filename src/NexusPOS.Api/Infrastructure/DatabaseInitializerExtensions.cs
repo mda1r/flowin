@@ -72,6 +72,7 @@ internal static class DatabaseInitializerExtensions
             await EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
 
             await MigrateCatalogColumnsAsync(sp, logger);
+            await MigrateStockMaterialsAsync(sp, logger);
             await ApplySchemaPatches(sp, logger);
             await SeedAdminUserAsync(sp, logger);
             await SeedSuperAdminUserAsync(sp, logger);
@@ -254,6 +255,54 @@ internal static class DatabaseInitializerExtensions
         {
             try { await invDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "Inventory migration skipped: {Sql}", sql); }
+        }
+    }
+
+    internal static async Task MigrateStockMaterialsAsync(IServiceProvider sp, ILogger logger)
+    {
+        InventoryDbContext invDb = sp.GetRequiredService<InventoryDbContext>();
+        string[] patches =
+        [
+            """
+            CREATE TABLE IF NOT EXISTS stock_material_categories (
+                id UUID PRIMARY KEY,
+                tenant_id UUID NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                CONSTRAINT ix_stock_material_categories_tenant_name UNIQUE (tenant_id, name)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS stock_materials (
+                id UUID PRIMARY KEY,
+                tenant_id UUID NOT NULL,
+                code VARCHAR(50) NOT NULL,
+                name_ar VARCHAR(200) NOT NULL,
+                name_en VARCHAR(200),
+                category_id UUID REFERENCES stock_material_categories(id) ON DELETE SET NULL,
+                storage_unit VARCHAR(50) NOT NULL,
+                component_unit VARCHAR(50) NOT NULL,
+                conversion_factor NUMERIC(18,6) NOT NULL,
+                cost_method INT NOT NULL,
+                current_cost NUMERIC(18,4) NOT NULL DEFAULT 0,
+                current_quantity NUMERIC(18,4) NOT NULL DEFAULT 0,
+                min_level NUMERIC(18,4),
+                max_level NUMERIC(18,4),
+                reorder_level NUMERIC(18,4),
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                CONSTRAINT ix_stock_materials_tenant_code UNIQUE (tenant_id, code)
+            )
+            """,
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await invDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Stock materials migration skipped"); }
         }
     }
 
@@ -915,6 +964,7 @@ internal static class DatabaseInitializerExtensions
                 await MigratePosColumnsAsync(sp, logger);
                 await MigrateInventoryColumnsAsync(sp, logger);
                 await MigrateCatalogColumnsAsync(sp, logger);
+                await MigrateStockMaterialsAsync(sp, logger);
                 await EnsureCreatedAsync<SalesDbContext>(sp, logger);
                 await EnsureCreatedAsync<CrmDbContext>(sp, logger);
                 await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);

@@ -27,6 +27,7 @@ import { UsersPage } from '@/pages/users/UsersPage'
 import { BranchesPage } from '@/pages/branches/BranchesPage'
 import { StockCountPage } from '@/pages/inventory/StockCountPage'
 import { StockCountDetailPage } from '@/pages/inventory/StockCountDetailPage'
+import { StockMaterialsPage } from '@/pages/inventory/StockMaterialsPage'
 import { ZatcaSettingsPage } from '@/pages/settings/ZatcaSettingsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
@@ -270,6 +271,12 @@ const taxesRoute = createRoute({
   component: TaxCenterPage,
 })
 
+const stockMaterialsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/stock-materials',
+  component: StockMaterialsPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -296,6 +303,7 @@ const routeTree = rootRoute.addChildren([
     shiftReportsRoute,
     invoicesRoute,
     taxesRoute,
+    stockMaterialsRoute,
   ]),
   adminRoute.addChildren([
     adminDashboardRoute,

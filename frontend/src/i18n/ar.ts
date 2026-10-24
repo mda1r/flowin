@@ -24,6 +24,7 @@ export const ar: Translations = {
     shiftReports: 'تقرير الشفت',
     invoices: 'الفواتير',
     activityLogs: 'سجل النشاطات',
+    stockMaterials: 'مواد المخزون',
     settings: 'الإعدادات',
     logout: 'تسجيل الخروج',
   },

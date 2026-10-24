@@ -22,6 +22,7 @@ export const en = {
     shiftReports: 'Shift Reports',
     invoices: 'Invoices',
     activityLogs: 'Activity Logs',
+    stockMaterials: 'Stock Materials',
     settings: 'Settings',
     logout: 'Logout',
   },

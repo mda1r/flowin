@@ -29,6 +29,7 @@ import {
   ChefHat,
   Receipt,
   Bot,
+  FlaskConical,
 } from 'lucide-react'
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { cn } from '@/lib/utils'
@@ -88,6 +89,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'shiftReports', to: '/shifts', icon: <FileText className="h-5 w-5" /> },
   { labelKey: 'invoices', to: '/invoices', icon: <Receipt className="h-5 w-5" /> },
   { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'stockMaterials', to: '/stock-materials', icon: <FlaskConical className="h-5 w-5" /> },
 ]
 
 

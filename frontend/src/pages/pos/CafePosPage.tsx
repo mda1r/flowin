@@ -1,8 +1,9 @@
-﻿import { useState, useRef, useCallback } from 'react'
+﻿import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot, QrCode,
+  Gamepad2, Clock, Play, Square,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
@@ -17,10 +18,20 @@ import { pushKitchenTicket } from '@/lib/cafeKitchen'
 import { restaurantApi } from '@/api/restaurant'
 import { aiCashierApi } from '@/api/aiCashier'
 import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
-import type { PaymentMethod, CategoryResponse, ProductResponse } from '@/types/api'
+import { gamingApi } from '@/api/gaming'
+import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface StartSessionForm {
+  stationId: string
+  stationName: string
+  stationTypeKey: string
+  hourlyRate: number
+  playerName: string
+  durationMinutes: number
+}
 
 interface CafeCartItem {
   variantId: string
@@ -333,6 +344,11 @@ export function CafePosPage() {
   // AI Cashier
   const [aiCashierActive, setAiCashierActive] = useState(false)
 
+  // Gaming
+  const [startSessionForm, setStartSessionForm] = useState<StartSessionForm | null>(null)
+  const [gamingBill, setGamingBill] = useState<GameSessionBillResponse | null>(null)
+  const [gamingNow, setGamingNow] = useState(() => Date.now())
+
   // Shift
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showCloseShift, setShowCloseShift] = useState(false)
@@ -385,6 +401,16 @@ export function CafePosPage() {
     staleTime: 30_000,
   })
 
+  const { data: stationsData, refetch: refetchStations } = useQuery({
+    queryKey: ['gaming-stations-cafe', branchId],
+    queryFn: () => gamingApi.listStations(branchId!),
+    enabled: !!branchId && selectedCategoryId === '__gaming__',
+    refetchInterval: selectedCategoryId === '__gaming__' ? 15_000 : false,
+  })
+  const stations: GameStationResponse[] = Array.isArray(stationsData?.data)
+    ? (stationsData!.data as GameStationResponse[])
+    : []
+
   const _rawCats = categoriesData?.data
   const categories: CategoryResponse[] = Array.isArray(_rawCats) ? _rawCats : ((_rawCats as any)?.items ?? [])
   const _rawProds = productsData?.data
@@ -409,6 +435,13 @@ export function CafePosPage() {
     }
     return m
   })()
+
+  // Timer: update every second only while gaming tab is open
+  useEffect(() => {
+    if (selectedCategoryId !== '__gaming__') return
+    const id = setInterval(() => setGamingNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [selectedCategoryId])
 
   const cartQty = (variantId: string) => cart.find(i => i.variantId === variantId)?.quantity ?? 0
 
@@ -663,6 +696,56 @@ export function CafePosPage() {
     payModeRef.current = paymentMethod
     aiCheckout.mutate(paymentMethod)
   }, [aiCheckout])
+
+  // ── Gaming mutations ───────────────────────────────────────────────────────
+
+  const startSessionMut = useMutation({
+    mutationFn: async (form: StartSessionForm) => {
+      if (!branchId) throw new Error('no-branch')
+      return gamingApi.startSession(branchId, form.stationId, {
+        playerName: form.playerName,
+        durationMinutes: form.durationMinutes,
+        ratePerHour: form.hourlyRate,
+      })
+    },
+    onSuccess: () => {
+      setStartSessionForm(null)
+      void refetchStations()
+      toast.success('تم بدء جلسة الألعاب')
+    },
+    onError: () => toast.error('فشل في بدء الجلسة'),
+  })
+
+  const endSessionMut = useMutation({
+    mutationFn: async (sessionId: string) => {
+      if (!branchId) throw new Error('no-branch')
+      const res = await gamingApi.endSessionById(branchId, sessionId)
+      return res.data as GameSessionBillResponse
+    },
+    onSuccess: (bill) => {
+      setGamingBill(bill)
+      void refetchStations()
+    },
+    onError: () => toast.error('فشل في إنهاء الجلسة'),
+  })
+
+  const formatElapsed = (startIso: string) => {
+    const sec = Math.max(0, Math.floor((gamingNow - new Date(startIso).getTime()) / 1000))
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    const s = sec % 60
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  const elapsedSAR = (startIso: string, rate: number) => {
+    const hours = Math.max(0, (gamingNow - new Date(startIso).getTime()) / 3600000)
+    return hours * rate
+  }
+
+  const STATION_ICON: Record<string, string> = {
+    Console: '🎮', PC: '💻', VR: '🥽', Arcade: '🕹️', Board: '🎲',
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -968,9 +1051,124 @@ export function CafePosPage() {
                   {c.name}
                 </button>
               ))}
+              <button
+                onClick={() => setSelectedCategoryId('__gaming__')}
+                className={cn(
+                  'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
+                  selectedCategoryId === '__gaming__'
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
+                )}
+              >
+                <Gamepad2 className="h-3.5 w-3.5" />
+                الألعاب
+              </button>
             </div>
 
+            {/* Gaming stations panel */}
+            {selectedCategoryId === '__gaming__' && (
+              <div className="flex-1 overflow-y-auto p-4">
+                {stations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-300">
+                    <Gamepad2 className="h-10 w-10" />
+                    <p className="text-sm">لا توجد محطات ألعاب</p>
+                    <p className="text-xs text-gray-400">أضف محطات من صفحة الألعاب أولاً</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {stations.map((station) => (
+                      <div
+                        key={station.id}
+                        className={cn(
+                          'relative flex flex-col rounded-xl border-2 p-4 transition-all',
+                          station.status === 'Available'
+                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
+                            : station.status === 'InUse'
+                            ? 'border-violet-300 bg-violet-50 dark:border-violet-700 dark:bg-violet-900/20'
+                            : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50',
+                        )}
+                      >
+                        {/* Station header */}
+                        <div className="mb-2 flex items-start justify-between">
+                          <div>
+                            <p className="text-xl">{STATION_ICON[station.type] ?? '🎮'}</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{station.name}</p>
+                            <p className="text-xs text-gray-500">{station.type}</p>
+                          </div>
+                          <span className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-semibold',
+                            station.status === 'Available'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                              : station.status === 'InUse'
+                              ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400'
+                              : 'bg-gray-100 text-gray-500 dark:bg-gray-700',
+                          )}>
+                            {station.status === 'Available' ? 'متاح' : station.status === 'InUse' ? 'شاغل' : 'صيانة'}
+                          </span>
+                        </div>
+
+                        {/* Hourly rate */}
+                        <p className="mb-3 text-sm font-semibold text-violet-600 dark:text-violet-400">
+                          {formatCurrency(station.hourlyRate)} / ساعة
+                        </p>
+
+                        {/* Active session info */}
+                        {station.status === 'InUse' && station.activeSession && (
+                          <div className="mb-3 rounded-lg bg-violet-100/60 p-2.5 dark:bg-violet-900/30">
+                            <p className="text-xs font-semibold text-violet-800 dark:text-violet-300">
+                              👤 {station.activeSession.playerName}
+                            </p>
+                            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-violet-700 dark:text-violet-400">
+                              <Clock className="h-3 w-3" />
+                              <span className="font-mono tabular-nums font-bold">
+                                {formatElapsed(station.activeSession.startTime)}
+                              </span>
+                              <span className="mr-auto font-bold">
+                                {formatCurrency(elapsedSAR(station.activeSession.startTime, station.activeSession.ratePerHour))}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        {station.status === 'Available' && (
+                          <button
+                            onClick={() => setStartSessionForm({
+                              stationId: station.id,
+                              stationName: station.name,
+                              stationTypeKey: station.type,
+                              hourlyRate: station.hourlyRate,
+                              playerName: '',
+                              durationMinutes: 60,
+                            })}
+                            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 text-sm font-bold text-white hover:bg-emerald-600 transition-colors"
+                          >
+                            <Play className="h-3.5 w-3.5" />
+                            ابدأ جلسة
+                          </button>
+                        )}
+                        {station.status === 'InUse' && station.activeSession && (
+                          <button
+                            onClick={() => endSessionMut.mutate(station.activeSession!.sessionId)}
+                            disabled={endSessionMut.isPending}
+                            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl bg-red-500 py-2 text-sm font-bold text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                          >
+                            <Square className="h-3.5 w-3.5 fill-current" />
+                            إنهاء وادفع
+                          </button>
+                        )}
+                        {station.status === 'Maintenance' && (
+                          <p className="mt-auto text-center text-xs text-gray-400">في الصيانة</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Product grid */}
+            {selectedCategoryId !== '__gaming__' && (
             <div className="flex-1 overflow-y-auto p-4">
               {productsLoading ? (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -1016,6 +1214,7 @@ export function CafePosPage() {
                 </div>
               )}
             </div>
+            )}
           </main>
         </div>
       </ShiftGate>
@@ -1062,6 +1261,168 @@ export function CafePosPage() {
       {/* ── Kitchen Ticket (for kitchen display only) ── */}
       {kitchenTicket && !customerReceipt && (
         <KitchenTicketModal ticket={kitchenTicket} onClose={() => setKitchenTicket(null)} />
+      )}
+
+      {/* ── Start Gaming Session Modal ── */}
+      {startSessionForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
+          <div className="w-80 rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{STATION_ICON[startSessionForm.stationTypeKey] ?? '🎮'}</span>
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">{startSessionForm.stationName}</h3>
+              </div>
+              <button onClick={() => setStartSessionForm(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-4 p-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">اسم اللاعب</label>
+                <input
+                  type="text"
+                  value={startSessionForm.playerName}
+                  onChange={(e) => setStartSessionForm(f => f && { ...f, playerName: e.target.value })}
+                  placeholder="أدخل اسم اللاعب"
+                  autoFocus
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">المدة</label>
+                <div className="mb-2 flex gap-1.5">
+                  {[30, 60, 120, 180].map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setStartSessionForm(f => f && { ...f, durationMinutes: m })}
+                      className={cn(
+                        'flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors',
+                        startSessionForm.durationMinutes === m
+                          ? 'bg-violet-600 text-white'
+                          : 'border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800',
+                      )}
+                    >
+                      {m === 60 ? '1س' : m === 120 ? '2س' : m === 180 ? '3س' : '30د'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={startSessionForm.durationMinutes}
+                    onChange={(e) => setStartSessionForm(f => f && { ...f, durationMinutes: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  />
+                  <span className="shrink-0 text-xs text-gray-400">دقيقة</span>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">السعر / ساعة (ر.س)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={startSessionForm.hourlyRate}
+                  onChange={(e) => setStartSessionForm(f => f && { ...f, hourlyRate: parseFloat(e.target.value) || 0 })}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+              <div className="rounded-xl bg-violet-50 py-3 text-center dark:bg-violet-900/20">
+                <p className="text-xs text-gray-500 dark:text-gray-400">الإجمالي المتوقع</p>
+                <p className="mt-0.5 text-2xl font-black tabular-nums text-violet-600 dark:text-violet-400">
+                  {formatCurrency((startSessionForm.durationMinutes / 60) * startSessionForm.hourlyRate)}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {startSessionForm.durationMinutes} د × {formatCurrency(startSessionForm.hourlyRate)}/ساعة
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-700">
+              <button
+                onClick={() => startSessionMut.mutate(startSessionForm)}
+                disabled={startSessionMut.isPending || !startSessionForm.playerName.trim()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              >
+                <Play className="h-4 w-4" />
+                {startSessionMut.isPending ? 'جارٍ البدء...' : 'ابدأ الجلسة'}
+              </button>
+              <button
+                onClick={() => setStartSessionForm(null)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+              >
+                <X className="h-4 w-4" />
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Gaming Bill Modal ── */}
+      {gamingBill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
+          <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+            <div id="gaming-bill-print" className="p-5">
+              <div className="mb-4 border-b border-dashed border-gray-200 pb-4 text-center dark:border-gray-700">
+                <div className="mb-1 text-3xl">{STATION_ICON[gamingBill.stationType] ?? '🎮'}</div>
+                <p className="text-base font-black text-gray-900 dark:text-gray-100">فاتورة جلسة ألعاب</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{gamingBill.stationName}</p>
+              </div>
+              <div className="mb-4 space-y-2.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">اللاعب</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{gamingBill.playerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">البداية</span>
+                  <span className="tabular-nums text-gray-700 dark:text-gray-300">
+                    {new Date(gamingBill.startTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">النهاية</span>
+                  <span className="tabular-nums text-gray-700 dark:text-gray-300">
+                    {new Date(gamingBill.endTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">المدة الفعلية</span>
+                  <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                    {gamingBill.actualDurationMinutes >= 60
+                      ? `${Math.floor(gamingBill.actualDurationMinutes / 60)}س ${gamingBill.actualDurationMinutes % 60 > 0 ? `${gamingBill.actualDurationMinutes % 60}د` : ''}`
+                      : `${gamingBill.actualDurationMinutes} دقيقة`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">السعر / ساعة</span>
+                  <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(gamingBill.ratePerHour)}</span>
+                </div>
+              </div>
+              <div className="mb-2 rounded-xl bg-violet-50 py-4 text-center dark:bg-violet-900/20">
+                <p className="text-xs text-gray-500 dark:text-gray-400">الإجمالي</p>
+                <p className="mt-1 text-3xl font-black tabular-nums text-violet-600 dark:text-violet-400">
+                  {formatCurrency(gamingBill.totalAmount)}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-700">
+              <button
+                onClick={() => window.print()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 transition-colors"
+              >
+                <Printer className="h-4 w-4" />
+                طباعة
+              </button>
+              <button
+                onClick={() => setGamingBill(null)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition-colors"
+              >
+                تم الدفع ✓
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── AI Cashier Agent overlay ── */}

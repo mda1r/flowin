@@ -11,4 +11,6 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<StockCountSession> StockCountSessions => Set<StockCountSession>();
     public DbSet<StockCountItem> StockCountItems => Set<StockCountItem>();
+    public DbSet<StockMaterialCategory> StockMaterialCategories => Set<StockMaterialCategory>();
+    public DbSet<StockMaterial> StockMaterials => Set<StockMaterial>();
 }

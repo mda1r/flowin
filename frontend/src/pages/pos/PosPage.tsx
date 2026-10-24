@@ -17,7 +17,6 @@ import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import type { ProductResponse, ProductVariantResponse, PaymentMethod, OrderResponse } from '@/types/api'
 import { RestaurantPosPage } from './RestaurantPosPage'
 import { HotelPosPage } from './HotelPosPage'
-import { GamingPosPage } from './GamingPosPage'
 import { CafePosPage } from './CafePosPage'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { useI18n } from '@/i18n'
@@ -32,7 +31,7 @@ export function POSPage() {
     case 'Hotel':
       return <HotelPosPage />
     case 'Gaming':
-      return <GamingPosPage />
+      return <CafePosPage />
     default:
       return <RetailPosPage />
   }
