@@ -18,6 +18,8 @@ public sealed class Order : AggregateRoot<OrderId>
     public decimal TaxRate { get; private set; }
     public decimal SubtotalAmount { get; private set; }
     public decimal DiscountAmount { get; private set; }
+    public int LoyaltyPointsRedeemed { get; private set; }
+    public decimal LoyaltyDiscountAmount { get; private set; }
     public decimal TaxAmount { get; private set; }
     public decimal TotalAmount { get; private set; }
     public PaymentMethod? PaymentMethod { get; private set; }
@@ -127,6 +129,37 @@ public sealed class Order : AggregateRoot<OrderId>
         return Result.Success;
     }
 
+    // Redeems points as a discount that lowers the amount paid by exactly their value (VAT included).
+    // Zero points clears the redemption.
+    public ErrorOr<Success> RedeemLoyaltyPoints(int points)
+    {
+        if (Status != OrderStatus.Open)
+        {
+            return PosErrors.OrderNotOpen;
+        }
+
+        if (CustomerId is null)
+        {
+            return PosErrors.LoyaltyRequiresCustomer;
+        }
+
+        if (points < 0)
+        {
+            return PosErrors.InvalidLoyaltyPoints;
+        }
+
+        decimal grossBeforeLoyalty = (SubtotalAmount - OrderDiscount.ComputeAmount(SubtotalAmount)) * (1 + TaxRate);
+        if (LoyaltyPolicy.ValueOf(points) > Math.Round(grossBeforeLoyalty, 2))
+        {
+            return PosErrors.LoyaltyExceedsTotal;
+        }
+
+        LoyaltyPointsRedeemed = points;
+        RecalculateTotals();
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success;
+    }
+
     public ErrorOr<Success> Complete(Enums.PaymentMethod method, decimal amountTendered, decimal? cashAmount = null, decimal? cardAmount = null)
     {
         if (Status != OrderStatus.Open)
@@ -161,7 +194,8 @@ public sealed class Order : AggregateRoot<OrderId>
             .ToList();
         RaiseDomainEvent(new OrderCompletedDomainEvent(
             Id.Value, TenantId, BranchId,
-            SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method, lineItems));
+            SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method, lineItems,
+            CustomerId, LoyaltyPointsRedeemed));
         return Result.Success;
     }
 
@@ -183,9 +217,25 @@ public sealed class Order : AggregateRoot<OrderId>
     private void RecalculateTotals()
     {
         SubtotalAmount = Lines.Sum(l => l.LineTotal);
-        DiscountAmount = Math.Round(OrderDiscount.ComputeAmount(SubtotalAmount), 4);
+        decimal manualDiscount = Math.Round(OrderDiscount.ComputeAmount(SubtotalAmount), 4);
+        decimal room = Math.Max(SubtotalAmount - manualDiscount, 0m);
+
+        // Removing lines can shrink the bill below the redeemed value; give back the points that no longer fit.
+        if (PreTaxLoyalty(LoyaltyPointsRedeemed) > room)
+        {
+            LoyaltyPointsRedeemed = (int)Math.Floor(room * (1 + TaxRate) / LoyaltyPolicy.ValuePerPoint);
+            while (LoyaltyPointsRedeemed > 0 && PreTaxLoyalty(LoyaltyPointsRedeemed) > room)
+            {
+                LoyaltyPointsRedeemed--;
+            }
+        }
+
+        LoyaltyDiscountAmount = PreTaxLoyalty(LoyaltyPointsRedeemed);
+        DiscountAmount = manualDiscount + LoyaltyDiscountAmount;
         decimal taxable = SubtotalAmount - DiscountAmount;
         TaxAmount = Math.Round(taxable * TaxRate, 4);
         TotalAmount = Math.Round(taxable + TaxAmount, 4);
     }
+
+    private decimal PreTaxLoyalty(int points) => Math.Round(LoyaltyPolicy.ValueOf(points) / (1 + TaxRate), 4);
 }

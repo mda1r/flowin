@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useCallback, useEffect } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot, QrCode,
@@ -19,8 +19,10 @@ import { restaurantApi } from '@/api/restaurant'
 import { aiCashierApi } from '@/api/aiCashier'
 import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
 import { gamingApi } from '@/api/gaming'
-import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse } from '@/types/api'
+import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
+import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -62,6 +64,10 @@ interface CustomerReceiptData {
   tableNumber: number | null
   orderType: 'here' | 'takeaway'
   completedAt: string
+  customerName?: string
+  loyaltyDiscount?: number
+  pointsRedeemed?: number
+  pointsEarned?: number
 }
 
 type PayMode = 'Cash' | 'Card' | 'Split'
@@ -273,10 +279,22 @@ function CustomerReceiptModal({
               <span>ضريبة القيمة المضافة 15%</span>
               <span className="tabular-nums">{formatCurrency(receipt.tax)}</span>
             </div>
+            {!!receipt.loyaltyDiscount && (
+              <div className="flex justify-between text-success">
+                <span>خصم نقاط الولاء ({(receipt.pointsRedeemed ?? 0).toLocaleString('ar-SA')} نقطة)</span>
+                <span className="tabular-nums">−{formatCurrency(receipt.loyaltyDiscount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-bold text-fg">
               <span>الإجمالي</span>
               <span className="tabular-nums">{formatCurrency(receipt.grandTotal)}</span>
             </div>
+            {receipt.customerName && (
+              <div className="flex justify-between text-xs text-muted">
+                <span>{receipt.customerName}</span>
+                <span className="tabular-nums">+{(receipt.pointsEarned ?? 0).toLocaleString('ar-SA')} نقطة</span>
+              </div>
+            )}
           </div>
 
           {/* Payment */}
@@ -339,6 +357,9 @@ export function CafePosPage() {
   const [cart, setCart] = useState<CafeCartItem[]>([])
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [payMode, setPayMode] = useState<PayMode>('Cash')
+  const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
+  const [redeemPoints, setRedeemPoints] = useState(0)
+  const queryClient = useQueryClient()
   const payModeRef = useRef<PayMode>('Cash')
 
   // AI Cashier
@@ -517,8 +538,14 @@ export function CafePosPage() {
   }
 
   // الأسعار شاملة الضريبة — نستخرج الضريبة من الإجمالي
-  const grandTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-  const tax = Math.round((grandTotal * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
+  const cartTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal) : 0
+  const appliedPoints = Math.min(redeemPoints, maxRedeemable)
+  const loyaltyDiscount = pointsValue(appliedPoints)
+  // grandTotal is what the customer pays, after any loyalty discount.
+  const grandTotal = Math.round((cartTotal - loyaltyDiscount) * 100) / 100
+  const vatOf = (gross: number) => Math.round((gross * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
+  const tax = vatOf(grandTotal)
   const subtotal = Math.round((grandTotal - tax) * 100) / 100
 
   // ── Checkout ──────────────────────────────────────────────────────────────
@@ -534,6 +561,7 @@ export function CafePosPage() {
         tenantId,
         currency: 'SAR',
         taxRate: SAUDI_VAT_RATE,
+        customerId: loyaltyCustomer?.id,
       })
       const orderId = orderRes.data.id
 
@@ -550,9 +578,15 @@ export function CafePosPage() {
         ),
       )
 
+      let serverTotal = 0
+      if (appliedPoints > 0) {
+        const redeemed = await ordersApi.redeemLoyalty(branchId, orderId, appliedPoints)
+        serverTotal = Math.ceil(redeemed.data.totalAmount * 100) / 100
+      }
+
       await ordersApi.complete(branchId, orderId, {
         paymentMethod: payMode as PaymentMethod,
-        amountTendered: grandTotal,
+        amountTendered: Math.max(grandTotal, serverTotal),
         ...(payMode === 'Split' && {
           cashAmount: parseFloat(splitCash) || 0,
           cardAmount: parseFloat(splitCard) || 0,
@@ -572,6 +606,10 @@ export function CafePosPage() {
         splitCard: splitCardNum || undefined,
         tableNumber,
         orderType,
+        customerName: loyaltyCustomer?.name,
+        loyaltyDiscount: loyaltyDiscount || undefined,
+        pointsRedeemed: appliedPoints || undefined,
+        pointsEarned: loyaltyCustomer ? pointsEarned(grandTotal) : undefined,
       }
 
       // Push to kitchen (fire and forget)
@@ -616,7 +654,16 @@ export function CafePosPage() {
       setSplitCash('')
       setSplitCard('')
       setPayMode('Cash')
-      toast.success(t.pos.orderProcessed)
+      if (loyaltyCustomer) {
+        void queryClient.invalidateQueries({ queryKey: ['pos-customer-search'] })
+        void queryClient.invalidateQueries({ queryKey: ['customers'] })
+      }
+      setLoyaltyCustomer(null)
+      setRedeemPoints(0)
+      toast.success(
+        t.pos.orderProcessed,
+        snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString('ar-SA')} نقطة لـ${snapshot.customerName}` : undefined,
+      )
     },
     onError: (e: Error) => {
       if (e.message === 'empty') toast.error('السلة فارغة')
@@ -653,7 +700,7 @@ export function CafePosPage() {
           }),
         ),
       )
-      await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: grandTotal })
+      await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: cartTotal })
       return orderId
     },
     onSuccess: (orderId) => {
@@ -675,9 +722,9 @@ export function CafePosPage() {
       setCustomerReceipt({
         orderId,
         items: [...cart],
-        grandTotal,
-        tax,
-        subtotal,
+        grandTotal: cartTotal,
+        tax: vatOf(cartTotal),
+        subtotal: Math.round((cartTotal - vatOf(cartTotal)) * 100) / 100,
         payMode: payModeRef.current,
         tableNumber,
         orderType,
@@ -924,6 +971,14 @@ export function CafePosPage() {
             {/* Totals & checkout */}
             {cart.length > 0 && (
               <div className="border-t border-border p-4 space-y-3">
+                <LoyaltyPanel
+                  customer={loyaltyCustomer}
+                  onCustomerChange={setLoyaltyCustomer}
+                  redeemPoints={appliedPoints}
+                  onRedeemPointsChange={setRedeemPoints}
+                  maxRedeemable={maxRedeemable}
+                  payable={grandTotal}
+                />
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-muted">
                     <span>{t.pos.subtotal}</span>
@@ -933,6 +988,12 @@ export function CafePosPage() {
                     <span>{t.pos.tax}</span>
                     <span className="tabular-nums">{formatCurrency(tax)}</span>
                   </div>
+                  {appliedPoints > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>خصم النقاط</span>
+                      <span className="tabular-nums">−{formatCurrency(loyaltyDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-base font-bold text-fg">
                     <span>{t.pos.total}</span>
                     <span className="tabular-nums">{formatCurrency(grandTotal)}</span>

@@ -14,12 +14,14 @@ import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
-import type { ProductResponse, ProductVariantResponse, PaymentMethod, OrderResponse } from '@/types/api'
+import type { ProductResponse, ProductVariantResponse, PaymentMethod, OrderResponse, CustomerResponse } from '@/types/api'
 import { RestaurantPosPage } from './RestaurantPosPage'
 import { HotelPosPage } from './HotelPosPage'
 import { CafePosPage } from './CafePosPage'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { useI18n } from '@/i18n'
+import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
+import { maxRedeemablePoints, pointsValue } from '@/lib/loyalty'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -49,6 +51,8 @@ function RetailPosPage() {
   const [search, setSearch] = useState('')
   const [payMode, setPayMode] = useState<PayMode>('Cash')
   const [amountTendered, setAmountTendered] = useState('')
+  const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
+  const [redeemPoints, setRedeemPoints] = useState(0)
   const [splitCash, setSplitCash] = useState('')
   const [splitCard, setSplitCard] = useState('')
   const [showPayment, setShowPayment] = useState(false)
@@ -64,7 +68,12 @@ function RetailPosPage() {
   const { t, lang } = useI18n()
 
   // أسعار المنتجات شاملة الضريبة — نستخرج الضريبة من الإجمالي
-  const grossTotal = subtotal()
+  const cartTotal = subtotal()
+  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal) : 0
+  const appliedPoints = Math.min(redeemPoints, maxRedeemable)
+  const loyaltyDiscount = pointsValue(appliedPoints)
+  // grossTotal is what the customer pays, after any loyalty discount.
+  const grossTotal = Math.round((cartTotal - loyaltyDiscount) * 100) / 100
   const extractedTax = Math.round(grossTotal * 0.15 / 1.15 * 100) / 100
   const preTaxAmount = Math.round((grossTotal - extractedTax) * 100) / 100
 
@@ -152,6 +161,7 @@ function RetailPosPage() {
         tenantId: tenantId!,
         currency: 'SAR',
         taxRate: SAUDI_VAT_RATE,
+        customerId: loyaltyCustomer?.id,
       })
       for (const line of lines) {
         await ordersApi.addLine(branchId!, order.id, {
@@ -163,7 +173,13 @@ function RetailPosPage() {
           quantity: line.quantity,
         })
       }
-      const tendered = payMode === 'Cash' ? (parseFloat(amountTendered) || grossTotal) : grossTotal
+      let serverTotal = 0
+      if (appliedPoints > 0) {
+        const redeemed = await ordersApi.redeemLoyalty(branchId!, order.id, appliedPoints)
+        serverTotal = Math.ceil(redeemed.data.totalAmount * 100) / 100
+      }
+      const due = Math.max(grossTotal, serverTotal)
+      const tendered = payMode === 'Cash' ? Math.max(parseFloat(amountTendered) || due, due) : due
       const { data: completed } = await ordersApi.complete(branchId!, order.id, {
         paymentMethod: payMode as PaymentMethod,
         amountTendered: tendered,
@@ -182,6 +198,8 @@ function RetailPosPage() {
       setAmountTendered('')
       setSplitCash('')
       setSplitCard('')
+      setLoyaltyCustomer(null)
+      setRedeemPoints(0)
       toast.success(t.pos.paymentSuccess, t.pos.orderProcessed)
     },
     onError: () => toast.error(t.pos.paymentFailed, 'يرجى المحاولة مرة أخرى'),
@@ -443,10 +461,29 @@ function RetailPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 18px var(--glow)',
               }}
             >
+              {appliedPoints > 0 && (
+                <p className="text-xs text-success">خصم النقاط −{formatCurrency(loyaltyDiscount)}</p>
+              )}
               <p className="text-sm text-muted">{t.pos.amountDue}</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>
                 {formatCurrency(grossTotal)}
               </p>
+            </div>
+
+            <div className="mb-4">
+              <LoyaltyPanel
+                customer={loyaltyCustomer}
+                onCustomerChange={setLoyaltyCustomer}
+                redeemPoints={appliedPoints}
+                onRedeemPointsChange={(n) => {
+                  setRedeemPoints(n)
+                  setAmountTendered('')
+                  setSplitCash('')
+                  setSplitCard('')
+                }}
+                maxRedeemable={maxRedeemable}
+                payable={grossTotal}
+              />
             </div>
 
             {/* Payment mode selector */}

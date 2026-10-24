@@ -36,6 +36,8 @@ internal static class OrderMapper
                 l.Quantity,
                 l.LineSubtotal,
                 l.LineDiscountAmount,
-                l.LineTotal)).ToList());
+                l.LineTotal)).ToList(),
+            order.LoyaltyPointsRedeemed,
+            order.LoyaltyDiscountAmount);
     }
 }

@@ -41,6 +41,9 @@ export const ordersApi = {
       `/api/v1/branches/${branchId}/orders/${orderId}/lines/${lineId}`,
     ),
 
+  redeemLoyalty: (branchId: string, orderId: string, points: number) =>
+    apiClient.post<OrderResponse>(`/api/v1/branches/${branchId}/orders/${orderId}/loyalty`, { points }),
+
   complete: (
     branchId: string,
     orderId: string,

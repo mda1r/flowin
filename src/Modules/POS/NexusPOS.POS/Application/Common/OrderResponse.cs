@@ -22,4 +22,6 @@ public sealed record OrderResponse(
     string? Notes,
     DateTime CreatedAt,
     DateTime? CompletedAt,
-    IReadOnlyList<OrderLineResponse> Lines);
+    IReadOnlyList<OrderLineResponse> Lines,
+    int LoyaltyPointsRedeemed = 0,
+    decimal LoyaltyDiscountAmount = 0m);

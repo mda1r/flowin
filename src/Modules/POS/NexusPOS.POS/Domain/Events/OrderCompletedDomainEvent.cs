@@ -13,7 +13,9 @@ public sealed record OrderCompletedDomainEvent(
     decimal Total,
     string Currency,
     PaymentMethod PaymentMethod,
-    IReadOnlyList<OrderCompletedDomainEvent.LineItem> Lines) : DomainEvent
+    IReadOnlyList<OrderCompletedDomainEvent.LineItem> Lines,
+    Guid? CustomerId = null,
+    int LoyaltyPointsRedeemed = 0) : DomainEvent
 {
     public sealed record LineItem(Guid VariantId, decimal Quantity);
 }

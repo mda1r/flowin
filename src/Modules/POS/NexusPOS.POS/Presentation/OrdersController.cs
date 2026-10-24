@@ -8,6 +8,7 @@ using NexusPOS.POS.Application.Commands.ApplyOrderDiscount;
 using NexusPOS.POS.Application.Commands.CancelOrder;
 using NexusPOS.POS.Application.Commands.CompleteOrder;
 using NexusPOS.POS.Application.Commands.CreateOrder;
+using NexusPOS.POS.Application.Commands.RedeemOrderLoyaltyPoints;
 using NexusPOS.POS.Application.Commands.RemoveOrderLine;
 using NexusPOS.POS.Application.Commands.ReturnOrder;
 using NexusPOS.POS.Application.Common;
@@ -127,6 +128,22 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         ApplyOrderDiscountCommand command = new(orderId, branchId, request.DiscountType, request.DiscountValue);
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
 
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>Redeem the customer loyalty points as a discount on this order (0 clears it).</summary>
+    [HttpPost("{orderId:guid}/loyalty")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RedeemLoyaltyPoints(
+        Guid branchId,
+        Guid orderId,
+        [FromBody] RedeemLoyaltyPointsRequest request,
+        CancellationToken cancellationToken)
+    {
+        ErrorOr<OrderResponse> result = await mediator.Send(
+            new RedeemOrderLoyaltyPointsCommand(orderId, branchId, request.Points), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 

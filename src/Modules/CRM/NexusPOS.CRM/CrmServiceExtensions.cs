@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using NexusPOS.CRM.Application.Services;
 using NexusPOS.CRM.Domain.Repositories;
 using NexusPOS.CRM.Infrastructure.Persistence;
 using NexusPOS.CRM.Infrastructure.Persistence.Repositories;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.CRM;
@@ -21,6 +23,7 @@ public static class CrmServiceExtensions
         });
 
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<ICustomerLoyaltyDirectory, CustomerLoyaltyDirectory>();
 
         return services;
     }

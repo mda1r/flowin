@@ -39,4 +39,16 @@ public static class PosErrors
 
     public static readonly Error ShiftAlreadyOpen =
         Error.Conflict("POS.ShiftAlreadyOpen", "You already have an open shift.");
+
+    public static readonly Error LoyaltyRequiresCustomer =
+        Error.Validation("POS.LoyaltyRequiresCustomer", "اختر العميل أولاً لاستبدال النقاط.");
+
+    public static readonly Error InvalidLoyaltyPoints =
+        Error.Validation("POS.InvalidLoyaltyPoints", "عدد النقاط غير صالح.");
+
+    public static readonly Error LoyaltyExceedsTotal =
+        Error.Validation("POS.LoyaltyExceedsTotal", "قيمة النقاط أكبر من إجمالي الفاتورة.");
+
+    public static readonly Error InsufficientLoyaltyPoints =
+        Error.Validation("POS.InsufficientLoyaltyPoints", "رصيد العميل من النقاط لا يكفي.");
 }
