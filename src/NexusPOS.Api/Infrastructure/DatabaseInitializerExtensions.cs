@@ -376,6 +376,7 @@ internal static class DatabaseInitializerExtensions
         string[] patches =
         [
             "ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_type INT NOT NULL DEFAULT 1",
+            "ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS cost_updated_at TIMESTAMP WITHOUT TIME ZONE",
         ];
 
         foreach (string sql in patches)

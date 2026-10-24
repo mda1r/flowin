@@ -139,6 +139,7 @@ function OrderDetailModal({
       setConfirmReceive(false)
       void qc.invalidateQueries({ queryKey: ['po-materials-receipt', tenantId, orderId] })
       void qc.invalidateQueries({ queryKey: ['stock', branchId] })
+      void qc.invalidateQueries({ queryKey: ['products'] })
       toast.success('تم استلام أمر الشراء')
     },
     onError: (err) => {
@@ -168,6 +169,7 @@ function OrderDetailModal({
       await qc.invalidateQueries({ queryKey: ['po-materials-receipt', tenantId, orderId] })
       void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
       void qc.invalidateQueries({ queryKey: ['stock', branchId] })
+      void qc.invalidateQueries({ queryKey: ['products'] })
       void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId] })
     },
     onError: (err) => toast.error('تعذّرت إعادة المحاولة', apiErrorMessage(err)),

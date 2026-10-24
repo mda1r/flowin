@@ -54,7 +54,7 @@ public sealed class PurchaseOrderMaterialsRetryTests
         order.RetryInventoryReceipt().IsError.Should().BeFalse();
 
         PurchaseOrderReceivedDomainEvent evt = order.DomainEvents.OfType<PurchaseOrderReceivedDomainEvent>().Single();
-        evt.ReceivedItems.Should().ContainSingle().Which.Should().Be((variant, 4m));
+        evt.ReceivedItems.Should().ContainSingle().Which.Should().Be(new PurchaseOrderReceivedDomainEvent.Item(variant, 4m, 10m));
         order.DomainEvents.OfType<StockMaterialsPurchasedDomainEvent>().Should().BeEmpty();
     }
 

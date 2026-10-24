@@ -142,16 +142,17 @@ public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
 
     private bool RaiseProductsReceived()
     {
-        List<(Guid VariantId, decimal Quantity)> productLines = Lines
+        List<PurchaseOrderReceivedDomainEvent.Item> productLines = Lines
             .Where(l => !l.IsMaterial)
-            .Select(l => (l.VariantId, l.OrderedQuantity))
+            .Select(l => new PurchaseOrderReceivedDomainEvent.Item(l.VariantId, l.OrderedQuantity, l.UnitCost))
             .ToList();
         if (productLines.Count == 0)
         {
             return false;
         }
 
-        RaiseDomainEvent(new PurchaseOrderReceivedDomainEvent(Id.Value, TenantId, BranchId, productLines));
+        RaiseDomainEvent(new PurchaseOrderReceivedDomainEvent(
+            Id.Value, TenantId, BranchId, ReceivedAt ?? DateTime.UtcNow, productLines));
         return true;
     }
 

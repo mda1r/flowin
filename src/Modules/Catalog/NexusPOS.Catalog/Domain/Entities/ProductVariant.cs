@@ -1,3 +1,4 @@
+using ErrorOr;
 using NexusPOS.Catalog.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
 
@@ -14,6 +15,9 @@ public sealed class ProductVariant : Entity<VariantId>
     public DateTime? ExpiryDate { get; private set; }
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
+
+    // When the cost last changed, by purchase receipt or manual edit; older receipts never overwrite it.
+    public DateTime? CostUpdatedAt { get; private set; }
 
     private ProductVariant() { }
 
@@ -43,8 +47,31 @@ public sealed class ProductVariant : Entity<VariantId>
 
     internal void UpdatePricing(Money costPrice, Money salePrice)
     {
+        if (costPrice.Amount != CostPrice.Amount)
+        {
+            CostUpdatedAt = DateTime.UtcNow;
+        }
+
         CostPrice = costPrice;
         SalePrice = salePrice;
+    }
+
+    internal bool ApplyPurchaseCost(decimal unitCost, DateTime receivedAt)
+    {
+        if (unitCost < 0 || (CostUpdatedAt.HasValue && receivedAt < CostUpdatedAt.Value))
+        {
+            return false;
+        }
+
+        ErrorOr<Money> cost = Money.Create(unitCost, CostPrice.Currency);
+        if (cost.IsError)
+        {
+            return false;
+        }
+
+        CostPrice = cost.Value;
+        CostUpdatedAt = receivedAt;
+        return true;
     }
 
     internal void UpdateDetails(string name, string? barcode)

@@ -86,6 +86,10 @@ public sealed class Product : AggregateRoot<ProductId>
         return Result.Success;
     }
 
+    // Sets the variant's cost to the purchase price (last-purchase costing) unless a newer cost already exists.
+    public bool ApplyPurchaseCost(VariantId variantId, decimal unitCost, DateTime receivedAt)
+        => Variants.FirstOrDefault(v => v.Id == variantId)?.ApplyPurchaseCost(unitCost, receivedAt) ?? false;
+
     public void Update(
         string name,
         string? description,

@@ -38,6 +38,8 @@ internal sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Pro
             .HasMaxLength(256)
             .IsRequired();
 
+        builder.Property(v => v.CostUpdatedAt).HasColumnName("cost_updated_at");
+
         builder.OwnsOne(v => v.CostPrice, nav =>
         {
             nav.Property(m => m.Amount).HasColumnName("cost_price").HasPrecision(18, 4);

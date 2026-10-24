@@ -32,7 +32,7 @@ internal sealed class PurchaseOrderReceivedInventoryHandler(
             }
 
             string note = $"أمر شراء #{reference[..8]}";
-            foreach (IGrouping<Guid, (Guid VariantId, decimal Quantity)> group in notification.ReceivedItems
+            foreach (IGrouping<Guid, PurchaseOrderReceivedDomainEvent.Item> group in notification.ReceivedItems
                 .Where(i => i.VariantId != Guid.Empty && i.Quantity > 0)
                 .GroupBy(i => i.VariantId))
             {
