@@ -6,8 +6,10 @@ import { z } from 'zod'
 import {
   Plus, Minus, Trash2, CreditCard, Banknote, X, QrCode,
   Tag, ChefHat, ToggleLeft, ToggleRight,
-  ExternalLink,
+  ExternalLink, FlaskConical,
 } from 'lucide-react'
+import { RecipeModal } from '@/pages/catalog/RecipeModal'
+import { recipesApi } from '@/api/recipes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -871,6 +873,13 @@ function ManagerView({ branchId }: { branchId: string }) {
   const [showDiscountModal, setShowDiscountModal] = useState(false)
   const [showMenuModal, setShowMenuModal] = useState(false)
   const [editingMenuItem, setEditingMenuItem] = useState<MenuItemResponse | null>(null)
+  const [recipeItem, setRecipeItem] = useState<MenuItemResponse | null>(null)
+  const { data: recipeSummaries } = useQuery({
+    queryKey: ['recipe-summaries', tenantId],
+    queryFn: () => recipesApi.listSummaries(tenantId!),
+    enabled: !!tenantId,
+  })
+  const recipeCost = new Map((recipeSummaries?.data ?? []).map((r) => [r.variantId, r.totalCost]))
 
   const { data: discountsData } = useQuery({
     queryKey: ['discount-codes', tenantId],
@@ -1032,8 +1041,26 @@ function ManagerView({ branchId }: { branchId: string }) {
                 </p>
                 <p className="text-xs text-muted">
                   {CATEGORY_LABELS[item.category]} — {formatCurrency(item.price)}
+                  {recipeCost.has(item.id) && item.price > 0 && (
+                    <span className="ms-2 tabular-nums">
+                      · تكلفة {recipeCost.get(item.id)!.toFixed(2)} ر.س · هامش{' '}
+                      {(((item.price - recipeCost.get(item.id)!) / item.price) * 100).toFixed(0)}%
+                    </span>
+                  )}
                 </p>
               </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setRecipeItem(item)
+                }}
+                aria-label={`وصفة ${item.name}`}
+              >
+                <FlaskConical className="h-3.5 w-3.5" />
+                {recipeCost.has(item.id) ? 'الوصفة' : 'إضافة وصفة'}
+              </Button>
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -1053,6 +1080,13 @@ function ManagerView({ branchId }: { branchId: string }) {
           )}
         </div>
       </Card>
+
+      {recipeItem && (
+        <RecipeModal
+          variant={{ id: recipeItem.id, name: recipeItem.name, salePrice: recipeItem.price, currency: recipeItem.currency }}
+          onClose={() => setRecipeItem(null)}
+        />
+      )}
 
       {/* Discount codes */}
       <Card>

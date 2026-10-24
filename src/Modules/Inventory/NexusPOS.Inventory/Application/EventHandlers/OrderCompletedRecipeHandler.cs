@@ -1,16 +1,13 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NexusPOS.Inventory.Domain.Entities;
-using NexusPOS.Inventory.Domain.Enums;
-using NexusPOS.Inventory.Domain.Services;
+using NexusPOS.Inventory.Application.Services;
 using NexusPOS.Inventory.Infrastructure.Persistence;
 using NexusPOS.POS.Domain.Events;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Inventory.Application.EventHandlers;
 
-// Deducts raw materials for every recipe in a completed sale. Failures are logged and never block the sale.
+// Deducts raw materials for every recipe in a completed POS sale. Failures are logged and never block the sale.
 internal sealed class OrderCompletedRecipeHandler(
     InventoryDbContext db,
     ITenantContext tenantContext,
@@ -21,34 +18,10 @@ internal sealed class OrderCompletedRecipeHandler(
     {
         try
         {
-            List<Guid> variantIds = notification.Lines.Select(l => l.VariantId).Distinct().ToList();
-            List<RecipeLine> recipeLines = await db.RecipeLines
-                .Where(r => r.TenantId == notification.TenantId && variantIds.Contains(r.VariantId))
-                .ToListAsync(cancellationToken);
-            if (recipeLines.Count == 0)
-            {
-                return;
-            }
-
-            Dictionary<Guid, decimal> consumed = RecipeConsumption.ComponentQuantities(
-                recipeLines, notification.Lines.Select(l => (l.VariantId, l.Quantity)));
-
-            List<Guid> materialIds = [.. consumed.Keys];
-            List<StockMaterial> materials = await db.StockMaterials
-                .Where(m => m.TenantId == notification.TenantId && materialIds.Contains(m.Id))
-                .ToListAsync(cancellationToken);
-
-            string note = $"بيع طلب #{notification.OrderId.ToString()[..8]}";
-            foreach (StockMaterial material in materials)
-            {
-                decimal before = material.CurrentQuantityInStorageUnits;
-                material.Consume(consumed[material.Id]);
-                db.StockMaterialMovements.Add(StockMaterialMovement.Record(
-                    material, StockMaterialMovementType.Consumption,
-                    material.CurrentQuantityInStorageUnits - before, material.CurrentCost, note, tenantContext.UserId));
-            }
-
-            await db.SaveChangesAsync(cancellationToken);
+            await RecipeStockDeduction.DeductAsync(
+                db, notification.TenantId, notification.OrderId,
+                [.. notification.Lines.Select(l => (l.VariantId, l.Quantity))],
+                tenantContext.UserId, cancellationToken);
         }
         catch (Exception ex)
         {

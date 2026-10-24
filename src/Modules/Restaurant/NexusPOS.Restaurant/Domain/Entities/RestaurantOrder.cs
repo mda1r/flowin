@@ -3,6 +3,7 @@ using NexusPOS.Restaurant.Domain.Enums;
 using NexusPOS.Restaurant.Domain.Events;
 using NexusPOS.Restaurant.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.Restaurant.Domain.Entities;
 
@@ -175,6 +176,12 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         AmountTendered = amountTendered;
         PaidAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        RaiseDomainEvent(new RecipeItemsSoldDomainEvent(
+            TenantId,
+            Id.Value,
+            [.. Items.Select(i => new RecipeItemsSoldDomainEvent.Line(i.MenuItemId, i.Quantity))]));
+
         return Result.Success;
     }
 

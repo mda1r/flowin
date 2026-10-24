@@ -158,7 +158,7 @@ public sealed class OrderTests
     [Fact]
     public void Create_WithTaxRate_TaxIsIncludedInTotal()
     {
-        Order order = Order.Create(_tenantId, _branchId, "USD", taxRate: 15m);
+        Order order = Order.Create(_tenantId, _branchId, "USD", taxRate: 0.15m);
         order.AddLine(_variantId, "Widget", "Red", 100m, 0m, 1m);
 
         order.TaxAmount.Should().Be(15m);

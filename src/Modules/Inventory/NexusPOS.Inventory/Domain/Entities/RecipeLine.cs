@@ -1,6 +1,7 @@
 namespace NexusPOS.Inventory.Domain.Entities;
 
-// One ingredient of a sellable product variant's recipe; Quantity is in the material's component unit.
+// One ingredient of a sellable item's recipe; Quantity is in the material's component unit.
+// VariantId holds the sold item's id: a catalog product variant or a restaurant menu item.
 public sealed class RecipeLine
 {
     public Guid Id { get; private set; }
