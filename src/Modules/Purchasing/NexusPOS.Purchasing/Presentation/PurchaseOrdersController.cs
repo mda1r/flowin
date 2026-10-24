@@ -56,8 +56,14 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
         [FromBody] CreatePurchaseOrderRequest request,
         CancellationToken cancellationToken)
     {
+        // The tenant always comes from the caller's token; the body value is ignored.
+        if (!Guid.TryParse(User.FindFirst("tenant_id")?.Value, out Guid tenantId))
+        {
+            return Forbid();
+        }
+
         CreatePurchaseOrderCommand command = new(
-            request.TenantId, branchId, request.SupplierId, request.ExpectedDeliveryDate, request.Notes);
+            tenantId, branchId, request.SupplierId, request.ExpectedDeliveryDate, request.Notes);
         ErrorOr<PurchaseOrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
             order => CreatedAtAction(nameof(GetPurchaseOrder), new { branchId, purchaseOrderId = order.Id }, order),
@@ -75,7 +81,8 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken)
     {
         AddPurchaseOrderLineCommand command = new(
-            purchaseOrderId, branchId, request.VariantId, request.Description, request.UnitCost, request.Quantity);
+            purchaseOrderId, branchId, request.VariantId, request.Description, request.UnitCost, request.Quantity,
+            request.StockMaterialId);
         ErrorOr<PurchaseOrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -142,15 +149,16 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
 }
 
 public sealed record CreatePurchaseOrderRequest(
-    Guid TenantId,
+    Guid? TenantId,
     Guid SupplierId,
     DateTime? ExpectedDeliveryDate = null,
     string? Notes = null);
 
 public sealed record AddPurchaseOrderLineRequest(
-    Guid VariantId,
+    Guid? VariantId,
     string Description,
     decimal UnitCost,
-    decimal Quantity);
+    decimal Quantity,
+    Guid? StockMaterialId = null);
 
 public sealed record CancelPurchaseOrderRequest(string? Reason = null);

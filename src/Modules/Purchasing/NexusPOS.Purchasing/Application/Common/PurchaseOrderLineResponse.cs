@@ -8,4 +8,5 @@ public sealed record PurchaseOrderLineResponse(
     decimal OrderedQuantity,
     decimal ReceivedQuantity,
     decimal LineTotal,
-    bool IsFullyReceived);
+    bool IsFullyReceived,
+    Guid? StockMaterialId);

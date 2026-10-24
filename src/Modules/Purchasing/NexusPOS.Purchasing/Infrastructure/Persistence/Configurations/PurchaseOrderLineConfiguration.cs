@@ -23,6 +23,8 @@ internal sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<
             .IsRequired();
 
         builder.Property(l => l.VariantId).HasColumnName("variant_id").IsRequired();
+        builder.Property(l => l.StockMaterialId).HasColumnName("stock_material_id");
+        builder.Ignore(l => l.IsMaterial);
         builder.Property(l => l.Description).HasColumnName("description").HasMaxLength(512).IsRequired();
         builder.Property(l => l.UnitCost).HasColumnName("unit_cost").HasPrecision(18, 4).IsRequired();
         builder.Property(l => l.OrderedQuantity).HasColumnName("ordered_quantity").HasPrecision(18, 4).IsRequired();

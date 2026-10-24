@@ -5,7 +5,10 @@ namespace NexusPOS.Purchasing.Domain.Entities;
 
 public sealed class PurchaseOrderLine : Entity<PurchaseOrderLineId>
 {
+    // A line is either a sellable product variant or a raw stock material; for material lines VariantId is Guid.Empty.
     public Guid VariantId { get; private set; }
+    public Guid? StockMaterialId { get; private set; }
+    public bool IsMaterial => StockMaterialId.HasValue;
     public string Description { get; private set; } = string.Empty;
     public decimal UnitCost { get; private set; }
     public decimal OrderedQuantity { get; private set; }
@@ -16,11 +19,18 @@ public sealed class PurchaseOrderLine : Entity<PurchaseOrderLineId>
     private PurchaseOrderLine() { }
 
     internal static PurchaseOrderLine Create(Guid variantId, string description, decimal unitCost, decimal orderedQuantity)
+        => Create(variantId, null, description, unitCost, orderedQuantity);
+
+    internal static PurchaseOrderLine CreateForMaterial(Guid stockMaterialId, string description, decimal unitCost, decimal orderedQuantity)
+        => Create(Guid.Empty, stockMaterialId, description, unitCost, orderedQuantity);
+
+    private static PurchaseOrderLine Create(Guid variantId, Guid? stockMaterialId, string description, decimal unitCost, decimal orderedQuantity)
     {
         return new PurchaseOrderLine
         {
             Id = new PurchaseOrderLineId(Guid.NewGuid()),
             VariantId = variantId,
+            StockMaterialId = stockMaterialId,
             Description = description.Trim(),
             UnitCost = unitCost,
             OrderedQuantity = orderedQuantity,

@@ -33,5 +33,6 @@ internal static class PurchasingMapper
             l.OrderedQuantity,
             l.ReceivedQuantity,
             l.LineTotal,
-            l.IsFullyReceived)).ToList());
+            l.IsFullyReceived,
+            l.StockMaterialId)).ToList());
 }

@@ -174,6 +174,68 @@ public sealed class PurchaseOrderTests
         result.FirstError.Should().Be(PurchasingErrors.PurchaseOrderNotDraft);
     }
 
+    // ── Raw-material lines ────────────────────────────────────────────────────
+
+    [Fact]
+    public void AddMaterialLine_SetsMaterialAndEmptyVariant()
+    {
+        PurchaseOrder order = CreateDraftOrder();
+        Guid materialId = Guid.NewGuid();
+
+        ErrorOr<PurchaseOrderLine> result = order.AddMaterialLine(materialId, "بن قهوة", 45m, 3m);
+
+        result.IsError.Should().BeFalse();
+        result.Value.StockMaterialId.Should().Be(materialId);
+        result.Value.VariantId.Should().Be(Guid.Empty);
+        result.Value.IsMaterial.Should().BeTrue();
+        order.TotalAmount.Should().Be(135m);
+    }
+
+    [Fact]
+    public void AddMaterialLine_InvalidQuantity_ReturnsError()
+    {
+        PurchaseOrder order = CreateDraftOrder();
+
+        ErrorOr<PurchaseOrderLine> result = order.AddMaterialLine(Guid.NewGuid(), "x", 1m, 0m);
+
+        result.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReceiveAll_MixedOrder_SplitsProductAndMaterialEvents()
+    {
+        Guid materialId = Guid.NewGuid();
+        PurchaseOrder order = CreateDraftOrder();
+        order.AddLine(_variantId, "Widget", 10m, 5m);
+        order.AddMaterialLine(materialId, "بن قهوة", 45m, 3m);
+        order.Send();
+        order.ClearDomainEvents();
+
+        order.ReceiveAll();
+
+        PurchaseOrderReceivedDomainEvent productEvent =
+            order.DomainEvents.OfType<PurchaseOrderReceivedDomainEvent>().Single();
+        productEvent.ReceivedItems.Should().ContainSingle().Which.VariantId.Should().Be(_variantId);
+
+        NexusPOS.SharedKernel.Domain.Events.StockMaterialsPurchasedDomainEvent materialEvent =
+            order.DomainEvents.OfType<NexusPOS.SharedKernel.Domain.Events.StockMaterialsPurchasedDomainEvent>().Single();
+        materialEvent.TenantId.Should().Be(_tenantId);
+        materialEvent.Lines.Should().ContainSingle()
+            .Which.Should().Be(new NexusPOS.SharedKernel.Domain.Events.StockMaterialsPurchasedDomainEvent.Line(materialId, 3m, 45m));
+    }
+
+    [Fact]
+    public void ReceiveAll_ProductOnlyOrder_DoesNotRaiseMaterialEvent()
+    {
+        PurchaseOrder order = CreateOrderWithLine();
+        order.Send();
+        order.ClearDomainEvents();
+
+        order.ReceiveAll();
+
+        order.DomainEvents.OfType<NexusPOS.SharedKernel.Domain.Events.StockMaterialsPurchasedDomainEvent>().Should().BeEmpty();
+    }
+
     // ── ReceiveAll ────────────────────────────────────────────────────────────
 
     [Fact]

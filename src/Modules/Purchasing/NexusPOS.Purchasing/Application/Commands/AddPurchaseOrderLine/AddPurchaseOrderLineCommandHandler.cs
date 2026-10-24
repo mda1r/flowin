@@ -26,8 +26,9 @@ internal sealed class AddPurchaseOrderLineCommandHandler(
             return PurchasingErrors.PurchaseOrderNotFound;
         }
 
-        ErrorOr<PurchaseOrderLine> lineResult = order.AddLine(
-            request.VariantId, request.Description, request.UnitCost, request.Quantity);
+        ErrorOr<PurchaseOrderLine> lineResult = request.StockMaterialId is Guid materialId
+            ? order.AddMaterialLine(materialId, request.Description, request.UnitCost, request.Quantity)
+            : order.AddLine(request.VariantId!.Value, request.Description, request.UnitCost, request.Quantity);
 
         if (lineResult.IsError)
         {

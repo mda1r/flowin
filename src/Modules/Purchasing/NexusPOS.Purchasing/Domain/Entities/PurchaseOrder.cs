@@ -3,6 +3,7 @@ using NexusPOS.Purchasing.Domain.Enums;
 using NexusPOS.Purchasing.Domain.Events;
 using NexusPOS.Purchasing.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.Purchasing.Domain.Entities;
 
@@ -41,6 +42,12 @@ public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
     }
 
     public ErrorOr<PurchaseOrderLine> AddLine(Guid variantId, string description, decimal unitCost, decimal quantity)
+        => AddLineCore(() => PurchaseOrderLine.Create(variantId, description, unitCost, quantity), unitCost, quantity);
+
+    public ErrorOr<PurchaseOrderLine> AddMaterialLine(Guid stockMaterialId, string description, decimal unitCost, decimal quantity)
+        => AddLineCore(() => PurchaseOrderLine.CreateForMaterial(stockMaterialId, description, unitCost, quantity), unitCost, quantity);
+
+    private ErrorOr<PurchaseOrderLine> AddLineCore(Func<PurchaseOrderLine> create, decimal unitCost, decimal quantity)
     {
         if (Status != PurchaseOrderStatus.Draft)
         {
@@ -57,7 +64,7 @@ public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
             return PurchasingErrors.InvalidUnitCost;
         }
 
-        PurchaseOrderLine line = PurchaseOrderLine.Create(variantId, description, unitCost, quantity);
+        PurchaseOrderLine line = create();
         Lines.Add(line);
         UpdatedAt = DateTime.UtcNow;
         return line;
@@ -116,7 +123,16 @@ public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
 
         RaiseDomainEvent(new PurchaseOrderReceivedDomainEvent(
             Id.Value, TenantId, BranchId,
-            Lines.Select(l => (l.VariantId, l.OrderedQuantity)).ToList()));
+            Lines.Where(l => !l.IsMaterial).Select(l => (l.VariantId, l.OrderedQuantity)).ToList()));
+
+        List<StockMaterialsPurchasedDomainEvent.Line> materialLines = Lines
+            .Where(l => l.IsMaterial)
+            .Select(l => new StockMaterialsPurchasedDomainEvent.Line(l.StockMaterialId!.Value, l.OrderedQuantity, l.UnitCost))
+            .ToList();
+        if (materialLines.Count > 0)
+        {
+            RaiseDomainEvent(new StockMaterialsPurchasedDomainEvent(TenantId, Id.Value, materialLines));
+        }
 
         return Result.Success;
     }

@@ -62,6 +62,7 @@ internal static class DatabaseInitializerExtensions
             await EnsureCreatedAsync<PosDbContext>(sp, logger);
             await EnsureCreatedAsync<SalesDbContext>(sp, logger);
             await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);
+            await MigratePurchasingColumnsAsync(sp, logger);
             await EnsureCreatedAsync<CrmDbContext>(sp, logger);
             await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
             await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
@@ -240,6 +241,21 @@ internal static class DatabaseInitializerExtensions
         {
             try { await posDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "POS migration skipped: {Sql}", sql); }
+        }
+    }
+
+    internal static async Task MigratePurchasingColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        PurchasingDbContext purchasingDb = sp.GetRequiredService<PurchasingDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE purchase_order_lines ADD COLUMN IF NOT EXISTS stock_material_id UUID",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await purchasingDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Purchasing migration skipped: {Sql}", sql); }
         }
     }
 
@@ -984,6 +1000,7 @@ internal static class DatabaseInitializerExtensions
                 await EnsureCreatedAsync<SalesDbContext>(sp, logger);
                 await EnsureCreatedAsync<CrmDbContext>(sp, logger);
                 await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);
+                await MigratePurchasingColumnsAsync(sp, logger);
                 await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
                 await EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
 
