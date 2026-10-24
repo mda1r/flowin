@@ -12,7 +12,8 @@ internal static class PresentationServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        IMvcBuilder mvcBuilder = services.AddControllers()
+        IMvcBuilder mvcBuilder = services.AddControllers(options =>
+                options.Filters.Add<TenantRouteGuardFilter>())
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;

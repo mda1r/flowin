@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="NexusPOS.Api.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- SharedKernel -->
     <ProjectReference Include="..\NexusPOS.SharedKernel\NexusPOS.SharedKernel.csproj" />
 
