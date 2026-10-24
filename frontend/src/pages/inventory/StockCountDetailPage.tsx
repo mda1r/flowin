@@ -12,7 +12,7 @@ import { logActivity } from '@/lib/activityLog'
 import { useI18n } from '@/i18n'
 
 const STATUS_STYLES: Record<string, string> = {
-  InProgress: 'bg-blue-50 text-blue-700 border-blue-200',
+  InProgress: 'bg-info/10 text-info border-info/30',
   Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Cancelled: 'bg-surface-2 text-muted border-border',
 }

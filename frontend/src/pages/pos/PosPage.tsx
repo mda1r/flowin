@@ -396,7 +396,7 @@ function RetailPosPage() {
               {heldCarts.length > 0 && (
                 <button
                   onClick={() => setShowHeld(true)}
-                  className="relative card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400"
+                  className="relative card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-info"
                   title={t.pos.heldOrders}
                 >
                   <PlayCircle className="h-4 w-4" />

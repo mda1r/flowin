@@ -220,8 +220,8 @@ export function ReportsPage() {
 
   const PAYMENT_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
     Cash:         { label: t.reports.paymentMethods.cash,         icon: <Banknote   className="h-4 w-4" />, color: 'text-emerald-600' },
-    Card:         { label: t.reports.paymentMethods.card,         icon: <CreditCard className="h-4 w-4" />, color: 'text-blue-600'    },
-    BankTransfer: { label: t.reports.paymentMethods.bankTransfer, icon: <Landmark   className="h-4 w-4" />, color: 'text-violet-600'  },
+    Card:         { label: t.reports.paymentMethods.card,         icon: <CreditCard className="h-4 w-4" />, color: 'text-info'    },
+    BankTransfer: { label: t.reports.paymentMethods.bankTransfer, icon: <Landmark   className="h-4 w-4" />, color: 'text-violet-600 dark:text-violet-400'  },
     Voucher:      { label: t.reports.paymentMethods.voucher,      icon: <Ticket     className="h-4 w-4" />, color: 'text-amber-600'   },
     Split:        { label: t.reports.paymentMethods.split,        icon: <Banknote   className="h-4 w-4" />, color: 'text-orange-600'  },
   }
@@ -343,14 +343,14 @@ export function ReportsPage() {
                 title={t.sales.netRevenue}
                 value={formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total)}
                 sub={String(stats.totalOrders)}
-                icon={<DollarSign className="h-5 w-5 text-blue-600" />}
-                iconWrap="bg-blue-50 dark:bg-blue-900/30"
+                icon={<DollarSign className="h-5 w-5 text-info" />}
+                iconWrap="bg-info/10"
                 accent="#3b82f6"
               />
               <KpiCard
                 title={t.reports.totalOrders}
                 value={String(stats.totalOrders)}
-                icon={<ShoppingCart className="h-5 w-5 text-purple-600" />}
+                icon={<ShoppingCart className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
                 iconWrap="bg-purple-50 dark:bg-purple-900/30"
                 accent="#a855f7"
               />

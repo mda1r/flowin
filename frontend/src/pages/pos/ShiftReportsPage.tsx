@@ -294,7 +294,7 @@ function ShiftCard({ shift, isCurrent = false }: { shift: ShiftResponse; isCurre
                     <span className={`rounded-full px-1.5 py-0.5 font-medium ${
                       order.paymentMethod === 'Cash'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        : 'bg-info/10 text-info'
                     }`}>
                       {order.paymentMethod === 'Cash' ? t.shiftReports.cash : t.shiftReports.card}
                     </span>

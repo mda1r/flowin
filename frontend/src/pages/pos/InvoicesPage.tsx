@@ -115,7 +115,7 @@ export function InvoicesPage() {
                         'rounded-full px-2 py-0.5 text-xs font-medium',
                         order.paymentMethod === 'Cash'
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                          : 'bg-info/10 text-info',
                       )}>
                         {order.paymentMethod === 'Cash' ? t.invoices.payment.cash : t.invoices.payment.card}
                       </span>

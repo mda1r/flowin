@@ -298,7 +298,7 @@ export function InventoryPage() {
                           {info?.productName ?? '—'}
                         </p>
                         {unitLabel && (
-                          <span className="shrink-0 rounded-md bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          <span className="shrink-0 rounded-md bg-info/10 px-1.5 py-0.5 text-xs font-medium text-info">
                             {unitLabel}
                           </span>
                         )}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2, FlaskConical, PackageCheck, Send, AlertTriangle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,24 +9,36 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Table } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
 import { purchasingApi } from '@/api/purchasing'
+import { stockMaterialApi } from '@/api/stockMaterial'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import type { PurchaseOrderStatus } from '@/types/api'
+import { apiErrorMessage } from '@/lib/apiError'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
+import type { PurchaseOrderResponse, PurchaseOrderStatus, SupplierResponse } from '@/types/api'
+import type { StockMaterialResponse } from '@/types/stockMaterial'
 
-const statusVariant: Record<PurchaseOrderStatus, 'gray' | 'blue' | 'green' | 'red'> = {
+const statusVariant: Record<PurchaseOrderStatus, 'gray' | 'blue' | 'green' | 'red' | 'yellow'> = {
   Draft: 'gray',
   Sent: 'blue',
+  PartiallyReceived: 'yellow',
   Received: 'green',
   Cancelled: 'red',
 }
 
+const statusLabel: Record<PurchaseOrderStatus, string> = {
+  Draft: 'مسودة',
+  Sent: 'مُرسل للمورد',
+  PartiallyReceived: 'مستلم جزئياً',
+  Received: 'مستلم',
+  Cancelled: 'ملغي',
+}
+
 const orderSchema = z.object({
-  supplierId: z.string().min(1),
+  supplierId: z.string().min(1, 'اختر المورد'),
   notes: z.string().optional(),
 })
 
@@ -40,10 +52,301 @@ const supplierSchema = z.object({
 type OrderFormData = z.infer<typeof orderSchema>
 type SupplierFormData = z.infer<typeof supplierSchema>
 
+function asList<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[]
+  return ((data as { items?: T[] } | undefined)?.items ?? []) as T[]
+}
+
+// ─── Order details ──────────────────────────────────────────────────────────
+
+function OrderDetailModal({
+  orderId,
+  supplierName,
+  onClose,
+}: {
+  orderId: string
+  supplierName: string
+  onClose: () => void
+}) {
+  const { branchId, tenantId } = useAuthStore()
+  const qc = useQueryClient()
+  const [materialId, setMaterialId] = useState('')
+  const [qty, setQty] = useState('')
+  const [unitCost, setUnitCost] = useState('')
+  const [lineError, setLineError] = useState<string | null>(null)
+  const [confirmReceive, setConfirmReceive] = useState(false)
+
+  const { data: orderResp, isLoading } = useQuery({
+    queryKey: ['purchase-order', branchId, orderId],
+    queryFn: () => purchasingApi.getPurchaseOrder(branchId!, orderId),
+    enabled: !!branchId,
+  })
+  const order: PurchaseOrderResponse | undefined = orderResp?.data
+
+  const { data: matResp } = useQuery({
+    queryKey: ['stock-materials', tenantId, null, false, ''],
+    queryFn: () => stockMaterialApi.listMaterials(tenantId!, { lowStockOnly: false }),
+    enabled: !!tenantId,
+  })
+  const materials: StockMaterialResponse[] = matResp?.data ?? []
+  const materialById = new Map(materials.map((m) => [m.id, m]))
+  const selected = materialById.get(materialId)
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ['purchase-order', branchId, orderId] })
+    void qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] })
+  }
+
+  const addLine = useMutation({
+    mutationFn: () =>
+      purchasingApi.addLine(branchId!, orderId, {
+        stockMaterialId: materialId,
+        description: selected ? `${selected.nameAr} (${selected.storageUnit})` : 'مادة',
+        quantity: parseFloat(qty),
+        unitCost: parseFloat(unitCost),
+      }),
+    onSuccess: () => {
+      refresh()
+      setMaterialId('')
+      setQty('')
+      setUnitCost('')
+      setLineError(null)
+    },
+    onError: (err) => setLineError(apiErrorMessage(err)),
+  })
+
+  const removeLine = useMutation({
+    mutationFn: (lineId: string) => purchasingApi.removeLine(branchId!, orderId, lineId),
+    onSuccess: refresh,
+    onError: (err) => toast.error('تعذّر حذف السطر', apiErrorMessage(err)),
+  })
+
+  const send = useMutation({
+    mutationFn: () => purchasingApi.send(branchId!, orderId),
+    onSuccess: () => {
+      refresh()
+      toast.success('تم إرسال أمر الشراء')
+    },
+    onError: (err) => toast.error('تعذّر الإرسال', apiErrorMessage(err)),
+  })
+
+  const receive = useMutation({
+    mutationFn: () => purchasingApi.receive(branchId!, orderId),
+    onSuccess: () => {
+      refresh()
+      void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
+      void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId] })
+      setConfirmReceive(false)
+      const materialLines = order?.lines.filter((l) => l.stockMaterialId).length ?? 0
+      toast.success(
+        'تم استلام أمر الشراء',
+        materialLines > 0 ? `تمت إضافة ${materialLines.toLocaleString('ar-SA')} مادة إلى المخزون وتحديث تكلفتها` : undefined,
+      )
+    },
+    onError: (err) => {
+      setConfirmReceive(false)
+      toast.error('تعذّر الاستلام', apiErrorMessage(err))
+    },
+  })
+
+  const q = parseFloat(qty)
+  const c = parseFloat(unitCost)
+  const canAdd = !!materialId && q > 0 && c >= 0 && !isNaN(c)
+  const isDraft = order?.status === 'Draft'
+  const canReceive = order?.status === 'Sent' || order?.status === 'PartiallyReceived'
+
+  return (
+    <>
+      <Modal
+        open
+        onClose={onClose}
+        title={order ? `أمر شراء #${order.id.slice(-8).toUpperCase()} · ${supplierName}` : 'أمر شراء'}
+        size="2xl"
+        footer={
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              إغلاق
+            </Button>
+            {isDraft && (
+              <Button onClick={() => send.mutate()} loading={send.isPending} disabled={!order?.lines.length}>
+                <Send className="h-4 w-4" />
+                إرسال للمورد
+              </Button>
+            )}
+            {canReceive && (
+              <Button onClick={() => setConfirmReceive(true)}>
+                <PackageCheck className="h-4 w-4" />
+                استلام الطلب
+              </Button>
+            )}
+          </>
+        }
+      >
+        {isLoading || !order ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton h-10" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <Badge variant={statusVariant[order.status]}>{statusLabel[order.status]}</Badge>
+              <span className="text-muted">أُنشئ {formatDate(order.createdAt)}</span>
+              {order.notes && <span className="text-muted">· {order.notes}</span>}
+            </div>
+
+            {order.lines.length === 0 ? (
+              <p className="rounded-xl bg-surface-2 px-4 py-6 text-center text-sm text-muted">
+                لا توجد أصناف بعد. أضف المواد التي تريد شراءها من الأسفل.
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-2/60 text-xs text-muted">
+                      <th className="px-4 py-2.5 text-start font-semibold">الصنف</th>
+                      <th className="px-4 py-2.5 text-start font-semibold">الكمية</th>
+                      <th className="px-4 py-2.5 text-start font-semibold">سعر الوحدة</th>
+                      <th className="px-4 py-2.5 text-start font-semibold">الإجمالي</th>
+                      {isDraft && (
+                        <th className="px-4 py-2.5">
+                          <span className="sr-only">حذف</span>
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {order.lines.map((l) => (
+                      <tr key={l.id}>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            {l.stockMaterialId && <FlaskConical className="h-4 w-4 shrink-0 text-brand" aria-label="مادة مخزون" />}
+                            <span className="text-fg">{l.description}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 tabular-nums text-fg">{l.orderedQuantity.toLocaleString('ar-SA')}</td>
+                        <td className="px-4 py-2.5 tabular-nums text-fg">{formatCurrency(l.unitCost)}</td>
+                        <td className="px-4 py-2.5 font-semibold tabular-nums text-fg">{formatCurrency(l.lineTotal)}</td>
+                        {isDraft && (
+                          <td className="px-4 py-2.5 text-end">
+                            <button
+                              type="button"
+                              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                              onClick={() => removeLine.mutate(l.id)}
+                              aria-label={`حذف ${l.description}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border bg-surface-2/40">
+                      <td colSpan={3} className="px-4 py-2.5 text-end text-sm font-semibold text-muted">
+                        الإجمالي
+                      </td>
+                      <td className="px-4 py-2.5 font-bold tabular-nums text-fg">{formatCurrency(order.totalAmount)}</td>
+                      {isDraft && <td />}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+            {isDraft && (
+              <form
+                className="space-y-3 rounded-xl border border-dashed border-border p-4"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (canAdd && !addLine.isPending) addLine.mutate()
+                }}
+              >
+                <h3 className="text-sm font-semibold text-fg">إضافة مادة مخزون</h3>
+                {materials.length === 0 ? (
+                  <p className="text-sm text-muted">لا توجد مواد مخزون بعد. أضفها أولاً من صفحة مواد المخزون.</p>
+                ) : (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs font-medium text-muted">المادة</span>
+                        <select
+                          className="input"
+                          value={materialId}
+                          onChange={(e) => {
+                            const id = e.target.value
+                            setMaterialId(id)
+                            setLineError(null)
+                            const m = materialById.get(id)
+                            if (m && !unitCost && m.currentCost > 0) setUnitCost(String(m.currentCost))
+                          }}
+                        >
+                          <option value="">اختر مادة…</option>
+                          {materials.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.nameAr} — {m.code}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs font-medium text-muted">
+                          الكمية {selected ? `(${selected.storageUnit})` : ''}
+                        </span>
+                        <input type="number" className="input" value={qty} onChange={(e) => setQty(e.target.value)} min="0" step="0.001" />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs font-medium text-muted">
+                          سعر {selected ? `ال${selected.storageUnit}` : 'الوحدة'} (ر.س)
+                        </span>
+                        <input type="number" className="input" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} min="0" step="0.01" />
+                      </label>
+                      <Button type="submit" loading={addLine.isPending} disabled={!canAdd}>
+                        <Plus className="h-4 w-4" />
+                        إضافة
+                      </Button>
+                    </div>
+                    {canAdd && (
+                      <p className="text-xs text-muted">
+                        إجمالي السطر: <span className="tabular-nums text-fg">{formatCurrency(q * c)}</span>
+                      </p>
+                    )}
+                  </>
+                )}
+                {lineError && (
+                  <p role="alert" className="flex items-center gap-1.5 text-xs text-danger">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {lineError}
+                  </p>
+                )}
+              </form>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmModal
+        open={confirmReceive}
+        onClose={() => setConfirmReceive(false)}
+        onConfirm={() => receive.mutate()}
+        title="تأكيد الاستلام"
+        message="سيتم تسجيل استلام كامل الكميات، وستُضاف مواد المخزون تلقائياً مع تحديث تكلفتها حسب طريقة كل مادة."
+        confirmLabel="استلام"
+        loading={receive.isPending}
+      />
+    </>
+  )
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────
+
 export function PurchasingPage() {
   const [view, setView] = useState<'orders' | 'suppliers'>('orders')
   const [showNewOrder, setShowNewOrder] = useState(false)
   const [showNewSupplier, setShowNewSupplier] = useState(false)
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null)
   const { branchId, tenantId } = useAuthStore()
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -54,11 +357,13 @@ export function PurchasingPage() {
     enabled: !!branchId && view === 'orders',
   })
 
-  const { data: suppliers } = useQuery({
+  const { data: suppliersResp } = useQuery({
     queryKey: ['suppliers', tenantId],
     queryFn: () => purchasingApi.listSuppliers(tenantId!),
     enabled: !!tenantId,
   })
+  const suppliers = asList<SupplierResponse>(suppliersResp?.data)
+  const supplierName = (id: string) => suppliers.find((s) => s.id === id)?.name ?? '—'
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -70,14 +375,14 @@ export function PurchasingPage() {
 
   const createOrder = useMutation({
     mutationFn: (data: OrderFormData) =>
-      purchasingApi.createPurchaseOrder(branchId!, { ...data, tenantId: tenantId! }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] })
+      purchasingApi.createPurchaseOrder(branchId!, { supplierId: data.supplierId, notes: data.notes || undefined }),
+    onSuccess: (res) => {
+      void qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] })
       setShowNewOrder(false)
       reset()
-      toast.success(t.purchasing.created, '')
+      setOpenOrderId(res.data.id)
     },
-    onError: () => toast.error(t.purchasing.failed, ''),
+    onError: (err) => toast.error(t.purchasing.failed, apiErrorMessage(err)),
   })
 
   const createSupplier = useMutation({
@@ -89,37 +394,26 @@ export function PurchasingPage() {
         address: data.address || undefined,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['suppliers', tenantId] })
+      void qc.invalidateQueries({ queryKey: ['suppliers', tenantId] })
       setShowNewSupplier(false)
       supplierForm.reset()
       toast.success(t.purchasing.created)
     },
-    onError: () => toast.error(t.purchasing.failed),
+    onError: (err) => toast.error(t.purchasing.failed, apiErrorMessage(err)),
   })
 
-  const changeStatus = useMutation({
-    mutationFn: ({ orderId, action }: { orderId: string; action: 'send' | 'receive' | 'cancel' }) => {
-      switch (action) {
-        case 'send': return purchasingApi.send(branchId!, orderId)
-        case 'receive': return purchasingApi.receive(branchId!, orderId)
-        case 'cancel': return purchasingApi.cancel(branchId!, orderId)
-      }
-    },
+  const cancelOrder = useMutation({
+    mutationFn: (orderId: string) => purchasingApi.cancel(branchId!, orderId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] }),
-    onError: () => toast.error(t.purchasing.failed, ''),
+    onError: (err) => toast.error(t.purchasing.failed, apiErrorMessage(err)),
   })
-
-  const statusLabel: Record<PurchaseOrderStatus, string> = {
-    Draft: t.purchasing.draft,
-    Sent: t.purchasing.sent,
-    Received: t.purchasing.received,
-    Cancelled: t.purchasing.cancelled,
-  }
 
   const viewLabels: Record<'orders' | 'suppliers', string> = {
-    orders: t.purchasing.title,
-    suppliers: t.purchasing.supplier,
+    orders: 'أوامر الشراء',
+    suppliers: 'الموردون',
   }
+
+  const openOrder = openOrderId ? asList<PurchaseOrderResponse>(orders?.data).find((o) => o.id === openOrderId) : undefined
 
   return (
     <div>
@@ -140,19 +434,20 @@ export function PurchasingPage() {
           )
         }
       />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
           <div className="flex items-center gap-3 border-b border-border p-4">
-            <div className="flex rounded-lg border border-border bg-surface p-1">
+            <div className="flex rounded-lg border border-border bg-surface p-1" role="tablist">
               {(['orders', 'suppliers'] as const).map((v) => (
                 <button
                   key={v}
+                  role="tab"
+                  aria-selected={view === v}
                   onClick={() => setView(v)}
-                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                    view === v
-                      ? 'bg-blue-600 text-white'
-                      : 'text-muted hover:bg-surface-2 '
-                  }`}
+                  className={cn(
+                    'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                    view === v ? 'bg-brand text-brand-fg' : 'text-muted hover:bg-surface-2',
+                  )}
                 >
                   {viewLabels[v]}
                 </button>
@@ -163,75 +458,43 @@ export function PurchasingPage() {
           {view === 'orders' ? (
             <Table
               loading={isLoading}
-              data={(Array.isArray(orders?.data) ? orders!.data : ((orders?.data as any)?.items ?? [])) as import('@/types/api').PurchaseOrderResponse[]}
+              data={asList<PurchaseOrderResponse>(orders?.data)}
               keyExtractor={(r) => r.id}
               emptyMessage={t.purchasing.noOrders}
               columns={[
                 {
                   key: 'id',
                   header: '#',
-                  render: (r) => (
-                    <span className="font-mono text-sm font-medium">{r.id.slice(-8).toUpperCase()}</span>
-                  ),
+                  render: (r) => <span className="font-mono text-sm font-medium">{r.id.slice(-8).toUpperCase()}</span>,
+                },
+                { key: 'supplierName', header: t.purchasing.supplier, render: (r) => supplierName(r.supplierId) },
+                {
+                  key: 'lines',
+                  header: 'الأصناف',
+                  render: (r) => <span className="tabular-nums text-muted">{r.lines.length.toLocaleString('ar-SA')}</span>,
                 },
                 {
-                  key: 'supplierName',
-                  header: t.purchasing.supplier,
-                  render: (r) => {
-                    const supplierList = Array.isArray(suppliers?.data) ? suppliers!.data : ((suppliers?.data as any)?.items ?? [])
-                    const found = supplierList.find((s: { id: string; name: string }) => s.id === r.supplierId)
-                    return found?.name ?? '—'
-                  },
-                },
-                {
-                  key: 'totalCost',
+                  key: 'totalAmount',
                   header: t.purchasing.total,
-                  render: (r) => (
-                    <span className="font-semibold tabular-nums">{formatCurrency(r.totalCost)}</span>
-                  ),
+                  render: (r) => <span className="font-semibold tabular-nums">{formatCurrency(r.totalAmount)}</span>,
                 },
                 {
                   key: 'status',
                   header: t.purchasing.status,
-                  render: (r) => (
-                    <Badge variant={statusVariant[r.status]}>{statusLabel[r.status]}</Badge>
-                  ),
+                  render: (r) => <Badge variant={statusVariant[r.status]}>{statusLabel[r.status]}</Badge>,
                 },
-                {
-                  key: 'createdAt',
-                  header: t.purchasing.date,
-                  render: (r) => formatDate(r.createdAt),
-                },
+                { key: 'createdAt', header: t.purchasing.date, render: (r) => formatDate(r.createdAt) },
                 {
                   key: 'actions',
                   header: '',
                   render: (r) => (
-                    <div className="flex gap-1">
-                      {r.status === 'Draft' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => changeStatus.mutate({ orderId: r.id, action: 'send' })}
-                        >
-                          {t.purchasing.sent}
-                        </Button>
-                      )}
-                      {r.status === 'Sent' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => changeStatus.mutate({ orderId: r.id, action: 'receive' })}
-                        >
-                          {t.purchasing.received}
-                        </Button>
-                      )}
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="secondary" onClick={() => setOpenOrderId(r.id)}>
+                        {r.status === 'Draft' ? 'إضافة أصناف' : 'التفاصيل'}
+                      </Button>
                       {(r.status === 'Draft' || r.status === 'Sent') && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => changeStatus.mutate({ orderId: r.id, action: 'cancel' })}
-                        >
-                          {t.common.cancel}
+                        <Button size="sm" variant="ghost" onClick={() => cancelOrder.mutate(r.id)}>
+                          إلغاء الطلب
                         </Button>
                       )}
                     </div>
@@ -241,7 +504,7 @@ export function PurchasingPage() {
             />
           ) : (
             <Table
-              data={suppliers?.data ?? []}
+              data={suppliers}
               keyExtractor={(r) => r.id}
               emptyMessage={t.common.noData}
               columns={[
@@ -261,9 +524,7 @@ export function PurchasingPage() {
                   key: 'isActive',
                   header: t.products.status,
                   render: (r) => (
-                    <Badge variant={r.isActive ? 'green' : 'gray'}>
-                      {r.isActive ? t.common.active : t.common.inactive}
-                    </Badge>
+                    <Badge variant={r.isActive ? 'green' : 'gray'}>{r.isActive ? t.common.active : t.common.inactive}</Badge>
                   ),
                 },
               ]}
@@ -274,11 +535,22 @@ export function PurchasingPage() {
 
       <Modal
         open={showNewSupplier}
-        onClose={() => { setShowNewSupplier(false); supplierForm.reset() }}
+        onClose={() => {
+          setShowNewSupplier(false)
+          supplierForm.reset()
+        }}
         title={t.purchasing.newSupplier}
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setShowNewSupplier(false); supplierForm.reset() }}>{t.common.cancel}</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowNewSupplier(false)
+                supplierForm.reset()
+              }}
+            >
+              {t.common.cancel}
+            </Button>
             <Button loading={createSupplier.isPending} onClick={supplierForm.handleSubmit((d) => createSupplier.mutate(d))}>
               {t.common.create}
             </Button>
@@ -287,7 +559,12 @@ export function PurchasingPage() {
       >
         <form className="space-y-4">
           <Input label={t.purchasing.supplierName} error={supplierForm.formState.errors.name?.message} {...supplierForm.register('name')} />
-          <Input label={t.purchasing.supplierEmail} type="email" error={supplierForm.formState.errors.contactEmail?.message} {...supplierForm.register('contactEmail')} />
+          <Input
+            label={t.purchasing.supplierEmail}
+            type="email"
+            error={supplierForm.formState.errors.contactEmail?.message}
+            {...supplierForm.register('contactEmail')}
+          />
           <Input label={t.purchasing.supplierPhone} {...supplierForm.register('contactPhone')} />
           <Input label={t.purchasing.supplierAddress} {...supplierForm.register('address')} />
         </form>
@@ -299,23 +576,41 @@ export function PurchasingPage() {
         title={t.purchasing.newOrder}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowNewOrder(false)}>{t.common.cancel}</Button>
-            <Button loading={createOrder.isPending} onClick={handleSubmit((d) => createOrder.mutate(d))}>
-              {t.common.create}
+            <Button variant="secondary" onClick={() => setShowNewOrder(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button loading={createOrder.isPending} onClick={handleSubmit((d) => createOrder.mutate(d))} disabled={suppliers.length === 0}>
+              إنشاء ثم إضافة الأصناف
             </Button>
           </>
         }
       >
-        <form className="space-y-4">
-          <Select label={t.purchasing.supplier} error={errors.supplierId?.message} {...register('supplierId')}>
-            <option value="">{t.purchasing.supplier}...</option>
-            {suppliers?.data?.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </Select>
-          <Input label={t.inventory.notes} {...register('notes')} />
-        </form>
+        {suppliers.length === 0 ? (
+          <p className="text-sm text-muted">
+            لا يوجد موردون بعد. أضف مورداً من تبويب «الموردون» أولاً.
+          </p>
+        ) : (
+          <form className="space-y-4">
+            <Select label={t.purchasing.supplier} error={errors.supplierId?.message} {...register('supplierId')}>
+              <option value="">اختر المورد…</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+            <Input label={t.inventory.notes} {...register('notes')} />
+          </form>
+        )}
       </Modal>
+
+      {openOrderId && (
+        <OrderDetailModal
+          orderId={openOrderId}
+          supplierName={openOrder ? supplierName(openOrder.supplierId) : ''}
+          onClose={() => setOpenOrderId(null)}
+        />
+      )}
     </div>
   )
 }

@@ -319,7 +319,7 @@ export function ProductsPage() {
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-fg">{product.name}</p>
                             {product.unitType && product.unitType !== 'Piece' && (
-                              <span className="shrink-0 rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                              <span className="shrink-0 rounded-md bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
                                 {({'Kilogram':'كيلو','Gram':'جرام','Liter':'لتر','Milliliter':'مللي','Meter':'متر','Box':'صندوق'} as Record<string, string>)[product.unitType] ?? product.unitType}
                               </span>
                             )}
@@ -388,7 +388,7 @@ export function ProductsPage() {
                                 <span className="text-xs text-muted">
                                   {t.products.costPrice}: {formatCurrency(v.costPrice, v.currency)}
                                 </span>
-                                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                <span className="font-semibold text-info">
                                   {formatCurrency(v.salePrice, v.currency)}
                                 </span>
                                 <Badge variant={v.isActive ? 'green' : 'gray'} className="text-xs">
@@ -463,7 +463,7 @@ export function ProductsPage() {
             {t.products.trackInventory}
           </label>
           {createForm.watch('trackInventory') && (
-            <div className="grid grid-cols-2 gap-4 rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/30 dark:bg-blue-900/10">
+            <div className="grid grid-cols-2 gap-4 rounded-xl border border-info/30 bg-info/10 p-3">
               <Input
                 label="الكمية الأولية"
                 type="number"

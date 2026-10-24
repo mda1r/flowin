@@ -250,7 +250,7 @@ export function HotelPage() {
               {tab.icon}
               {tab.label}
               {tab.count !== undefined && tab.count > 0 && (
-                <span className="rounded-full bg-blue-500 px-1.5 py-0.5 text-xs text-white">
+                <span className="rounded-full bg-brand px-1.5 py-0.5 text-xs text-brand-fg">
                   {tab.count}
                 </span>
               )}
@@ -522,7 +522,7 @@ function RoomCard({ room }: { room: RoomResponse }) {
       )}
 
       {!res && (
-        <p className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
+        <p className="mt-1 text-sm font-semibold text-info">
           {formatCurrency(room.nightlyRate, room.currency)} / {t.hotel.perNight}
         </p>
       )}
@@ -616,7 +616,7 @@ function CashierTab({
       {/* Check-in form */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <h3 className="mb-5 text-base font-semibold text-fg flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-blue-500" />
+          <Sparkles className="h-4 w-4 text-info" />
           تسجيل وصول جديد
         </h3>
 
@@ -699,7 +699,7 @@ function CashierTab({
 
           {/* Total preview */}
           {nights > 0 && watchedRate > 0 && (
-            <div className="rounded-xl bg-blue-50 p-4 dark:bg-blue-900/20">
+            <div className="rounded-xl bg-info/10 p-4">
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-muted">
                   <span>{nights} ليلة × {formatCurrency(watchedRate)}</span>
@@ -709,7 +709,7 @@ function CashierTab({
                   <span>ضريبة القيمة المضافة 15%</span>
                   <span>{formatCurrency(vat)}</span>
                 </div>
-                <div className="flex justify-between border-t border-blue-200 pt-1 font-bold text-fg dark:border-blue-800">
+                <div className="flex justify-between border-t border-info/30 pt-1 font-bold text-fg">
                   <span>الإجمالي</span>
                   <span>{formatCurrency(total)}</span>
                 </div>

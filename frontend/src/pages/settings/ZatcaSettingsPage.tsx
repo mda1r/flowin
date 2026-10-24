@@ -162,7 +162,7 @@ export function ZatcaSettingsPage() {
       {/* Info cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <InfoCard
-          icon={<FileText className="h-5 w-5 text-blue-600" />}
+          icon={<FileText className="h-5 w-5 text-info" />}
           title={t.zatca.phase1}
           description={t.zatca.phase1Info}
           active={isConfigured}

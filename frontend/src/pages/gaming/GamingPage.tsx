@@ -500,7 +500,7 @@ export function GamingPage() {
                       'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                       !startForm.customDuration &&
                         startForm.durationMinutes === preset.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        ? 'border-brand bg-brand-soft text-brand'
                         : 'border-border text-muted hover:border-muted/40',
                     )}
                   >
@@ -515,7 +515,7 @@ export function GamingPage() {
                   className={cn(
                     'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                     startForm.customDuration
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      ? 'border-brand bg-brand-soft text-brand'
                       : 'border-border text-muted hover:border-muted/40',
                   )}
                 >
@@ -609,7 +609,7 @@ export function GamingPage() {
                     className={cn(
                       'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                       !extendCustom && extendMinutes === preset.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        ? 'border-brand bg-brand-soft text-brand'
                         : 'border-border text-muted hover:border-muted/40',
                     )}
                   >
@@ -622,7 +622,7 @@ export function GamingPage() {
                   className={cn(
                     'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                     extendCustom
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      ? 'border-brand bg-brand-soft text-brand'
                       : 'border-border text-muted hover:border-muted/40',
                   )}
                 >
@@ -728,7 +728,7 @@ export function GamingPage() {
                     className={cn(
                       'flex-1 rounded-lg border py-2.5 text-sm font-medium transition-all',
                       paymentMethod === m.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        ? 'border-brand bg-brand-soft text-brand'
                         : 'border-border text-muted',
                     )}
                   >
@@ -756,7 +756,7 @@ function StatCard({
   color: 'blue' | 'green' | 'purple' | 'gray'
 }) {
   const colors = {
-    blue: 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200',
+    blue: 'border-info/30 bg-info/10 text-info',
     green:
       'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-900/20 dark:text-green-200',
     purple:
@@ -764,7 +764,7 @@ function StatCard({
     gray: 'border-border bg-surface-2 text-fg',
   }
   const sub = {
-    blue: 'text-blue-600 dark:text-blue-400',
+    blue: 'text-info',
     green: 'text-green-600 dark:text-green-400',
     purple: 'text-purple-600 dark:text-purple-400',
     gray: 'text-muted',
@@ -873,7 +873,7 @@ function StationCard({
     station.status === 'InUse' &&
       !isWarning &&
       !isExpired &&
-      'border-blue-300 shadow-md shadow-blue-200/50 dark:border-blue-800 dark:shadow-blue-900/30',
+      'border-info/30 shadow-md',
     (isWarning || (station.status === 'InUse' && !session)) &&
       'border-red-400 shadow-md shadow-red-200/50 dark:border-red-800 dark:shadow-red-900/30',
     isExpired && 'border-red-500 animate-pulse',
@@ -919,7 +919,7 @@ function StationCard({
       <p className="text-xs text-muted mb-1">{TYPE_LABEL[station.type]}</p>
 
       {/* Rate */}
-      <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-3">
+      <p className="text-xs font-semibold text-info mb-3">
         {formatCurrency(station.hourlyRate, station.currency)} / {t.gaming.perHour}
       </p>
 
@@ -958,7 +958,7 @@ function StationCard({
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-1000',
-                    isWarning ? 'bg-red-500' : 'bg-blue-500',
+                    isWarning ? 'bg-red-500' : 'bg-info',
                   )}
                   style={{ width: `${progressPct}%` }}
                 />

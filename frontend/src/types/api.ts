@@ -288,7 +288,7 @@ export interface SalesSummaryResponse {
 
 // ── Purchasing ────────────────────────────────────────────────────────────────
 
-export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Received' | 'Cancelled'
+export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'PartiallyReceived' | 'Received' | 'Cancelled'
 
 export interface SupplierResponse {
   id: string
@@ -303,26 +303,27 @@ export interface SupplierResponse {
 export interface PurchaseOrderLineResponse {
   id: string
   variantId: string
+  stockMaterialId?: string
   description: string
-  quantityOrdered: number
-  quantityReceived: number
   unitCost: number
-  totalCost: number
+  orderedQuantity: number
+  receivedQuantity: number
+  lineTotal: number
+  isFullyReceived: boolean
 }
 
 export interface PurchaseOrderResponse {
   id: string
-  branchId: string
   tenantId: string
+  branchId: string
   supplierId: string
   status: PurchaseOrderStatus
-  lines: PurchaseOrderLineResponse[]
-  totalCost: number
-  expectedDelivery?: string
+  totalAmount: number
+  expectedDeliveryDate?: string
   notes?: string
   createdAt: string
-  sentAt?: string
   receivedAt?: string
+  lines: PurchaseOrderLineResponse[]
 }
 
 // ── CRM ──────────────────────────────────────────────────────────────────────

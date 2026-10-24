@@ -49,9 +49,8 @@ export const purchasingApi = {
   createPurchaseOrder: (
     branchId: string,
     data: {
-      tenantId: string
       supplierId: string
-      expectedDelivery?: string
+      expectedDeliveryDate?: string
       notes?: string
     },
   ) =>
@@ -63,7 +62,7 @@ export const purchasingApi = {
   addLine: (
     branchId: string,
     orderId: string,
-    data: { variantId: string; description: string; quantity: number; unitCost: number },
+    data: { variantId?: string; stockMaterialId?: string; description: string; quantity: number; unitCost: number },
   ) =>
     apiClient.post<PurchaseOrderResponse>(
       `/api/v1/branches/${branchId}/purchase-orders/${orderId}/lines`,

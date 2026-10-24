@@ -203,8 +203,8 @@ const PAYMENT_META: Record<PaymentMethod, {
   iconColor: string
 }> = {
   Cash:         { badge: 'green',  Icon: Banknote,   iconWrap: 'bg-emerald-50 dark:bg-emerald-900/30', iconColor: 'text-emerald-600' },
-  Card:         { badge: 'blue',   Icon: CreditCard, iconWrap: 'bg-blue-50 dark:bg-blue-900/30',       iconColor: 'text-blue-600'    },
-  BankTransfer: { badge: 'purple', Icon: Landmark,   iconWrap: 'bg-violet-50 dark:bg-violet-900/30',   iconColor: 'text-violet-600'  },
+  Card:         { badge: 'blue',   Icon: CreditCard, iconWrap: 'bg-info/10',       iconColor: 'text-info'    },
+  BankTransfer: { badge: 'purple', Icon: Landmark,   iconWrap: 'bg-violet-50 dark:bg-violet-900/30',   iconColor: 'text-violet-600 dark:text-violet-400'  },
   Voucher:      { badge: 'orange', Icon: Ticket,     iconWrap: 'bg-amber-50 dark:bg-amber-900/30',     iconColor: 'text-amber-600'   },
   Split:        { badge: 'orange', Icon: Banknote,   iconWrap: 'bg-orange-50 dark:bg-orange-900/30',   iconColor: 'text-orange-600'  },
 }
@@ -243,11 +243,11 @@ function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
         <div
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-            pay?.iconWrap ?? 'bg-blue-50 dark:bg-blue-900/30',
+            pay?.iconWrap ?? 'bg-info/10',
           )}
           title={payLabel}
         >
-          <Icon className={cn('h-4 w-4', pay?.iconColor ?? 'text-blue-600')} />
+          <Icon className={cn('h-4 w-4', pay?.iconColor ?? 'text-info')} />
         </div>
         <div>
           <p className="text-sm font-medium text-fg">
@@ -687,45 +687,45 @@ export function DashboardPage() {
   const quickActions = useMemo<QuickAction[]>(() => {
     const byType: Partial<Record<BusinessType, QuickAction[]>> = {
       Hotel: [
-        { label: t.dashboard.hotel,     icon: <HotelIcon className="h-5 w-5" />, to: '/hotel',           color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'    },
-        { label: t.dashboard.contracts, icon: <FileText  className="h-5 w-5" />, to: '/hotel/contracts', color: 'text-indigo-600', wrap: 'bg-indigo-50 dark:bg-indigo-900/30' },
+        { label: t.dashboard.hotel,     icon: <HotelIcon className="h-5 w-5" />, to: '/hotel',           color: 'text-info',   wrap: 'bg-info/10'    },
+        { label: t.dashboard.contracts, icon: <FileText  className="h-5 w-5" />, to: '/hotel/contracts', color: 'text-indigo-600 dark:text-indigo-400', wrap: 'bg-indigo-50 dark:bg-indigo-900/30' },
         { label: t.dashboard.customers, icon: <Users     className="h-5 w-5" />, to: '/customers',       color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
         { label: t.dashboard.inventory, icon: <Package   className="h-5 w-5" />, to: '/inventory',       color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
       ],
       Restaurant: [
-        { label: t.dashboard.newOrder,   icon: <ShoppingCart    className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'    },
+        { label: t.dashboard.newOrder,   icon: <ShoppingCart    className="h-5 w-5" />, to: '/pos',        color: 'text-info',   wrap: 'bg-info/10'    },
         { label: t.dashboard.restaurant, icon: <UtensilsCrossed className="h-5 w-5" />, to: '/restaurant', color: 'text-red-600',    wrap: 'bg-red-50 dark:bg-red-900/30'      },
         { label: t.dashboard.customers,  icon: <Users           className="h-5 w-5" />, to: '/customers',  color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'  },
         { label: t.dashboard.inventory,  icon: <Package         className="h-5 w-5" />, to: '/inventory',  color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
       ],
       Gaming: [
-        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-        { label: t.dashboard.gaming,    icon: <Gamepad2     className="h-5 w-5" />, to: '/gaming',    color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-info',   wrap: 'bg-info/10'     },
+        { label: t.dashboard.gaming,    icon: <Gamepad2     className="h-5 w-5" />, to: '/gaming',    color: 'text-purple-600 dark:text-purple-400', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
         { label: t.dashboard.customers, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
         { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
       ],
       Cafe: [
-        { label: t.dashboard.newOrder,  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+        { label: t.dashboard.newOrder,  icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-info',   wrap: 'bg-info/10'     },
         { label: t.dashboard.products,  icon: <Coffee       className="h-5 w-5" />, to: '/products',  color: 'text-amber-600',  wrap: 'bg-amber-50 dark:bg-amber-900/30'   },
         { label: t.dashboard.customers, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
-        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600 dark:text-purple-400', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
       ],
       Retail: [
-        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
+        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-info',   wrap: 'bg-info/10'     },
         { label: t.dashboard.products,  icon: <Store        className="h-5 w-5" />, to: '/products',  color: 'text-pink-600',   wrap: 'bg-pink-50 dark:bg-pink-900/30'     },
         { label: t.dashboard.customers, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
-        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-purple-600 dark:text-purple-400', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
       ],
       Supermarket: [
-        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',        color: 'text-blue-600',    wrap: 'bg-blue-50 dark:bg-blue-900/30'      },
+        { label: t.dashboard.newSale,   icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',        color: 'text-info',    wrap: 'bg-info/10'      },
         { label: t.dashboard.products,  icon: <Package      className="h-5 w-5" />, to: '/products',   color: 'text-emerald-600', wrap: 'bg-emerald-50 dark:bg-emerald-900/30' },
         { label: t.dashboard.purchases, icon: <ShoppingBag  className="h-5 w-5" />, to: '/purchasing', color: 'text-orange-600',  wrap: 'bg-orange-50 dark:bg-orange-900/30'  },
-        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',    color: 'text-purple-600',  wrap: 'bg-purple-50 dark:bg-purple-900/30'  },
+        { label: t.dashboard.reports,   icon: <BarChart2    className="h-5 w-5" />, to: '/reports',    color: 'text-purple-600 dark:text-purple-400',  wrap: 'bg-purple-50 dark:bg-purple-900/30'  },
       ],
     }
     return (businessType ? byType[businessType] : null) ?? [
-      { label: t.dashboard.newSale,     icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-blue-600',   wrap: 'bg-blue-50 dark:bg-blue-900/30'     },
-      { label: t.dashboard.addProduct,  icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-purple-600', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
+      { label: t.dashboard.newSale,     icon: <ShoppingCart className="h-5 w-5" />, to: '/pos',       color: 'text-info',   wrap: 'bg-info/10'     },
+      { label: t.dashboard.addProduct,  icon: <Package      className="h-5 w-5" />, to: '/products',  color: 'text-purple-600 dark:text-purple-400', wrap: 'bg-purple-50 dark:bg-purple-900/30' },
       { label: t.dashboard.addCustomer, icon: <Users        className="h-5 w-5" />, to: '/customers', color: 'text-green-600',  wrap: 'bg-green-50 dark:bg-green-900/30'   },
       { label: t.dashboard.reports,     icon: <BarChart2    className="h-5 w-5" />, to: '/reports',   color: 'text-orange-600', wrap: 'bg-orange-50 dark:bg-orange-900/30' },
     ]
@@ -843,9 +843,9 @@ export function DashboardPage() {
                 title={t.dashboard.netRevenue}
                 value={netRevenue}
                 format={(n) => formatCurrency(n)}
-                icon={<DollarSign className="h-5 w-5 text-blue-600" />}
-                iconWrap="bg-blue-50 dark:bg-blue-900/30"
-                sparkColor="text-blue-500"
+                icon={<DollarSign className="h-5 w-5 text-info" />}
+                iconWrap="bg-info/10"
+                sparkColor="text-info"
                 kpiColor="#3b82f6"
                 spark={revenueSpark}
                 sparkId="spark-revenue"
@@ -864,7 +864,7 @@ export function DashboardPage() {
               <StatCard
                 title={t.dashboard.ordersToday}
                 value={stats.totalOrders}
-                icon={<ShoppingCart className="h-5 w-5 text-purple-600" />}
+                icon={<ShoppingCart className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
                 iconWrap="bg-purple-50 dark:bg-purple-900/30"
                 sparkColor="text-purple-500"
                 kpiColor="#a855f7"
@@ -918,7 +918,7 @@ export function DashboardPage() {
                 </div>
                 <a
                   href="/sales"
-                  className="flex items-center gap-0.5 text-xs text-blue-600 hover:underline dark:text-blue-400"
+                  className="flex items-center gap-0.5 text-xs text-info hover:underline"
                 >
                   {t.dashboard.viewAll}
                   <ChevronLeft className="h-3 w-3" />
@@ -972,7 +972,7 @@ export function DashboardPage() {
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
                   <h2 className="text-sm font-semibold text-fg">{t.dashboard.inventoryAlerts}</h2>
                 </div>
-                <a href="/inventory" className="text-xs text-blue-600 hover:underline dark:text-blue-400">
+                <a href="/inventory" className="text-xs text-info hover:underline">
                   {t.dashboard.viewAll}
                 </a>
               </div>

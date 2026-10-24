@@ -151,7 +151,7 @@ function ReturnModal({
                   fullyReturned
                     ? 'border-border bg-surface-2 opacity-60 '
                     : state.selected
-                    ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
+                    ? 'border-info/30 bg-info/10'
                     : 'border-border '
                 }`}
               >
@@ -161,7 +161,7 @@ function ReturnModal({
                     checked={state.selected}
                     onChange={() => toggleLine(line.id)}
                     disabled={fullyReturned}
-                    className="mt-1 h-4 w-4 rounded border-border accent-blue-600 disabled:cursor-not-allowed"
+                    className="mt-1 h-4 w-4 rounded border-border accent-[rgb(var(--brand))] disabled:cursor-not-allowed"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ function ReturnModal({
                 onClick={() => setRefundMethod(m.value)}
                 className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                   refundMethod === m.value
-                    ? 'border-blue-500 bg-blue-600 text-white'
+                    ? 'border-brand bg-brand text-brand-fg'
                     : 'border-border bg-surface text-fg hover:bg-surface-2 '
                 }`}
               >
@@ -366,7 +366,7 @@ export function SalesPage() {
                 onClick={() => setRange(r.value)}
                 className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                   range === r.value
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-brand text-brand-fg'
                     : 'text-muted hover:bg-surface-2 '
                 }`}
               >
@@ -381,8 +381,8 @@ export function SalesPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <Card>
             <CardBody className="flex items-center gap-4">
-              <div className="rounded-xl bg-blue-50 p-3 dark:bg-blue-900/30">
-                <DollarSign className="h-5 w-5 text-blue-600" />
+              <div className="rounded-xl bg-info/10 p-3">
+                <DollarSign className="h-5 w-5 text-info" />
               </div>
               <div>
                 <p className="text-xs text-muted">{t.sales.netRevenue}</p>
@@ -396,7 +396,7 @@ export function SalesPage() {
           <Card>
             <CardBody className="flex items-center gap-4">
               <div className="rounded-xl bg-purple-50 p-3 dark:bg-purple-900/30">
-                <ShoppingCart className="h-5 w-5 text-purple-600" />
+                <ShoppingCart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <p className="text-xs text-muted">{t.sales.totalOrders}</p>
@@ -446,7 +446,7 @@ export function SalesPage() {
                 header: t.sales.orderId,
                 render: (r) => (
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-medium text-blue-600 dark:text-blue-400">
+                    <span className="font-mono text-sm font-medium text-info">
                       #{r.id.slice(-6).toUpperCase()}
                     </span>
                     {returnsMap.has(r.id) && (

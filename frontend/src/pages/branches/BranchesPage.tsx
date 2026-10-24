@@ -220,7 +220,7 @@ export function BranchesPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => openEdit(r)}
-                            className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-blue-600"
+                            className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-info"
                             title="تعديل"
                           >
                             <Pencil className="h-4 w-4" />

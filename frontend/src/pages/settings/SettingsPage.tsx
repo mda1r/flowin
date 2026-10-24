@@ -47,7 +47,7 @@ function PasswordInput({ placeholder, ...props }: React.InputHTMLAttributes<HTML
         {...props}
         type={show ? 'text' : 'password'}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-border bg-surface px-3 py-2 pl-10 text-sm text-fg focus:border-blue-500 focus:outline-none"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 pl-10 text-sm text-fg focus:border-brand focus:outline-none"
       />
       <button
         type="button"
@@ -100,7 +100,7 @@ export function SettingsPage() {
   })
 
   const inputClass =
-    'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg focus:border-blue-500 focus:outline-none'
+    'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg focus:border-brand focus:outline-none'
 
   return (
     <div className="p-6 max-w-2xl space-y-6" dir="rtl">
@@ -117,7 +117,7 @@ export function SettingsPage() {
         </div>
         <div className="px-5 py-4">
           <div className="flex items-center gap-4 mb-5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold text-white select-none">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-brand text-lg font-bold text-brand-fg select-none">
               {getInitials(`${user?.firstName ?? ''} ${user?.lastName ?? ''}`)}
             </div>
             <div>
@@ -125,7 +125,7 @@ export function SettingsPage() {
                 {user?.firstName} {user?.lastName}
               </p>
               <p className="text-sm text-muted">{user?.email}</p>
-              <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+              <span className="mt-1 inline-block rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
                 {user?.role === 'SuperAdmin' ? 'مدير النظام' : user?.role === 'Owner' ? t.settings.roles.owner : user?.role === 'Manager' ? t.settings.roles.admin : user?.role === 'Cashier' ? t.settings.roles.cashier : user?.role === 'Staff' ? t.settings.roles.viewer : user?.role}
               </span>
             </div>
@@ -231,7 +231,7 @@ export function SettingsPage() {
             onClick={() => setLang('ar')}
             className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
               lang === 'ar'
-                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                ? 'border-brand bg-brand-soft text-brand'
                 : 'border-border text-muted hover:bg-surface-2 '
             }`}
           >
@@ -241,7 +241,7 @@ export function SettingsPage() {
             onClick={() => setLang('en')}
             className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
               lang === 'en'
-                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                ? 'border-brand bg-brand-soft text-brand'
                 : 'border-border text-muted hover:bg-surface-2 '
             }`}
           >

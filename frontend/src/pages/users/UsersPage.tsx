@@ -25,8 +25,8 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  Owner:      'bg-purple-100 text-purple-700',
-  Manager:    'bg-blue-100 text-blue-700',
+  Owner:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  Manager:    'bg-info/10 text-info',
   Cashier:    'bg-emerald-100 text-emerald-700',
   Accountant: 'bg-amber-100 text-amber-700',
   Staff:      'bg-surface-2 text-muted',
@@ -288,7 +288,7 @@ export function UsersPage() {
         {canManage && (
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
+            className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-brand-fg hover:bg-brand/90 transition-colors"
           >
             <UserPlus className="h-4 w-4" />
             {t.users.addUser}

@@ -101,7 +101,7 @@ export function RestaurantPage() {
                   className={cn(
                     'px-4 py-1.5 text-sm font-medium transition-colors',
                     activeTab === tab
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-brand text-brand-fg'
                       : 'text-muted hover:bg-surface-2',
                   )}
                 >
@@ -339,7 +339,7 @@ function CashierView({ branchId }: { branchId: string }) {
                 className={cn(
                   'shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors',
                   selectedCategory === null
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-brand text-brand-fg'
                     : 'bg-surface-2 text-muted hover:bg-border',
                 )}
               >
@@ -352,7 +352,7 @@ function CashierView({ branchId }: { branchId: string }) {
                   className={cn(
                     'shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors',
                     selectedCategory === cat
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-brand text-brand-fg'
                       : 'bg-surface-2 text-muted hover:bg-border',
                   )}
                 >
@@ -367,7 +367,7 @@ function CashierView({ branchId }: { branchId: string }) {
                   <button
                     key={item.id}
                     onClick={() => addToCart(item)}
-                    className="flex flex-col rounded-xl border border-border bg-surface p-3 text-right transition-all hover:border-blue-300 hover:shadow-sm active:scale-[0.98] dark:hover:border-blue-700"
+                    className="flex flex-col rounded-xl border border-border bg-surface p-3 text-right transition-all hover:border-info/30 hover:shadow-sm active:scale-[0.98]"
                   >
                     <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/20">
                       <span className="text-lg">🍽️</span>
@@ -378,7 +378,7 @@ function CashierView({ branchId }: { branchId: string }) {
                     <p className="mt-0.5 line-clamp-1 text-xs text-muted">
                       {CATEGORY_LABELS[item.category]}
                     </p>
-                    <p className="mt-auto pt-2 text-sm font-bold text-blue-600 dark:text-blue-400">
+                    <p className="mt-auto pt-2 text-sm font-bold text-info">
                       {formatCurrency(item.price)}
                     </p>
                   </button>
@@ -413,9 +413,9 @@ function CashierView({ branchId }: { branchId: string }) {
             <span className={cn(
               'mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium',
               tableOrder.status === 'Pending' && 'bg-yellow-100 text-yellow-700',
-              tableOrder.status === 'InKitchen' && 'bg-blue-100 text-blue-700',
+              tableOrder.status === 'InKitchen' && 'bg-info/10 text-info',
               tableOrder.status === 'Ready' && 'bg-green-100 text-green-700',
-              tableOrder.status === 'Served' && 'bg-purple-100 text-purple-700',
+              tableOrder.status === 'Served' && 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
             )}>
               {tableOrder.status === 'Pending' && 'قيد الانتظار'}
               {tableOrder.status === 'InKitchen' && 'في المطبخ'}
@@ -438,7 +438,7 @@ function CashierView({ branchId }: { branchId: string }) {
                   <span className={cn(
                     'text-xs',
                     item.status === 'Ready' ? 'text-green-600' :
-                    item.status === 'Preparing' ? 'text-blue-600' : 'text-muted',
+                    item.status === 'Preparing' ? 'text-info' : 'text-muted',
                   )}>
                     {item.status === 'Ready' ? t.kitchen.ready :
                      item.status === 'Preparing' ? t.kitchen.preparing : 'انتظار'}
@@ -711,7 +711,7 @@ function PaymentModal({
               className={cn(
                 'flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors',
                 paymentMethod === m
-                  ? 'border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                  ? 'border-brand bg-brand-soft text-brand'
                   : 'border-border text-muted hover:bg-surface-2',
               )}
             >
@@ -989,7 +989,7 @@ function ManagerView({ branchId }: { branchId: string }) {
       <div className="grid grid-cols-3 gap-4">
         <Card className="p-4">
           <p className="text-sm text-muted">الطلبات النشطة</p>
-          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+          <p className="text-3xl font-bold text-info">
             {orders.filter((o) => !['Paid', 'Cancelled'].includes(o.status)).length}
           </p>
         </Card>

@@ -67,8 +67,8 @@ interface CustomerReceiptData {
 type PayMode = 'Cash' | 'Card' | 'Split'
 
 const CAFE_ACCENT: React.CSSProperties = {
-  '--accent-l': '#4F46E5',
-  '--accent-d': '#A5B4FC',
+  '--accent-l': '#0B7A65',
+  '--accent-d': '#3FD3B0',
 } as React.CSSProperties
 
 const TOTAL_TABLES = 16
@@ -91,8 +91,8 @@ function TablePicker({
           className={cn(
             'flex h-12 items-center justify-center rounded-xl border-2 text-sm font-bold transition-all',
             selected === n
-              ? 'scale-95 border-brand bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-              : 'border-border bg-surface text-fg hover:border-indigo-300 hover:bg-indigo-50',
+              ? 'scale-95 border-brand bg-brand-soft text-brand'
+              : 'border-border bg-surface text-fg hover:border-brand/40 hover:bg-brand-soft',
           )}
         >
           {n}
@@ -119,7 +119,7 @@ function KitchenTicketModal({
           {/* Header */}
           <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
             <div className="mb-1 flex items-center justify-center gap-2 text-lg font-black">
-              <ChefHat className="h-5 w-5 text-indigo-500" />
+              <ChefHat className="h-5 w-5 text-brand" />
               طلب المطبخ
             </div>
             <p className="text-xs text-muted">
@@ -129,8 +129,8 @@ function KitchenTicketModal({
               <span className={cn(
                 'rounded-full px-3 py-0.5 text-sm font-bold',
                 ticket.orderType === 'here'
-                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400'
-                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
+                  ? 'bg-brand-soft text-brand'
+                  : 'bg-info/10 text-info',
               )}>
                 {ticket.orderType === 'here'
                   ? ticket.tableNumber ? `طاولة ${ticket.tableNumber}` : 'بدون طاولة'
@@ -151,7 +151,7 @@ function KitchenTicketModal({
                       <p className="text-xs text-muted">{item.variantName}</p>
                     )}
                     {item.notes && (
-                      <p className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                      <p className="mt-0.5 text-xs font-medium text-brand">
                         📝 {item.notes}
                       </p>
                     )}
@@ -238,12 +238,12 @@ function CustomerReceiptModal({
             </p>
             <p className="text-xs font-mono text-muted">#{receipt.orderId.slice(-8).toUpperCase()}</p>
             {receipt.orderType === 'here' && receipt.tableNumber && (
-              <span className="mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400">
+              <span className="mt-1 inline-block rounded-full bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">
                 طاولة {receipt.tableNumber}
               </span>
             )}
             {receipt.orderType === 'takeaway' && (
-              <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
+              <span className="mt-1 inline-block rounded-full bg-info/10 px-2 py-0.5 text-xs font-bold text-info">
                 🛍 تيك أواي
               </span>
             )}
@@ -256,7 +256,7 @@ function CustomerReceiptModal({
                 <span className="flex-1">
                   {item.productName}
                   {item.quantity > 1 && <span className="text-muted"> ×{item.quantity}</span>}
-                  {item.notes && <span className="block text-xs text-indigo-500">📝 {item.notes}</span>}
+                  {item.notes && <span className="block text-xs text-brand">📝 {item.notes}</span>}
                 </span>
                 <span className="tabular-nums">{formatCurrency(item.unitPrice * item.quantity)}</span>
               </div>
@@ -754,7 +754,7 @@ export function CafePosPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3 shadow-sm">
         <div className="flex items-center gap-3">
-          <Coffee className="h-5 w-5 text-indigo-400" />
+          <Coffee className="h-5 w-5 text-brand" />
           <h1 className="text-base font-bold text-fg">{t.pos.title}</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -765,8 +765,8 @@ export function CafePosPage() {
               className={cn(
                 'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors',
                 aiCashierActive
-                  ? 'bg-indigo-600 text-white'
-                  : 'border border-indigo-400/40 text-indigo-400 hover:bg-indigo-400/10',
+                  ? 'bg-brand text-brand-fg'
+                  : 'border border-brand/40 text-brand hover:bg-brand/10',
               )}
             >
               <Bot className="h-4 w-4" />
@@ -798,7 +798,7 @@ export function CafePosPage() {
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-semibold transition-colors',
                     orderType === 'here'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-brand text-brand-fg'
                       : 'text-muted hover:bg-surface-2',
                   )}
                 >
@@ -809,7 +809,7 @@ export function CafePosPage() {
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-semibold transition-colors',
                     orderType === 'takeaway'
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-brand text-brand-fg'
                       : 'text-muted hover:bg-surface-2',
                   )}
                 >
@@ -824,8 +824,8 @@ export function CafePosPage() {
                   className={cn(
                     'w-full rounded-xl border-2 py-2 text-sm font-bold transition-colors',
                     tableNumber
-                      ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400'
-                      : 'border-dashed border-indigo-300 bg-indigo-50/50 text-indigo-500 hover:border-indigo-400',
+                      ? 'border-brand bg-brand-soft text-brand'
+                      : 'border-dashed border-brand/40 bg-brand-soft/60 text-brand hover:border-brand',
                   )}
                 >
                   {tableNumber ? `${t.pos.tableNumber} ${tableNumber} ✏️` : '+ اختر طاولة'}
@@ -840,8 +840,8 @@ export function CafePosPage() {
             >
               <p className="text-sm font-bold text-fg">
                 {t.pos.currentOrder}
-                {orderType === 'takeaway' && <span className="mr-1 text-blue-500">— {t.pos.takeaway}</span>}
-                {orderType === 'here' && tableNumber && <span className="mr-1 text-indigo-500">— {t.pos.tableNumber} {tableNumber}</span>}
+                {orderType === 'takeaway' && <span className="mr-1 text-info">— {t.pos.takeaway}</span>}
+                {orderType === 'here' && tableNumber && <span className="mr-1 text-brand">— {t.pos.tableNumber} {tableNumber}</span>}
               </p>
             </div>
 
@@ -903,16 +903,16 @@ export function CafePosPage() {
                         onKeyDown={(e) => e.key === 'Enter' && setEditingNoteId(null)}
                         autoFocus
                         placeholder="ملاحظة للمطبخ..."
-                        className="mt-1.5 w-full rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-400 dark:bg-indigo-900/20 dark:border-indigo-700"
+                        className="mt-1.5 w-full rounded-lg border border-brand/40 bg-brand-soft px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-brand/40"
                       />
                     ) : (
                       <button
                         onClick={() => setEditingNoteId(item.variantId)}
-                        className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-indigo-500 transition-colors"
+                        className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-brand transition-colors"
                       >
                         <MessageSquare className="h-3 w-3" />
                         {item.notes ? (
-                          <span className="font-medium text-indigo-600 dark:text-indigo-400">{item.notes}</span>
+                          <span className="font-medium text-brand">{item.notes}</span>
                         ) : 'إضافة ملاحظة'}
                       </button>
                     )}
@@ -1055,7 +1055,7 @@ export function CafePosPage() {
                 className={cn(
                   'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
                   selectedCategoryId === '__gaming__'
-                    ? 'bg-violet-600 text-white shadow-sm'
+                    ? 'bg-brand text-brand-fg shadow-sm'
                     : 'text-muted hover:text-fg hover:bg-surface-2',
                 )}
               >
@@ -1083,7 +1083,7 @@ export function CafePosPage() {
                           station.status === 'Available'
                             ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
                             : station.status === 'InUse'
-                            ? 'border-violet-300 bg-violet-50 dark:border-violet-700 dark:bg-violet-900/20'
+                            ? 'border-brand/40 bg-brand-soft'
                             : 'border-border bg-surface-2',
                         )}
                       >
@@ -1099,7 +1099,7 @@ export function CafePosPage() {
                             station.status === 'Available'
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                               : station.status === 'InUse'
-                              ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400'
+                              ? 'bg-brand-soft text-brand'
                               : 'bg-surface-2 text-muted',
                           )}>
                             {station.status === 'Available' ? 'متاح' : station.status === 'InUse' ? 'شاغل' : 'صيانة'}
@@ -1107,17 +1107,17 @@ export function CafePosPage() {
                         </div>
 
                         {/* Hourly rate */}
-                        <p className="mb-3 text-sm font-semibold text-violet-600 dark:text-violet-400">
+                        <p className="mb-3 text-sm font-semibold text-brand">
                           {formatCurrency(station.hourlyRate)} / ساعة
                         </p>
 
                         {/* Active session info */}
                         {station.status === 'InUse' && station.activeSession && (
-                          <div className="mb-3 rounded-lg bg-violet-100/60 p-2.5 dark:bg-violet-900/30">
-                            <p className="text-xs font-semibold text-violet-800 dark:text-violet-300">
+                          <div className="mb-3 rounded-lg bg-brand-soft/60 p-2.5">
+                            <p className="text-xs font-semibold text-brand">
                               👤 {station.activeSession.playerName}
                             </p>
-                            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-violet-700 dark:text-violet-400">
+                            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-brand">
                               <Clock className="h-3 w-3" />
                               <span className="font-mono tabular-nums font-bold">
                                 {formatElapsed(station.activeSession.startTime)}
@@ -1192,7 +1192,7 @@ export function CafePosPage() {
                           onClick={() =>
                             addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)
                           }
-                          className="group relative flex flex-col items-start overflow-hidden rounded-xl border border-border bg-surface p-3 text-right transition-all duration-200 hover:border-indigo-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                          className="group relative flex flex-col items-start overflow-hidden rounded-xl border border-border bg-surface p-3 text-right transition-all duration-200 hover:border-brand hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
                         >
                           <p className="text-sm font-semibold leading-snug text-fg">
                             {product.name}
@@ -1283,7 +1283,7 @@ export function CafePosPage() {
                   onChange={(e) => setStartSessionForm(f => f && { ...f, playerName: e.target.value })}
                   placeholder="أدخل اسم اللاعب"
                   autoFocus
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-300 text-fg"
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand/40 text-fg"
                 />
               </div>
               <div>
@@ -1296,7 +1296,7 @@ export function CafePosPage() {
                       className={cn(
                         'flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors',
                         startSessionForm.durationMinutes === m
-                          ? 'bg-violet-600 text-white'
+                          ? 'bg-brand text-brand-fg'
                           : 'border border-border text-muted hover:bg-surface-2',
                       )}
                     >
@@ -1310,7 +1310,7 @@ export function CafePosPage() {
                     min="1"
                     value={startSessionForm.durationMinutes}
                     onChange={(e) => setStartSessionForm(f => f && { ...f, durationMinutes: Math.max(1, parseInt(e.target.value) || 1) })}
-                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 text-fg"
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-brand text-fg"
                   />
                   <span className="shrink-0 text-xs text-muted">دقيقة</span>
                 </div>
@@ -1323,12 +1323,12 @@ export function CafePosPage() {
                   step="0.5"
                   value={startSessionForm.hourlyRate}
                   onChange={(e) => setStartSessionForm(f => f && { ...f, hourlyRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 text-fg"
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-brand text-fg"
                 />
               </div>
-              <div className="rounded-xl bg-violet-50 py-3 text-center dark:bg-violet-900/20">
+              <div className="rounded-xl bg-brand-soft py-3 text-center">
                 <p className="text-xs text-muted">الإجمالي المتوقع</p>
-                <p className="mt-0.5 text-2xl font-black tabular-nums text-violet-600 dark:text-violet-400">
+                <p className="mt-0.5 text-2xl font-black tabular-nums text-brand">
                   {formatCurrency((startSessionForm.durationMinutes / 60) * startSessionForm.hourlyRate)}
                 </p>
                 <p className="text-xs text-muted">
@@ -1340,7 +1340,7 @@ export function CafePosPage() {
               <button
                 onClick={() => startSessionMut.mutate(startSessionForm)}
                 disabled={startSessionMut.isPending || !startSessionForm.playerName.trim()}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-2.5 text-sm font-bold text-brand-fg hover:bg-brand/90 disabled:opacity-50 transition-colors"
               >
                 <Play className="h-4 w-4" />
                 {startSessionMut.isPending ? 'جارٍ البدء...' : 'ابدأ الجلسة'}
@@ -1397,9 +1397,9 @@ export function CafePosPage() {
                   <span className="tabular-nums text-fg">{formatCurrency(gamingBill.ratePerHour)}</span>
                 </div>
               </div>
-              <div className="mb-2 rounded-xl bg-violet-50 py-4 text-center dark:bg-violet-900/20">
+              <div className="mb-2 rounded-xl bg-brand-soft py-4 text-center">
                 <p className="text-xs text-muted">الإجمالي</p>
-                <p className="mt-1 text-3xl font-black tabular-nums text-violet-600 dark:text-violet-400">
+                <p className="mt-1 text-3xl font-black tabular-nums text-brand">
                   {formatCurrency(gamingBill.totalAmount)}
                 </p>
               </div>
@@ -1414,7 +1414,7 @@ export function CafePosPage() {
               </button>
               <button
                 onClick={() => setGamingBill(null)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition-colors"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-2.5 text-sm font-bold text-brand-fg hover:bg-brand/90 transition-colors"
               >
                 تم الدفع ✓
               </button>

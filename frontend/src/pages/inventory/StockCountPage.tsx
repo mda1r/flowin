@@ -15,7 +15,7 @@ import { useI18n } from '@/i18n'
 import type { StockCountType } from '@/types/api'
 
 const STATUS_STYLES: Record<string, string> = {
-  InProgress: 'bg-blue-50 text-blue-700',
+  InProgress: 'bg-info/10 text-info',
   Completed: 'bg-emerald-50 text-emerald-700',
   Cancelled: 'bg-surface-2 text-muted',
 }
