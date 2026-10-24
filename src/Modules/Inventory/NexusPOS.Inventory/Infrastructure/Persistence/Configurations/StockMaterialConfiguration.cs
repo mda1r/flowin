@@ -31,6 +31,7 @@ internal sealed class StockMaterialConfiguration : IEntityTypeConfiguration<Stoc
         builder.Property(m => m.UpdatedAt).HasColumnName("updated_at");
 
         builder.Ignore(m => m.IsLowStock);
+        builder.Ignore(m => m.CostPerComponentUnit);
 
         builder.HasIndex(m => new { m.TenantId, m.Code })
             .IsUnique()

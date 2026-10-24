@@ -48,5 +48,5 @@ internal sealed class CreateStockMaterialCommandHandler(InventoryDbContext db)
         new(m.Id, m.Code, m.NameAr, m.NameEn, m.CategoryId, categoryName,
             m.StorageUnit, m.ComponentUnit, m.ConversionFactor,
             m.CostMethod.ToString(), m.CurrentCost, m.CurrentQuantityInStorageUnits,
-            m.MinLevel, m.MaxLevel, m.ReorderLevel, m.IsActive, m.IsLowStock);
+            m.MinLevel, m.MaxLevel, m.ReorderLevel, m.IsActive, m.IsLowStock, m.CostPerComponentUnit);
 }

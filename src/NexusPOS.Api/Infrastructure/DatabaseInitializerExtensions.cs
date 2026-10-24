@@ -297,6 +297,22 @@ internal static class DatabaseInitializerExtensions
                 CONSTRAINT ix_stock_materials_tenant_code UNIQUE (tenant_id, code)
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS stock_material_movements (
+                id UUID PRIMARY KEY,
+                tenant_id UUID NOT NULL,
+                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE CASCADE,
+                type INT NOT NULL,
+                quantity_change NUMERIC(18,4) NOT NULL,
+                unit_cost NUMERIC(18,4),
+                quantity_after NUMERIC(18,4) NOT NULL,
+                cost_after NUMERIC(18,4) NOT NULL,
+                note VARCHAR(500),
+                user_id UUID,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS ix_stock_material_movements_material ON stock_material_movements (tenant_id, material_id, created_at)",
         ];
 
         foreach (string sql in patches)

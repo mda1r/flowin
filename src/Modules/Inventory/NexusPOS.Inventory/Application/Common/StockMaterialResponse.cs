@@ -17,4 +17,16 @@ public sealed record StockMaterialResponse(
     decimal? MaxLevel,
     decimal? ReorderLevel,
     bool IsActive,
-    bool IsLowStock);
+    bool IsLowStock,
+    decimal CostPerComponentUnit);
+
+public sealed record StockMaterialMovementResponse(
+    Guid Id,
+    string Type,
+    decimal QuantityChange,
+    decimal? UnitCost,
+    decimal QuantityAfter,
+    decimal CostAfter,
+    string? Note,
+    Guid? UserId,
+    DateTime CreatedAt);

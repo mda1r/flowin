@@ -13,4 +13,5 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<StockCountItem> StockCountItems => Set<StockCountItem>();
     public DbSet<StockMaterialCategory> StockMaterialCategories => Set<StockMaterialCategory>();
     public DbSet<StockMaterial> StockMaterials => Set<StockMaterial>();
+    public DbSet<StockMaterialMovement> StockMaterialMovements => Set<StockMaterialMovement>();
 }

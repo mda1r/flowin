@@ -101,6 +101,28 @@ public sealed class StockMaterial
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // CurrentCost is per storage unit; unitCost is the purchase price per storage unit.
+    public void Receive(decimal quantity, decimal unitCost)
+    {
+        if (quantity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Received quantity must be positive.");
+        }
+        if (unitCost < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(unitCost), "Unit cost cannot be negative.");
+        }
+
+        decimal onHand = Math.Max(CurrentQuantityInStorageUnits, 0m);
+        CurrentCost = CostMethod == CostMethod.WeightedAverage && onHand > 0
+            ? Math.Round(((onHand * CurrentCost) + (quantity * unitCost)) / (onHand + quantity), 4)
+            : unitCost;
+        CurrentQuantityInStorageUnits = onHand + quantity;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public decimal CostPerComponentUnit => ConversionFactor > 0 ? Math.Round(CurrentCost / ConversionFactor, 6) : 0m;
+
     public void UpdateCost(decimal newCost)
     {
         CurrentCost = newCost;

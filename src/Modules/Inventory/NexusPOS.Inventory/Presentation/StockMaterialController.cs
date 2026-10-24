@@ -7,6 +7,8 @@ using NexusPOS.Inventory.Application.Commands.CreateStockMaterial;
 using NexusPOS.Inventory.Application.Commands.CreateStockMaterialCategory;
 using NexusPOS.Inventory.Application.Commands.DeleteStockMaterial;
 using NexusPOS.Inventory.Application.Commands.DeleteStockMaterialCategory;
+using NexusPOS.Inventory.Application.Commands.ReceiveStockMaterial;
+using NexusPOS.Inventory.Application.Queries.ListStockMaterialMovements;
 using NexusPOS.Inventory.Application.Commands.UpdateStockMaterial;
 using NexusPOS.Inventory.Application.Commands.UpdateStockMaterialCategory;
 using NexusPOS.Inventory.Application.Common;
@@ -132,6 +134,30 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
                 request.MinLevel, request.MaxLevel, request.ReorderLevel),
             cancellationToken);
 
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpPost("{materialId:guid}/receive")]
+    [ProducesResponseType(typeof(StockMaterialResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReceiveMaterial(
+        Guid tenantId, Guid materialId,
+        [FromBody] ReceiveStockMaterialRequest request,
+        CancellationToken cancellationToken)
+    {
+        ErrorOr<StockMaterialResponse> result = await mediator.Send(
+            new ReceiveStockMaterialCommand(tenantId, materialId, request.Quantity, request.UnitCost, request.Note),
+            cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpGet("{materialId:guid}/movements")]
+    [ProducesResponseType(typeof(IReadOnlyList<StockMaterialMovementResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListMovements(
+        Guid tenantId, Guid materialId, CancellationToken cancellationToken)
+    {
+        ErrorOr<IReadOnlyList<StockMaterialMovementResponse>> result =
+            await mediator.Send(new ListStockMaterialMovementsQuery(tenantId, materialId), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
