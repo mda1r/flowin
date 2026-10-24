@@ -22,6 +22,8 @@ import { gamingApi } from '@/api/gaming'
 import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
+import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
+import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -341,7 +343,9 @@ function CustomerReceiptModal({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function CafePosPage() {
-  const { branchId, tenantId } = useAuthStore()
+  const { branchId, tenantId, user } = useAuthStore()
+  const isGamingLounge = user?.businessType === 'Gaming'
+  const [gamingAlertCounts, setGamingAlertCounts] = useState({ expired: 0, warning: 0 })
   const { t } = useI18n()
   const { shift } = useShift()
 
@@ -425,8 +429,9 @@ export function CafePosPage() {
   const { data: stationsData, refetch: refetchStations } = useQuery({
     queryKey: ['gaming-stations-cafe', branchId],
     queryFn: () => gamingApi.listStations(branchId!),
-    enabled: !!branchId && selectedCategoryId === '__gaming__',
-    refetchInterval: selectedCategoryId === '__gaming__' ? 15_000 : false,
+    // Gaming lounges poll on every tab so time-up alerts reach the cashier while selling drinks.
+    enabled: !!branchId && (isGamingLounge || selectedCategoryId === '__gaming__'),
+    refetchInterval: selectedCategoryId === '__gaming__' ? 15_000 : isGamingLounge ? 30_000 : false,
   })
   const stations: GameStationResponse[] = Array.isArray(stationsData?.data)
     ? (stationsData!.data as GameStationResponse[])
@@ -456,6 +461,10 @@ export function CafePosPage() {
     }
     return m
   })()
+
+  useEffect(() => {
+    if (isGamingLounge) requestNotificationPermission()
+  }, [isGamingLounge])
 
   // Timer: update every second only while gaming tab is open
   useEffect(() => {
@@ -1122,8 +1131,26 @@ export function CafePosPage() {
               >
                 <Gamepad2 className="h-3.5 w-3.5" />
                 الألعاب
+                {gamingAlertCounts.expired > 0 ? (
+                  <span className="rounded-full bg-danger px-1.5 text-[11px] font-bold leading-5 text-white tabular-nums" aria-label={`${gamingAlertCounts.expired} جلسة انتهى وقتها`}>
+                    {gamingAlertCounts.expired}
+                  </span>
+                ) : gamingAlertCounts.warning > 0 ? (
+                  <span className="rounded-full bg-warning px-1.5 text-[11px] font-bold leading-5 text-white tabular-nums" aria-label={`${gamingAlertCounts.warning} جلسة قاربت على الانتهاء`}>
+                    {gamingAlertCounts.warning}
+                  </span>
+                ) : null}
               </button>
             </div>
+
+            {isGamingLounge && (
+              <GamingTimeAlerts
+                stations={stations}
+                onCountsChange={setGamingAlertCounts}
+                onOpenGaming={() => setSelectedCategoryId('__gaming__')}
+                showBanner={selectedCategoryId !== '__gaming__'}
+              />
+            )}
 
             {/* Gaming stations panel */}
             {selectedCategoryId === '__gaming__' && (
@@ -1173,6 +1200,21 @@ export function CafePosPage() {
                         </p>
 
                         {/* Active session info */}
+                        {station.status === 'InUse' && station.activeSession && (() => {
+                          const left = sessionSecondsLeft(station.activeSession, gamingNow)
+                          if (left === null) return null
+                          return (
+                            <div
+                              className={cn(
+                                'mb-2 flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-bold',
+                                left <= 0 ? 'bg-danger/15 text-danger' : left <= WARNING_SECONDS ? 'bg-warning/15 text-warning' : 'bg-surface text-muted',
+                              )}
+                            >
+                              <span>{left <= 0 ? 'انتهى الوقت' : 'المتبقي'}</span>
+                              <span className="font-mono tabular-nums">{left <= 0 ? '+' : ''}{formatClock(left)}</span>
+                            </div>
+                          )
+                        })()}
                         {station.status === 'InUse' && station.activeSession && (
                           <div className="mb-3 rounded-lg bg-brand-soft/60 p-2.5">
                             <p className="text-xs font-semibold text-brand">

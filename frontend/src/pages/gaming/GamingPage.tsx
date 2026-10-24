@@ -16,40 +16,7 @@ import type {
   StationType,
 } from '@/types/api'
 import { useI18n } from '@/i18n'
-
-// ── Audio & Notifications ────────────────────────────────────────────────────
-
-function playBeep(frequency = 880, duration = 0.35) {
-  try {
-    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new AudioCtx()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = frequency
-    osc.type = 'sine'
-    gain.gain.setValueAtTime(0.4, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
-    osc.start()
-    osc.stop(ctx.currentTime + duration)
-    setTimeout(() => ctx.close(), (duration + 0.1) * 1000)
-  } catch {
-    /* silently fail */
-  }
-}
-
-function playAlarmSequence() {
-  playBeep(880, 0.3)
-  setTimeout(() => playBeep(880, 0.3), 400)
-  setTimeout(() => playBeep(1320, 0.4), 800)
-}
-
-function sendGameNotification(title: string, body: string) {
-  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    void new Notification(title, { body, tag: 'gaming-time-up' })
-  }
-}
+import { playAlarmSequence, playBeep, requestNotificationPermission, sendGameNotification } from '@/lib/gamingAlerts'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -103,9 +70,7 @@ export function GamingPage() {
 
   // Request notification permission once on mount
   useEffect(() => {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      void Notification.requestPermission()
-    }
+    requestNotificationPermission()
   }, [])
 
   // ── Modal state ──────────────────────────────────────────────────────────
