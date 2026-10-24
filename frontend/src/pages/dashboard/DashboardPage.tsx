@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
+import { stockMaterialApi } from '@/api/stockMaterial'
+import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import {
   TrendingUp,
   ShoppingCart,
@@ -27,6 +29,7 @@ import {
   ShoppingBag,
   BarChart2,
   Receipt,
+  FlaskConical,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
@@ -597,6 +600,15 @@ export function DashboardPage() {
     refetchInterval: 300_000,
   })
 
+  const usesMaterials = !!businessType && (BUSINESS_TYPE_ROUTES[businessType] ?? []).includes('/stock-materials')
+  const { data: lowMaterialsData } = useQuery({
+    queryKey: ['stock-materials', tenantId, 'dashboard-low'],
+    queryFn: () => stockMaterialApi.listMaterials(tenantId!, { lowStockOnly: true }),
+    enabled: !!tenantId && usesMaterials,
+    refetchInterval: 300_000,
+  })
+  const lowMaterials = lowMaterialsData?.data ?? []
+
   const { data: productsData } = useQuery({
     queryKey: ['products-map', tenantId],
     queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 500 }),
@@ -639,7 +651,9 @@ export function DashboardPage() {
 
   const nearExpiryCount = (alerts?.expired.length ?? 0) + (alerts?.expiringSoon.length ?? 0)
   const lowStockCount = alerts?.lowStock.length ?? 0
-  const hasAlerts = nearExpiryCount > 0 || lowStockCount > 0
+  const lowMaterialsCount = lowMaterials.length
+  const hasAlerts = nearExpiryCount > 0 || lowStockCount > 0 || lowMaterialsCount > 0
+  const alertsHref = nearExpiryCount + lowStockCount === 0 && lowMaterialsCount > 0 ? '/stock-materials?lowStock=1' : '/inventory'
 
   /* ── the moment: witnessed 0 → 1+ transition, once per day ── */
   const [celebration, setCelebration] = useState<{ amount: number } | null>(null)
@@ -800,12 +814,12 @@ export function DashboardPage() {
                 </div>
                 {hasAlerts && (
                   <a
-                    href="/inventory"
+                    href={alertsHref}
                     className="rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 backdrop-blur-sm transition-colors hover:bg-white/30"
                   >
                     <p className="text-xs font-medium text-white/70">{t.dashboard.inventoryAlerts}</p>
                     <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
-                      {nearExpiryCount + lowStockCount}
+                      {nearExpiryCount + lowStockCount + lowMaterialsCount}
                     </p>
                   </a>
                 )}
@@ -972,7 +986,7 @@ export function DashboardPage() {
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
                   <h2 className="text-sm font-semibold text-fg">{t.dashboard.inventoryAlerts}</h2>
                 </div>
-                <a href="/inventory" className="text-xs text-info hover:underline">
+                <a href={alertsHref} className="text-xs text-info hover:underline">
                   {t.dashboard.viewAll}
                 </a>
               </div>
@@ -1043,6 +1057,36 @@ export function DashboardPage() {
                     </span>
                   </a>
                 ))}
+                {lowMaterials.slice(0, 3).map((m) => (
+                  <a
+                    key={m.id}
+                    href="/stock-materials?lowStock=1"
+                    className="row-hover flex items-center justify-between px-6 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-warning/15">
+                        <FlaskConical className="h-4 w-4 text-warning" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-fg">{m.nameAr}</p>
+                        <p className="text-xs text-muted">
+                          <span className={m.currentQuantityInStorageUnits < 0 ? 'text-danger' : undefined}>
+                            {m.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {m.storageUnit}
+                          </span>
+                          {m.reorderLevel != null && ` · حد الطلب ${m.reorderLevel.toLocaleString('ar-SA')}`}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
+                      {m.currentQuantityInStorageUnits <= 0 ? 'نفدت المادة' : 'مادة خام منخفضة'}
+                    </span>
+                  </a>
+                ))}
+                {lowMaterialsCount > 3 && (
+                  <a href="/stock-materials?lowStock=1" className="row-hover block px-6 py-2.5 text-center text-xs font-medium text-info">
+                    و{(lowMaterialsCount - 3).toLocaleString('ar-SA')} مواد أخرى تحت حد الطلب
+                  </a>
+                )}
               </div>
             </Card>
           </div>

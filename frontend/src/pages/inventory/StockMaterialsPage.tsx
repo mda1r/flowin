@@ -452,7 +452,7 @@ export function StockMaterialsPage() {
   const qc = useQueryClient()
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [lowStockOnly, setLowStockOnly] = useState(false)
+  const [lowStockOnly, setLowStockOnly] = useState(() => new URLSearchParams(window.location.search).get('lowStock') === '1')
   const [showAddMat, setShowAddMat] = useState(false)
   const [editMat, setEditMat] = useState<StockMaterialResponse | null>(null)
   const [deleteMat, setDeleteMat] = useState<StockMaterialResponse | null>(null)
