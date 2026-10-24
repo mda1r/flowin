@@ -29,7 +29,7 @@ const ROLE_COLORS: Record<string, string> = {
   Manager:    'bg-blue-100 text-blue-700',
   Cashier:    'bg-emerald-100 text-emerald-700',
   Accountant: 'bg-amber-100 text-amber-700',
-  Staff:      'bg-gray-100 text-gray-600',
+  Staff:      'bg-surface-2 text-muted',
 }
 
 // All possible pages with Arabic labels
@@ -76,7 +76,7 @@ function RoleBadge({ roles }: { roles: string[] }) {
   const top = ['Owner', 'Manager', 'Cashier', 'Accountant', 'Staff'].find((r) => roles.includes(r)) ?? roles[0]
   if (!top) return null
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_COLORS[top] ?? 'bg-gray-100 text-gray-600'}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_COLORS[top] ?? 'bg-surface-2 text-muted'}`}>
       {roleLabels[top] ?? top}
     </span>
   )
@@ -93,9 +93,9 @@ function PermissionChip({ user: u, onClick }: { user: UserSummaryResponse; onCli
     <button
       onClick={onClick}
       title="تعديل الصفحات المسموح بها"
-      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-300 transition-colors"
+      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted hover:bg-surface-2 hover:text-fg transition-colors"
     >
-      <ShieldCheck className={`h-3.5 w-3.5 ${hasCustom ? 'text-emerald-500' : 'text-gray-300'}`} />
+      <ShieldCheck className={`h-3.5 w-3.5 ${hasCustom ? 'text-emerald-500' : 'text-muted/50'}`} />
       {hasCustom ? t.users.xPages.replace('{n}', String(perms!.length)) : t.users.allPages}
     </button>
   )
@@ -165,25 +165,25 @@ function PagePermModal({
       }
     >
       <div dir="rtl" className="space-y-3">
-        <p className="text-xs text-gray-500">{t.users.selectPages}</p>
+        <p className="text-xs text-muted">{t.users.selectPages}</p>
         <div className="flex gap-2 text-xs">
-          <button onClick={selectAll} className="text-[var(--accent)] hover:underline">{t.users.selectAll}</button>
-          <span className="text-gray-200">·</span>
-          <button onClick={clearAll} className="text-gray-400 hover:underline">إلغاء الكل</button>
+          <button onClick={selectAll} className="text-brand hover:underline">{t.users.selectAll}</button>
+          <span className="text-muted/50">·</span>
+          <button onClick={clearAll} className="text-muted hover:underline">إلغاء الكل</button>
         </div>
         <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
           {availablePages.map((p) => (
             <label
               key={p.route}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition-colors"
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface-2 transition-colors"
             >
               <input
                 type="checkbox"
                 checked={selected.has(p.route)}
                 onChange={() => toggle(p.route)}
-                className="accent-[var(--accent)]"
+                className="accent-[rgb(var(--brand))]"
               />
-              <span className="text-gray-800 dark:text-gray-200">{p.label}</span>
+              <span className="text-fg">{p.label}</span>
             </label>
           ))}
         </div>
@@ -279,11 +279,11 @@ export function UsersPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
             <Users className="h-6 w-6" style={{ color: 'var(--accent)' }} />
             {t.users.title}
           </h1>
-          <p className="mt-1 text-gray-500">{t.users.xUsers.replace('{n}', String(users.length))}</p>
+          <p className="mt-1 text-muted">{t.users.xUsers.replace('{n}', String(users.length))}</p>
         </div>
         {canManage && (
           <button
@@ -297,54 +297,53 @@ export function UsersPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <table className="w-full text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+          <thead className="border-b border-border bg-surface-2">
             <tr>
               {[t.users.name, t.users.email, t.users.role, t.users.pages, t.users.lastLogin, canManage ? t.common.delete : ''].filter(Boolean).map((h) => (
-                <th key={h} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
+                <th key={h} className="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="divide-y divide-border">
             {isLoading
               ? Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className="px-4 py-4">
-                        <div className="h-4 rounded bg-gray-200 animate-pulse dark:bg-gray-700" />
+                        <div className="h-4 rounded bg-border animate-pulse" />
                       </td>
                     ))}
                   </tr>
                 ))
               : users.map((u) => (
-                  <tr key={u.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors ${!u.isActive ? 'opacity-50' : ''}`}>
+                  <tr key={u.id} className={`hover:bg-surface-2 transition-colors ${!u.isActive ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white"
-                          style={{ background: 'var(--accent)' }}
+                          className="bg-brand flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-brand-fg"
                         >
                           {u.firstName[0]}
                         </div>
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{u.fullName}</span>
+                        <span className="font-medium text-fg">{u.fullName}</span>
                         {u.id === currentUser?.id && (
-                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700">{t.users.you}</span>
+                          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">{t.users.you}</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{u.email}</td>
+                    <td className="px-4 py-3 text-muted">{u.email}</td>
                     <td className="px-4 py-3"><RoleBadge roles={u.roles} /></td>
                     <td className="px-4 py-3">
                       {canManage && u.id !== currentUser?.id ? (
                         <PermissionChip user={u} onClick={() => setPermTarget(u)} />
                       ) : (
-                        <span className="text-xs text-gray-300">—</span>
+                        <span className="text-xs text-muted/50">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
+                    <td className="px-4 py-3 text-muted text-xs">
                       {u.lastLoginAt
                         ? new Date(u.lastLoginAt).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')
                         : t.users.never}
@@ -354,7 +353,7 @@ export function UsersPage() {
                         {u.id !== currentUser?.id && (
                           <button
                             onClick={() => setDeleteTarget(u)}
-                            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors dark:hover:bg-red-900/20"
+                            className="rounded-lg p-1.5 text-muted hover:bg-red-50 hover:text-red-500 transition-colors dark:hover:bg-red-900/20"
                             title={t.common.delete}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -367,7 +366,7 @@ export function UsersPage() {
           </tbody>
         </table>
         {!isLoading && users.length === 0 && (
-          <div className="py-16 text-center text-gray-400">{t.users.noUsers}</div>
+          <div className="py-16 text-center text-muted">{t.users.noUsers}</div>
         )}
       </div>
 
@@ -398,7 +397,7 @@ export function UsersPage() {
                 <option key={val} value={val}>{label}</option>
               ))}
             </Select>
-            <p className="text-xs text-gray-400">{t.users.afterCreation}</p>
+            <p className="text-xs text-muted">{t.users.afterCreation}</p>
           </form>
         </Modal>
       )}
@@ -422,10 +421,10 @@ export function UsersPage() {
             </>
           }
         >
-          <p className="text-gray-600 text-sm text-right" dir="rtl">
-            {t.users.confirmDeleteMessage} <span className="font-semibold text-gray-900">{deleteTarget.fullName}</span>؟
+          <p className="text-muted text-sm text-right" dir="rtl">
+            {t.users.confirmDeleteMessage} <span className="font-semibold text-fg">{deleteTarget.fullName}</span>؟
             <br />
-            <span className="text-gray-400">{deleteTarget.email}</span>
+            <span className="text-muted">{deleteTarget.email}</span>
           </p>
         </Modal>
       )}

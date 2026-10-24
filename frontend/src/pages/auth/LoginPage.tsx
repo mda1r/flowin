@@ -326,7 +326,7 @@ export function LoginPage() {
           <h1 className="logo-3d entrance-2 select-none text-4xl font-extrabold tracking-tight">
             flowin
           </h1>
-          <p className="entrance-2 mt-2 text-sm text-gray-500">{t.login.subtitle}</p>
+          <p className="entrance-2 mt-2 text-sm text-muted">{t.login.subtitle}</p>
 
           {theme && (
             <span className="biz-badge entrance-3 mt-3">
@@ -368,7 +368,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute end-3 top-4 h-4 w-4 text-gray-400 transition-colors hover:text-gray-600"
+                className="absolute end-3 top-4 h-4 w-4 text-muted transition-colors hover:text-fg"
                 aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               >
                 <Eye
@@ -390,7 +390,7 @@ export function LoginPage() {
                 variant="primary"
                 loading={loading}
                 disabled={phase !== 'idle'}
-                className={`btn-3d btn-shimmer mt-3 w-full !bg-[color:var(--accent)] py-2.5 text-base hover:!bg-[color:var(--accent)]${
+                className={`btn-3d btn-shimmer mt-3 w-full py-2.5 text-base${
                   loading ? ' btn-shimmer-loading' : ''
                 }`}
               >
@@ -400,7 +400,7 @@ export function LoginPage() {
           </form>
         </div>
 
-        <p className="entrance-5 mt-6 text-center text-xs text-gray-400">
+        <p className="entrance-5 mt-6 text-center text-xs text-muted">
           © 2026 flowin · الإصدار المؤسسي
         </p>
       </div>

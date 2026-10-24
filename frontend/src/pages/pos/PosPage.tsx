@@ -39,8 +39,8 @@ export function POSPage() {
 
 /* indigo retail accent scoped to this page */
 const RETAIL_ACCENT: React.CSSProperties = {
-  '--accent': '#4F46E5',
-  '--glow': 'rgba(79,70,229,0.4)',
+  '--accent-l': '#4F46E5',
+  '--accent-d': '#A5B4FC',
 } as React.CSSProperties
 
 type PayMode = 'Cash' | 'Card' | 'Split'
@@ -223,7 +223,7 @@ function RetailPosPage() {
             <div
               className={cn(
                 'card-3d flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all',
-                lastScanned ? 'animate-glow-pulse' : 'text-gray-500 dark:text-gray-400',
+                lastScanned ? 'animate-glow-pulse' : 'text-muted',
               )}
               style={lastScanned ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
             >
@@ -240,7 +240,7 @@ function RetailPosPage() {
           <div className="p-4">
             {/* inset 3D search with scan-beam on barcode hit */}
             <div className="relative overflow-hidden rounded-xl">
-              <Search className="absolute start-3 top-2.5 z-10 h-4 w-4 text-gray-400" />
+              <Search className="absolute start-3 top-2.5 z-10 h-4 w-4 text-muted" />
               <input
                 type="text"
                 placeholder={t.pos.searchProducts}
@@ -292,12 +292,12 @@ function RetailPosPage() {
         {/* Cart — raised 3D panel */}
         <div className="glass-panel z-10 flex w-80 animate-float-up flex-col rounded-none border-y-0 border-e-0">
           <div className="border-b px-4 py-3" style={{ borderColor: 'var(--card-border)' }}>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{t.pos.currentOrder}</h2>
+            <h2 className="font-semibold text-fg">{t.pos.currentOrder}</h2>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {lines.length === 0 ? (
-              <p className="mt-16 text-center text-sm text-gray-400">
+              <p className="mt-16 text-center text-sm text-muted">
                 {t.pos.addProducts}
               </p>
             ) : (
@@ -306,17 +306,17 @@ function RetailPosPage() {
                   <li key={line.variantId} className="card-3d animate-float-up p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <p className="truncate text-sm font-medium text-fg">
                           {line.productName}
                         </p>
-                        <p className="text-xs text-gray-500">{line.variantName}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted">{line.variantName}</p>
+                        <p className="text-xs text-muted">
                           {formatCurrency(line.unitPrice)} {t.pos.each}
                         </p>
                       </div>
                       <button
                         onClick={() => removeLine(line.variantId)}
-                        className="shrink-0 text-gray-300 transition-colors hover:text-red-500"
+                        className="shrink-0 text-muted/50 transition-colors hover:text-red-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -325,7 +325,7 @@ function RetailPosPage() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => updateQuantity(line.variantId, line.quantity - 1)}
-                          className="card-3d card-3d-lift flex h-6 w-6 items-center justify-center !rounded-md text-gray-600 dark:text-gray-400"
+                          className="card-3d card-3d-lift flex h-6 w-6 items-center justify-center !rounded-md text-muted"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
@@ -338,12 +338,12 @@ function RetailPosPage() {
                             }
                             updateQuantity(line.variantId, line.quantity + 1)
                           }}
-                          className="card-3d card-3d-lift flex h-6 w-6 items-center justify-center !rounded-md text-gray-600 dark:text-gray-400"
+                          className="card-3d card-3d-lift flex h-6 w-6 items-center justify-center !rounded-md text-muted"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <span className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                      <span className="text-sm font-semibold tabular-nums text-fg">
                         {formatCurrency(line.unitPrice * line.quantity)}
                       </span>
                     </div>
@@ -356,18 +356,18 @@ function RetailPosPage() {
           {/* Totals + Checkout */}
           <div className="border-t p-4" style={{ borderColor: 'var(--card-border)' }}>
             <div className="mb-2 space-y-1 text-sm">
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between text-muted">
                 <span>{t.pos.subtotal}</span>
                 <span className="tabular-nums">{formatCurrency(preTaxAmount)}</span>
               </div>
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between text-muted">
                 <span>{t.pos.tax}</span>
                 <span className="tabular-nums">{formatCurrency(extractedTax)}</span>
               </div>
             </div>
             <div className="mb-4 flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--card-border)' }}>
-              <span className="font-medium text-gray-700 dark:text-gray-300">{t.pos.total}</span>
-              <span className="text-emboss text-xl font-bold text-gray-900 dark:text-gray-100">
+              <span className="font-medium text-fg">{t.pos.total}</span>
+              <span className="text-emboss text-xl font-bold text-fg">
                 {formatCurrency(grossTotal)}
               </span>
             </div>
@@ -411,7 +411,7 @@ function RetailPosPage() {
               size="sm"
               onClick={() => { setShowPayment(true); setAmountTendered('') }}
               disabled={lines.length === 0}
-              className="btn-3d w-full !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
+              className="btn-3d w-full"
             >
               {t.pos.payment}
             </Button>
@@ -427,11 +427,11 @@ function RetailPosPage() {
           <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
             <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
             <div className="mb-4 space-y-1 text-sm">
-              <div className="flex justify-between text-gray-500">
+              <div className="flex justify-between text-muted">
                 <span>{t.pos.subtotal}</span>
                 <span>{formatCurrency(preTaxAmount)}</span>
               </div>
-              <div className="flex justify-between text-gray-500">
+              <div className="flex justify-between text-muted">
                 <span>{t.pos.tax}</span>
                 <span>{formatCurrency(extractedTax)}</span>
               </div>
@@ -443,14 +443,14 @@ function RetailPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 18px var(--glow)',
               }}
             >
-              <p className="text-sm text-gray-500">{t.pos.amountDue}</p>
+              <p className="text-sm text-muted">{t.pos.amountDue}</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>
                 {formatCurrency(grossTotal)}
               </p>
             </div>
 
             {/* Payment mode selector */}
-            <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t.pos.paymentMethod}</p>
+            <p className="mb-3 text-sm font-medium text-fg">{t.pos.paymentMethod}</p>
             <div className="mb-4 grid grid-cols-3 gap-2">
               {([
                 { mode: 'Cash',  icon: <Banknote className="h-4 w-4" />,   label: t.pos.cash    },
@@ -462,7 +462,7 @@ function RetailPosPage() {
                   onClick={() => { setPayMode(mode); setAmountTendered(''); setSplitCash(''); setSplitCard('') }}
                   className={cn(
                     'card-3d flex flex-col items-center gap-1 p-3 text-xs font-medium transition-all',
-                    payMode === mode ? 'neon-border' : 'card-3d-lift text-gray-600 dark:text-gray-400',
+                    payMode === mode ? 'neon-border' : 'card-3d-lift text-muted',
                   )}
                   style={payMode === mode ? { color: 'var(--accent)' } : undefined}
                 >
@@ -475,7 +475,7 @@ function RetailPosPage() {
             {/* Cash input */}
             {payMode === 'Cash' && (
               <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-1 block text-sm font-medium text-fg">
                   {t.pos.tendered}
                 </label>
                 <input
@@ -504,12 +504,12 @@ function RetailPosPage() {
               const splitOk = cashNum > 0 && cardNum > 0 && diff < 0.01
               return (
                 <div className="mb-4 space-y-3 rounded-xl border border-dashed p-3" style={{ borderColor: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 6%, transparent)' }}>
-                  <p className="text-center text-xs font-semibold text-gray-500">
+                  <p className="text-center text-xs font-semibold text-muted">
                     الإجمالي: {formatCurrency(grossTotal)}
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{t.pos.splitCash}</label>
+                      <label className="mb-1 block text-xs font-medium text-muted">{t.pos.splitCash}</label>
                       <input
                         type="number"
                         min="0"
@@ -527,7 +527,7 @@ function RetailPosPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{t.pos.splitCard}</label>
+                      <label className="mb-1 block text-xs font-medium text-muted">{t.pos.splitCard}</label>
                       <input
                         type="number"
                         min="0"
@@ -572,7 +572,7 @@ function RetailPosPage() {
                     return !(c > 0 && k > 0 && Math.abs(c + k - grossTotal) < 0.01)
                   })())
                 }
-                className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
+                className="btn-3d flex-1"
               >
                 {t.pos.confirmPayment}
               </Button>
@@ -587,37 +587,36 @@ function RetailPosPage() {
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowHeld(false)} />
           <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-5" dir="rtl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900 dark:text-gray-100">{t.pos.heldOrders}</h2>
-              <button onClick={() => setShowHeld(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="font-semibold text-fg">{t.pos.heldOrders}</h2>
+              <button onClick={() => setShowHeld(false)} className="text-muted hover:text-fg">
                 <X className="h-5 w-5" />
               </button>
             </div>
             {heldCarts.length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-400">{t.pos.noHeldOrders}</p>
+              <p className="py-8 text-center text-sm text-muted">{t.pos.noHeldOrders}</p>
             ) : (
               <ul className="space-y-2 max-h-80 overflow-y-auto">
                 {heldCarts.map((cart) => (
                   <li key={cart.id} className="card-3d flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                        <span className="text-xs text-gray-500">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-muted" />
+                        <span className="text-xs text-muted">
                           {new Date(cart.heldAt).toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <p className="mt-0.5 text-sm font-medium text-fg">
                         {cart.lines.length} منتج · {formatCurrency(
                           cart.lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)
                         )}
                       </p>
-                      <p className="truncate text-xs text-gray-400">
+                      <p className="truncate text-xs text-muted">
                         {cart.lines.map((l) => l.productName).join('، ')}
                       </p>
                     </div>
                     <button
                       onClick={() => handleRestore(cart.id)}
-                      className="shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold"
-                      style={{ background: 'var(--accent)', color: '#fff' }}
+                      className="bg-brand shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold text-brand-fg"
                     >
                       {t.pos.resumeOrder}
                     </button>
@@ -677,10 +676,10 @@ function ProductCard({
       >
         {product.name[0]}
       </div>
-      <p className="line-clamp-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+      <p className="line-clamp-2 text-sm font-medium text-fg">
         {product.name}
       </p>
-      <p className="mt-0.5 text-xs text-gray-400">{variant.name}</p>
+      <p className="mt-0.5 text-xs text-muted">{variant.name}</p>
       <div className="mt-auto flex w-full items-center justify-between pt-2">
         <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>
           {formatCurrency(variant.salePrice)}
@@ -692,7 +691,7 @@ function ProductCard({
               ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
               : stockQty <= 5
               ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-800',
+              : 'bg-surface-2 text-muted',
           )}>
             {outOfStock ? 'نفد' : stockQty}
           </span>
@@ -729,16 +728,16 @@ function ZatcaReceiptModal({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
         <div className="mb-4 text-center">
-          <h2 className="text-emboss text-lg font-bold text-gray-900 dark:text-gray-100">فاتورة ضريبية</h2>
+          <h2 className="text-emboss text-lg font-bold text-fg">فاتورة ضريبية</h2>
           {(zatcaSettings?.data?.sellerName) && (
             <p className="logo-3d mt-1 text-sm font-bold">{zatcaSettings.data.sellerName}</p>
           )}
-          {vatNumber && <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
+          {vatNumber && <p className="text-xs text-muted">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
 
         <div className="mb-4 space-y-2 text-sm">
           {order.lines.map((line) => (
-            <div key={line.id} className="flex justify-between text-gray-700 dark:text-gray-300">
+            <div key={line.id} className="flex justify-between text-fg">
               <span className="flex-1 truncate">
                 {line.productName} × {line.quantity}
               </span>
@@ -748,22 +747,22 @@ function ZatcaReceiptModal({
         </div>
 
         <div className="mb-4 space-y-1 border-t pt-3 text-sm" style={{ borderColor: 'var(--card-border)' }}>
-          <div className="flex justify-between text-gray-600 dark:text-gray-400">
+          <div className="flex justify-between text-muted">
             <span>المجموع قبل الضريبة</span>
             <span className="tabular-nums">{formatCurrency(order.subtotalAmount)}</span>
           </div>
-          <div className="flex justify-between text-gray-600 dark:text-gray-400">
+          <div className="flex justify-between text-muted">
             <span>ضريبة القيمة المضافة 15%</span>
             <span className="tabular-nums">{formatCurrency(order.taxAmount)}</span>
           </div>
-          <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100">
+          <div className="flex justify-between font-bold text-fg">
             <span>الإجمالي</span>
             <span className="tabular-nums">{formatCurrency(order.totalAmount)}</span>
           </div>
         </div>
 
         {/* Payment method */}
-        <div className="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500 dark:bg-gray-800">
+        <div className="mb-3 rounded-lg bg-surface-2 px-3 py-2 text-center text-xs text-muted">
           {order.paymentMethod === 'Cash' ? 'نقداً' :
            order.paymentMethod === 'Card' ? 'بطاقة' :
            order.paymentMethod === 'Split' ? 'تقسيم (نقد + بطاقة)' :
@@ -775,8 +774,8 @@ function ZatcaReceiptModal({
 
         {/* ZATCA QR Code */}
         <div className="card-3d mb-4 flex flex-col items-center gap-2 p-4">
-          <QrCode className="h-5 w-5 text-gray-500" />
-          <p className="text-xs text-gray-500">رمز ZATCA للتحقق</p>
+          <QrCode className="h-5 w-5 text-muted" />
+          <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrCode)}`}
             alt="رمز ZATCA للتحقق"
@@ -787,7 +786,7 @@ function ZatcaReceiptModal({
               const target = e.currentTarget
               target.style.display = 'none'
               const fallback = document.createElement('div')
-              fallback.className = 'text-xs text-gray-400 text-center'
+              fallback.className = 'text-xs text-muted text-center'
               fallback.textContent = qrCode.slice(0, 20) + '...'
               target.parentNode?.appendChild(fallback)
             }}
@@ -801,7 +800,7 @@ function ZatcaReceiptModal({
           <Button
             variant="primary"
             onClick={() => window.print()}
-            className="btn-3d flex-1 !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
+            className="btn-3d flex-1"
           >
             طباعة
           </Button>

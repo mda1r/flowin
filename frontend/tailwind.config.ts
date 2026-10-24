@@ -1,65 +1,84 @@
 import type { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
 
+const token = (name: string) => `rgb(var(--${name}) / <alpha-value>)`
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
-  darkMode: 'class',
+  darkMode: ['variant', ['&:is(.dark *)', '&:is([data-theme="dark"] *)']],
   theme: {
     extend: {
       colors: {
+        bg: token('bg'),
+        surface: { DEFAULT: token('surface'), 2: token('surface-2') },
+        border: token('border'),
+        fg: token('fg'),
+        muted: token('muted'),
         brand: {
-          50:  '#f0fdf9',
-          100: '#ccfbef',
-          200: '#99f6e0',
-          300: '#5eead4',
-          400: '#62E6C7',
-          500: '#2dd4bf',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e',
+          DEFAULT: token('brand'),
+          soft: token('brand-soft'),
+          fg: token('brand-fg'),
         },
-        graphite: '#23262D',
-        'soft-white': '#F7F7F5',
-        mint: '#62E6C7',
+        success: token('success'),
+        warning: token('warning'),
+        danger: token('danger'),
+        info: token('info'),
+        accent: 'var(--accent)',
+      },
+      borderColor: {
+        DEFAULT: token('border'),
       },
       fontFamily: {
-        sans: ['Urbanist', 'Segoe UI', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['Cascadia Mono', 'Consolas', 'ui-monospace', 'monospace'],
+        sans: ['IBM Plex Sans Arabic', 'Segoe UI', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'Cascadia Mono', 'Consolas', 'ui-monospace', 'monospace'],
       },
-      transitionTimingFunction: {
-        spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      fontSize: {
+        '2xs': ['12px', '16px'],
+        '13': ['13px', '20px'],
       },
-      transitionDuration: {
-        spring: '250ms',
+      borderRadius: {
+        sm: '6px',
+        DEFAULT: '6px',
+        md: '8px',
+        lg: '10px',
+        xl: '14px',
+        '2xl': '20px',
       },
       boxShadow: {
-        '3d-sm':
-          '0 1px 0 rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.22)',
-        '3d':
-          '0 1px 0 rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.28), 0 16px 48px rgba(0,0,0,0.18)',
-        '3d-lg':
-          '0 1px 0 rgba(255,255,255,0.08) inset, 0 0 0 1px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.32), 0 32px 80px rgba(0,0,0,0.26)',
-        'glow-accent': '0 0 24px var(--glow), 0 8px 32px rgba(0,0,0,0.25)',
+        sm: 'var(--shadow-sm)',
+        DEFAULT: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        xl: 'var(--shadow-lg)',
+        '2xl': 'var(--shadow-lg)',
+        '3d-sm': 'var(--shadow-sm)',
+        '3d': 'var(--shadow-md)',
+        '3d-lg': 'var(--shadow-lg)',
+        'glow-accent': 'var(--shadow-md)',
+      },
+      transitionTimingFunction: {
+        spring: 'cubic-bezier(0.2, 0, 0, 1)',
+      },
+      transitionDuration: {
+        spring: '200ms',
       },
       animation: {
-        'float-up': 'float-up 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both',
-        'neon-pulse': 'neon-pulse 1.6s ease-in-out infinite',
-        shimmer: 'shimmer 1.8s linear infinite',
-        'glow-pulse': 'glow-pulse 2.4s ease-in-out infinite',
-        'shake-x': 'shake-x 0.7s ease-in-out infinite',
+        'float-up': 'page-in 0.25s ease-out both',
+        'neon-pulse': 'none',
+        shimmer: 'shimmer 1.6s linear infinite',
+        'glow-pulse': 'none',
+        'shake-x': 'none',
         'scan-line': 'scan-line 1.2s ease-in-out infinite',
-        'float-drift': 'float-drift 14s ease-in-out infinite',
-        'float-bob': 'float-bob 13s ease-in-out infinite',
-        orbit: 'orbit 10s linear infinite',
-        'spin-slow': 'spin-slow 16s linear infinite',
-        'counter-spin': 'counter-spin 22s linear infinite',
-        morph: 'morph 18s ease-in-out infinite',
-        'particle-rise': 'particle-rise 12s linear infinite',
-        'entrance-slide': 'entrance-slide 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) both',
-        breathe: 'breathe 3.8s ease-in-out infinite',
-        'live-ping': 'live-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'float-drift': 'none',
+        'float-bob': 'none',
+        orbit: 'none',
+        'spin-slow': 'none',
+        'counter-spin': 'none',
+        morph: 'none',
+        'particle-rise': 'none',
+        'entrance-slide': 'page-in 0.3s ease-out both',
+        breathe: 'none',
+        'live-ping': 'live-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
       },
     },
   },
@@ -69,10 +88,10 @@ export default {
         '.transform-style-3d': { 'transform-style': 'preserve-3d' },
         '.transform-style-flat': { 'transform-style': 'flat' },
         '.backdrop-blur-glass': {
-          'backdrop-filter': 'blur(20px) saturate(180%)',
-          '-webkit-backdrop-filter': 'blur(20px) saturate(180%)',
+          'backdrop-filter': 'blur(12px)',
+          '-webkit-backdrop-filter': 'blur(12px)',
         },
-        '.glow-accent': { 'box-shadow': '0 0 24px var(--glow)' },
+        '.glow-accent': { 'box-shadow': 'var(--shadow-md)' },
       })
       matchUtilities(
         { perspective: (value: string) => ({ perspective: value }) },

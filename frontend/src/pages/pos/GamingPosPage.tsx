@@ -12,8 +12,8 @@ import { useI18n } from '@/i18n'
 
 /* neon gaming accent scoped to this page */
 const GAMING_ACCENT: React.CSSProperties = {
-  '--accent': '#7C3AED',
-  '--glow': 'rgba(124,58,237,0.45)',
+  '--accent-l': '#7C3AED',
+  '--accent-d': '#A78BFA',
 } as React.CSSProperties
 
 /* arcade cabinet: slightly angled top bezel in the accent color */
@@ -122,14 +122,14 @@ export function GamingPosPage() {
 
       {/* Stats bar */}
       <div className="flex gap-3 px-6 py-3">
-        <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
+        <span className="card-3d px-3 py-1.5 text-sm text-muted">
           {t.gaming.idle}: <strong className="text-blue-500">{availableCount}</strong>
         </span>
-        <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
+        <span className="card-3d px-3 py-1.5 text-sm text-muted">
           {t.gaming.active}: <strong style={{ color: 'var(--accent)' }}>{inUseCount}</strong>
         </span>
-        <span className="card-3d px-3 py-1.5 text-sm text-gray-500">
-          الكل: <strong className="text-gray-900 dark:text-gray-100">{activeStations.length}</strong>
+        <span className="card-3d px-3 py-1.5 text-sm text-muted">
+          الكل: <strong className="text-fg">{activeStations.length}</strong>
         </span>
       </div>
 
@@ -142,8 +142,8 @@ export function GamingPosPage() {
             ))}
           </div>
         ) : activeStations.length === 0 ? (
-          <div className="mt-20 text-center text-sm text-gray-400">
-            <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
+          <div className="mt-20 text-center text-sm text-muted">
+            <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-muted/50" />
             <p>لا توجد محطات</p>
             <p className="mt-1 text-xs">أضف محطات من قسم الألعاب أولاً</p>
           </div>
@@ -183,7 +183,7 @@ export function GamingPosPage() {
                           ? 'text-blue-500'
                           : isInUse
                             ? isOvertime ? 'text-red-500' : ''
-                            : 'text-gray-400',
+                            : 'text-muted',
                       )}
                       style={isInUse && !isOvertime ? { color: 'var(--accent)' } : undefined}
                     >
@@ -192,15 +192,15 @@ export function GamingPosPage() {
                     <Gamepad2
                       className={cn(
                         'h-4 w-4',
-                        isAvail ? 'text-blue-500' : isInUse ? (isOvertime ? 'text-red-500' : '') : 'text-gray-400',
+                        isAvail ? 'text-blue-500' : isInUse ? (isOvertime ? 'text-red-500' : '') : 'text-muted',
                       )}
                       style={isInUse && !isOvertime ? { color: 'var(--accent)', filter: 'drop-shadow(0 0 6px var(--glow))' } : undefined}
                     />
                   </div>
 
-                  <p className="text-emboss truncate font-bold text-gray-900 dark:text-gray-100">{station.name}</p>
-                  <p className="text-xs text-gray-500">{stationTypeLabel(station.type)}</p>
-                  <p className="text-xs text-gray-500">{formatCurrency(station.hourlyRate)} / {t.gaming.perHour}</p>
+                  <p className="text-emboss truncate font-bold text-fg">{station.name}</p>
+                  <p className="text-xs text-muted">{stationTypeLabel(station.type)}</p>
+                  <p className="text-xs text-muted">{formatCurrency(station.hourlyRate)} / {t.gaming.perHour}</p>
 
                   {isInUse && session && (
                     <div
@@ -212,21 +212,21 @@ export function GamingPosPage() {
                         boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.18)',
                       }}
                     >
-                      <p className="truncate text-xs font-semibold text-gray-800 dark:text-gray-200">
+                      <p className="truncate text-xs font-semibold text-fg">
                         {session.playerName}
                       </p>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <Timer className={cn('h-3 w-3', isOvertime ? 'text-red-500' : 'text-gray-500')} />
+                        <Timer className={cn('h-3 w-3', isOvertime ? 'text-red-500' : 'text-muted')} />
                         <span
                           className={cn('seg-display text-sm font-bold', isOvertime && 'text-red-500')}
                           style={!isOvertime ? { color: 'var(--accent)' } : { textShadow: '0 0 10px rgba(239,68,68,0.6)' }}
                         >
                           {elapsed}/{planned === 999 ? '∞' : planned}
                         </span>
-                        <span className="text-[10px] text-gray-500">{t.gaming.minutes}</span>
+                        <span className="text-[10px] text-muted">{t.gaming.minutes}</span>
                       </div>
                       {planned !== 999 && (
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 shadow-inner dark:bg-gray-700">
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-border shadow-inner">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
@@ -282,18 +282,18 @@ export function GamingPosPage() {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold">{t.gaming.startSession}</h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted">
                   {startStation.name} — {stationTypeLabel(startStation.type)}
                 </p>
               </div>
               <button onClick={closeStart}>
-                <X className="h-4 w-4 text-gray-400 transition-colors hover:text-gray-600" />
+                <X className="h-4 w-4 text-muted transition-colors hover:text-fg" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="mb-1 block text-xs font-medium text-muted">
                   اسم اللاعب
                 </label>
                 <input
@@ -306,7 +306,7 @@ export function GamingPosPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="mb-2 block text-xs font-medium text-muted">
                   {t.gaming.duration}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -330,14 +330,14 @@ export function GamingPosPage() {
                 }}
               >
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">السعر التقديري</span>
+                  <span className="text-muted">السعر التقديري</span>
                   <span className="seg-display font-bold" style={{ color: 'var(--accent)' }}>
                     {duration === 999
                       ? 'يحسب عند الإنهاء'
                       : formatCurrency((startStation.hourlyRate / 60) * duration)}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-gray-400">
+                <div className="mt-1 flex items-center justify-between text-xs text-muted">
                   <span>{formatCurrency(startStation.hourlyRate)} / {t.gaming.perHour}</span>
                   {duration !== 999 && <span>{duration} {t.gaming.minutes}</span>}
                 </div>
@@ -353,7 +353,7 @@ export function GamingPosPage() {
                 onClick={() => startMut.mutate()}
                 loading={startMut.isPending}
                 disabled={!playerName.trim()}
-                className="btn-3d flex-1 !bg-[color:var(--accent)] shadow-glow-accent hover:!bg-[color:var(--accent)]"
+                className="btn-3d flex-1 shadow-glow-accent"
               >
                 <Zap className="ms-1.5 h-4 w-4" />
                 {t.gaming.startSession}
@@ -375,19 +375,19 @@ export function GamingPosPage() {
 
             <div className="mb-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">المحطة</span>
+                <span className="text-muted">المحطة</span>
                 <span className="font-medium">{bill.stationName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">اللاعب</span>
+                <span className="text-muted">اللاعب</span>
                 <span className="font-medium">{bill.playerName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">المدة الفعلية</span>
+                <span className="text-muted">المدة الفعلية</span>
                 <span className="seg-display">{bill.actualDurationMinutes} {t.gaming.minutes}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">السعر / ساعة</span>
+                <span className="text-muted">السعر / ساعة</span>
                 <span>{formatCurrency(bill.ratePerHour)}</span>
               </div>
             </div>
@@ -399,7 +399,7 @@ export function GamingPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.18), 0 0 22px var(--glow)',
               }}
             >
-              <p className="text-xs text-gray-500">{t.pos.total}</p>
+              <p className="text-xs text-muted">{t.pos.total}</p>
               <p className="text-emboss seg-display text-3xl font-bold" style={{ color: 'var(--accent)' }}>
                 {formatCurrency(bill.totalAmount)}
               </p>
@@ -408,7 +408,7 @@ export function GamingPosPage() {
             <Button
               variant="primary"
               onClick={closeBill}
-              className="btn-3d w-full !bg-[color:var(--accent)] hover:!bg-[color:var(--accent)]"
+              className="btn-3d w-full"
             >
               {t.common.confirm}
             </Button>

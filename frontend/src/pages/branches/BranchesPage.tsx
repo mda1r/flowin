@@ -131,18 +131,18 @@ export function BranchesPage() {
       <div className="p-6">
         {/* Summary cards */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-xs text-gray-500">{t.branches.totalBranches}</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{branches.length}</p>
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">{t.branches.totalBranches}</p>
+            <p className="mt-1 text-2xl font-bold text-fg">{branches.length}</p>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-xs text-gray-500">{t.branches.activeBranches}</p>
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">{t.branches.activeBranches}</p>
             <p className="mt-1 text-2xl font-bold text-green-600">
               {branches.filter((b) => b.isActive).length}
             </p>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-xs text-gray-500">{t.branches.inactiveBranches}</p>
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <p className="text-xs text-muted">{t.branches.inactiveBranches}</p>
             <p className="mt-1 text-2xl font-bold text-red-600">
               {branches.filter((b) => !b.isActive).length}
             </p>
@@ -161,9 +161,9 @@ export function BranchesPage() {
                 header: t.branches.name,
                 render: (r) => (
                   <div className="flex items-center gap-2">
-                    <GitBranch className="h-4 w-4 text-gray-400 shrink-0" />
+                    <GitBranch className="h-4 w-4 text-muted shrink-0" />
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-gray-100">{r.name}</p>
+                      <p className="font-medium text-fg">{r.name}</p>
                       {r.isMainBranch && (
                         <span className="flex items-center gap-0.5 text-xs text-yellow-600">
                           <Star className="h-3 w-3" /> {t.branches.mainBranch}
@@ -177,7 +177,7 @@ export function BranchesPage() {
                 key: 'type',
                 header: t.branches.type,
                 render: (r) => (
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-sm text-muted">
                     {typeLabels[r.type] ?? r.type}
                   </span>
                 ),
@@ -186,7 +186,7 @@ export function BranchesPage() {
                 key: 'contact',
                 header: t.branches.contact,
                 render: (r) => (
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted">
                     {r.phoneNumber && <p>{r.phoneNumber}</p>}
                     {r.email && <p>{r.email}</p>}
                     {!r.phoneNumber && !r.email && '—'}
@@ -197,7 +197,7 @@ export function BranchesPage() {
                 key: 'city',
                 header: t.branches.city,
                 render: (r) => (
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-sm text-muted">
                     {[r.city, r.country].filter(Boolean).join('، ') || '—'}
                   </span>
                 ),
@@ -220,7 +220,7 @@ export function BranchesPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => openEdit(r)}
-                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-800"
+                            className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-blue-600"
                             title="تعديل"
                           >
                             <Pencil className="h-4 w-4" />
@@ -228,7 +228,7 @@ export function BranchesPage() {
                           {!r.isMainBranch && r.isActive && (
                             <button
                               onClick={() => setDeactivating(r)}
-                              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800"
+                              className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-red-600"
                               title="تعطيل"
                             >
                               <span className="text-xs font-medium">تعطيل</span>

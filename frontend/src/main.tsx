@@ -5,6 +5,7 @@ import { RouterProvider } from '@tanstack/react-router'
 import { router } from './router'
 import { ToastProvider } from '@/components/ui/Toast'
 import { I18nContext, useI18nState } from '@/i18n'
+import '@/stores/themeStore'
 import './index.css'
 
 const queryClient = new QueryClient({

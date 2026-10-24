@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { gamingApi } from '@/api/gaming'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
@@ -344,12 +344,12 @@ export function GamingPage() {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="h-52 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800"
+                className="h-52 animate-pulse rounded-2xl bg-surface-2"
               />
             ))}
           </div>
         ) : stations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted">
             <Monitor className="h-12 w-12" />
             <p className="text-lg">{t.gaming.noStations}</p>
             <Button onClick={() => setCreateModal(true)}>{t.gaming.newStation}</Button>
@@ -459,13 +459,13 @@ export function GamingPage() {
         {startModal && (
           <div className="space-y-5">
             {/* Station info */}
-            <div className="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-gray-800 p-3">
+            <div className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
               <span className="text-3xl">{TYPE_ICON[startModal.type]}</span>
               <div>
-                <p className="font-semibold text-gray-900 dark:text-gray-100">
+                <p className="font-semibold text-fg">
                   {startModal.name}
                 </p>
-                <p className="text-xs text-gray-500">{TYPE_LABEL[startModal.type]}</p>
+                <p className="text-xs text-muted">{TYPE_LABEL[startModal.type]}</p>
               </div>
             </div>
 
@@ -481,7 +481,7 @@ export function GamingPage() {
 
             {/* Duration */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-fg">
                 {t.gaming.duration}
               </label>
               <div className="flex gap-2 flex-wrap">
@@ -501,7 +501,7 @@ export function GamingPage() {
                       !startForm.customDuration &&
                         startForm.durationMinutes === preset.value
                         ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                        : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400',
+                        : 'border-border text-muted hover:border-muted/40',
                     )}
                   >
                     {preset.label}
@@ -516,7 +516,7 @@ export function GamingPage() {
                     'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                     startForm.customDuration
                       ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400',
+                      : 'border-border text-muted hover:border-muted/40',
                   )}
                 >
                   مخصص
@@ -550,7 +550,7 @@ export function GamingPage() {
                 }
               />
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="block text-sm font-medium text-fg">
                   التكلفة المتوقعة
                 </label>
                 <div className="flex h-9 items-center rounded-lg bg-green-50 px-3 dark:bg-green-900/20">
@@ -590,11 +590,11 @@ export function GamingPage() {
       >
         {extendModal?.activeSession && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-muted">
               اللاعب: <span className="font-semibold">{extendModal.activeSession.playerName}</span>
             </p>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-fg">
                 {t.gaming.duration}
               </label>
               <div className="flex gap-2 flex-wrap">
@@ -610,7 +610,7 @@ export function GamingPage() {
                       'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                       !extendCustom && extendMinutes === preset.value
                         ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                        : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400',
+                        : 'border-border text-muted hover:border-muted/40',
                     )}
                   >
                     {preset.label}
@@ -623,7 +623,7 @@ export function GamingPage() {
                     'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                     extendCustom
                       ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400',
+                      : 'border-border text-muted hover:border-muted/40',
                   )}
                 >
                   مخصص
@@ -664,11 +664,11 @@ export function GamingPage() {
         {billModal && (
           <div className="space-y-5">
             {/* Station + player header */}
-            <div className="rounded-xl bg-gray-50 dark:bg-gray-800 p-4 space-y-1">
-              <p className="font-bold text-gray-900 dark:text-gray-100 text-lg">
+            <div className="rounded-xl bg-surface-2 p-4 space-y-1">
+              <p className="font-bold text-fg text-lg">
                 {billModal.stationName}
               </p>
-              <p className="text-sm text-gray-500">اللاعب: {billModal.playerName}</p>
+              <p className="text-sm text-muted">اللاعب: {billModal.playerName}</p>
             </div>
 
             {/* Bill details */}
@@ -693,10 +693,10 @@ export function GamingPage() {
               ].map(({ label, value }) => (
                 <div
                   key={label}
-                  className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800"
+                  className="flex justify-between py-2 border-b border-border"
                 >
-                  <span className="text-gray-500">{label}</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{value}</span>
+                  <span className="text-muted">{label}</span>
+                  <span className="font-medium text-fg">{value}</span>
                 </div>
               ))}
 
@@ -713,7 +713,7 @@ export function GamingPage() {
 
             {/* Payment method */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-fg">
                 طريقة الدفع
               </label>
               <div className="flex gap-3">
@@ -729,7 +729,7 @@ export function GamingPage() {
                       'flex-1 rounded-lg border py-2.5 text-sm font-medium transition-all',
                       paymentMethod === m.value
                         ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                        : 'border-gray-300 text-gray-600 dark:border-gray-700 dark:text-gray-400',
+                        : 'border-border text-muted',
                     )}
                   >
                     {m.label}
@@ -761,13 +761,13 @@ function StatCard({
       'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-900/20 dark:text-green-200',
     purple:
       'border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-900 dark:bg-purple-900/20 dark:text-purple-200',
-    gray: 'border-gray-200 bg-gray-50 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200',
+    gray: 'border-border bg-surface-2 text-fg',
   }
   const sub = {
     blue: 'text-blue-600 dark:text-blue-400',
     green: 'text-green-600 dark:text-green-400',
     purple: 'text-purple-600 dark:text-purple-400',
-    gray: 'text-gray-500 dark:text-gray-400',
+    gray: 'text-muted',
   }
 
   return (
@@ -856,6 +856,7 @@ function StationCard({
     return () => clearInterval(id)
   }, [session?.startTime, session?.durationMinutes, station.status, station.name])
 
+  const [confirmEnd, setConfirmEnd] = useState(false)
   const mm = Math.floor(timeLeftSec / 60)
   const ss = timeLeftSec % 60
   const timerDisplay = `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
@@ -866,7 +867,7 @@ function StationCard({
   // Card border / glow by status
   const cardClass = cn(
     'flex flex-col rounded-2xl border p-4 transition-all duration-300',
-    'bg-white dark:bg-gray-900',
+    'bg-surface',
     station.status === 'Available' &&
       'border-green-300 shadow-md shadow-green-200/50 dark:border-green-800 dark:shadow-green-900/30',
     station.status === 'InUse' &&
@@ -876,7 +877,7 @@ function StationCard({
     (isWarning || (station.status === 'InUse' && !session)) &&
       'border-red-400 shadow-md shadow-red-200/50 dark:border-red-800 dark:shadow-red-900/30',
     isExpired && 'border-red-500 animate-pulse',
-    station.status === 'Maintenance' && 'border-gray-200 opacity-70 dark:border-gray-700',
+    station.status === 'Maintenance' && 'border-border opacity-70',
   )
 
   // Status badge
@@ -893,6 +894,18 @@ function StationCard({
 
   return (
     <div className={cardClass}>
+      <ConfirmModal
+        open={confirmEnd}
+        onClose={() => setConfirmEnd(false)}
+        onConfirm={() => {
+          setConfirmEnd(false)
+          onEnd()
+        }}
+        title={t.gaming.endSession}
+        message={t.gaming.confirmEnd}
+        confirmLabel={t.gaming.endSession}
+        confirmVariant="danger"
+      />
       {/* Header row */}
       <div className="flex items-start justify-between mb-2">
         <span className="text-2xl">{TYPE_ICON[station.type]}</span>
@@ -900,10 +913,10 @@ function StationCard({
       </div>
 
       {/* Station name */}
-      <p className="font-bold text-gray-900 dark:text-gray-100 text-sm leading-tight">
+      <p className="font-bold text-fg text-sm leading-tight">
         {station.name}
       </p>
-      <p className="text-xs text-gray-400 mb-1">{TYPE_LABEL[station.type]}</p>
+      <p className="text-xs text-muted mb-1">{TYPE_LABEL[station.type]}</p>
 
       {/* Rate */}
       <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-3">
@@ -913,7 +926,7 @@ function StationCard({
       {/* ── InUse: player + timer ───────────────────────────────────────── */}
       {station.status === 'InUse' && session && (
         <div className="flex-1 space-y-2 mb-3">
-          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate">
+          <p className="text-sm font-semibold text-fg truncate">
             👤 {session.playerName}
           </p>
 
@@ -932,16 +945,16 @@ function StationCard({
                     'font-mono text-2xl font-bold tabular-nums',
                     isWarning
                       ? 'text-red-600 dark:text-red-400'
-                      : 'text-gray-900 dark:text-gray-100',
+                      : 'text-fg',
                   )}
                 >
                   {timerDisplay}
                 </span>
-                <p className="text-xs text-gray-400 mt-0.5">دقيقة : ثانية</p>
+                <p className="text-xs text-muted mt-0.5">دقيقة : ثانية</p>
               </div>
 
               {/* Progress bar */}
-              <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+              <div className="h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-1000',
@@ -961,7 +974,7 @@ function StationCard({
       {/* ── Maintenance: spacer ────────────────────────────────────────────── */}
       {station.status === 'Maintenance' && (
         <div className="flex-1 flex items-center">
-          <p className="text-xs text-gray-400 flex items-center gap-1">
+          <p className="text-xs text-muted flex items-center gap-1">
             <Wrench className="h-3 w-3" /> قيد الصيانة
           </p>
         </div>
@@ -994,9 +1007,7 @@ function StationCard({
               variant="danger"
               size="sm"
               className="flex-1 justify-center text-xs"
-              onClick={() => {
-                if (window.confirm(t.gaming.confirmEnd)) onEnd()
-              }}
+              onClick={() => setConfirmEnd(true)}
               loading={endLoading}
             >
               {t.gaming.endSession}
@@ -1008,7 +1019,7 @@ function StationCard({
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-center text-xs text-gray-400"
+            className="w-full justify-center text-xs text-muted"
             onClick={onMaintenance}
             loading={maintenanceLoading}
           >

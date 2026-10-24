@@ -5,6 +5,8 @@ import type {
   CreateStockMaterialCategoryPayload,
   CreateStockMaterialPayload,
   UpdateStockMaterialPayload,
+  ReceiveStockMaterialPayload,
+  StockMaterialMovementResponse,
 } from '@/types/stockMaterial'
 
 const base = (tenantId: string) => `/api/v1/tenants/${tenantId}/stock-materials`
@@ -40,4 +42,10 @@ export const stockMaterialApi = {
 
   deleteMaterial: (tenantId: string, materialId: string) =>
     apiClient.delete(`${base(tenantId)}/${materialId}`),
+
+  receiveMaterial: (tenantId: string, materialId: string, data: ReceiveStockMaterialPayload) =>
+    apiClient.post<StockMaterialResponse>(`${base(tenantId)}/${materialId}/receive`, data),
+
+  listMovements: (tenantId: string, materialId: string) =>
+    apiClient.get<StockMaterialMovementResponse[]>(`${base(tenantId)}/${materialId}/movements`),
 }

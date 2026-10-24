@@ -88,12 +88,12 @@ export function RestaurantPage() {
               href="/restaurant/kitchen"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted hover:bg-surface-2"
             >
               <ExternalLink className="h-4 w-4" />
               عرض المطبخ
             </a>
-            <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="flex rounded-lg border border-border overflow-hidden">
               {([['cashier', 'الكاشير'], ['manager', 'الإدارة']] as [Tab, string][]).map(([tab, label]) => (
                 <button
                   key={tab}
@@ -102,7 +102,7 @@ export function RestaurantPage() {
                     'px-4 py-1.5 text-sm font-medium transition-colors',
                     activeTab === tab
                       ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800',
+                      : 'text-muted hover:bg-surface-2',
                   )}
                 >
                   {label}
@@ -291,10 +291,10 @@ function CashierView({ branchId }: { branchId: string }) {
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Left: Table grid + Menu */}
-      <div className="flex flex-1 flex-col overflow-hidden border-l border-gray-200 dark:border-gray-800">
+      <div className="flex flex-1 flex-col overflow-hidden border-l border-border">
         {/* Table grid */}
-        <div className="border-b border-gray-200 p-4 dark:border-gray-800">
-          <p className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">{t.restaurant.selectTable}</p>
+        <div className="border-b border-border p-4">
+          <p className="mb-3 text-sm font-semibold text-fg">{t.restaurant.selectTable}</p>
           <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
             {Array.from({ length: TOTAL_TABLES }, (_, i) => i + 1).map((n) => {
               const color = getTableColor(n, orders)
@@ -322,7 +322,7 @@ function CashierView({ branchId }: { branchId: string }) {
               )
             })}
           </div>
-          <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+          <div className="mt-2 flex items-center gap-4 text-xs text-muted">
             <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-green-400" />{t.restaurant.available}</span>
             <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-red-400" />{t.restaurant.occupied}</span>
             <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-orange-400" />{t.kitchen.ready}</span>
@@ -333,14 +333,14 @@ function CashierView({ branchId }: { branchId: string }) {
         {selectedTable && (
           <div className="flex flex-1 flex-col overflow-hidden">
             {/* Category filter */}
-            <div className="flex gap-2 overflow-x-auto border-b border-gray-200 px-4 py-2 dark:border-gray-800">
+            <div className="flex gap-2 overflow-x-auto border-b border-border px-4 py-2">
               <button
                 onClick={() => setSelectedCategory(null)}
                 className={cn(
                   'shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors',
                   selectedCategory === null
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400',
+                    : 'bg-surface-2 text-muted hover:bg-border',
                 )}
               >
                 {t.restaurant.all}
@@ -353,7 +353,7 @@ function CashierView({ branchId }: { branchId: string }) {
                     'shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors',
                     selectedCategory === cat
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400',
+                      : 'bg-surface-2 text-muted hover:bg-border',
                   )}
                 >
                   {CATEGORY_LABELS[cat]}
@@ -367,15 +367,15 @@ function CashierView({ branchId }: { branchId: string }) {
                   <button
                     key={item.id}
                     onClick={() => addToCart(item)}
-                    className="flex flex-col rounded-xl border border-gray-200 bg-white p-3 text-right transition-all hover:border-blue-300 hover:shadow-sm active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-blue-700"
+                    className="flex flex-col rounded-xl border border-border bg-surface p-3 text-right transition-all hover:border-blue-300 hover:shadow-sm active:scale-[0.98] dark:hover:border-blue-700"
                   >
                     <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/20">
                       <span className="text-lg">🍽️</span>
                     </div>
-                    <p className="line-clamp-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <p className="line-clamp-2 text-sm font-medium text-fg">
                       {item.name}
                     </p>
-                    <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">
+                    <p className="mt-0.5 line-clamp-1 text-xs text-muted">
                       {CATEGORY_LABELS[item.category]}
                     </p>
                     <p className="mt-auto pt-2 text-sm font-bold text-blue-600 dark:text-blue-400">
@@ -384,7 +384,7 @@ function CashierView({ branchId }: { branchId: string }) {
                   </button>
                 ))}
                 {filteredItems.length === 0 && (
-                  <p className="col-span-full py-12 text-center text-sm text-gray-400">
+                  <p className="col-span-full py-12 text-center text-sm text-muted">
                     لا توجد أصناف متاحة
                   </p>
                 )}
@@ -396,17 +396,17 @@ function CashierView({ branchId }: { branchId: string }) {
         {!selectedTable && (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
-              <ChefHat className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-              <p className="text-sm text-gray-400">{t.restaurant.selectTable}</p>
+              <ChefHat className="mx-auto mb-3 h-12 w-12 text-muted/50" />
+              <p className="text-sm text-muted">{t.restaurant.selectTable}</p>
             </div>
           </div>
         )}
       </div>
 
       {/* Right: Order panel */}
-      <div className="flex w-80 flex-col bg-white dark:bg-gray-900">
-        <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-          <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+      <div className="flex w-80 flex-col bg-surface">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="font-semibold text-fg">
             {selectedTable ? t.restaurant.orderFor.replace('{n}', String(selectedTable)) : 'الطلب الحالي'}
           </h2>
           {tableOrder && (
@@ -427,18 +427,18 @@ function CashierView({ branchId }: { branchId: string }) {
 
         {/* Current active order for the table */}
         {tableOrder && cart.length === 0 && (
-          <div className="border-b border-gray-200 p-4 dark:border-gray-800">
-            <p className="mb-2 text-xs font-medium text-gray-500">الطلب الحالي</p>
+          <div className="border-b border-border p-4">
+            <p className="mb-2 text-xs font-medium text-muted">الطلب الحالي</p>
             <ul className="space-y-1">
               {tableOrder.items.map((item) => (
                 <li key={item.id} className="flex justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-300">
+                  <span className="text-fg">
                     {item.itemName} × {item.quantity}
                   </span>
                   <span className={cn(
                     'text-xs',
                     item.status === 'Ready' ? 'text-green-600' :
-                    item.status === 'Preparing' ? 'text-blue-600' : 'text-gray-400',
+                    item.status === 'Preparing' ? 'text-blue-600' : 'text-muted',
                   )}>
                     {item.status === 'Ready' ? t.kitchen.ready :
                      item.status === 'Preparing' ? t.kitchen.preparing : 'انتظار'}
@@ -452,24 +452,24 @@ function CashierView({ branchId }: { branchId: string }) {
         {/* Cart items */}
         <div className="flex-1 overflow-y-auto">
           {cart.length === 0 ? (
-            <p className="mt-16 text-center text-sm text-gray-400">
+            <p className="mt-16 text-center text-sm text-muted">
               {selectedTable ? 'أضف أصنافاً للطلب' : 'اختر طاولة أولاً'}
             </p>
           ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+            <ul className="divide-y divide-border">
               {cart.map((item) => (
                 <li key={item.menuItemId} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <p className="truncate text-sm font-medium text-fg">
                         {item.itemName}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted">
                         {formatCurrency(item.unitPrice)} للوحدة
                       </p>
                     </div>
                     <button onClick={() => removeFromCart(item.menuItemId)}
-                      className="text-gray-300 hover:text-red-500">
+                      className="text-muted/50 hover:text-red-500">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -477,19 +477,19 @@ function CashierView({ branchId }: { branchId: string }) {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => updateQty(item.menuItemId, item.quantity - 1)}
-                        className="flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400"
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-2"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
                       <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                       <button
                         onClick={() => updateQty(item.menuItemId, item.quantity + 1)}
-                        className="flex h-6 w-6 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400"
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-2"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    <span className="text-sm font-semibold text-fg">
                       {formatCurrency(item.unitPrice * item.quantity)}
                     </span>
                   </div>
@@ -501,7 +501,7 @@ function CashierView({ branchId }: { branchId: string }) {
 
         {/* Discount code */}
         {cart.length > 0 && (
-          <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-800">
+          <div className="border-t border-border px-4 py-3">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -535,10 +535,10 @@ function CashierView({ branchId }: { branchId: string }) {
         )}
 
         {/* Totals + actions */}
-        <div className="border-t border-gray-200 p-4 dark:border-gray-800">
+        <div className="border-t border-border p-4">
           {cart.length > 0 && (
             <div className="mb-3 space-y-1 text-sm">
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between text-muted">
                 <span>{t.restaurant.subtotal}</span>
                 <span className="tabular-nums">{formatCurrency(subTotal)}</span>
               </div>
@@ -548,13 +548,13 @@ function CashierView({ branchId }: { branchId: string }) {
                   <span className="tabular-nums">- {formatCurrency(discountAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between text-muted">
                 <span>{t.restaurant.tax}</span>
                 <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
               </div>
-              <div className="flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800">
-                <span className="font-medium text-gray-700 dark:text-gray-300">{t.restaurant.total}</span>
-                <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="flex items-center justify-between border-t border-border pt-2">
+                <span className="font-medium text-fg">{t.restaurant.total}</span>
+                <span className="text-xl font-bold text-fg">
                   {formatCurrency(total)}
                 </span>
               </div>
@@ -563,7 +563,7 @@ function CashierView({ branchId }: { branchId: string }) {
 
           {tableOrder && cart.length === 0 && (
             <div className="mb-3 space-y-1 text-sm">
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between text-muted">
                 <span>{t.restaurant.subtotal}</span>
                 <span className="tabular-nums">{formatCurrency(tableOrder.subTotal)}</span>
               </div>
@@ -573,13 +573,13 @@ function CashierView({ branchId }: { branchId: string }) {
                   <span className="tabular-nums">- {formatCurrency(tableOrder.discountAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <div className="flex justify-between text-muted">
                 <span>{t.restaurant.tax}</span>
                 <span className="tabular-nums">{formatCurrency(tableOrder.taxAmount)}</span>
               </div>
-              <div className="flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800">
-                <span className="font-medium text-gray-700 dark:text-gray-300">{t.restaurant.total}</span>
-                <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="flex items-center justify-between border-t border-border pt-2">
+                <span className="font-medium text-fg">{t.restaurant.total}</span>
+                <span className="text-xl font-bold text-fg">
                   {formatCurrency(tableOrder.total)}
                 </span>
               </div>
@@ -680,10 +680,10 @@ function PaymentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 mx-4">
+      <div className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
         <h2 className="mb-1 text-lg font-semibold">{t.restaurant.pay} — {t.restaurant.table} {order.tableNumber}</h2>
         <div className="mb-4 space-y-1 text-sm">
-          <div className="flex justify-between text-gray-500">
+          <div className="flex justify-between text-muted">
             <span>{t.restaurant.subtotal}</span>
             <span>{formatCurrency(order.subTotal)}</span>
           </div>
@@ -693,16 +693,16 @@ function PaymentModal({
               <span>- {formatCurrency(order.discountAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between text-gray-500">
+          <div className="flex justify-between text-muted">
             <span>{t.restaurant.tax}</span>
             <span>{formatCurrency(order.taxAmount)}</span>
           </div>
         </div>
-        <div className="mb-6 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
-          <p className="text-sm text-gray-500">المبلغ المستحق</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(total)}</p>
+        <div className="mb-6 rounded-xl bg-surface-2 p-4">
+          <p className="text-sm text-muted">المبلغ المستحق</p>
+          <p className="text-3xl font-bold text-fg">{formatCurrency(total)}</p>
         </div>
-        <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">طريقة الدفع</p>
+        <p className="mb-3 text-sm font-medium text-fg">طريقة الدفع</p>
         <div className="mb-6 grid grid-cols-2 gap-2">
           {(['Cash', 'Card'] as const).map((m) => (
             <button
@@ -712,7 +712,7 @@ function PaymentModal({
                 'flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors',
                 paymentMethod === m
                   ? 'border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400',
+                  : 'border-border text-muted hover:bg-surface-2',
               )}
             >
               {m === 'Cash' ? <Banknote className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
@@ -722,7 +722,7 @@ function PaymentModal({
         </div>
         {paymentMethod === 'Cash' && (
           <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-1 block text-sm font-medium text-fg">
               المبلغ المستلم (ر.س)
             </label>
             <input
@@ -787,22 +787,22 @@ function RestaurantReceiptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 mx-4">
+      <div className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
         <div className="mb-4 text-center">
           <h2 className="text-lg font-bold">فاتورة ضريبية</h2>
-          <p className="text-xs text-gray-500">طاولة {order.tableNumber}</p>
-          {vatNumber && <p className="text-xs text-gray-500 mt-0.5">flowin — رقم ضريبة القيمة المضافة: {vatNumber}</p>}
+          <p className="text-xs text-muted">طاولة {order.tableNumber}</p>
+          {vatNumber && <p className="text-xs text-muted mt-0.5">flowin — رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
         <div className="mb-4 space-y-2 text-sm">
           {order.items.map((item) => (
-            <div key={item.id} className="flex justify-between text-gray-700 dark:text-gray-300">
+            <div key={item.id} className="flex justify-between text-fg">
               <span className="flex-1 truncate">{item.itemName} × {item.quantity}</span>
               <span className="tabular-nums">{formatCurrency(item.lineTotal)}</span>
             </div>
           ))}
         </div>
-        <div className="mb-4 space-y-1 border-t border-gray-200 pt-3 text-sm dark:border-gray-700">
-          <div className="flex justify-between text-gray-600 dark:text-gray-400">
+        <div className="mb-4 space-y-1 border-t border-border pt-3 text-sm">
+          <div className="flex justify-between text-muted">
             <span>المجموع قبل الضريبة</span>
             <span className="tabular-nums">{formatCurrency(order.subTotal)}</span>
           </div>
@@ -812,18 +812,18 @@ function RestaurantReceiptModal({
               <span className="tabular-nums">- {formatCurrency(order.discountAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between text-gray-600 dark:text-gray-400">
+          <div className="flex justify-between text-muted">
             <span>ضريبة القيمة المضافة 15%</span>
             <span className="tabular-nums">{formatCurrency(order.taxAmount)}</span>
           </div>
-          <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100">
+          <div className="flex justify-between font-bold text-fg">
             <span>الإجمالي</span>
             <span className="tabular-nums">{formatCurrency(order.total)}</span>
           </div>
         </div>
-        <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
-          <QrCode className="h-5 w-5 text-gray-500" />
-          <p className="text-xs text-gray-500">رمز ZATCA للتحقق</p>
+        <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-surface-2 p-4">
+          <QrCode className="h-5 w-5 text-muted" />
+          <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrCode)}`}
             alt="رمز ZATCA للتحقق"
@@ -988,20 +988,20 @@ function ManagerView({ branchId }: { branchId: string }) {
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         <Card className="p-4">
-          <p className="text-sm text-gray-500">الطلبات النشطة</p>
+          <p className="text-sm text-muted">الطلبات النشطة</p>
           <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
             {orders.filter((o) => !['Paid', 'Cancelled'].includes(o.status)).length}
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-sm text-gray-500">إيرادات اليوم</p>
+          <p className="text-sm text-muted">إيرادات اليوم</p>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(todayRevenue)}
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-sm text-gray-500">الطلبات المدفوعة</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <p className="text-sm text-muted">الطلبات المدفوعة</p>
+          <p className="text-3xl font-bold text-fg">
             {orders.filter((o) => o.status === 'Paid').length}
           </p>
         </Card>
@@ -1009,28 +1009,28 @@ function ManagerView({ branchId }: { branchId: string }) {
 
       {/* Menu management */}
       <Card>
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">إدارة القائمة</h3>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="font-semibold text-fg">إدارة القائمة</h3>
           <Button size="sm" onClick={openCreateMenuItem}>
             <Plus className="h-4 w-4" />
             إضافة صنف
           </Button>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        <div className="divide-y divide-border">
           {menuLoading && (
-            <div className="p-4 text-center text-sm text-gray-400">{t.common.loading}</div>
+            <div className="p-4 text-center text-sm text-muted">{t.common.loading}</div>
           )}
           {menuItems.map((item) => (
             <div
               key={item.id}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 cursor-pointer"
               onClick={() => openEditMenuItem(item)}
             >
               <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                <p className="truncate text-sm font-medium text-fg">
                   {item.name}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted">
                   {CATEGORY_LABELS[item.category]} — {formatCurrency(item.price)}
                 </p>
               </div>
@@ -1039,7 +1039,7 @@ function ManagerView({ branchId }: { branchId: string }) {
                   e.stopPropagation()
                   toggleAvailabilityMutation.mutate({ id: item.id, isAvailable: !item.isAvailable })
                 }}
-                className={cn('text-sm', item.isAvailable ? 'text-green-600' : 'text-gray-400')}
+                className={cn('text-sm', item.isAvailable ? 'text-green-600' : 'text-muted')}
               >
                 {item.isAvailable
                   ? <ToggleRight className="h-5 w-5" />
@@ -1049,28 +1049,28 @@ function ManagerView({ branchId }: { branchId: string }) {
             </div>
           ))}
           {!menuLoading && menuItems.length === 0 && (
-            <p className="p-4 text-center text-sm text-gray-400">لا توجد أصناف بعد</p>
+            <p className="p-4 text-center text-sm text-muted">لا توجد أصناف بعد</p>
           )}
         </div>
       </Card>
 
       {/* Discount codes */}
       <Card>
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">رموز الخصم</h3>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="font-semibold text-fg">رموز الخصم</h3>
           <Button size="sm" onClick={() => setShowDiscountModal(true)}>
             <Plus className="h-4 w-4" />
             إضافة رمز
           </Button>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        <div className="divide-y divide-border">
           {discounts.map((dc) => (
             <div key={dc.id} className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
-                <p className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">
+                <p className="font-mono text-sm font-medium text-fg">
                   {dc.code}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted">
                   {dc.type === 'Percentage' ? `${dc.value}%` : formatCurrency(dc.value)}
                   {dc.minOrderAmount > 0 && ` — حد أدنى ${formatCurrency(dc.minOrderAmount)}`}
                   {' — '}
@@ -1082,7 +1082,7 @@ function ManagerView({ branchId }: { branchId: string }) {
                   'rounded-full px-2 py-0.5 text-xs font-medium',
                   dc.isActive && new Date(dc.expiryDate) > new Date()
                     ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-500',
+                    : 'bg-surface-2 text-muted',
                 )}>
                   {dc.isActive && new Date(dc.expiryDate) > new Date() ? 'نشط' : 'منتهي'}
                 </span>
@@ -1090,7 +1090,7 @@ function ManagerView({ branchId }: { branchId: string }) {
             </div>
           ))}
           {discounts.length === 0 && (
-            <p className="p-4 text-center text-sm text-gray-400">لا توجد رموز خصم بعد</p>
+            <p className="p-4 text-center text-sm text-muted">لا توجد رموز خصم بعد</p>
           )}
         </div>
       </Card>

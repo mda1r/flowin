@@ -132,9 +132,9 @@ function KpiCard({ title, value, sub, icon, iconWrap, accent }: {
       <span className="kpi-topbar" aria-hidden="true" />
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
-          {sub && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
+          <p className="text-sm font-medium text-muted">{title}</p>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-fg">{value}</p>
+          {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
         </div>
         <div className={cn('rounded-xl p-3', iconWrap)}>{icon}</div>
       </div>
@@ -164,33 +164,33 @@ function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrde
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{t.reports.vatReport}</h3>
+            <h3 className="text-base font-bold text-fg">{t.reports.vatReport}</h3>
             <Badge variant="orange">{quarterLabel}</Badge>
           </div>
-          <p className="mt-0.5 text-sm text-gray-500">
+          <p className="mt-0.5 text-sm text-muted">
             {dateFrom} – {dateTo}
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-xl bg-white p-4 dark:bg-gray-800 shadow-sm">
-              <p className="text-xs font-medium text-gray-400">{t.reports.totalRevenue}</p>
-              <p className="mt-1.5 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(taxBase)}</p>
+            <div className="rounded-xl bg-surface p-4 shadow-sm">
+              <p className="text-xs font-medium text-muted">{t.reports.totalRevenue}</p>
+              <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{formatCurrency(taxBase)}</p>
             </div>
-            <div className="rounded-xl bg-white p-4 dark:bg-gray-800 shadow-sm">
-              <p className="text-xs font-medium text-gray-400">{t.reports.vatSummary}</p>
-              <p className="mt-1.5 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{taxRate}%</p>
+            <div className="rounded-xl bg-surface p-4 shadow-sm">
+              <p className="text-xs font-medium text-muted">{t.reports.vatSummary}</p>
+              <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{taxRate}%</p>
             </div>
             <div className="rounded-xl bg-amber-100 p-4 dark:bg-amber-900/30 shadow-sm">
               <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{t.reports.totalVat}</p>
               <p className="mt-1.5 text-lg font-bold tabular-nums text-amber-800 dark:text-amber-300">{formatCurrency(totalTax)}</p>
             </div>
-            <div className="rounded-xl bg-white p-4 dark:bg-gray-800 shadow-sm">
-              <p className="text-xs font-medium text-gray-400">{t.reports.totalOrders}</p>
-              <p className="mt-1.5 text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{totalOrders}</p>
+            <div className="rounded-xl bg-surface p-4 shadow-sm">
+              <p className="text-xs font-medium text-muted">{t.reports.totalOrders}</p>
+              <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{totalOrders}</p>
             </div>
           </div>
 
-          <div className="mt-4 flex items-start gap-2 rounded-xl bg-white/70 p-3 text-xs text-gray-500 dark:bg-gray-800/50">
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-surface/70 p-3 text-xs text-muted">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
             <span>{t.reports.vatDisclaimer}</span>
           </div>
@@ -293,8 +293,8 @@ export function ReportsPage() {
               className={cn(
                 'rounded-xl px-4 py-2 text-sm font-medium transition-all',
                 period === p.key
-                  ? 'bg-[var(--accent)] text-white shadow-md'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
+                  ? 'bg-brand text-brand-fg shadow-md'
+                  : 'bg-surface-2 text-muted hover:bg-border',
               )}
             >
               {p.label}
@@ -304,22 +304,22 @@ export function ReportsPage() {
 
         {/* Custom date range */}
         {period === 'custom' && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-            <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-4">
+            <Calendar className="h-4 w-4 text-muted shrink-0" />
             <div className="flex items-center gap-2 flex-wrap">
-              <label className="text-sm text-gray-500">{t.reports.from}</label>
+              <label className="text-sm text-muted">{t.reports.from}</label>
               <input
                 type="date"
                 value={customFrom}
                 onChange={e => setCustomFrom(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm text-fg"
               />
-              <label className="text-sm text-gray-500">{t.reports.to}</label>
+              <label className="text-sm text-muted">{t.reports.to}</label>
               <input
                 type="date"
                 value={customTo}
                 onChange={e => setCustomTo(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm text-fg"
               />
             </div>
           </div>
@@ -329,7 +329,7 @@ export function ReportsPage() {
         {isLoading ? (
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="card-3d h-28 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+              <div key={i} className="card-3d h-28 animate-pulse rounded-2xl bg-surface-2" />
             ))}
           </div>
         ) : isError ? (
@@ -382,8 +382,8 @@ export function ReportsPage() {
               <KpiCard
                 title={t.reports.totalRevenue}
                 value={formatCurrency(stats.totalRevenue)}
-                icon={<TrendingDown className="h-5 w-5 text-gray-500" />}
-                iconWrap="bg-gray-100 dark:bg-gray-800"
+                icon={<TrendingDown className="h-5 w-5 text-muted" />}
+                iconWrap="bg-surface-2"
                 accent="#6b7280"
               />
             </div>
@@ -417,32 +417,32 @@ export function ReportsPage() {
                     style={{ borderColor: 'var(--card-border)' }}
                   >
                     <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-gray-400" />
-                      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.reports.topProducts}</h2>
+                      <Package className="h-4 w-4 text-muted" />
+                      <h2 className="text-sm font-semibold text-fg">{t.reports.topProducts}</h2>
                     </div>
                     <Badge variant="gray">{stats.topProducts.length}</Badge>
                   </div>
 
                   {stats.topProducts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <Package className="mb-3 h-10 w-10 text-gray-200 dark:text-gray-700" />
-                      <p className="text-sm text-gray-400">{t.common.noData}</p>
+                      <Package className="mb-3 h-10 w-10 text-muted/50" />
+                      <p className="text-sm text-muted">{t.common.noData}</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    <div className="divide-y divide-border">
                       {stats.topProducts.map((p, i) => {
                         const pct = stats.totalRevenue > 0 ? (p.revenue / stats.totalRevenue) * 100 : 0
                         return (
                           <div key={i} className="flex items-center gap-4 px-6 py-3.5">
-                            <span className="w-5 shrink-0 text-right text-xs font-bold tabular-nums text-gray-300 dark:text-gray-600">
+                            <span className="w-5 shrink-0 text-right text-xs font-bold tabular-nums text-muted/50">
                               {i + 1}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{p.productName}</p>
+                              <p className="truncate text-sm font-medium text-fg">{p.productName}</p>
                               {p.variantName && p.variantName !== p.productName && (
-                                <p className="text-xs text-gray-400">{p.variantName}</p>
+                                <p className="text-xs text-muted">{p.variantName}</p>
                               )}
-                              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2">
                                 <div
                                   className="h-full rounded-full transition-all duration-500"
                                   style={{ width: `${pct}%`, background: 'var(--accent)' }}
@@ -450,8 +450,8 @@ export function ReportsPage() {
                               </div>
                             </div>
                             <div className="shrink-0 text-right">
-                              <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(p.revenue)}</p>
-                              <p className="text-xs text-gray-400">{p.quantity} {t.reports.quantity}</p>
+                              <p className="text-sm font-bold tabular-nums text-fg">{formatCurrency(p.revenue)}</p>
+                              <p className="text-xs text-muted">{p.quantity} {t.reports.quantity}</p>
                             </div>
                           </div>
                         )
@@ -468,11 +468,11 @@ export function ReportsPage() {
                     className="border-b px-6 py-4"
                     style={{ borderColor: 'var(--card-border)' }}
                   >
-                    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.sales.method}</h2>
+                    <h2 className="text-sm font-semibold text-fg">{t.sales.method}</h2>
                   </div>
                   <div className="p-4 space-y-3">
                     {Object.entries(stats.byPayment).length === 0 ? (
-                      <p className="py-4 text-center text-sm text-gray-400">{t.common.noData}</p>
+                      <p className="py-4 text-center text-sm text-muted">{t.common.noData}</p>
                     ) : (
                       Object.entries(stats.byPayment)
                         .sort(([, a], [, b]) => b - a)
@@ -482,16 +482,16 @@ export function ReportsPage() {
                           return (
                             <div key={method} className="space-y-1.5">
                               <div className="flex items-center justify-between">
-                                <div className={cn('flex items-center gap-2 text-sm', meta?.color ?? 'text-gray-600')}>
+                                <div className={cn('flex items-center gap-2 text-sm', meta?.color ?? 'text-muted')}>
                                   {meta?.icon}
                                   <span>{meta?.label ?? method}</span>
                                 </div>
                                 <div className="text-right">
-                                  <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(amount)}</span>
-                                  <span className="ml-1.5 text-xs text-gray-400">{pct.toFixed(0)}%</span>
+                                  <span className="text-sm font-bold tabular-nums text-fg">{formatCurrency(amount)}</span>
+                                  <span className="ml-1.5 text-xs text-muted">{pct.toFixed(0)}%</span>
                                 </div>
                               </div>
-                              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                              <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
                                 <div
                                   className="h-full rounded-full"
                                   style={{ width: `${pct}%`, background: 'var(--accent)' }}
@@ -510,9 +510,9 @@ export function ReportsPage() {
                     className="border-b px-6 py-4"
                     style={{ borderColor: 'var(--card-border)' }}
                   >
-                    <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.reports.vatSummary}</h2>
+                    <h2 className="text-sm font-semibold text-fg">{t.reports.vatSummary}</h2>
                   </div>
-                  <div className="divide-y divide-gray-100 p-0 dark:divide-gray-800">
+                  <div className="divide-y divide-border p-0">
                     {[
                       { label: t.reports.totalRevenue,  value: formatCurrency(stats.totalSubtotal) },
                       { label: t.reports.totalVat,      value: `- ${formatCurrency(stats.totalTax)}`, red: true },
@@ -521,11 +521,11 @@ export function ReportsPage() {
                       { label: t.sales.netRevenue,      value: formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total), bold: true },
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between px-6 py-3">
-                        <span className="text-sm text-gray-500">{row.label}</span>
+                        <span className="text-sm text-muted">{row.label}</span>
                         <span className={cn('tabular-nums text-sm',
-                          row.bold ? 'font-bold text-gray-900 dark:text-gray-100' :
+                          row.bold ? 'font-bold text-fg' :
                           (row as any).red ? 'font-medium text-red-600 dark:text-red-400' :
-                          'text-gray-700 dark:text-gray-300')}>
+                          'text-fg')}>
                           {row.value}
                         </span>
                       </div>

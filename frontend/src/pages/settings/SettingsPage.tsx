@@ -47,12 +47,12 @@ function PasswordInput({ placeholder, ...props }: React.InputHTMLAttributes<HTML
         {...props}
         type={show ? 'text' : 'password'}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pl-10 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus:border-blue-500 focus:outline-none"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 pl-10 text-sm text-fg focus:border-blue-500 focus:outline-none"
       />
       <button
         type="button"
         onClick={() => setShow(s => !s)}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
       >
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
@@ -100,20 +100,20 @@ export function SettingsPage() {
   })
 
   const inputClass =
-    'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus:border-blue-500 focus:outline-none'
+    'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg focus:border-blue-500 focus:outline-none'
 
   return (
     <div className="p-6 max-w-2xl space-y-6" dir="rtl">
       <div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t.settings.title}</h1>
-        <p className="text-sm text-gray-500 mt-1">{t.settings.description}</p>
+        <h1 className="text-xl font-bold text-fg">{t.settings.title}</h1>
+        <p className="text-sm text-muted mt-1">{t.settings.description}</p>
       </div>
 
       {/* Profile card */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <User className="h-4 w-4 text-gray-400" />
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.settings.profile}</h2>
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <User className="h-4 w-4 text-muted" />
+          <h2 className="text-sm font-semibold text-fg">{t.settings.profile}</h2>
         </div>
         <div className="px-5 py-4">
           <div className="flex items-center gap-4 mb-5">
@@ -121,10 +121,10 @@ export function SettingsPage() {
               {getInitials(`${user?.firstName ?? ''} ${user?.lastName ?? ''}`)}
             </div>
             <div>
-              <p className="font-semibold text-gray-900 dark:text-gray-100">
+              <p className="font-semibold text-fg">
                 {user?.firstName} {user?.lastName}
               </p>
-              <p className="text-sm text-gray-500">{user?.email}</p>
+              <p className="text-sm text-muted">{user?.email}</p>
               <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                 {user?.role === 'SuperAdmin' ? 'مدير النظام' : user?.role === 'Owner' ? t.settings.roles.owner : user?.role === 'Manager' ? t.settings.roles.admin : user?.role === 'Cashier' ? t.settings.roles.cashier : user?.role === 'Staff' ? t.settings.roles.viewer : user?.role}
               </span>
@@ -137,7 +137,7 @@ export function SettingsPage() {
           >
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="mb-1 block text-xs font-medium text-muted">
                   {t.settings.firstName}
                 </label>
                 <input
@@ -148,7 +148,7 @@ export function SettingsPage() {
                 <FieldError msg={profileForm.formState.errors.firstName?.message} />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="mb-1 block text-xs font-medium text-muted">
                   {t.settings.lastName}
                 </label>
                 <input
@@ -170,17 +170,17 @@ export function SettingsPage() {
       </div>
 
       {/* Change password card */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <KeyRound className="h-4 w-4 text-gray-400" />
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">تغيير كلمة المرور</h2>
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <KeyRound className="h-4 w-4 text-muted" />
+          <h2 className="text-sm font-semibold text-fg">تغيير كلمة المرور</h2>
         </div>
         <form
           onSubmit={passwordForm.handleSubmit(d => passwordMut.mutate(d))}
           className="px-5 py-4 space-y-3"
         >
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-muted">
               {t.settings.currentPassword}
             </label>
             <PasswordInput
@@ -190,7 +190,7 @@ export function SettingsPage() {
             <FieldError msg={passwordForm.formState.errors.currentPassword?.message} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-muted">
               {t.settings.newPassword}
             </label>
             <PasswordInput
@@ -200,7 +200,7 @@ export function SettingsPage() {
             <FieldError msg={passwordForm.formState.errors.newPassword?.message} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-muted">
               تأكيد كلمة المرور الجديدة
             </label>
             <PasswordInput
@@ -209,7 +209,7 @@ export function SettingsPage() {
             />
             <FieldError msg={passwordForm.formState.errors.confirmPassword?.message} />
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted">
             يجب أن تحتوي كلمة المرور على 8 أحرف على الأقل، وتشمل حرفاً كبيراً وصغيراً ورقماً ورمزاً خاصاً.
           </p>
           <div className="flex justify-start">
@@ -222,9 +222,9 @@ export function SettingsPage() {
       </div>
 
       {/* Language */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.settings.language}</h2>
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-5 py-3">
+          <h2 className="text-sm font-semibold text-fg">{t.settings.language}</h2>
         </div>
         <div className="flex gap-3 px-5 py-4">
           <button
@@ -232,7 +232,7 @@ export function SettingsPage() {
             className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
               lang === 'ar'
                 ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400'
+                : 'border-border text-muted hover:bg-surface-2 '
             }`}
           >
             {t.settings.arabic}
@@ -242,7 +242,7 @@ export function SettingsPage() {
             className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
               lang === 'en'
                 ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400'
+                : 'border-border text-muted hover:bg-surface-2 '
             }`}
           >
             {t.settings.english}
@@ -251,28 +251,28 @@ export function SettingsPage() {
       </div>
 
       {/* Workspace info */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.settings.business}</h2>
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-5 py-3">
+          <h2 className="text-sm font-semibold text-fg">{t.settings.business}</h2>
         </div>
         <div className="space-y-3 px-5 py-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500">معرّف المستأجر</span>
-            <span className="font-mono text-xs text-gray-700 dark:text-gray-300 select-all">{tenantId ?? '—'}</span>
+            <span className="text-muted">معرّف المستأجر</span>
+            <span className="font-mono text-xs text-fg select-all">{tenantId ?? '—'}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-gray-500">معرّف الفرع النشط</span>
-            <span className="font-mono text-xs text-gray-700 dark:text-gray-300 select-all">{branchId ?? '—'}</span>
+            <span className="text-muted">معرّف الفرع النشط</span>
+            <span className="font-mono text-xs text-fg select-all">{branchId ?? '—'}</span>
           </div>
         </div>
       </div>
 
       {/* About */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">عن التطبيق</h2>
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-5 py-3">
+          <h2 className="text-sm font-semibold text-fg">عن التطبيق</h2>
         </div>
-        <div className="space-y-2 px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
+        <div className="space-y-2 px-5 py-4 text-sm text-muted">
           <div className="flex justify-between">
             <span>flowin</span>
             <span className="font-medium">الإصدار المؤسسي v1.0.0</span>

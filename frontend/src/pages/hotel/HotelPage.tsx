@@ -236,15 +236,15 @@ export function HotelPage() {
         )}
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
-        <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex gap-1 rounded-xl border border-border bg-surface-2 p-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100'
-                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'bg-surface text-fg shadow-sm '
+                  : 'text-muted hover:text-fg '
               }`}
             >
               {tab.icon}
@@ -352,17 +352,17 @@ function DashboardTab({
       {/* Today's checkouts */}
       {todayCheckouts.length > 0 && (
         <div>
-          <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+          <h3 className="mb-3 text-sm font-semibold text-fg">
             مغادرة اليوم ({todayCheckouts.length})
           </h3>
-          <div className="divide-y divide-gray-100 rounded-xl border border-orange-200 bg-orange-50 dark:divide-gray-800 dark:border-orange-900/50 dark:bg-orange-900/10">
+          <div className="divide-y divide-border rounded-xl border border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-900/10">
             {todayCheckouts.map((r) => {
               const overdue = isCheckoutOverdue(r.checkOut)
               return (
                 <div key={r.id} className="flex items-center justify-between px-4 py-3">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{r.guestName}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-medium text-fg">{r.guestName}</p>
+                    <p className="text-xs text-muted">
                       {new Date(r.checkOut).toLocaleTimeString(locale, {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -385,14 +385,14 @@ function DashboardTab({
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="h-44 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div key={i} className="h-44 animate-pulse rounded-xl bg-surface-2" />
           ))}
         </div>
       ) : rooms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BedDouble className="mb-3 h-12 w-12 text-gray-300" />
-          <p className="text-gray-500">لا توجد غرف مسجلة بعد</p>
-          <p className="text-sm text-gray-400">أضف أول غرفة باستخدام زر "إضافة غرفة"</p>
+          <BedDouble className="mb-3 h-12 w-12 text-muted/50" />
+          <p className="text-muted">لا توجد غرف مسجلة بعد</p>
+          <p className="text-sm text-muted">أضف أول غرفة باستخدام زر "إضافة غرفة"</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -420,21 +420,21 @@ function StatCard({
   icon: ReactNode
 }) {
   const colors = {
-    gray: 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50',
+    gray: 'border-border bg-surface-2',
     red: 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20',
     green: 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20',
     orange: 'border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-900/20',
   }
 
   const textColors = {
-    gray: 'text-gray-600 dark:text-gray-400',
+    gray: 'text-muted',
     red: 'text-red-700 dark:text-red-400',
     green: 'text-green-700 dark:text-green-400',
     orange: 'text-orange-700 dark:text-orange-400',
   }
 
   const valueColors = {
-    gray: 'text-gray-900 dark:text-gray-100',
+    gray: 'text-fg',
     red: 'text-red-900 dark:text-red-300',
     green: 'text-green-900 dark:text-green-300',
     orange: 'text-orange-900 dark:text-orange-300',
@@ -471,7 +471,7 @@ function RoomCard({ room }: { room: RoomResponse }) {
           ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
           : today
           ? 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20'
-          : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900'
+          : 'border-border bg-surface '
       }`}
     >
       {/* Alert indicator */}
@@ -484,7 +484,7 @@ function RoomCard({ room }: { room: RoomResponse }) {
       )}
 
       <div className="mb-2 flex items-center justify-between gap-1 flex-wrap">
-        <BedDouble className="h-4 w-4 text-gray-400 shrink-0" />
+        <BedDouble className="h-4 w-4 text-muted shrink-0" />
         <Badge variant={STATUS_BADGE[room.status]}>
           {room.status === 'Available' ? t.hotel.status.available
             : room.status === 'Occupied' ? t.hotel.status.occupied
@@ -493,8 +493,8 @@ function RoomCard({ room }: { room: RoomResponse }) {
         </Badge>
       </div>
 
-      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{room.roomNumber}</p>
-      <p className="text-xs text-gray-500 mb-2">
+      <p className="text-xl font-bold text-fg">{room.roomNumber}</p>
+      <p className="text-xs text-muted mb-2">
         {room.roomType === 'Standard' ? t.hotel.roomTypes.standard
           : room.roomType === 'Deluxe' ? t.hotel.roomTypes.deluxe
           : room.roomType === 'Suite' ? t.hotel.roomTypes.suite
@@ -504,9 +504,9 @@ function RoomCard({ room }: { room: RoomResponse }) {
       <Badge variant={cleaning.variant} className="mb-2">{cleaning.label}</Badge>
 
       {res && (
-        <div className="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800">
-          <p className="truncate text-xs font-medium text-gray-800 dark:text-gray-200">{res.guestName}</p>
-          <p className="text-xs text-gray-500">
+        <div className="mt-2 border-t border-border pt-2">
+          <p className="truncate text-xs font-medium text-fg">{res.guestName}</p>
+          <p className="text-xs text-muted">
             {overdue ? (
               <span className="font-medium text-red-600 dark:text-red-400">متأخر عن المغادرة</span>
             ) : today ? (
@@ -515,7 +515,7 @@ function RoomCard({ room }: { room: RoomResponse }) {
               <span>يغادر بعد {daysLeft} {daysLeft === 1 ? 'يوم' : 'أيام'}</span>
             )}
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted">
             {formatDate(res.checkOut, locale)}
           </p>
         </div>
@@ -614,8 +614,8 @@ function CashierTab({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {/* Check-in form */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="mb-5 text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-surface p-6">
+        <h3 className="mb-5 text-base font-semibold text-fg flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-blue-500" />
           تسجيل وصول جديد
         </h3>
@@ -701,15 +701,15 @@ function CashierTab({
           {nights > 0 && watchedRate > 0 && (
             <div className="rounded-xl bg-blue-50 p-4 dark:bg-blue-900/20">
               <div className="space-y-1 text-sm">
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between text-muted">
                   <span>{nights} ليلة × {formatCurrency(watchedRate)}</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between text-muted">
                   <span>ضريبة القيمة المضافة 15%</span>
                   <span>{formatCurrency(vat)}</span>
                 </div>
-                <div className="flex justify-between border-t border-blue-200 pt-1 font-bold text-gray-900 dark:border-blue-800 dark:text-gray-100">
+                <div className="flex justify-between border-t border-blue-200 pt-1 font-bold text-fg dark:border-blue-800">
                   <span>الإجمالي</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
@@ -730,15 +730,15 @@ function CashierTab({
       </div>
 
       {/* Active reservations */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-        <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-6 py-4">
+          <h3 className="text-base font-semibold text-fg">
             الحجوزات النشطة ({reservations.length})
           </h3>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        <div className="divide-y divide-border">
           {reservations.length === 0 ? (
-            <div className="py-12 text-center text-sm text-gray-400">
+            <div className="py-12 text-center text-sm text-muted">
               لا توجد حجوزات نشطة
             </div>
           ) : (
@@ -750,7 +750,7 @@ function CashierTab({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{res.guestName}</p>
+                        <p className="font-medium text-fg truncate">{res.guestName}</p>
                         {room && (
                           <Badge variant="blue">غرفة {room.roomNumber}</Badge>
                         )}
@@ -759,7 +759,7 @@ function CashierTab({
                           <Badge variant="orange">يغادر اليوم</Badge>
                         )}
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-gray-500">
+                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
                         <span className="flex items-center gap-1">
                           <Phone className="h-3 w-3" />{res.guestPhone}
                         </span>
@@ -819,7 +819,7 @@ function CleaningTab({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+        <h3 className="text-base font-semibold text-fg">
           غرف تحتاج تنظيف
         </h3>
         {dirtyRooms.length > 0 && (
@@ -832,14 +832,14 @@ function CleaningTab({
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-36 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div key={i} className="h-36 animate-pulse rounded-xl bg-surface-2" />
           ))}
         </div>
       ) : dirtyRooms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Sparkles className="mb-3 h-12 w-12 text-green-400" />
-          <p className="font-medium text-gray-700 dark:text-gray-300">جميع الغرف نظيفة</p>
-          <p className="text-sm text-gray-400">لا توجد غرف تحتاج إلى تنظيف</p>
+          <p className="font-medium text-fg">جميع الغرف نظيفة</p>
+          <p className="text-sm text-muted">لا توجد غرف تحتاج إلى تنظيف</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -850,10 +850,10 @@ function CleaningTab({
             >
               <div className="mb-3 flex items-start justify-between">
                 <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  <p className="text-2xl font-bold text-fg">
                     {room.roomNumber}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted">
                     {room.roomType === 'Standard' ? t.hotel.roomTypes.standard : room.roomType === 'Deluxe' ? t.hotel.roomTypes.deluxe : room.roomType === 'Suite' ? t.hotel.roomTypes.suite : t.hotel.roomTypes.penthouse} · {t.hotel.floor.replace('{n}', String(room.floor))}
                   </p>
                 </div>
@@ -1032,65 +1032,65 @@ function HotelReceiptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900">
+      <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl">
         <div className="mb-4 text-center">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t.hotel.taxInvoice}</h2>
-          <p className="text-xs text-gray-500">flowin</p>
-          {vatNumber && <p className="text-xs text-gray-500">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
+          <h2 className="text-lg font-bold text-fg">{t.hotel.taxInvoice}</h2>
+          <p className="text-xs text-muted">flowin</p>
+          {vatNumber && <p className="text-xs text-muted">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
 
-        <div className="mb-4 rounded-xl bg-gray-50 p-3 text-sm dark:bg-gray-800">
+        <div className="mb-4 rounded-xl bg-surface-2 p-3 text-sm">
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">الضيف</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">{reservation.guestName}</span>
+            <span className="text-muted">الضيف</span>
+            <span className="font-medium text-fg">{reservation.guestName}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">{t.hotel.idNumber}</span>
-            <span className="text-gray-700 dark:text-gray-300">{reservation.guestNationalId}</span>
+            <span className="text-muted">{t.hotel.idNumber}</span>
+            <span className="text-fg">{reservation.guestNationalId}</span>
           </div>
           {roomNumber && (
             <div className="flex justify-between py-0.5">
-              <span className="text-gray-500">{t.hotel.room}</span>
-              <span className="text-gray-700 dark:text-gray-300">{roomNumber}</span>
+              <span className="text-muted">{t.hotel.room}</span>
+              <span className="text-fg">{roomNumber}</span>
             </div>
           )}
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">{t.hotel.arrivalDate}</span>
-            <span className="text-gray-700 dark:text-gray-300">{formatDate(reservation.checkIn, locale)}</span>
+            <span className="text-muted">{t.hotel.arrivalDate}</span>
+            <span className="text-fg">{formatDate(reservation.checkIn, locale)}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">{t.hotel.departureDate}</span>
-            <span className="text-gray-700 dark:text-gray-300">{formatDate(reservation.checkOut, locale)}</span>
+            <span className="text-muted">{t.hotel.departureDate}</span>
+            <span className="text-fg">{formatDate(reservation.checkOut, locale)}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">{t.hotel.nights}</span>
-            <span className="text-gray-700 dark:text-gray-300">{reservation.nights}</span>
+            <span className="text-muted">{t.hotel.nights}</span>
+            <span className="text-fg">{reservation.nights}</span>
           </div>
           <div className="flex justify-between py-0.5">
-            <span className="text-gray-500">{t.hotel.perNight}</span>
-            <span className="text-gray-700 dark:text-gray-300">{formatCurrency(reservation.ratePerNight)}</span>
+            <span className="text-muted">{t.hotel.perNight}</span>
+            <span className="text-fg">{formatCurrency(reservation.ratePerNight)}</span>
           </div>
         </div>
 
-        <div className="mb-4 space-y-1 border-t border-gray-200 pt-3 text-sm dark:border-gray-700">
-          <div className="flex justify-between text-gray-600 dark:text-gray-400">
+        <div className="mb-4 space-y-1 border-t border-border pt-3 text-sm">
+          <div className="flex justify-between text-muted">
             <span>المجموع قبل الضريبة</span>
             <span className="tabular-nums">{formatCurrency(subtotal)}</span>
           </div>
-          <div className="flex justify-between text-gray-600 dark:text-gray-400">
+          <div className="flex justify-between text-muted">
             <span>ضريبة القيمة المضافة 15%</span>
             <span className="tabular-nums">{formatCurrency(vat)}</span>
           </div>
-          <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100">
+          <div className="flex justify-between font-bold text-fg">
             <span>الإجمالي</span>
             <span className="tabular-nums">{formatCurrency(total)}</span>
           </div>
         </div>
 
         {/* ZATCA QR */}
-        <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-gray-50 p-3 dark:bg-gray-800">
-          <QrCode className="h-4 w-4 text-gray-500" />
-          <p className="text-xs text-gray-500">رمز ZATCA للتحقق</p>
+        <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-surface-2 p-3">
+          <QrCode className="h-4 w-4 text-muted" />
+          <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrCode)}`}
             alt="رمز ZATCA للتحقق"

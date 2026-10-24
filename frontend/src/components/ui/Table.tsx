@@ -22,44 +22,38 @@ export function Table<T>({
   data,
   keyExtractor,
   onRowClick,
-  emptyMessage = 'No data found',
+  emptyMessage = 'لا توجد بيانات',
   loading = false,
 }: TableProps<T>) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm tabular-nums">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-800">
+          <tr className="border-b border-border bg-surface-2/60">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={cn(
-                  'px-4 py-3 text-start text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400',
-                  col.headerClassName,
-                )}
+                className={cn('whitespace-nowrap px-4 py-3 text-start text-xs font-semibold text-muted', col.headerClassName)}
               >
                 {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+        <tbody className="divide-y divide-border">
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <tr key={i}>
                 {columns.map((col) => (
                   <td key={col.key} className="px-4 py-3">
-                    <div className="h-4 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                    <div className="skeleton h-4" />
                   </td>
                 ))}
               </tr>
             ))
           ) : data.length === 0 ? (
             <tr>
-              <td
-                colSpan={columns.length}
-                className="px-4 py-10 text-center text-gray-400 dark:text-gray-500"
-              >
+              <td colSpan={columns.length} className="px-4 py-12 text-center text-muted">
                 {emptyMessage}
               </td>
             </tr>
@@ -68,22 +62,11 @@ export function Table<T>({
               <tr
                 key={keyExtractor(row)}
                 onClick={() => onRowClick?.(row)}
-                className={cn(
-                  'transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                  onRowClick && 'cursor-pointer',
-                )}
+                className={cn('transition-colors hover:bg-surface-2/70', onRowClick && 'cursor-pointer')}
               >
                 {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className={cn(
-                      'px-4 py-3 text-gray-700 dark:text-gray-300',
-                      col.className,
-                    )}
-                  >
-                    {col.render
-                      ? col.render(row)
-                      : String((row as Record<string, unknown>)[col.key] ?? '')}
+                  <td key={col.key} className={cn('px-4 py-3 text-fg', col.className)}>
+                    {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '')}
                   </td>
                 ))}
               </tr>

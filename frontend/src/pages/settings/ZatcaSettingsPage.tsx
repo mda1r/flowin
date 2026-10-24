@@ -80,25 +80,25 @@ export function ZatcaSettingsPage() {
       </div>
 
       {/* Settings form */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
+      <div className="rounded-xl border border-border bg-surface p-6">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
             <Shield className="h-5 w-5 text-emerald-600" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">{t.zatca.supplierData}</h2>
-            <p className="text-xs text-gray-500">{t.zatca.supplierDataHint}</p>
+            <h2 className="text-sm font-semibold text-fg">{t.zatca.supplierData}</h2>
+            <p className="text-xs text-muted">{t.zatca.supplierDataHint}</p>
           </div>
         </div>
 
         {isLoading ? (
           <div className="space-y-3">
-            {[1, 2].map(i => <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-100" />)}
+            {[1, 2].map(i => <div key={i} className="h-10 animate-pulse rounded-lg bg-surface-2" />)}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-fg">
                 {t.zatca.legalName}
               </label>
               <Input
@@ -110,7 +110,7 @@ export function ZatcaSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-fg">
                 {t.zatca.vatNumber}
               </label>
               <Input
@@ -126,10 +126,10 @@ export function ZatcaSettingsPage() {
             </div>
 
             {/* Phase 2 toggle */}
-            <div className="flex items-start gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-start gap-4 rounded-xl border border-border bg-surface-2 p-4">
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">{t.zatca.enablePhase2}</div>
-                <div className="mt-0.5 text-xs text-gray-500">
+                <div className="text-sm font-medium text-fg">{t.zatca.enablePhase2}</div>
+                <div className="mt-0.5 text-xs text-muted">
                   {t.zatca.phase2Hint}
                 </div>
               </div>
@@ -137,7 +137,7 @@ export function ZatcaSettingsPage() {
                 type="button"
                 onClick={() => setPhase2(v => !v)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  phase2 ? 'bg-emerald-500' : 'bg-gray-300'
+                  phase2 ? 'bg-emerald-500' : 'bg-border'
                 }`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
@@ -146,7 +146,7 @@ export function ZatcaSettingsPage() {
               </button>
             </div>
 
-            <div className="flex justify-end border-t border-gray-100 pt-4">
+            <div className="flex justify-end border-t border-border pt-4">
               <Button
                 onClick={() => saveMutation.mutate()}
                 disabled={saveMutation.isPending || !sellerName.trim() || !vatValid}
@@ -186,21 +186,21 @@ function InfoCard({ icon, title, description, active }: {
 }) {
   return (
     <div className={`flex gap-4 rounded-xl border p-4 ${
-      active ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'
+      active ? 'border-emerald-200 bg-emerald-50' : 'border-border bg-surface'
     }`}>
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-        active ? 'bg-white' : 'bg-gray-100'
+        active ? 'bg-surface' : 'bg-surface-2'
       }`}>
         {icon}
       </div>
       <div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-900">{title}</span>
+          <span className="text-sm font-medium text-fg">{title}</span>
           {active && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">مُفعّل</span>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-gray-500">{description}</p>
+        <p className="mt-0.5 text-xs text-muted">{description}</p>
       </div>
     </div>
   )

@@ -67,8 +67,8 @@ interface CustomerReceiptData {
 type PayMode = 'Cash' | 'Card' | 'Split'
 
 const CAFE_ACCENT: React.CSSProperties = {
-  '--accent': '#4F46E5',
-  '--glow': 'rgba(79,70,229,0.35)',
+  '--accent-l': '#4F46E5',
+  '--accent-d': '#A5B4FC',
 } as React.CSSProperties
 
 const TOTAL_TABLES = 16
@@ -91,8 +91,8 @@ function TablePicker({
           className={cn(
             'flex h-12 items-center justify-center rounded-xl border-2 text-sm font-bold transition-all',
             selected === n
-              ? 'scale-95 border-[var(--accent)] bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-              : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+              ? 'scale-95 border-brand bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+              : 'border-border bg-surface text-fg hover:border-indigo-300 hover:bg-indigo-50',
           )}
         >
           {n}
@@ -114,15 +114,15 @@ function KitchenTicketModal({
   const now = new Date()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-      <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+      <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div id="cafe-kitchen-print" className="p-5">
           {/* Header */}
-          <div className="mb-4 border-b border-dashed border-gray-200 pb-4 text-center dark:border-gray-700">
+          <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
             <div className="mb-1 flex items-center justify-center gap-2 text-lg font-black">
               <ChefHat className="h-5 w-5 text-indigo-500" />
               طلب المطبخ
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               {now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
             </p>
             <div className="mt-2 flex items-center justify-center gap-2">
@@ -136,19 +136,19 @@ function KitchenTicketModal({
                   ? ticket.tableNumber ? `طاولة ${ticket.tableNumber}` : 'بدون طاولة'
                   : '🛍 تيك أواي'}
               </span>
-              <span className="text-sm text-gray-400">#{ticket.ticketNumber}</span>
+              <span className="text-sm text-muted">#{ticket.ticketNumber}</span>
             </div>
           </div>
 
           {/* Items */}
           <div className="space-y-3">
             {ticket.items.map((item, i) => (
-              <div key={i} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0 dark:border-gray-800">
+              <div key={i} className="border-b border-border pb-3 last:border-0 last:pb-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-gray-900 dark:text-gray-100">{item.productName}</p>
+                    <p className="font-bold text-fg">{item.productName}</p>
                     {item.variantName && item.variantName !== 'افتراضي' && item.variantName !== item.productName && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{item.variantName}</p>
+                      <p className="text-xs text-muted">{item.variantName}</p>
                     )}
                     {item.notes && (
                       <p className="mt-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
@@ -156,7 +156,7 @@ function KitchenTicketModal({
                       </p>
                     )}
                   </div>
-                  <span className="text-2xl font-black tabular-nums text-gray-900 dark:text-gray-100">
+                  <span className="text-2xl font-black tabular-nums text-fg">
                     ×{item.quantity}
                   </span>
                 </div>
@@ -166,17 +166,17 @@ function KitchenTicketModal({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-700">
+        <div className="flex gap-2 border-t border-border p-4">
           <button
             onClick={() => window.print()}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fg py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-fg/85"
           >
             <Printer className="h-4 w-4" />
             طباعة
           </button>
           <button
             onClick={onClose}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
           >
             <X className="h-4 w-4" />
             إغلاق
@@ -220,23 +220,23 @@ function CustomerReceiptModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-      <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+      <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div id="cafe-receipt-print" className="p-5">
           {/* Header */}
-          <div className="mb-4 border-b border-dashed border-gray-200 pb-4 text-center dark:border-gray-700">
+          <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
             {sellerName && (
-              <p className="text-base font-black text-gray-900 dark:text-gray-100">{sellerName}</p>
+              <p className="text-base font-black text-fg">{sellerName}</p>
             )}
             {vatNumber && (
-              <p className="text-xs text-gray-500">الرقم الضريبي: {vatNumber}</p>
+              <p className="text-xs text-muted">الرقم الضريبي: {vatNumber}</p>
             )}
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-muted mt-1">
               {new Date(receipt.completedAt).toLocaleString('ar-SA', {
                 year: 'numeric', month: 'short', day: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })}
             </p>
-            <p className="text-xs font-mono text-gray-400">#{receipt.orderId.slice(-8).toUpperCase()}</p>
+            <p className="text-xs font-mono text-muted">#{receipt.orderId.slice(-8).toUpperCase()}</p>
             {receipt.orderType === 'here' && receipt.tableNumber && (
               <span className="mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400">
                 طاولة {receipt.tableNumber}
@@ -252,10 +252,10 @@ function CustomerReceiptModal({
           {/* Items */}
           <div className="mb-4 space-y-2 text-sm">
             {receipt.items.map((item) => (
-              <div key={item.variantId} className="flex justify-between text-gray-700 dark:text-gray-300">
+              <div key={item.variantId} className="flex justify-between text-fg">
                 <span className="flex-1">
                   {item.productName}
-                  {item.quantity > 1 && <span className="text-gray-400"> ×{item.quantity}</span>}
+                  {item.quantity > 1 && <span className="text-muted"> ×{item.quantity}</span>}
                   {item.notes && <span className="block text-xs text-indigo-500">📝 {item.notes}</span>}
                 </span>
                 <span className="tabular-nums">{formatCurrency(item.unitPrice * item.quantity)}</span>
@@ -264,29 +264,29 @@ function CustomerReceiptModal({
           </div>
 
           {/* Totals */}
-          <div className="mb-4 space-y-1 border-t border-dashed border-gray-200 pt-3 text-sm dark:border-gray-700">
-            <div className="flex justify-between text-gray-500">
+          <div className="mb-4 space-y-1 border-t border-dashed border-border pt-3 text-sm">
+            <div className="flex justify-between text-muted">
               <span>المجموع قبل الضريبة</span>
               <span className="tabular-nums">{formatCurrency(receipt.subtotal)}</span>
             </div>
-            <div className="flex justify-between text-gray-500">
+            <div className="flex justify-between text-muted">
               <span>ضريبة القيمة المضافة 15%</span>
               <span className="tabular-nums">{formatCurrency(receipt.tax)}</span>
             </div>
-            <div className="flex justify-between text-base font-bold text-gray-900 dark:text-gray-100">
+            <div className="flex justify-between text-base font-bold text-fg">
               <span>الإجمالي</span>
               <span className="tabular-nums">{formatCurrency(receipt.grandTotal)}</span>
             </div>
           </div>
 
           {/* Payment */}
-          <div className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500 dark:bg-gray-800">
+          <div className="mb-4 rounded-lg bg-surface-2 px-3 py-2 text-center text-xs text-muted">
             {payLabel}
           </div>
 
           {/* ZATCA QR */}
           <div className="mb-2 flex flex-col items-center gap-1">
-            <QrCode className="h-4 w-4 text-gray-400" />
+            <QrCode className="h-4 w-4 text-muted" />
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(qrCode)}`}
               alt="QR ZATCA"
@@ -294,22 +294,22 @@ function CustomerReceiptModal({
               height={110}
               className="rounded-lg"
             />
-            <p className="text-[10px] text-gray-400">رمز ZATCA للتحقق</p>
+            <p className="text-[10px] text-muted">رمز ZATCA للتحقق</p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-700">
+        <div className="flex gap-2 border-t border-border p-4">
           <button
             onClick={() => window.print()}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fg py-2.5 text-sm font-semibold text-bg hover:bg-fg/85"
           >
             <Printer className="h-4 w-4" />
             طباعة
           </button>
           <button
             onClick={onClose}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-fg hover:bg-surface-2"
           >
             <X className="h-4 w-4" />
             إغلاق
@@ -750,12 +750,12 @@ export function CafePosPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-gray-950" dir="rtl" style={CAFE_ACCENT}>
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" dir="rtl" style={CAFE_ACCENT}>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-5 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3 shadow-sm">
         <div className="flex items-center gap-3">
           <Coffee className="h-5 w-5 text-indigo-400" />
-          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">{t.pos.title}</h1>
+          <h1 className="text-base font-bold text-fg">{t.pos.title}</h1>
         </div>
         <div className="flex items-center gap-2">
           {aiCashierAvailable && (
@@ -778,7 +778,7 @@ export function CafePosPage() {
           ) : (
             <button
               onClick={() => setShowOpenShift(true)}
-              className="rounded-xl bg-[var(--accent)] px-4 py-1.5 text-sm font-semibold text-white"
+              className="rounded-xl bg-brand px-4 py-1.5 text-sm font-semibold text-white"
             >
               فتح شفت
             </button>
@@ -789,17 +789,17 @@ export function CafePosPage() {
       <ShiftGate onOpenShift={() => setShowOpenShift(true)}>
         <div className="flex flex-1 overflow-hidden">
           {/* ── Cart sidebar (appears RIGHT in RTL) ── */}
-          <aside className="flex w-72 flex-shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <aside className="flex w-72 flex-shrink-0 flex-col border-l border-border bg-surface">
             {/* Order type toggle */}
-            <div className="space-y-2 border-b border-gray-100 p-3 dark:border-gray-800">
-              <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="space-y-2 border-b border-border p-3">
+              <div className="flex overflow-hidden rounded-xl border border-border">
                 <button
                   onClick={() => { setOrderType('here'); setTableNumber(null) }}
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-semibold transition-colors',
                     orderType === 'here'
                       ? 'bg-indigo-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
+                      : 'text-muted hover:bg-surface-2',
                   )}
                 >
                   {t.pos.dineIn}
@@ -810,7 +810,7 @@ export function CafePosPage() {
                     'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-semibold transition-colors',
                     orderType === 'takeaway'
                       ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
+                      : 'text-muted hover:bg-surface-2',
                   )}
                 >
                   <ShoppingBag className="h-3.5 w-3.5" />
@@ -835,10 +835,10 @@ export function CafePosPage() {
 
             {/* Cart header */}
             <div
-              className="border-b border-gray-100 px-4 py-2 dark:border-gray-800"
+              className="border-b border-border px-4 py-2"
               style={{ background: 'linear-gradient(to left, color-mix(in srgb, var(--accent) 8%, transparent), transparent)' }}
             >
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+              <p className="text-sm font-bold text-fg">
                 {t.pos.currentOrder}
                 {orderType === 'takeaway' && <span className="mr-1 text-blue-500">— {t.pos.takeaway}</span>}
                 {orderType === 'here' && tableNumber && <span className="mr-1 text-indigo-500">— {t.pos.tableNumber} {tableNumber}</span>}
@@ -848,7 +848,7 @@ export function CafePosPage() {
             {/* Cart items */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 py-14 text-gray-300">
+                <div className="flex flex-col items-center justify-center gap-2 py-14 text-muted/50">
                   <Coffee className="h-8 w-8" />
                   <p className="text-sm">{t.pos.addProducts}</p>
                 </div>
@@ -856,15 +856,15 @@ export function CafePosPage() {
                 cart.map((item) => (
                   <div
                     key={item.variantId}
-                    className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
+                    className="rounded-xl border border-border bg-surface-2 p-3"
                   >
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        <p className="truncate text-sm font-semibold text-fg">
                           {item.productName}
                         </p>
                         {item.variantName && item.variantName !== 'افتراضي' && item.variantName !== item.productName && (
-                          <p className="text-xs text-gray-400">{item.variantName}</p>
+                          <p className="text-xs text-muted">{item.variantName}</p>
                         )}
                         <p className="text-xs font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
                           {formatCurrency(item.unitPrice * item.quantity)}
@@ -873,14 +873,14 @@ export function CafePosPage() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => updateQty(item.variantId, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className="w-5 text-center text-sm font-bold tabular-nums">{item.quantity}</span>
                         <button
                           onClick={() => updateQty(item.variantId, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
@@ -908,7 +908,7 @@ export function CafePosPage() {
                     ) : (
                       <button
                         onClick={() => setEditingNoteId(item.variantId)}
-                        className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-500 transition-colors"
+                        className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-indigo-500 transition-colors"
                       >
                         <MessageSquare className="h-3 w-3" />
                         {item.notes ? (
@@ -923,24 +923,24 @@ export function CafePosPage() {
 
             {/* Totals & checkout */}
             {cart.length > 0 && (
-              <div className="border-t border-gray-200 p-4 space-y-3 dark:border-gray-800">
+              <div className="border-t border-border p-4 space-y-3">
                 <div className="space-y-1 text-sm">
-                  <div className="flex justify-between text-gray-500">
+                  <div className="flex justify-between text-muted">
                     <span>{t.pos.subtotal}</span>
                     <span className="tabular-nums">{formatCurrency(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-500">
+                  <div className="flex justify-between text-muted">
                     <span>{t.pos.tax}</span>
                     <span className="tabular-nums">{formatCurrency(tax)}</span>
                   </div>
-                  <div className="flex justify-between text-base font-bold text-gray-900 dark:text-gray-100">
+                  <div className="flex justify-between text-base font-bold text-fg">
                     <span>{t.pos.total}</span>
                     <span className="tabular-nums">{formatCurrency(grandTotal)}</span>
                   </div>
                 </div>
 
                 {/* Payment mode */}
-                <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="flex overflow-hidden rounded-xl border border-border">
                   {(['Cash', 'Card', 'Split'] as PayMode[]).map((m) => (
                     <button
                       key={m}
@@ -948,8 +948,8 @@ export function CafePosPage() {
                       className={cn(
                         'flex flex-1 items-center justify-center gap-1 py-2 text-xs font-medium transition-colors',
                         payMode === m
-                          ? 'bg-[var(--accent)] text-white'
-                          : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400',
+                          ? 'bg-brand text-brand-fg'
+                          : 'text-muted hover:bg-surface-2',
                       )}
                     >
                       {m === 'Cash' && <Banknote className="h-3 w-3" />}
@@ -962,13 +962,13 @@ export function CafePosPage() {
 
                 {/* Split inputs */}
                 {payMode === 'Split' && (
-                  <div className="space-y-2 rounded-xl border border-dashed border-[var(--accent)]/40 bg-[var(--accent)]/5 p-3">
-                    <p className="text-center text-xs font-semibold text-gray-500">
+                  <div className="space-y-2 rounded-xl border border-dashed border-brand/40 bg-brand/5 p-3">
+                    <p className="text-center text-xs font-semibold text-muted">
                       {t.pos.total}: {(grandTotal).toFixed(2)} ر.س
                     </p>
                     <div className="flex gap-2">
                       <div className="flex-1">
-                        <label className="mb-1 block text-[10px] font-medium text-gray-500">{t.pos.splitCash}</label>
+                        <label className="mb-1 block text-[10px] font-medium text-muted">{t.pos.splitCash}</label>
                         <input
                           type="number"
                           min="0"
@@ -981,11 +981,11 @@ export function CafePosPage() {
                             const remaining = grandTotal - cash
                             setSplitCard(remaining > 0 ? remaining.toFixed(2) : '')
                           }}
-                          className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm tabular-nums outline-none focus:border-[var(--accent)] dark:border-gray-700 dark:bg-gray-800"
+                          className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-sm tabular-nums outline-none focus:border-brand"
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="mb-1 block text-[10px] font-medium text-gray-500">{t.pos.splitCard}</label>
+                        <label className="mb-1 block text-[10px] font-medium text-muted">{t.pos.splitCard}</label>
                         <input
                           type="number"
                           min="0"
@@ -998,7 +998,7 @@ export function CafePosPage() {
                             const remaining = grandTotal - card
                             setSplitCash(remaining > 0 ? remaining.toFixed(2) : '')
                           }}
-                          className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm tabular-nums outline-none focus:border-[var(--accent)] dark:border-gray-700 dark:bg-gray-800"
+                          className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-sm tabular-nums outline-none focus:border-brand"
                         />
                       </div>
                     </div>
@@ -1013,8 +1013,7 @@ export function CafePosPage() {
                 <button
                   onClick={() => checkout.mutate()}
                   disabled={checkout.isPending || !canCheckout}
-                  className="w-full rounded-xl py-3 text-sm font-bold text-white transition-all disabled:opacity-50"
-                  style={{ background: 'var(--accent)' }}
+                  className="bg-brand w-full rounded-xl py-3 text-sm font-bold text-brand-fg transition-all disabled:opacity-50"
                 >
                   {checkout.isPending ? t.common.loading : t.pos.checkout}
                 </button>
@@ -1025,14 +1024,14 @@ export function CafePosPage() {
           {/* ── Products area ── */}
           <main className="flex flex-1 flex-col overflow-hidden">
             {/* Category tabs */}
-            <div className="flex gap-2 overflow-x-auto border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex gap-2 overflow-x-auto border-b border-border bg-surface px-4 py-3">
               <button
                 onClick={() => setSelectedCategoryId('all')}
                 className={cn(
                   'px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
                   selectedCategoryId === 'all'
-                    ? 'bg-[var(--accent)] text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
+                    ? 'bg-brand text-brand-fg shadow-sm'
+                    : 'text-muted hover:text-fg hover:bg-surface-2',
                 )}
               >
                 الكل
@@ -1044,8 +1043,8 @@ export function CafePosPage() {
                   className={cn(
                     'px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
                     selectedCategoryId === c.id
-                      ? 'bg-[var(--accent)] text-white shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
+                      ? 'bg-brand text-brand-fg shadow-sm'
+                      : 'text-muted hover:text-fg hover:bg-surface-2',
                   )}
                 >
                   {c.name}
@@ -1057,7 +1056,7 @@ export function CafePosPage() {
                   'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
                   selectedCategoryId === '__gaming__'
                     ? 'bg-violet-600 text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
+                    : 'text-muted hover:text-fg hover:bg-surface-2',
                 )}
               >
                 <Gamepad2 className="h-3.5 w-3.5" />
@@ -1069,10 +1068,10 @@ export function CafePosPage() {
             {selectedCategoryId === '__gaming__' && (
               <div className="flex-1 overflow-y-auto p-4">
                 {stations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-300">
+                  <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted/50">
                     <Gamepad2 className="h-10 w-10" />
                     <p className="text-sm">لا توجد محطات ألعاب</p>
-                    <p className="text-xs text-gray-400">أضف محطات من صفحة الألعاب أولاً</p>
+                    <p className="text-xs text-muted">أضف محطات من صفحة الألعاب أولاً</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1085,15 +1084,15 @@ export function CafePosPage() {
                             ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
                             : station.status === 'InUse'
                             ? 'border-violet-300 bg-violet-50 dark:border-violet-700 dark:bg-violet-900/20'
-                            : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50',
+                            : 'border-border bg-surface-2',
                         )}
                       >
                         {/* Station header */}
                         <div className="mb-2 flex items-start justify-between">
                           <div>
                             <p className="text-xl">{STATION_ICON[station.type] ?? '🎮'}</p>
-                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{station.name}</p>
-                            <p className="text-xs text-gray-500">{station.type}</p>
+                            <p className="text-sm font-bold text-fg">{station.name}</p>
+                            <p className="text-xs text-muted">{station.type}</p>
                           </div>
                           <span className={cn(
                             'rounded-full px-2 py-0.5 text-xs font-semibold',
@@ -1101,7 +1100,7 @@ export function CafePosPage() {
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                               : station.status === 'InUse'
                               ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400'
-                              : 'bg-gray-100 text-gray-500 dark:bg-gray-700',
+                              : 'bg-surface-2 text-muted',
                           )}>
                             {station.status === 'Available' ? 'متاح' : station.status === 'InUse' ? 'شاغل' : 'صيانة'}
                           </span>
@@ -1158,7 +1157,7 @@ export function CafePosPage() {
                           </button>
                         )}
                         {station.status === 'Maintenance' && (
-                          <p className="mt-auto text-center text-xs text-gray-400">في الصيانة</p>
+                          <p className="mt-auto text-center text-xs text-muted">في الصيانة</p>
                         )}
                       </div>
                     ))}
@@ -1173,14 +1172,14 @@ export function CafePosPage() {
               {productsLoading ? (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
                   {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="h-28 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
+                    <div key={i} className="h-28 animate-pulse rounded-xl bg-border" />
                   ))}
                 </div>
               ) : products.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-300">
+                <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted/50">
                   <Coffee className="h-10 w-10" />
                   <p className="text-sm">لا توجد منتجات</p>
-                  <p className="text-xs text-gray-400">أضف منتجات من صفحة المنتجات أولاً</p>
+                  <p className="text-xs text-muted">أضف منتجات من صفحة المنتجات أولاً</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -1193,20 +1192,19 @@ export function CafePosPage() {
                           onClick={() =>
                             addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)
                           }
-                          className="group relative flex flex-col items-start overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-right transition-all duration-200 hover:border-indigo-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] dark:border-gray-700 dark:bg-gray-800"
+                          className="group relative flex flex-col items-start overflow-hidden rounded-xl border border-border bg-surface p-3 text-right transition-all duration-200 hover:border-indigo-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
                         >
-                          <p className="text-sm font-semibold leading-snug text-gray-900 dark:text-gray-100">
+                          <p className="text-sm font-semibold leading-snug text-fg">
                             {product.name}
                           </p>
                           {variant.name && variant.name !== 'افتراضي' && variant.name !== product.name && (
-                            <p className="text-xs text-gray-400">{variant.name}</p>
+                            <p className="text-xs text-muted">{variant.name}</p>
                           )}
                           <p className="mt-auto pt-3 text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
                             {formatCurrency(variant.salePrice)}
                           </p>
                           <span
-                            className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                            style={{ background: 'var(--accent)' }}
+                            className="bg-brand pointer-events-none absolute inset-x-0 bottom-0 h-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 text-brand-fg"
                           />
                         </button>
                       )),
@@ -1227,12 +1225,12 @@ export function CafePosPage() {
           dir="rtl"
         >
           <div
-            className="w-72 rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+            className="w-72 rounded-2xl bg-surface shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">اختر طاولة</h3>
-              <button onClick={() => setShowTablePicker(false)} className="text-gray-400 hover:text-gray-600">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h3 className="font-bold text-fg">اختر طاولة</h3>
+              <button onClick={() => setShowTablePicker(false)} className="text-muted hover:text-fg">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1266,30 +1264,30 @@ export function CafePosPage() {
       {/* ── Start Gaming Session Modal ── */}
       {startSessionForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-          <div className="w-80 rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+          <div className="w-80 rounded-2xl bg-surface shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{STATION_ICON[startSessionForm.stationTypeKey] ?? '🎮'}</span>
-                <h3 className="font-bold text-gray-900 dark:text-gray-100">{startSessionForm.stationName}</h3>
+                <h3 className="font-bold text-fg">{startSessionForm.stationName}</h3>
               </div>
-              <button onClick={() => setStartSessionForm(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setStartSessionForm(null)} className="text-muted hover:text-fg">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-4 p-4">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">اسم اللاعب</label>
+                <label className="mb-1.5 block text-sm font-semibold text-fg">اسم اللاعب</label>
                 <input
                   type="text"
                   value={startSessionForm.playerName}
                   onChange={(e) => setStartSessionForm(f => f && { ...f, playerName: e.target.value })}
                   placeholder="أدخل اسم اللاعب"
                   autoFocus
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-300 text-fg"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">المدة</label>
+                <label className="mb-1.5 block text-sm font-semibold text-fg">المدة</label>
                 <div className="mb-2 flex gap-1.5">
                   {[30, 60, 120, 180].map((m) => (
                     <button
@@ -1299,7 +1297,7 @@ export function CafePosPage() {
                         'flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors',
                         startSessionForm.durationMinutes === m
                           ? 'bg-violet-600 text-white'
-                          : 'border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800',
+                          : 'border border-border text-muted hover:bg-surface-2',
                       )}
                     >
                       {m === 60 ? '1س' : m === 120 ? '2س' : m === 180 ? '3س' : '30د'}
@@ -1312,33 +1310,33 @@ export function CafePosPage() {
                     min="1"
                     value={startSessionForm.durationMinutes}
                     onChange={(e) => setStartSessionForm(f => f && { ...f, durationMinutes: Math.max(1, parseInt(e.target.value) || 1) })}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 text-fg"
                   />
-                  <span className="shrink-0 text-xs text-gray-400">دقيقة</span>
+                  <span className="shrink-0 text-xs text-muted">دقيقة</span>
                 </div>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">السعر / ساعة (ر.س)</label>
+                <label className="mb-1.5 block text-sm font-semibold text-fg">السعر / ساعة (ر.س)</label>
                 <input
                   type="number"
                   min="0"
                   step="0.5"
                   value={startSessionForm.hourlyRate}
                   onChange={(e) => setStartSessionForm(f => f && { ...f, hourlyRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-violet-400 text-fg"
                 />
               </div>
               <div className="rounded-xl bg-violet-50 py-3 text-center dark:bg-violet-900/20">
-                <p className="text-xs text-gray-500 dark:text-gray-400">الإجمالي المتوقع</p>
+                <p className="text-xs text-muted">الإجمالي المتوقع</p>
                 <p className="mt-0.5 text-2xl font-black tabular-nums text-violet-600 dark:text-violet-400">
                   {formatCurrency((startSessionForm.durationMinutes / 60) * startSessionForm.hourlyRate)}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted">
                   {startSessionForm.durationMinutes} د × {formatCurrency(startSessionForm.hourlyRate)}/ساعة
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-700">
+            <div className="flex gap-2 border-t border-border p-4">
               <button
                 onClick={() => startSessionMut.mutate(startSessionForm)}
                 disabled={startSessionMut.isPending || !startSessionForm.playerName.trim()}
@@ -1349,7 +1347,7 @@ export function CafePosPage() {
               </button>
               <button
                 onClick={() => setStartSessionForm(null)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-fg hover:bg-surface-2 transition-colors"
               >
                 <X className="h-4 w-4" />
                 إلغاء
@@ -1362,54 +1360,54 @@ export function CafePosPage() {
       {/* ── Gaming Bill Modal ── */}
       {gamingBill && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-          <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+          <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
             <div id="gaming-bill-print" className="p-5">
-              <div className="mb-4 border-b border-dashed border-gray-200 pb-4 text-center dark:border-gray-700">
+              <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
                 <div className="mb-1 text-3xl">{STATION_ICON[gamingBill.stationType] ?? '🎮'}</div>
-                <p className="text-base font-black text-gray-900 dark:text-gray-100">فاتورة جلسة ألعاب</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{gamingBill.stationName}</p>
+                <p className="text-base font-black text-fg">فاتورة جلسة ألعاب</p>
+                <p className="text-sm text-muted">{gamingBill.stationName}</p>
               </div>
               <div className="mb-4 space-y-2.5 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">اللاعب</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">{gamingBill.playerName}</span>
+                  <span className="text-muted">اللاعب</span>
+                  <span className="font-semibold text-fg">{gamingBill.playerName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">البداية</span>
-                  <span className="tabular-nums text-gray-700 dark:text-gray-300">
+                  <span className="text-muted">البداية</span>
+                  <span className="tabular-nums text-fg">
                     {new Date(gamingBill.startTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">النهاية</span>
-                  <span className="tabular-nums text-gray-700 dark:text-gray-300">
+                  <span className="text-muted">النهاية</span>
+                  <span className="tabular-nums text-fg">
                     {new Date(gamingBill.endTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">المدة الفعلية</span>
-                  <span className="font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                  <span className="text-muted">المدة الفعلية</span>
+                  <span className="font-semibold tabular-nums text-fg">
                     {gamingBill.actualDurationMinutes >= 60
                       ? `${Math.floor(gamingBill.actualDurationMinutes / 60)}س ${gamingBill.actualDurationMinutes % 60 > 0 ? `${gamingBill.actualDurationMinutes % 60}د` : ''}`
                       : `${gamingBill.actualDurationMinutes} دقيقة`}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">السعر / ساعة</span>
-                  <span className="tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(gamingBill.ratePerHour)}</span>
+                  <span className="text-muted">السعر / ساعة</span>
+                  <span className="tabular-nums text-fg">{formatCurrency(gamingBill.ratePerHour)}</span>
                 </div>
               </div>
               <div className="mb-2 rounded-xl bg-violet-50 py-4 text-center dark:bg-violet-900/20">
-                <p className="text-xs text-gray-500 dark:text-gray-400">الإجمالي</p>
+                <p className="text-xs text-muted">الإجمالي</p>
                 <p className="mt-1 text-3xl font-black tabular-nums text-violet-600 dark:text-violet-400">
                   {formatCurrency(gamingBill.totalAmount)}
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 border-t border-gray-200 p-4 dark:border-gray-700">
+            <div className="flex gap-2 border-t border-border p-4">
               <button
                 onClick={() => window.print()}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 transition-colors"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fg py-2.5 text-sm font-semibold text-bg hover:bg-fg/85 transition-colors"
               >
                 <Printer className="h-4 w-4" />
                 طباعة

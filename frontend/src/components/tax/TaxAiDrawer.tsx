@@ -207,8 +207,7 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
             <button
               onClick={() => send(input)}
               disabled={!input.trim() || chatMutation.isPending}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white transition-opacity disabled:opacity-40"
-              style={{ background: 'var(--accent)' }}
+              className="bg-brand flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-brand-fg transition-opacity disabled:opacity-40"
             >
               <Send className="h-3.5 w-3.5" />
             </button>

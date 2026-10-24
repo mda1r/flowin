@@ -153,8 +153,8 @@ function StatCard({ title, value, format, change, icon, iconWrap, sparkColor, kp
       <span className="kpi-topbar" aria-hidden="true" />
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+          <p className="text-sm font-medium text-muted">{title}</p>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-fg">
             <span className={cn('inline-block', settled && 'count-pop')}>{fmt(animated)}</span>
           </p>
           {change !== undefined && (
@@ -250,17 +250,17 @@ function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
           <Icon className={cn('h-4 w-4', pay?.iconColor ?? 'text-blue-600')} />
         </div>
         <div>
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          <p className="text-sm font-medium text-fg">
             #{order.id.slice(0, 8).toUpperCase()}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted">
             {productCountLabel(order.lines.length)}
             {time && <span> · {time}</span>}
           </p>
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">
-        <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+        <p className="text-sm font-bold tabular-nums text-fg">
           {formatCurrency(order.totalAmount)}
         </p>
         {pay ? <Badge variant={pay.badge}>{payLabel}</Badge> : <Badge variant="green">{t.dashboard.completed}</Badge>}
@@ -330,10 +330,10 @@ function OrdersEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
       <EmptyOrdersIllustration />
-      <p className="mt-5 text-sm font-bold text-gray-800 dark:text-gray-100">
+      <p className="mt-5 text-sm font-bold text-fg">
         {t.dashboard.noRecentOrders}
       </p>
-      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-muted">
         {t.dashboard.noRecentOrdersSub}
       </p>
       <a href="/pos" className="mt-5">
@@ -396,7 +396,7 @@ function QuickActionTile({ action }: { action: QuickAction }) {
       >
         {action.icon}
       </div>
-      <span className="text-xs font-medium leading-tight text-gray-700 dark:text-gray-300">
+      <span className="text-xs font-medium leading-tight text-fg">
         {action.label}
       </span>
     </a>
@@ -813,7 +813,7 @@ export function DashboardPage() {
             </div>
 
             <a href="/pos" className="shrink-0">
-              <button className="btn-shimmer inline-flex items-center gap-2.5 rounded-xl bg-white px-5 py-3 text-sm font-bold text-gray-900 shadow-lg transition-all hover:bg-gray-100 hover:shadow-xl active:scale-95">
+              <button className="btn-shimmer inline-flex items-center gap-2.5 rounded-xl bg-surface px-5 py-3 text-sm font-bold text-fg shadow-lg transition-all hover:bg-surface-2 hover:shadow-xl active:scale-95">
                 <ShoppingCart className="h-5 w-5" />
                 {t.dashboard.newSale}
               </button>
@@ -911,7 +911,7 @@ export function DashboardPage() {
                 style={{ borderColor: 'var(--card-border)' }}
               >
                 <div className="flex items-center gap-2.5">
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  <h2 className="text-sm font-semibold text-fg">
                     {t.dashboard.recentCompleted}
                   </h2>
                   <Badge variant="live">{t.dashboard.live}</Badge>
@@ -925,7 +925,7 @@ export function DashboardPage() {
                 </a>
               </div>
               {ordersLoading ? (
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                <div className="divide-y divide-border">
                   {Array.from({ length: 4 }, (_, i) => (
                     <OrderRowSkeleton key={i} />
                   ))}
@@ -933,7 +933,7 @@ export function DashboardPage() {
               ) : orders.length === 0 ? (
                 <OrdersEmptyState />
               ) : (
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                <div className="divide-y divide-border">
                   {orders.map((order, i) => (
                     <OrderRow key={order.id} order={order} index={i} />
                   ))}
@@ -949,7 +949,7 @@ export function DashboardPage() {
                 className="border-b px-6 py-4"
                 style={{ borderColor: 'var(--card-border)' }}
               >
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.dashboard.quickActions}</h2>
+                <h2 className="text-sm font-semibold text-fg">{t.dashboard.quickActions}</h2>
               </div>
               <div className="grid grid-cols-2 gap-3 p-4">
                 {quickActions.map((action) => (
@@ -970,13 +970,13 @@ export function DashboardPage() {
               >
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.dashboard.inventoryAlerts}</h2>
+                  <h2 className="text-sm font-semibold text-fg">{t.dashboard.inventoryAlerts}</h2>
                 </div>
                 <a href="/inventory" className="text-xs text-blue-600 hover:underline dark:text-blue-400">
                   {t.dashboard.viewAll}
                 </a>
               </div>
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              <div className="divide-y divide-border">
                 {alerts?.expired.slice(0, 3).map((a) => (
                   <a
                     key={a.stockItemId}
@@ -988,10 +988,10 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-red-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <p className="text-sm font-medium text-fg">
                           {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
                         </p>
-                        <p className="text-xs text-gray-500">{t.inventory.expiredLabel} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
+                        <p className="text-xs text-muted">{t.inventory.expiredLabel} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
@@ -1010,10 +1010,10 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-orange-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <p className="text-sm font-medium text-fg">
                           {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
                         </p>
-                        <p className="text-xs text-gray-500">{t.inventory.expiresIn.replace('{days}', String(a.daysUntilExpiry))} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
+                        <p className="text-xs text-muted">{t.inventory.expiresIn.replace('{days}', String(a.daysUntilExpiry))} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
@@ -1032,10 +1032,10 @@ export function DashboardPage() {
                         <Package className="h-4 w-4 text-yellow-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <p className="text-sm font-medium text-fg">
                           {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
                         </p>
-                        <p className="text-xs text-gray-500">{t.inventory.quantity.replace('{n}', String(a.quantity))} · {t.inventory.reorderPoint.replace('{n}', String(a.reorderPoint))}</p>
+                        <p className="text-xs text-muted">{t.inventory.quantity.replace('{n}', String(a.quantity))} · {t.inventory.reorderPoint.replace('{n}', String(a.reorderPoint))}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">

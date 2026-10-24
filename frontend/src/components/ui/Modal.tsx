@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from './Button'
@@ -10,7 +10,7 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   footer?: React.ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 }
 
 const sizeClasses = {
@@ -18,65 +18,87 @@ const sizeClasses = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-2xl',
+  '2xl': 'max-w-4xl',
 }
 
-export function Modal({
-  open,
-  onClose,
-  title,
-  children,
-  footer,
-  size = 'md',
-}: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null)
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+export function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const titleId = useId()
 
   useEffect(() => {
+    if (!open) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const panel = panelRef.current
+    const first = panel?.querySelector<HTMLElement>('[data-autofocus]') ?? panel?.querySelector<HTMLElement>('input, select, textarea')
+    ;(first ?? panel)?.focus()
+
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !panel) return
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+      if (items.length === 0) return
+      const firstEl = items[0]
+      const lastEl = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault()
+        lastEl.focus()
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault()
+        firstEl.focus()
+      }
     }
-    if (open) document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [open, onClose])
+    document.addEventListener('keydown', handleKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handleKey)
+      document.body.style.overflow = prevOverflow
+      previouslyFocused?.focus?.()
+    }
+  }, [open])
 
   if (!open) return null
 
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div className="flex min-h-full items-start justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-[2px] animate-float-up" onMouseDown={onClose}>
+      <div className="flex min-h-full items-end justify-center p-0 sm:items-center sm:p-4">
         <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
           className={cn(
-            'my-auto w-full rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900',
-            'flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden',
+            'flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-surface shadow-lg outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl',
             sizeClasses[size],
           )}
-          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-4">
+            <h2 id={titleId} className="text-base font-semibold text-fg">
               {title}
             </h2>
             <button
+              type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+              aria-label="إغلاق"
+              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto p-6">{children}</div>
 
-          {/* Footer */}
-          {footer && (
-            <div className="flex shrink-0 justify-end gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-800">
-              {footer}
-            </div>
-          )}
+          {footer && <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-surface-2/50 px-6 py-4">{footer}</div>}
         </div>
       </div>
     </div>
@@ -116,17 +138,13 @@ export function ConfirmModal({
           <Button variant="secondary" onClick={onClose} disabled={loading}>
             {t.common.cancel}
           </Button>
-          <Button
-            variant={confirmVariant}
-            onClick={onConfirm}
-            loading={loading}
-          >
+          <Button variant={confirmVariant} onClick={onConfirm} loading={loading} data-autofocus>
             {confirmLabel ?? 'تأكيد'}
           </Button>
         </>
       }
     >
-      <p className="text-sm text-gray-600 dark:text-gray-400">{message}</p>
+      <p className="text-sm leading-relaxed text-muted">{message}</p>
     </Modal>
   )
 }

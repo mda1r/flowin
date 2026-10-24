@@ -21,7 +21,7 @@ import {
 import { superAdminApi } from '@/api/superadmin'
 import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 
 type Tab = 'overview' | 'members' | 'tax' | 'activity'
@@ -301,6 +301,7 @@ function MembersTab({ brandId, members }: MembersTabProps) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [showLink, setShowLink] = useState(false)
+  const [unlinkId, setUnlinkId] = useState<string | null>(null)
 
   const unlinkMutation = useMutation({
     mutationFn: (membershipId: string) => brandsApi.unlinkTenant(membershipId),
@@ -313,6 +314,17 @@ function MembersTab({ brandId, members }: MembersTabProps) {
 
   return (
     <div className="space-y-4">
+      <ConfirmModal
+        open={!!unlinkId}
+        onClose={() => setUnlinkId(null)}
+        onConfirm={() => {
+          if (unlinkId) unlinkMutation.mutate(unlinkId)
+          setUnlinkId(null)
+        }}
+        title={t.admin.brands.unlinkTenant}
+        message={t.admin.brands.deleteConfirm}
+        confirmVariant="danger"
+      />
       <div className="flex justify-between items-center">
         <p className="text-sm text-slate-400">{members.length} members</p>
         <Button size="sm" onClick={() => setShowLink(true)}>
@@ -358,11 +370,7 @@ function MembersTab({ brandId, members }: MembersTabProps) {
                   <td className="px-4 py-3 text-right">
                     {m.membershipStatus === 'Active' && (
                       <button
-                        onClick={() => {
-                          if (window.confirm(t.admin.brands.deleteConfirm)) {
-                            unlinkMutation.mutate(m.membershipId)
-                          }
-                        }}
+                        onClick={() => setUnlinkId(m.membershipId)}
                         className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-900/30 transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -394,6 +402,7 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
   const qc = useQueryClient()
   const [showCreateScope, setShowCreateScope] = useState(false)
   const [addToScopeId, setAddToScopeId] = useState<string | null>(null)
+  const [removeId, setRemoveId] = useState<string | null>(null)
 
   const removeMutation = useMutation({
     mutationFn: (membershipId: string) => brandsApi.removeTenantFromTaxScope(membershipId),
@@ -406,6 +415,17 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
 
   return (
     <div className="space-y-4">
+      <ConfirmModal
+        open={!!removeId}
+        onClose={() => setRemoveId(null)}
+        onConfirm={() => {
+          if (removeId) removeMutation.mutate(removeId)
+          setRemoveId(null)
+        }}
+        title={t.admin.brands.removeFromScope}
+        message={t.admin.brands.deleteConfirm}
+        confirmVariant="danger"
+      />
       <div className="flex justify-between items-center">
         <p className="text-sm text-slate-400">{scopes.length} tax scope{scopes.length !== 1 ? 's' : ''}</p>
         <Button size="sm" onClick={() => setShowCreateScope(true)}>
@@ -463,11 +483,7 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
                         <td className="px-2 py-2 text-right">
                           {!m.effectiveTo && (
                             <button
-                              onClick={() => {
-                                if (window.confirm(t.admin.brands.deleteConfirm)) {
-                                  removeMutation.mutate(m.membershipId)
-                                }
-                              }}
+                              onClick={() => setRemoveId(m.membershipId)}
                               className="inline-flex items-center gap-1 rounded px-2 py-1 text-rose-400 hover:bg-rose-900/30"
                             >
                               <Trash2 className="h-3 w-3" />

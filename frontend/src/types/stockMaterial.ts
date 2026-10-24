@@ -24,6 +24,27 @@ export interface StockMaterialResponse {
   reorderLevel?: number
   isActive: boolean
   isLowStock: boolean
+  costPerComponentUnit: number
+}
+
+export type StockMaterialMovementType = 'Receive' | 'Adjustment'
+
+export interface StockMaterialMovementResponse {
+  id: string
+  type: StockMaterialMovementType
+  quantityChange: number
+  unitCost?: number
+  quantityAfter: number
+  costAfter: number
+  note?: string
+  userId?: string
+  createdAt: string
+}
+
+export interface ReceiveStockMaterialPayload {
+  quantity: number
+  unitCost: number
+  note?: string
 }
 
 export interface CreateStockMaterialCategoryPayload {

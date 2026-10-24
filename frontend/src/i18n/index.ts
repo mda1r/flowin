@@ -13,10 +13,10 @@ interface I18nContextValue {
 }
 
 export const I18nContext = createContext<I18nContextValue>({
-  lang: 'en',
-  t: en,
+  lang: 'ar',
+  t: ar,
   setLang: () => {},
-  isRtl: false,
+  isRtl: true,
 })
 
 const translations: Record<Language, Translations> = { en, ar }
@@ -24,7 +24,7 @@ const translations: Record<Language, Translations> = { en, ar }
 const STORAGE_KEY = 'flowin_lang'
 
 export function useI18nState(): I18nContextValue {
-  const stored = (localStorage.getItem(STORAGE_KEY) ?? 'en') as Language
+  const stored = (localStorage.getItem(STORAGE_KEY) ?? 'ar') as Language
   const [lang, setLangState] = useState<Language>(stored)
 
   const setLang = (l: Language) => {

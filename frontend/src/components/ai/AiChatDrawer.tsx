@@ -57,10 +57,10 @@ function InsightsPanel({ branchId }: { branchId: string }) {
     return (
       <div className="flex flex-col gap-3 p-4">
         {[1, 2, 3].map(i => (
-          <div key={i} className="animate-pulse rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
-            <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="mt-2 h-3 w-full rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="mt-1.5 h-3 w-3/4 rounded bg-gray-200 dark:bg-gray-700" />
+          <div key={i} className="animate-pulse rounded-xl bg-surface-2 p-4">
+            <div className="h-3 w-20 rounded bg-border" />
+            <div className="mt-2 h-3 w-full rounded bg-border" />
+            <div className="mt-1.5 h-3 w-3/4 rounded bg-border" />
           </div>
         ))}
       </div>
@@ -70,11 +70,11 @@ function InsightsPanel({ branchId }: { branchId: string }) {
   if (isError || !data) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
-        <Sparkles className="h-8 w-8 text-gray-200 dark:text-gray-700" />
-        <p className="text-sm text-gray-400">تعذّر تحميل التحليلات</p>
+        <Sparkles className="h-8 w-8 text-muted/50" />
+        <p className="text-sm text-muted">تعذّر تحميل التحليلات</p>
         <button
           onClick={() => refetch()}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-brand hover:bg-surface-2"
         >
           <RefreshCw className="h-3 w-3" />
           إعادة المحاولة
@@ -92,11 +92,11 @@ function InsightsPanel({ branchId }: { branchId: string }) {
   return (
     <div className="flex flex-col gap-3 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">تحليلات تلقائية</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">تحليلات تلقائية</p>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="flex items-center gap-1 text-xs text-gray-400 hover:text-[var(--accent)] disabled:opacity-40"
+          className="flex items-center gap-1 text-xs text-muted hover:text-brand disabled:opacity-40"
         >
           <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
           تحديث
@@ -106,13 +106,13 @@ function InsightsPanel({ branchId }: { branchId: string }) {
         <div key={card.title} className={cn('rounded-xl p-4', card.bg)}>
           <div className="flex items-center gap-2 mb-2">
             {card.icon}
-            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{card.title}</span>
+            <span className="text-xs font-semibold text-muted">{card.title}</span>
           </div>
-          <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-200">{card.body}</p>
+          <p className="text-sm leading-relaxed text-fg">{card.body}</p>
         </div>
       ))}
       {data.generatedAt && (
-        <p className="text-center text-xs text-gray-300 dark:text-gray-600">
+        <p className="text-center text-xs text-muted/50">
           آخر تحديث: {new Date(data.generatedAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
         </p>
       )}
@@ -196,33 +196,33 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
           onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}
         >
           <div
-            className="absolute bottom-0 left-0 flex h-[600px] w-full max-w-sm flex-col rounded-t-2xl border border-gray-200 bg-white shadow-2xl md:bottom-24 md:left-6 md:h-[580px] md:rounded-2xl dark:border-gray-700 dark:bg-gray-900"
+            className="absolute bottom-0 left-0 flex h-[600px] w-full max-w-sm flex-col rounded-t-2xl border border-border bg-surface shadow-2xl md:bottom-24 md:left-6 md:h-[580px] md:rounded-2xl"
             dir="rtl"
           >
             {/* Header */}
-            <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{ background: 'color-mix(in srgb, var(--accent) 15%, white)' }}
               >
-                <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+                <Sparkles className="h-4 w-4 text-brand" />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-bold text-gray-900 dark:text-gray-100">سعد</div>
-                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <div className="text-sm font-bold text-fg">سعد</div>
+                <div className="flex items-center gap-1.5 text-xs text-muted">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   محاسب · مبيعات · مخزون
                 </div>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="rounded-lg p-1.5 text-muted hover:bg-surface-2"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-100 dark:border-gray-800">
+            <div className="flex border-b border-border">
               {([
                 { key: 'insights', label: 'تحليلات', icon: <BarChart2 className="h-3.5 w-3.5" /> },
                 { key: 'chat',     label: 'محادثة',  icon: <Bot       className="h-3.5 w-3.5" /> },
@@ -233,8 +233,8 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors',
                     tab === t.key
-                      ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300',
+                      ? 'border-b-2 border-brand text-brand'
+                      : 'text-muted hover:text-fg',
                   )}
                 >
                   {t.icon}
@@ -253,8 +253,8 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                 <>
                   {/* Quick prompts */}
                   {messages.length <= 1 && (
-                    <div className="border-b border-gray-100 p-3 dark:border-gray-800">
-                      <p className="mb-2 text-xs font-medium text-gray-400">إجراء سريع</p>
+                    <div className="border-b border-border p-3">
+                      <p className="mb-2 text-xs font-medium text-muted">إجراء سريع</p>
                       <div className="grid grid-cols-2 gap-2">
                         {QUICK_PROMPTS.map((qp) => (
                           <button
@@ -285,8 +285,8 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                           className={cn(
                             'max-w-[87%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
                             msg.role === 'user'
-                              ? 'bg-[var(--accent)] text-white rounded-tr-sm'
-                              : 'bg-gray-100 text-gray-800 rounded-tl-sm dark:bg-gray-800 dark:text-gray-100',
+                              ? 'bg-brand text-brand-fg rounded-tr-sm'
+                              : 'bg-surface-2 text-fg rounded-tl-sm',
                           )}
                         >
                           {msg.content}
@@ -295,9 +295,9 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                     ))}
                     {chatMutation.isPending && (
                       <div className="flex justify-end">
-                        <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-gray-100 px-3.5 py-2.5 dark:bg-gray-800">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
-                          <span className="text-xs text-gray-400">جارٍ التحليل...</span>
+                        <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-surface-2 px-3.5 py-2.5">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />
+                          <span className="text-xs text-muted">جارٍ التحليل...</span>
                         </div>
                       </div>
                     )}
@@ -309,8 +309,8 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
 
             {/* Chat input — always shown in chat tab */}
             {tab === 'chat' && (
-              <div className="border-t border-gray-100 p-3 dark:border-gray-800">
-                <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+              <div className="border-t border-border p-3">
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2">
                   <input
                     ref={inputRef}
                     type="text"
@@ -318,13 +318,13 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="اسأل عن مبيعاتك أو المخزون..."
-                    className="flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
+                    className="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-muted"
                     disabled={chatMutation.isPending}
                   />
                   <button
                     onClick={() => sendMessage()}
                     disabled={!input.trim() || chatMutation.isPending}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-white transition-opacity disabled:opacity-40"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-brand-fg transition-opacity disabled:opacity-40"
                   >
                     <Send className="h-3.5 w-3.5 -scale-x-100" />
                   </button>

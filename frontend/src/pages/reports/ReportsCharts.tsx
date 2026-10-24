@@ -332,10 +332,10 @@ function ChartHeader({ title, subtitle, aside }: { title: string; subtitle: stri
   return (
     <div className="flex items-start justify-between gap-3 border-b px-5 py-4" style={{ borderColor: 'var(--card-border)' }}>
       <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
-        <p className="mt-0.5 text-xs text-gray-400">{subtitle}</p>
+        <h2 className="text-sm font-semibold text-fg">{title}</h2>
+        <p className="mt-0.5 text-xs text-muted">{subtitle}</p>
       </div>
-      {aside && <div className="shrink-0 text-xs text-gray-400 tabular-nums">{aside}</div>}
+      {aside && <div className="shrink-0 text-xs text-muted tabular-nums">{aside}</div>}
     </div>
   )
 }
@@ -451,8 +451,8 @@ function CalmWaves({ reduced, message, hint, height = 190 }: {
             <path d="M3 17c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 3 2" opacity=".5" />
           </svg>
         </span>
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{message}</p>
-        {hint && <p className="text-xs text-gray-400">{hint}</p>}
+        <p className="text-sm font-medium text-muted">{message}</p>
+        {hint && <p className="text-xs text-muted">{hint}</p>}
       </div>
     </div>
   )
@@ -798,7 +798,7 @@ function HourWheel({ data, reduced }: { data: HourlyPoint[]; reduced: boolean })
         )}
       </div>
 
-      <p className="mt-1 text-center text-xs text-gray-400 tabular-nums">
+      <p className="mt-1 text-center text-xs text-muted tabular-nums">
         {hasData
           ? <>{active} ساعة نشطة · إيراد الذروة <span className="font-semibold" style={{ color: TEAL_INK }}>{formatCurrency(peak.revenue)}</span></>
           : 'لا توجد طلبات في هذه الفترة'}
@@ -938,10 +938,10 @@ function TripleRing({ rings, margin, gross, returnTotal, reduced }: {
             <span className="flex min-w-0 items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: rg.color, boxShadow: `0 0 8px ${rgba(rg.color, 0.6)}` }} />
-              <span className="truncate text-xs text-gray-600 dark:text-gray-300">{rg.label}</span>
+              <span className="truncate text-xs text-muted">{rg.label}</span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
-              <span className="text-xs font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+              <span className="text-xs font-semibold tabular-nums text-fg">
                 {formatCurrency(rg.value)}
               </span>
               <span className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
@@ -955,9 +955,9 @@ function TripleRing({ rings, margin, gross, returnTotal, reduced }: {
           <li className="flex items-center justify-between gap-3 px-2 py-1.5">
             <span className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: '#ef4444', opacity: 0.8 }} />
-              <span className="text-xs text-gray-400">المرتجعات</span>
+              <span className="text-xs text-muted">المرتجعات</span>
             </span>
-            <span className="text-xs font-semibold tabular-nums text-gray-400">− {formatCurrency(returnTotal)}</span>
+            <span className="text-xs font-semibold tabular-nums text-muted">− {formatCurrency(returnTotal)}</span>
           </li>
         )}
       </ul>
@@ -1038,7 +1038,7 @@ function ProductBars({ data, gross, reduced }: { data: ProductPoint[]; gross: nu
                 {i + 1}
               </span>
               <span
-                className={cn('shrink-0 truncate text-[12.5px] font-medium text-gray-700 dark:text-gray-200', !reduced && 'fw-rise')}
+                className={cn('shrink-0 truncate text-[12.5px] font-medium text-fg', !reduced && 'fw-rise')}
                 style={{ width: nameW, animationDelay: `${delay + 40}ms` }}
                 title={p.name}
               >
@@ -1121,18 +1121,18 @@ function ProductBars({ data, gross, reduced }: { data: ProductPoint[]; gross: nu
 function WaveLegend({ peakDay }: { peakDay: DailyPoint | null }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 px-1">
-      <span className="inline-flex items-center gap-2 text-xs text-gray-400">
+      <span className="inline-flex items-center gap-2 text-xs text-muted">
         <span className="inline-block h-[3px] w-5 rounded-full"
           style={{ background: TEAL, boxShadow: `0 0 8px rgba(${TEAL_RGB},0.8)` }} />
         الإيرادات
       </span>
-      <span className="inline-flex items-center gap-2 text-xs text-gray-400">
+      <span className="inline-flex items-center gap-2 text-xs text-muted">
         <span className="inline-block w-5 border-t-2 border-dashed" style={{ borderColor: 'var(--color-text-muted, #9ca3af)' }} />
         الصافي بعد التكلفة
       </span>
       {peakDay && peakDay.revenue > 0 && (
-        <span className="ms-auto text-xs text-gray-400 tabular-nums">
-          أعلى يوم <span className="font-semibold text-gray-700 dark:text-gray-200">{peakDay.fullLabel}</span>
+        <span className="ms-auto text-xs text-muted tabular-nums">
+          أعلى يوم <span className="font-semibold text-fg">{peakDay.fullLabel}</span>
           {' · '}
           <span className="font-semibold" style={{ color: TEAL_INK }}>{formatCurrency(peakDay.revenue)}</span>
         </span>

@@ -156,7 +156,7 @@ export function FinancePage() {
                 render: (r) => (
                   <div>
                     <p className="font-medium">{r.description}</p>
-                    <p className="text-xs text-gray-400">{categoryLabel[r.category]}</p>
+                    <p className="text-xs text-muted">{categoryLabel[r.category]}</p>
                   </div>
                 ),
               },

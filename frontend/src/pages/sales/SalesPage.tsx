@@ -140,7 +140,7 @@ function ReturnModal({
       <div className="space-y-5">
         {/* Line Items */}
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.sales.lineItems}</p>
+          <p className="text-sm font-semibold text-fg">{t.sales.lineItems}</p>
           {order.lines.map((line: OrderLineResponse) => {
             const state = lineStates.find((s) => s.lineId === line.id)!
             const fullyReturned = state.maxQuantity === 0
@@ -149,10 +149,10 @@ function ReturnModal({
                 key={line.id}
                 className={`rounded-xl border p-3 transition-colors ${
                   fullyReturned
-                    ? 'border-gray-100 bg-gray-50 opacity-60 dark:border-gray-800 dark:bg-gray-900/30'
+                    ? 'border-border bg-surface-2 opacity-60 '
                     : state.selected
                     ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700'
+                    : 'border-border '
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -161,11 +161,11 @@ function ReturnModal({
                     checked={state.selected}
                     onChange={() => toggleLine(line.id)}
                     disabled={fullyReturned}
-                    className="mt-1 h-4 w-4 rounded border-gray-300 accent-blue-600 disabled:cursor-not-allowed"
+                    className="mt-1 h-4 w-4 rounded border-border accent-blue-600 disabled:cursor-not-allowed"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      <p className="font-medium text-fg truncate">
                         {line.productName}
                       </p>
                       {fullyReturned && (
@@ -174,7 +174,7 @@ function ReturnModal({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted">
                       {line.variantName} · {formatCurrency(line.unitPrice)} × {line.quantity}
                       {!fullyReturned && state.maxQuantity < line.quantity && (
                         <span className="mr-1 text-orange-500">({state.maxQuantity})</span>
@@ -184,7 +184,7 @@ function ReturnModal({
                     {state.selected && (
                       <div className="mt-3 grid grid-cols-2 gap-3">
                         <div>
-                          <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          <label className="mb-1 block text-xs font-medium text-muted">
                             {t.sales.amount}
                           </label>
                           <input
@@ -193,17 +193,17 @@ function ReturnModal({
                             max={state.maxQuantity}
                             value={state.quantity}
                             onChange={(e) => updateQty(line.id, Number(e.target.value))}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+                            className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm"
                           />
                         </div>
                         <div>
-                          <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          <label className="mb-1 block text-xs font-medium text-muted">
                             {t.sales.returnReason}
                           </label>
                           <select
                             value={state.reason}
                             onChange={(e) => updateReason(line.id, e.target.value as ReturnReason)}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+                            className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm"
                           >
                             {RETURN_REASONS.map((r) => (
                               <option key={r.value} value={r.value}>{r.label}</option>
@@ -221,7 +221,7 @@ function ReturnModal({
 
         {/* Refund Method */}
         <div>
-          <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">{t.sales.refundMethod}</p>
+          <p className="mb-2 text-sm font-semibold text-fg">{t.sales.refundMethod}</p>
           <div className="flex flex-wrap gap-2">
             {REFUND_METHODS.map((m) => (
               <button
@@ -230,7 +230,7 @@ function ReturnModal({
                 className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                   refundMethod === m.value
                     ? 'border-blue-500 bg-blue-600 text-white'
-                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                    : 'border-border bg-surface text-fg hover:bg-surface-2 '
                 }`}
               >
                 {m.label}
@@ -241,14 +241,14 @@ function ReturnModal({
 
         {/* Inventory disposition */}
         <div>
-          <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">{t.sales.inventoryDisposition}</p>
+          <p className="mb-2 text-sm font-semibold text-fg">{t.sales.inventoryDisposition}</p>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setRestockItems(true)}
               className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors ${
                 restockItems
                   ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-900/20 dark:text-green-400'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                  : 'border-border bg-surface text-muted hover:bg-surface-2 '
               }`}
             >
               <PackageCheck className="h-4 w-4 shrink-0" />
@@ -261,7 +261,7 @@ function ReturnModal({
               className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors ${
                 !restockItems
                   ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-900/20 dark:text-red-400'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                  : 'border-border bg-surface text-muted hover:bg-surface-2 '
               }`}
             >
               <PackageX className="h-4 w-4 shrink-0" />
@@ -274,12 +274,12 @@ function ReturnModal({
 
         {/* Summary */}
         {selectedLines.length > 0 && (
-          <div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
+          <div className="rounded-xl bg-surface-2 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-muted">
                 {t.sales.netRevenue} ({selectedLines.length})
               </span>
-              <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              <span className="text-lg font-bold text-fg">
                 {formatCurrency(totalRefund)}
               </span>
             </div>
@@ -359,7 +359,7 @@ export function SalesPage() {
         title={t.sales.title}
         description={t.sales.description}
         action={
-          <div className="flex rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex rounded-lg border border-border bg-surface p-1">
             {ranges.map((r) => (
               <button
                 key={r.value}
@@ -367,7 +367,7 @@ export function SalesPage() {
                 className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                   range === r.value
                     ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    : 'text-muted hover:bg-surface-2 '
                 }`}
               >
                 {r.label}
@@ -385,7 +385,7 @@ export function SalesPage() {
                 <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">{t.sales.netRevenue}</p>
+                <p className="text-xs text-muted">{t.sales.netRevenue}</p>
                 <p className="text-xl font-bold tabular-nums">{formatCurrency(netRevenue)}</p>
                 {totalRefunds > 0 && (
                   <p className="text-xs text-red-500 tabular-nums">−{formatCurrency(totalRefunds)} {t.sales.returns}</p>
@@ -399,7 +399,7 @@ export function SalesPage() {
                 <ShoppingCart className="h-5 w-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">{t.sales.totalOrders}</p>
+                <p className="text-xs text-muted">{t.sales.totalOrders}</p>
                 <p className="text-xl font-bold tabular-nums">{items.length}</p>
               </div>
             </CardBody>
@@ -410,7 +410,7 @@ export function SalesPage() {
                 <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">{t.reports.avgOrderValue}</p>
+                <p className="text-xs text-muted">{t.reports.avgOrderValue}</p>
                 <p className="text-xl font-bold tabular-nums">{formatCurrency(avgOrder)}</p>
               </div>
             </CardBody>
@@ -421,7 +421,7 @@ export function SalesPage() {
                 <RotateCcw className="h-5 w-5 text-red-500" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">{t.sales.returns}</p>
+                <p className="text-xs text-muted">{t.sales.returns}</p>
                 <p className="text-xl font-bold tabular-nums text-red-600">{formatCurrency(totalRefunds)}</p>
               </div>
             </CardBody>
@@ -431,7 +431,7 @@ export function SalesPage() {
         {/* Orders table */}
         <Card>
           <CardHeader>
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="text-sm font-semibold text-fg">
               {t.sales.title}
             </h2>
           </CardHeader>
@@ -473,7 +473,7 @@ export function SalesPage() {
                     <div>
                       <span className="font-semibold tabular-nums">{formatCurrency(net)}</span>
                       {refund > 0 && (
-                        <p className="text-xs text-gray-400 tabular-nums line-through">{formatCurrency(r.totalAmount)}</p>
+                        <p className="text-xs text-muted tabular-nums line-through">{formatCurrency(r.totalAmount)}</p>
                       )}
                     </div>
                   )
@@ -486,7 +486,7 @@ export function SalesPage() {
                   const refund = returnsMap.get(r.id)
                   return refund
                     ? <span className="text-sm font-medium text-red-600 tabular-nums">−{formatCurrency(refund)}</span>
-                    : <span className="text-gray-300 dark:text-gray-600">—</span>
+                    : <span className="text-muted/50">—</span>
                 },
               },
               {

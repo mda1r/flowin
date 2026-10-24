@@ -27,17 +27,17 @@ export const toast = {
 }
 
 const icons: Record<ToastVariant, React.ReactNode> = {
-  success: <CheckCircle className="h-5 w-5 text-green-500" />,
-  error: <XCircle className="h-5 w-5 text-red-500" />,
-  warning: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
-  info: <Info className="h-5 w-5 text-blue-500" />,
+  success: <CheckCircle className="h-5 w-5 text-success" />,
+  error: <XCircle className="h-5 w-5 text-danger" />,
+  warning: <AlertTriangle className="h-5 w-5 text-warning" />,
+  info: <Info className="h-5 w-5 text-info" />,
 }
 
 const variantBorder: Record<ToastVariant, string> = {
-  success: 'border-green-200 dark:border-green-900',
-  error: 'border-red-200 dark:border-red-900',
-  warning: 'border-yellow-200 dark:border-yellow-900',
-  info: 'border-blue-200 dark:border-blue-900',
+  success: 'border-success/30',
+  error: 'border-danger/30',
+  warning: 'border-warning/30',
+  info: 'border-info/30',
 }
 
 export function ToastProvider() {
@@ -60,22 +60,22 @@ export function ToastProvider() {
   }, [addToast])
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+    <div className="fixed bottom-4 end-4 z-[60] flex flex-col gap-2" role="status" aria-live="polite">
       {toasts.map((t) => (
         <div
           key={t.id}
           className={cn(
-            'flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-lg dark:bg-gray-900 min-w-72 max-w-sm',
+            'flex min-w-72 max-w-sm items-start gap-3 rounded-xl border bg-surface px-4 py-3 shadow-lg animate-float-up',
             variantBorder[t.variant],
           )}
         >
           <div className="mt-0.5 shrink-0">{icons[t.variant]}</div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <p className="text-sm font-medium text-fg">
               {t.title}
             </p>
             {t.message && (
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-0.5 text-xs text-muted">
                 {t.message}
               </p>
             )}
@@ -84,7 +84,7 @@ export function ToastProvider() {
             onClick={() =>
               setToasts((prev) => prev.filter((x) => x.id !== t.id))
             }
-            className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="shrink-0 text-muted hover:text-fg" aria-label="إغلاق"
           >
             <X className="h-4 w-4" />
           </button>

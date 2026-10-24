@@ -232,7 +232,7 @@ export function InventoryPage() {
         {/* Alerts Section */}
         {alerts && totalAlerts > 0 && (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.inventory.alerts}</h2>
+            <h2 className="text-sm font-semibold text-fg">{t.inventory.alerts}</h2>
 
             <AlertCard
               icon={<XCircle className="h-4 w-4 text-red-600" />}
@@ -265,9 +265,9 @@ export function InventoryPage() {
 
         {/* Stock Table */}
         <Card>
-          <div className="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
+          <div className="flex items-center gap-3 border-b border-border p-4">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted" />
               <input
                 type="text"
                 placeholder={t.inventory.searchProducts}
@@ -294,7 +294,7 @@ export function InventoryPage() {
                   return (
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                        <p className="font-medium text-fg">
                           {info?.productName ?? '—'}
                         </p>
                         {unitLabel && (
@@ -303,7 +303,7 @@ export function InventoryPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted">
                         {info?.variantName} · {info?.sku}
                       </p>
                     </div>
@@ -321,14 +321,14 @@ export function InventoryPage() {
                 key: 'reorderPoint',
                 header: t.inventory.reorderPointHeader,
                 render: (r) => (
-                  <span className="tabular-nums text-gray-500">{r.reorderPoint}</span>
+                  <span className="tabular-nums text-muted">{r.reorderPoint}</span>
                 ),
               },
               {
                 key: 'expiryDate',
                 header: t.inventory.expiryDate,
                 render: (r) => {
-                  if (!r.expiryDate) return <span className="text-gray-400">—</span>
+                  if (!r.expiryDate) return <span className="text-muted">—</span>
                   const d = new Date(r.expiryDate)
                   const now = new Date()
                   const daysLeft = Math.floor((d.getTime() - now.getTime()) / 86_400_000)
@@ -336,7 +336,7 @@ export function InventoryPage() {
                     ? 'text-red-600'
                     : daysLeft <= 7
                     ? 'text-orange-600'
-                    : 'text-gray-700 dark:text-gray-300'
+                    : 'text-fg'
                   return (
                     <span className={`text-sm tabular-nums ${colorClass}`}>
                       {d.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
@@ -401,8 +401,8 @@ export function InventoryPage() {
         }
       >
         <form className="space-y-4">
-          <p className="text-sm text-gray-500">
-            {t.inventory.current}: <strong className="text-gray-900 dark:text-gray-100">{adjustItem?.quantity}</strong>
+          <p className="text-sm text-muted">
+            {t.inventory.current}: <strong className="text-fg">{adjustItem?.quantity}</strong>
           </p>
           <Input
             label={t.inventory.newQuantity}
@@ -417,7 +417,7 @@ export function InventoryPage() {
             {...register('expiryDate')}
           />
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-1.5 block text-sm font-medium text-fg">
               {t.inventory.notifyBefore}
             </label>
             <select

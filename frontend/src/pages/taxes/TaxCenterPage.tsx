@@ -132,8 +132,7 @@ function NoPeriodState({ onCreateClick }: { onCreateClick: () => void }) {
       action={
         <button
           onClick={onCreateClick}
-          className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ background: 'var(--accent)' }}
+          className="bg-brand flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-brand-fg transition-opacity hover:opacity-90"
         >
           <Plus className="h-4 w-4" />
           {t.taxes.noPeriod.create}
@@ -340,8 +339,7 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
           <button
             type="submit"
             disabled={createMutation.isPending}
-            className="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            style={{ background: 'var(--accent)' }}
+            className="bg-brand rounded-xl px-4 py-2 text-sm font-medium text-brand-fg disabled:opacity-60"
           >
             {createMutation.isPending ? t.taxes.createPeriod.creating : t.taxes.createPeriod.create}
           </button>
@@ -444,8 +442,7 @@ function RecordExpenseModal({
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            style={{ background: 'var(--accent)' }}
+            className="bg-brand rounded-xl px-4 py-2 text-sm font-medium text-brand-fg disabled:opacity-60"
           >
             {mutation.isPending ? 'Saving…' : 'Save Invoice'}
           </button>
@@ -652,8 +649,7 @@ function PurchasesTab({
           </h3>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white"
-            style={{ background: 'var(--accent)' }}
+            className="bg-brand flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-brand-fg"
           >
             <Plus className="h-4 w-4" />
             Add Invoice
@@ -668,8 +664,7 @@ function PurchasesTab({
             action={
               <button
                 onClick={() => setShowModal(true)}
-                className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white"
-                style={{ background: 'var(--accent)' }}
+                className="bg-brand flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-brand-fg"
               >
                 <Plus className="h-4 w-4" />
                 Add Invoice
@@ -1052,8 +1047,7 @@ function PeriodSelector({
 
       <button
         onClick={onCreateClick}
-        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white"
-        style={{ background: 'var(--accent)' }}
+        className="bg-brand flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-brand-fg"
       >
         <Plus className="h-4 w-4" />
         {t.taxes.selector.newPeriod}
@@ -1154,8 +1148,7 @@ export function TaxCenterPage() {
           {aiAvailable && (
             <button
               onClick={() => setShowAi(true)}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-              style={{ background: 'var(--accent)' }}
+              className="bg-brand flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-brand-fg transition-opacity hover:opacity-90"
               title="المستشار الضريبي الذكي"
             >
               <Sparkles className="h-4 w-4" />

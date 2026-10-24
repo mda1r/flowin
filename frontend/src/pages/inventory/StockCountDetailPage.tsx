@@ -14,7 +14,7 @@ import { useI18n } from '@/i18n'
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-blue-50 text-blue-700 border-blue-200',
   Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
+  Cancelled: 'bg-surface-2 text-muted border-border',
 }
 
 export function StockCountDetailPage() {
@@ -117,7 +117,7 @@ export function StockCountDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-gray-400">
+      <div className="flex items-center justify-center py-24 text-sm text-muted">
         {t.common.loading}
       </div>
     )
@@ -125,7 +125,7 @@ export function StockCountDetailPage() {
 
   if (!session) {
     return (
-      <div className="flex flex-col items-center gap-4 py-24 text-gray-400">
+      <div className="flex flex-col items-center gap-4 py-24 text-muted">
         <ClipboardList className="h-12 w-12 opacity-25" />
         <p>{t.common.noData}</p>
         <Button variant="secondary" onClick={() => void navigate({ to: '/stock-counts' })}>{t.stockCount.backToList}</Button>
@@ -147,13 +147,13 @@ export function StockCountDetailPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => void navigate({ to: '/stock-counts' })}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-muted hover:text-fg transition-colors"
           >
             <ArrowRight className="h-4 w-4 rotate-180" />
             {t.stockCount.title}
           </button>
-          <span className="text-gray-300">/</span>
-          <span className="text-sm font-medium text-gray-800">{TYPE_LABELS[session.type] ?? session.type}</span>
+          <span className="text-muted/50">/</span>
+          <span className="text-sm font-medium text-fg">{TYPE_LABELS[session.type] ?? session.type}</span>
           <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[session.status] ?? ''}`}>
             {STATUS_LABELS[session.status] ?? session.status}
           </span>
@@ -212,33 +212,33 @@ export function StockCountDetailPage() {
 
       {/* Progress bar */}
       <div>
-        <div className="mb-1 flex justify-between text-xs text-gray-500">
+        <div className="mb-1 flex justify-between text-xs text-muted">
           <span>{t.stockCount.progress}</span>
           <span>{progress}%</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+        <div className="h-2 overflow-hidden rounded-full bg-surface-2">
           <div
-            className="h-full rounded-full bg-[var(--accent)] transition-all duration-500"
+            className="h-full rounded-full bg-brand transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
       {/* Items table */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-surface-2">
             <tr>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">{t.stockCount.product}</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">SKU</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.systemQty}</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">{t.stockCount.countedQty}</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.difference}</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.unitCost}</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600 tabular-nums">{t.stockCount.value}</th>
+              <th className="px-4 py-3 text-right font-medium text-muted">{t.stockCount.product}</th>
+              <th className="px-4 py-3 text-right font-medium text-muted">SKU</th>
+              <th className="px-4 py-3 text-right font-medium text-muted tabular-nums">{t.stockCount.systemQty}</th>
+              <th className="px-4 py-3 text-right font-medium text-muted">{t.stockCount.countedQty}</th>
+              <th className="px-4 py-3 text-right font-medium text-muted tabular-nums">{t.stockCount.difference}</th>
+              <th className="px-4 py-3 text-right font-medium text-muted tabular-nums">{t.stockCount.unitCost}</th>
+              <th className="px-4 py-3 text-right font-medium text-muted tabular-nums">{t.stockCount.value}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {session.items.map(item => {
               const info = variantMap.get(item.variantId)
               const rawVal = counts[item.stockItemId]
@@ -253,11 +253,11 @@ export function StockCountDetailPage() {
                   className={hasDiscrepancy ? 'bg-amber-50/60' : ''}
                 >
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{info?.productName ?? '—'}</div>
-                    <div className="text-xs text-gray-400">{info?.variantName ?? ''}</div>
+                    <div className="font-medium text-fg">{info?.productName ?? '—'}</div>
+                    <div className="text-xs text-muted">{info?.variantName ?? ''}</div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 tabular-nums">{info?.sku ?? '—'}</td>
-                  <td className="px-4 py-3 tabular-nums text-gray-700">{item.systemQuantity}</td>
+                  <td className="px-4 py-3 text-xs text-muted tabular-nums">{info?.sku ?? '—'}</td>
+                  <td className="px-4 py-3 tabular-nums text-fg">{item.systemQuantity}</td>
                   <td className="px-4 py-3">
                     {isActive ? (
                       <input
@@ -268,13 +268,13 @@ export function StockCountDetailPage() {
                         onChange={e => setCounts(prev => ({ ...prev, [item.stockItemId]: e.target.value }))}
                         placeholder="أدخل الكمية"
                         className={`w-28 rounded-lg border px-2.5 py-1.5 text-sm tabular-nums outline-none transition-all
-                          focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)]
-                          ${isCounted ? 'border-gray-300' : 'border-dashed border-gray-300 bg-gray-50'}
+                          focus:ring-2 focus:ring-brand/20 focus:border-brand
+                          ${isCounted ? 'border-border' : 'border-dashed border-border bg-surface-2'}
                           ${hasDiscrepancy ? 'border-amber-400 bg-amber-50' : ''}`}
                       />
                     ) : (
-                      <span className="tabular-nums text-gray-700">
-                        {item.countedQuantity ?? <span className="text-gray-300">—</span>}
+                      <span className="tabular-nums text-fg">
+                        {item.countedQuantity ?? <span className="text-muted/50">—</span>}
                       </span>
                     )}
                   </td>
@@ -283,18 +283,18 @@ export function StockCountDetailPage() {
                       <span className={
                         diff > 0 ? 'text-emerald-600 font-medium' :
                         diff < 0 ? 'text-red-600 font-medium' :
-                        'text-gray-400'
+                        'text-muted'
                       }>
                         {diff > 0 ? '+' : ''}{diff.toFixed(3)}
                       </span>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-muted/50">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-gray-600">
+                  <td className="px-4 py-3 tabular-nums text-muted">
                     {item.unitCost.toLocaleString(locale, { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-gray-600">
+                  <td className="px-4 py-3 tabular-nums text-muted">
                     {item.systemValue.toLocaleString(locale, { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
@@ -348,12 +348,12 @@ export function StockCountDetailPage() {
               type="checkbox"
               checked={autoAdjust}
               onChange={e => setAutoAdjust(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 accent-[var(--accent)]"
+              className="h-4 w-4 rounded border-border accent-[rgb(var(--brand))]"
             />
-            <span className="text-sm text-gray-700">{t.stockCount.autoAdjust}</span>
+            <span className="text-sm text-fg">{t.stockCount.autoAdjust}</span>
           </label>
 
-          <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
+          <div className="flex justify-end gap-2 border-t border-border pt-3">
             <Button variant="secondary" onClick={() => setShowComplete(false)}>{t.common.cancel}</Button>
             <Button
               onClick={() => completeMutation.mutate()}
@@ -385,15 +385,15 @@ function SummaryCard({
     <div className={`rounded-xl border p-4 ${
       accent ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,white)]' :
       warn ? 'border-amber-200 bg-amber-50' :
-      'border-gray-200 bg-white'
+      'border-border bg-surface'
     }`}>
-      <div className="text-xs text-gray-500">{label}</div>
+      <div className="text-xs text-muted">{label}</div>
       <div className={`mt-1 text-xl font-bold tabular-nums ${
-        accent ? 'text-[var(--accent)]' :
+        accent ? 'text-brand' :
         warn ? 'text-amber-700' :
-        'text-gray-900'
+        'text-fg'
       }`}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-gray-400">{sub}</div>}
+      {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}
     </div>
   )
 }

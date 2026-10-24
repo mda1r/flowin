@@ -59,7 +59,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">{t.shiftGate.enterOpeningCash}</p>
+        <p className="text-sm text-muted">{t.shiftGate.enterOpeningCash}</p>
         <Input
           label={t.shiftGate.openingCash}
           type="number"
@@ -251,20 +251,20 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         </div>
 
         {/* daily income summary */}
-        <div className="rounded-xl bg-gray-50 p-3 text-center text-sm dark:bg-gray-800">
-          <span className="text-gray-500">{t.shiftGate.dailyIncome}: </span>
-          <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cashSales)} كاش</span>
-          <span className="text-gray-400"> و </span>
-          <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(computed.cardSales)} بطاقة</span>
-          <span className="text-gray-400">، المجموع </span>
-          <span className="font-bold text-[color:var(--accent)]">{formatCurrency(computed.totalSales)}</span>
+        <div className="rounded-xl bg-surface-2 p-3 text-center text-sm">
+          <span className="text-muted">{t.shiftGate.dailyIncome}: </span>
+          <span className="font-semibold text-fg">{formatCurrency(computed.cashSales)} كاش</span>
+          <span className="text-muted"> و </span>
+          <span className="font-semibold text-fg">{formatCurrency(computed.cardSales)} بطاقة</span>
+          <span className="text-muted">، المجموع </span>
+          <span className="font-bold text-brand">{formatCurrency(computed.totalSales)}</span>
         </div>
 
         {/* cash section */}
-        <div className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-          <p className="text-xs font-medium text-gray-500">{t.shiftGate.cashCount}</p>
+        <div className="space-y-2 rounded-xl border border-border p-3">
+          <p className="text-xs font-medium text-muted">{t.shiftGate.cashCount}</p>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">{t.shiftGate.expectedCash}</span>
+            <span className="text-muted">{t.shiftGate.expectedCash}</span>
             <span className="font-bold tabular-nums">{formatCurrency(expectedCash)}</span>
           </div>
           <Input
@@ -283,10 +283,10 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         </div>
 
         {/* card section */}
-        <div className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-          <p className="text-xs font-medium text-gray-500">{t.shiftGate.cardCount}</p>
+        <div className="space-y-2 rounded-xl border border-border p-3">
+          <p className="text-xs font-medium text-muted">{t.shiftGate.cardCount}</p>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">{t.shiftGate.expectedCard}</span>
+            <span className="text-muted">{t.shiftGate.expectedCard}</span>
             <span className="font-bold tabular-nums">{formatCurrency(computed.cardSales)}</span>
           </div>
           <Input
@@ -337,12 +337,12 @@ function VarianceBadge({ label, variance }: { label: string; variance: number })
 
 function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-      <div className="mb-1 flex items-center gap-1.5 text-gray-500">
+    <div className="rounded-lg bg-surface-2 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-muted">
         {icon}
         <span className="text-xs">{label}</span>
       </div>
-      <p className="font-semibold text-gray-900 tabular-nums dark:text-gray-100">{value}</p>
+      <p className="font-semibold text-fg tabular-nums">{value}</p>
     </div>
   )
 }
@@ -353,12 +353,12 @@ function ShiftLockScreen({ onOpen }: { onOpen: () => void }) {
   const { t } = useI18n()
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 p-8 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-        <Lock className="h-9 w-9 text-gray-400" />
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-surface-2">
+        <Lock className="h-9 w-9 text-muted" />
       </div>
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t.shiftGate.locked}</h2>
-        <p className="mt-1 text-sm text-gray-500">{t.shiftGate.startShiftToBegin}</p>
+        <h2 className="text-xl font-bold text-fg">{t.shiftGate.locked}</h2>
+        <p className="mt-1 text-sm text-muted">{t.shiftGate.startShiftToBegin}</p>
       </div>
       <Button onClick={onOpen} className="gap-2">
         <Unlock className="h-4 w-4" />
@@ -430,7 +430,7 @@ export function ShiftGate({
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-[color:var(--accent)]" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-brand" />
       </div>
     )
   }

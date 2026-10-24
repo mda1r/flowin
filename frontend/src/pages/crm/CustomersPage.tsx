@@ -90,9 +90,9 @@ export function CustomersPage() {
       />
       <div className="p-6">
         <Card>
-          <div className="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
+          <div className="flex items-center gap-3 border-b border-border p-4">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted" />
               <input
                 type="text"
                 placeholder={t.common.search + '...'}
@@ -114,8 +114,8 @@ export function CustomersPage() {
                 header: t.customers.name,
                 render: (r) => (
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{r.name}</p>
-                    <p className="text-xs text-gray-400">{r.email ?? r.phone ?? '—'}</p>
+                    <p className="font-medium text-fg">{r.name}</p>
+                    <p className="text-xs text-muted">{r.email ?? r.phone ?? '—'}</p>
                   </div>
                 ),
               },

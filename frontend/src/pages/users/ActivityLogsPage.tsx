@@ -23,7 +23,7 @@ const CATEGORY_COLORS: Record<LogCategory, string> = {
   'stock-count': 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
   order:         'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   user:          'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-  other:         'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  other:         'bg-surface-2 text-muted',
 }
 
 function categoryLabel(cat: string): string {
@@ -102,11 +102,11 @@ export function ActivityLogsPage() {
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-fg">
             <Activity className="h-6 w-6" style={{ color: 'var(--accent)' }} />
             {t.activityLogs.title}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             {isLoading ? t.common.loading : `${logs.length} سجل`}
           </p>
         </div>
@@ -114,7 +114,7 @@ export function ActivityLogsPage() {
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2 disabled:opacity-40"
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             تحديث
@@ -122,7 +122,7 @@ export function ActivityLogsPage() {
           <button
             onClick={() => exportCsv(logs, t, lang)}
             disabled={logs.length === 0}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2 disabled:opacity-40"
           >
             <Download className="h-4 w-4" />
             {t.activityLogs.exportCsv}
@@ -131,15 +131,15 @@ export function ActivityLogsPage() {
       </div>
 
       {/* Filters */}
-      <div className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-        <Filter className="h-4 w-4 text-gray-400 mt-5 shrink-0" />
+      <div className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
+        <Filter className="h-4 w-4 text-muted mt-5 shrink-0" />
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">{t.activityLogs.category}</label>
+          <label className="text-xs text-muted">{t.activityLogs.category}</label>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value as LogCategory | 'all')}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm focus:outline-none text-fg"
           >
             <option value="all">{t.activityLogs.all}</option>
             {(Object.keys(CATEGORY_LABELS) as LogCategory[]).map((k) => (
@@ -149,40 +149,40 @@ export function ActivityLogsPage() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">{t.activityLogs.user}</label>
+          <label className="text-xs text-muted">{t.activityLogs.user}</label>
           <input
             type="text"
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
             placeholder={t.common.search}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm focus:outline-none text-fg"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">من تاريخ</label>
+          <label className="text-xs text-muted">من تاريخ</label>
           <input
             type="date"
             value={filterFrom}
             onChange={(e) => setFilterFrom(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm focus:outline-none text-fg"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">إلى تاريخ</label>
+          <label className="text-xs text-muted">إلى تاريخ</label>
           <input
             type="date"
             value={filterTo}
             onChange={(e) => setFilterTo(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm focus:outline-none text-fg"
           />
         </div>
 
         {hasFilters && (
           <button
             onClick={() => { setFilterCategory('all'); setFilterUser(''); setFilterFrom(''); setFilterTo('') }}
-            className="rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-5"
+            className="rounded-lg px-3 py-1.5 text-sm text-muted hover:text-fg mt-5"
           >
             إعادة تعيين
           </button>
@@ -191,23 +191,23 @@ export function ActivityLogsPage() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-20 dark:border-gray-700 dark:bg-gray-900">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-          <span className="text-gray-400">{t.common.loading}</span>
+        <div className="flex items-center justify-center gap-3 rounded-2xl border border-border bg-surface py-20">
+          <Loader2 className="h-6 w-6 animate-spin text-muted" />
+          <span className="text-muted">{t.common.loading}</span>
         </div>
       ) : logs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-20 text-center dark:border-gray-700 dark:bg-gray-900">
-          <Activity className="h-10 w-10 text-gray-200 dark:text-gray-700" />
-          <p className="text-gray-400">{t.activityLogs.noLogs}</p>
-          <p className="text-xs text-gray-300 dark:text-gray-600">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface py-20 text-center">
+          <Activity className="h-10 w-10 text-muted/50" />
+          <p className="text-muted">{t.activityLogs.noLogs}</p>
+          <p className="text-xs text-muted/50">
             ستظهر هنا نشاطات فتح الشفت وتعديل المخزون والجرد
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+              <thead className="border-b border-border bg-surface-2">
                 <tr>
                   {[
                     `${t.activityLogs.date} ${t.activityLogs.time}`,
@@ -216,13 +216,13 @@ export function ActivityLogsPage() {
                     t.activityLogs.action,
                     t.activityLogs.details,
                   ].map((h, i) => (
-                    <th key={i} className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    <th key={i} className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+              <tbody className="divide-y divide-border">
                 {logs.map((log) => {
                   const d = new Date(log.timestamp)
                   const isDeficit = log.action.includes('عجز')
@@ -237,22 +237,22 @@ export function ActivityLogsPage() {
                       className={
                         isDeficit
                           ? 'bg-red-50 dark:bg-red-900/15 border-r-4 border-red-500'
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors'
+                          : 'hover:bg-surface-2 transition-colors'
                       }
                     >
-                      <td className="px-4 py-3 tabular-nums text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      <td className="px-4 py-3 tabular-nums text-muted whitespace-nowrap">
                         <p className="text-xs">{d.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}</p>
-                        <p className="text-[11px] text-gray-400">{d.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-[11px] text-muted">{d.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-brand-fg"
                             style={{ background: isDeficit ? '#ef4444' : 'var(--accent)' }}
                           >
                             {displayName[0]?.toUpperCase() ?? '؟'}
                           </div>
-                          <span className="font-medium text-gray-900 dark:text-gray-100">{displayName}</span>
+                          <span className="font-medium text-fg">{displayName}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -267,10 +267,10 @@ export function ActivityLogsPage() {
                             {log.action}
                           </span>
                         ) : (
-                          <span className="font-medium text-gray-900 dark:text-gray-100">{log.action}</span>
+                          <span className="font-medium text-fg">{log.action}</span>
                         )}
                       </td>
-                      <td className={`px-4 py-3 max-w-xs truncate ${isDeficit ? 'font-medium text-red-700 dark:text-red-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <td className={`px-4 py-3 max-w-xs truncate ${isDeficit ? 'font-medium text-red-700 dark:text-red-300' : 'text-muted '}`}>
                         {log.details ?? '—'}
                       </td>
                     </tr>

@@ -252,14 +252,14 @@ export function ContractsPage() {
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-2" />
             ))}
           </div>
         ) : contracts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <FileText className="mb-3 h-12 w-12 text-gray-300" />
-            <p className="font-medium text-gray-600 dark:text-gray-400">{t.contracts.noContracts}</p>
-            <p className="text-sm text-gray-400">أنشئ أول عقد باستخدام زر "عقد جديد"</p>
+            <FileText className="mb-3 h-12 w-12 text-muted/50" />
+            <p className="font-medium text-muted">{t.contracts.noContracts}</p>
+            <p className="text-sm text-muted">أنشئ أول عقد باستخدام زر "عقد جديد"</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -312,10 +312,10 @@ function ContractRow({
   const canSign = contract.status === 'Active'
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-900">
+    <div className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-4">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="font-semibold text-gray-900 dark:text-gray-100">{contract.tenantName}</p>
+          <p className="font-semibold text-fg">{contract.tenantName}</p>
           <Badge variant={STATUS_BADGE[contract.status]}>
             {contract.status === 'Draft' ? t.contracts.status.draft
               : contract.status === 'Active' ? t.contracts.status.active
@@ -323,7 +323,7 @@ function ContractRow({
               : t.contracts.status.terminated}
           </Badge>
         </div>
-        <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-500">
+        <div className="mt-1 flex flex-wrap gap-3 text-sm text-muted">
           <span>{t.contracts.property} {contract.roomNumber}</span>
           <span>·</span>
           <span>{formatCurrency(contract.monthlyRent, contract.currency)} / {t.contracts.monthlyRent}</span>
@@ -502,7 +502,7 @@ function ContractModal({
       <form className="max-h-[65vh] overflow-y-auto space-y-5 pr-1" dir="rtl">
         {/* ── Parties ── */}
         <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">أطراف العقد</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">أطراف العقد</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="اسم المستأجر"
@@ -533,7 +533,7 @@ function ContractModal({
 
         {/* ── Property & dates ── */}
         <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">تفاصيل الإيجار</p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">تفاصيل الإيجار</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Input
               label="رقم الغرفة / الوحدة"
@@ -577,7 +577,7 @@ function ContractModal({
         {/* ── Clauses ── */}
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
               بنود العقد ({fields.length})
             </p>
             <Button
@@ -592,7 +592,7 @@ function ContractModal({
           </div>
 
           {fields.length === 0 ? (
-            <div className="rounded-lg border-2 border-dashed border-gray-200 py-6 text-center text-sm text-gray-400 dark:border-gray-700">
+            <div className="rounded-lg border-2 border-dashed border-border py-6 text-center text-sm text-muted">
               لا توجد بنود — اضغط "إضافة بند" لإضافة بنود العقد
             </div>
           ) : (
@@ -600,16 +600,16 @@ function ContractModal({
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50"
+                  className="rounded-xl border border-border bg-surface-2 p-4"
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <span className="text-sm font-medium text-muted">
                       البند {index + 1}
                     </span>
                     <button
                       type="button"
                       onClick={() => remove(index)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      className="text-muted hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

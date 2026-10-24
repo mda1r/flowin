@@ -142,8 +142,8 @@ export function PurchasingPage() {
       />
       <div className="p-6">
         <Card>
-          <div className="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800">
-            <div className="flex rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-800">
+          <div className="flex items-center gap-3 border-b border-border p-4">
+            <div className="flex rounded-lg border border-border bg-surface p-1">
               {(['orders', 'suppliers'] as const).map((v) => (
                 <button
                   key={v}
@@ -151,7 +151,7 @@ export function PurchasingPage() {
                   className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                     view === v
                       ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+                      : 'text-muted hover:bg-surface-2 '
                   }`}
                 >
                   {viewLabels[v]}
@@ -251,7 +251,7 @@ export function PurchasingPage() {
                   render: (r) => (
                     <div>
                       <p className="font-medium">{r.name}</p>
-                      <p className="text-xs text-gray-400">{r.contactEmail ?? '—'}</p>
+                      <p className="text-xs text-muted">{r.contactEmail ?? '—'}</p>
                     </div>
                   ),
                 },

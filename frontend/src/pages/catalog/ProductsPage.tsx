@@ -276,9 +276,9 @@ export function ProductsPage() {
       />
       <div className="p-6">
         <Card>
-          <div className="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800" dir="rtl">
+          <div className="flex items-center gap-3 border-b border-border p-4" dir="rtl">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute end-3 top-2.5 h-4 w-4 text-gray-400" />
+              <Search className="absolute end-3 top-2.5 h-4 w-4 text-muted" />
               <input
                 type="text"
                 placeholder={t.products.searchProducts}
@@ -296,9 +296,9 @@ export function ProductsPage() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <p className="p-10 text-center text-sm text-gray-400">{t.products.noProducts}</p>
+            <p className="p-10 text-center text-sm text-muted">{t.products.noProducts}</p>
           ) : (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="divide-y divide-border">
               {products.map((product) => {
                 const firstVariant = product.variants[0]
                 const isExpanded = expanded === product.id
@@ -317,31 +317,31 @@ export function ProductsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900 dark:text-gray-100">{product.name}</p>
+                            <p className="font-medium text-fg">{product.name}</p>
                             {product.unitType && product.unitType !== 'Piece' && (
                               <span className="shrink-0 rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                 {({'Kilogram':'كيلو','Gram':'جرام','Liter':'لتر','Milliliter':'مللي','Meter':'متر','Box':'صندوق'} as Record<string, string>)[product.unitType] ?? product.unitType}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">{product.description ?? '—'}</p>
+                          <p className="text-xs text-muted">{product.description ?? '—'}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           {firstVariant && (
-                            <span className="tabular-nums text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            <span className="tabular-nums text-sm font-semibold text-fg">
                               {formatCurrency(firstVariant.salePrice, firstVariant.currency)}
                             </span>
                           )}
                           <Badge variant={product.isActive ? 'green' : 'gray'}>
                             {product.isActive ? t.products.active : t.products.inactive}
                           </Badge>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-muted">
                             {product.variants.length} {t.products.variants}
                           </span>
                           {isExpanded ? (
-                            <ChevronUp className="h-4 w-4 text-gray-400" />
+                            <ChevronUp className="h-4 w-4 text-muted" />
                           ) : (
-                            <ChevronDown className="h-4 w-4 text-gray-400" />
+                            <ChevronDown className="h-4 w-4 text-muted" />
                           )}
                         </div>
                       </button>
@@ -368,24 +368,24 @@ export function ProductsPage() {
                     </div>
 
                     {isExpanded && (
-                      <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-800/50">
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                      <div className="border-t border-border bg-surface-2 px-4 py-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
                           {t.products.variants}
                         </p>
                         <div className="space-y-2">
                           {product.variants.map((v) => (
                             <div
                               key={v.id}
-                              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                              className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                             >
                               <div>
-                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                <span className="font-medium text-fg">
                                   {v.name}
                                 </span>
-                                <span className="ml-2 text-xs text-gray-400">{v.sku}</span>
+                                <span className="ml-2 text-xs text-muted">{v.sku}</span>
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-muted">
                                   {t.products.costPrice}: {formatCurrency(v.costPrice, v.currency)}
                                 </span>
                                 <span className="font-semibold text-blue-600 dark:text-blue-400">
@@ -458,7 +458,7 @@ export function ProductsPage() {
             <option value="Meter">متر (م)</option>
             <option value="Box">صندوق</option>
           </Select>
-          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <label className="flex items-center gap-2 text-sm text-fg">
             <input type="checkbox" {...createForm.register('trackInventory')} className="rounded" />
             {t.products.trackInventory}
           </label>
@@ -473,11 +473,11 @@ export function ProductsPage() {
                 {...createForm.register('initialQuantity')}
               />
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">تاريخ الانتهاء (اختياري)</label>
+                <label className="block text-sm font-medium text-fg">تاريخ الانتهاء (اختياري)</label>
                 <input
                   type="date"
                   {...createForm.register('expiryDate')}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg"
                 />
               </div>
             </div>
@@ -519,7 +519,7 @@ export function ProductsPage() {
             <option value="Meter">متر (م)</option>
             <option value="Box">صندوق</option>
           </Select>
-          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <label className="flex items-center gap-2 text-sm text-fg">
             <input type="checkbox" {...editProductForm.register('trackInventory')} className="rounded" />
             {t.products.trackInventory}
           </label>
