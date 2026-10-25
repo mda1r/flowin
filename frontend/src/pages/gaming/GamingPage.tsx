@@ -14,10 +14,12 @@ import type {
   GameStationResponse,
   GameSessionBillResponse,
   StationType,
+  GamingPackageResponse,
 } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { playAlarmSequence, playBeep, requestNotificationPermission, sendGameNotification } from '@/lib/gamingAlerts'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
+import { PackageBillLines, PackagePicker, PackagesManager } from '@/components/gaming/Packages'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,6 +70,8 @@ export function GamingPage() {
 
   const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
+  const [showPackages, setShowPackages] = useState(false)
+  const [startPackage, setStartPackage] = useState<GamingPackageResponse | null>(null)
 
   // Request notification permission once on mount
   useEffect(() => {
@@ -146,13 +150,15 @@ export function GamingPage() {
         : startForm.durationMinutes
       return gamingApi.startSession(branchId!, startModal!.id, {
         playerName: startForm.playerName,
-        durationMinutes: dur,
+        durationMinutes: startPackage?.durationMinutes ?? dur,
         ratePerHour: startForm.ratePerHour,
+        packageId: startPackage?.id,
       })
     },
     onSuccess: () => {
       invalidate()
       setStartModal(null)
+      setStartPackage(null)
       toast.success('بدأت الجلسة')
     },
     onError: () => toast.error('فشل بدء الجلسة'),
@@ -272,10 +278,15 @@ export function GamingPage() {
         title={t.gaming.title}
         description="إدارة محطات الألعاب والجلسات"
         action={
-          <Button onClick={() => setCreateModal(true)}>
-            <Plus className="h-4 w-4" />
-            {t.gaming.newStation}
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => setShowPackages(true)}>
+              الباقات
+            </Button>
+            <Button onClick={() => setCreateModal(true)}>
+              <Plus className="h-4 w-4" />
+              {t.gaming.newStation}
+            </Button>
+          </>
         }
       />
 
@@ -404,7 +415,7 @@ export function GamingPage() {
       {/* ── Start Session Modal ────────────────────────────────────────────── */}
       <Modal
         open={!!startModal}
-        onClose={() => setStartModal(null)}
+        onClose={() => { setStartModal(null); setStartPackage(null) }}
         title={t.gaming.startSession}
         size="md"
         footer={
@@ -434,6 +445,8 @@ export function GamingPage() {
                 <p className="text-xs text-muted">{TYPE_LABEL[startModal.type]}</p>
               </div>
             </div>
+
+            <PackagePicker stationType={startModal.type} selectedId={startPackage?.id ?? null} onSelect={setStartPackage} />
 
             {/* Player name */}
             <Input
@@ -522,11 +535,12 @@ export function GamingPage() {
                 <div className="flex h-9 items-center rounded-lg bg-green-50 px-3 dark:bg-green-900/20">
                   <span className="font-bold text-green-700 dark:text-green-400">
                     {formatCurrency(
-                      ((startForm.customDuration
-                        ? parseInt(startForm.customMinutes, 10) || 0
-                        : startForm.durationMinutes) /
-                        60) *
-                        startForm.ratePerHour,
+                      startPackage?.price ??
+                        ((startForm.customDuration
+                          ? parseInt(startForm.customMinutes, 10) || 0
+                          : startForm.durationMinutes) /
+                          60) *
+                          startForm.ratePerHour,
                       startModal.currency,
                     )}
                   </span>
@@ -610,6 +624,8 @@ export function GamingPage() {
         )}
       </Modal>
 
+      <PackagesManager open={showPackages} onClose={() => setShowPackages(false)} />
+
       {/* ── Bill / End Session Modal ───────────────────────────────────────── */}
       <Modal
         open={!!billModal}
@@ -653,6 +669,8 @@ export function GamingPage() {
               </p>
               <p className="text-sm text-muted">اللاعب: {billModal.playerName}</p>
             </div>
+
+            {billModal && <PackageBillLines bill={billModal} />}
 
             {/* Bill details */}
             <div className="space-y-2 text-sm">

@@ -32,6 +32,7 @@ import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
+import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,6 +44,9 @@ interface StartSessionForm {
   hourlyRate: number
   playerName: string
   durationMinutes: number
+  packageId?: string
+  packageName?: string
+  packagePrice?: number
 }
 
 interface CafeCartItem {
@@ -806,6 +810,16 @@ export function CafePosPage() {
 
   // ── Gaming mutations ───────────────────────────────────────────────────────
 
+  const extendSessionMut = useMutation({
+    mutationFn: ({ sessionId, minutes }: { sessionId: string; minutes: number }) =>
+      gamingApi.extendSession(branchId!, sessionId, minutes),
+    onSuccess: (_, v) => {
+      void refetchStations()
+      toast.success(`تم تمديد الجلسة ${v.minutes === 60 ? 'ساعة' : `${v.minutes} دقيقة`}`)
+    },
+    onError: () => toast.error('تعذّر تمديد الجلسة'),
+  })
+
   const startSessionMut = useMutation({
     mutationFn: async (form: StartSessionForm) => {
       if (!branchId) throw new Error('no-branch')
@@ -813,6 +827,7 @@ export function CafePosPage() {
         playerName: form.playerName,
         durationMinutes: form.durationMinutes,
         ratePerHour: form.hourlyRate,
+        packageId: form.packageId,
       })
     },
     onSuccess: () => {
@@ -1348,6 +1363,11 @@ export function CafePosPage() {
                           <div className="mb-3 rounded-lg bg-brand-soft/60 p-2.5">
                             <p className="text-xs font-semibold text-brand">
                               👤 {station.activeSession.playerName}
+                              {station.activeSession.packageName && (
+                                <span className="ms-1.5 rounded-full bg-surface px-1.5 py-0.5 text-[10px] text-muted">
+                                  {station.activeSession.packageName}
+                                </span>
+                              )}
                             </p>
                             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-brand">
                               <Clock className="h-3 w-3" />
@@ -1377,6 +1397,20 @@ export function CafePosPage() {
                             <Play className="h-3.5 w-3.5" />
                             ابدأ جلسة
                           </button>
+                        )}
+                        {station.status === 'InUse' && station.activeSession && (
+                          <div className="mb-2 grid grid-cols-2 gap-1.5">
+                            {[30, 60].map((m) => (
+                              <button
+                                key={m}
+                                onClick={() => extendSessionMut.mutate({ sessionId: station.activeSession!.sessionId, minutes: m })}
+                                disabled={extendSessionMut.isPending}
+                                className="rounded-lg border border-border bg-surface py-1.5 text-xs font-semibold text-fg hover:bg-surface-2 disabled:opacity-50"
+                              >
+                                +{m === 60 ? 'ساعة' : '30 د'}
+                              </button>
+                            ))}
+                          </div>
                         )}
                         {station.status === 'InUse' && station.activeSession && (
                           <button
@@ -1544,6 +1578,16 @@ export function CafePosPage() {
                   className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand/40 text-fg"
                 />
               </div>
+              <PackagePicker
+                stationType={startSessionForm.stationTypeKey}
+                selectedId={startSessionForm.packageId ?? null}
+                onSelect={(pkg) =>
+                  setStartSessionForm((f) => f && (pkg
+                    ? { ...f, packageId: pkg.id, packageName: pkg.name, packagePrice: pkg.price, durationMinutes: pkg.durationMinutes }
+                    : { ...f, packageId: undefined, packageName: undefined, packagePrice: undefined }))
+                }
+              />
+              {!startSessionForm.packageId && (
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-fg">المدة</label>
                 <div className="mb-2 flex gap-1.5">
@@ -1573,8 +1617,11 @@ export function CafePosPage() {
                   <span className="shrink-0 text-xs text-muted">دقيقة</span>
                 </div>
               </div>
+              )}
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-fg">السعر / ساعة (ر.س)</label>
+                <label className="mb-1.5 block text-sm font-semibold text-fg">
+                  {startSessionForm.packageId ? 'سعر الساعة للوقت الإضافي (ر.س)' : 'السعر / ساعة (ر.س)'}
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -1587,10 +1634,12 @@ export function CafePosPage() {
               <div className="rounded-xl bg-brand-soft py-3 text-center">
                 <p className="text-xs text-muted">الإجمالي المتوقع</p>
                 <p className="mt-0.5 text-2xl font-black tabular-nums text-brand">
-                  {formatCurrency((startSessionForm.durationMinutes / 60) * startSessionForm.hourlyRate)}
+                  {formatCurrency(startSessionForm.packagePrice ?? (startSessionForm.durationMinutes / 60) * startSessionForm.hourlyRate)}
                 </p>
                 <p className="text-xs text-muted">
-                  {startSessionForm.durationMinutes} د × {formatCurrency(startSessionForm.hourlyRate)}/ساعة
+                  {startSessionForm.packageId
+                    ? `${startSessionForm.packageName} · الإضافي ${formatCurrency(startSessionForm.hourlyRate)}/ساعة`
+                    : `${startSessionForm.durationMinutes} د × ${formatCurrency(startSessionForm.hourlyRate)}/ساعة`}
                 </p>
               </div>
             </div>
@@ -1656,7 +1705,8 @@ export function CafePosPage() {
                 </div>
               </div>
               <div className="mb-2 rounded-xl bg-brand-soft py-4 text-center">
-                <p className="text-xs text-muted">الإجمالي</p>
+                <PackageBillLines bill={gamingBill} />
+                <p className="mt-2 text-xs text-muted">الإجمالي</p>
                 <p className="mt-1 text-3xl font-black tabular-nums text-brand">
                   {formatCurrency(gamingBill.totalAmount)}
                 </p>

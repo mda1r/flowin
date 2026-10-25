@@ -3,6 +3,8 @@ import type {
   GameStationResponse,
   GameSessionResponse,
   GameSessionBillResponse,
+  GamingPackageResponse,
+  StationType,
 } from '@/types/api'
 
 const BASE = (branchId: string) => `/api/v1/branches/${branchId}/gaming`
@@ -48,7 +50,7 @@ export const gamingApi = {
   startSession: (
     branchId: string,
     stationId: string,
-    data: { playerName: string; durationMinutes: number; ratePerHour: number },
+    data: { playerName: string; durationMinutes: number; ratePerHour: number; packageId?: string },
   ) =>
     apiClient.post<GameStationResponse>(
       `${BASE(branchId)}/stations/${stationId}/start`,
@@ -68,6 +70,13 @@ export const gamingApi = {
       `${BASE(branchId)}/sessions/${sessionId}/extend`,
       { extraMinutes },
     ),
+
+  listPackages: (branchId: string) => apiClient.get<GamingPackageResponse[]>(`${BASE(branchId)}/packages`),
+
+  createPackage: (branchId: string, data: { name: string; durationMinutes: number; price: number; stationType?: StationType }) =>
+    apiClient.post<GamingPackageResponse>(`${BASE(branchId)}/packages`, data),
+
+  deletePackage: (branchId: string, packageId: string) => apiClient.delete(`${BASE(branchId)}/packages/${packageId}`),
 
   paySession: (branchId: string, sessionId: string, paymentMethod: 'Cash' | 'Card') =>
     apiClient.post<GameSessionBillResponse>(`${BASE(branchId)}/sessions/${sessionId}/pay`, { paymentMethod }),

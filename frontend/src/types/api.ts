@@ -645,6 +645,8 @@ export interface GameSessionSummary {
   startTime: string
   durationMinutes: number
   ratePerHour: number
+  packageName?: string
+  packagePrice?: number
 }
 
 export interface GameStationResponse {
@@ -689,6 +691,17 @@ export interface GameSessionBillResponse {
   currency: string
   paymentMethod?: 'Cash' | 'Card'
   paidAt?: string
+  packageName?: string
+  packagePrice?: number
+  overtimeMinutes?: number
+}
+
+export interface GamingPackageResponse {
+  id: string
+  name: string
+  durationMinutes: number
+  price: number
+  stationType?: StationType
 }
 
 
