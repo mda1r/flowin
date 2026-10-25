@@ -201,16 +201,16 @@ function StatCardSkeleton({ entrance }: { entrance: string }) {
    ──────────────────────────────────────────────────────────────── */
 
 const PAYMENT_META: Record<PaymentMethod, {
-  badge: 'green' | 'blue' | 'purple' | 'orange'
+  badge: 'gray'
   Icon: LucideIcon
   iconWrap: string
   iconColor: string
 }> = {
-  Cash:         { badge: 'green',  Icon: Banknote,   iconWrap: 'bg-success/10 dark:bg-success/15', iconColor: 'text-success' },
-  Card:         { badge: 'blue',   Icon: CreditCard, iconWrap: 'bg-info/10',       iconColor: 'text-info'    },
-  BankTransfer: { badge: 'purple', Icon: Landmark,   iconWrap: 'bg-brand-soft dark:bg-brand/20',   iconColor: 'text-brand-ink'  },
-  Voucher:      { badge: 'orange', Icon: Ticket,     iconWrap: 'bg-warning/10 dark:bg-warning/15',     iconColor: 'text-warning'   },
-  Split:        { badge: 'orange', Icon: Banknote,   iconWrap: 'bg-warning/10 dark:bg-warning/15',   iconColor: 'text-warning'  },
+  Cash:         { badge: 'gray',  Icon: Banknote,   iconWrap: 'bg-surface-2', iconColor: 'text-muted' },
+  Card:         { badge: 'gray',   Icon: CreditCard, iconWrap: 'bg-surface-2',       iconColor: 'text-muted'    },
+  BankTransfer: { badge: 'gray', Icon: Landmark,   iconWrap: 'bg-surface-2',   iconColor: 'text-muted'  },
+  Voucher:      { badge: 'gray', Icon: Ticket,     iconWrap: 'bg-surface-2',     iconColor: 'text-muted'   },
+  Split:        { badge: 'gray', Icon: Banknote,   iconWrap: 'bg-surface-2',   iconColor: 'text-muted'  },
 }
 
 function formatOrderTime(iso?: string, lang?: string): string {
@@ -247,11 +247,11 @@ function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
         <div
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-            pay?.iconWrap ?? 'bg-info/10',
+            pay?.iconWrap ?? 'bg-surface-2',
           )}
           title={payLabel}
         >
-          <Icon className={cn('h-4 w-4', pay?.iconColor ?? 'text-info')} />
+          <Icon className={cn('h-4 w-4', pay?.iconColor ?? 'text-muted')} />
         </div>
         <div>
           <p className="text-sm font-medium text-fg">
@@ -267,7 +267,7 @@ function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
         <p className="text-sm font-bold tabular-nums text-fg">
           {formatCurrency(order.totalAmount)}
         </p>
-        {pay ? <Badge variant={pay.badge}>{payLabel}</Badge> : <Badge variant="green">{t.dashboard.completed}</Badge>}
+        {pay ? <Badge variant={pay.badge}>{payLabel}</Badge> : <Badge variant="gray">{t.dashboard.completed}</Badge>}
       </div>
     </div>
   )
@@ -394,7 +394,7 @@ function QuickActionTile({ action }: { action: QuickAction }) {
       <div
         className={cn(
           // one brand colour for every shortcut; colour is kept for status, not for decoration
-          'rounded-xl bg-brand-soft p-2.5 text-brand-ink transition-transform duration-300 group-hover:scale-110',
+          'rounded-xl bg-brand-soft p-2.5 text-brand-strong transition-transform duration-300 group-hover:scale-110',
         )}
       >
         {action.icon}
@@ -757,14 +757,14 @@ export function DashboardPage() {
       <div className="space-y-6 p-6">
 
         {/* ── Hero ──────────────────────────────────────────────────── */}
-        <section className="scheme-dark entrance-1 relative overflow-hidden rounded-2xl bg-surface p-7 text-fg shadow-lg">
-          <div className="pointer-events-none absolute -top-28 -end-16 h-72 w-72 rounded-full bg-brand/20 blur-3xl" aria-hidden="true" />
-          <FlowWave className="absolute inset-x-0 -bottom-3 h-24 opacity-60" />
+        <section className="entrance-1 relative overflow-hidden rounded-2xl border border-border bg-surface p-7 text-fg shadow-sm">
+          <div className="pointer-events-none absolute -top-32 -end-20 h-72 w-72 rounded-full bg-brand/25 blur-3xl" aria-hidden="true" />
+          <FlowWave className="absolute inset-x-0 -bottom-6 h-20" glow={false} />
 
           <div className="relative flex flex-wrap items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2.5">
-                <GreetIcon className="h-6 w-6 text-brand" />
+                <GreetIcon className="h-6 w-6 text-brand-strong" />
                 <h1 className="text-[1.65rem] font-semibold text-fg">
                   {greeting}{user?.firstName ? `، ${user.firstName}` : ''}
                 </h1>
@@ -772,7 +772,7 @@ export function DashboardPage() {
               <p className="mt-1.5 text-sm text-muted">{todayLabel}</p>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                <div className="rounded-xl border border-border bg-surface-2/80 px-4 py-2.5 backdrop-blur-sm">
+                <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm">
                   <p className="text-xs font-medium text-muted">{t.dashboard.netRevenue}</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-20 animate-pulse rounded-md bg-border" />
@@ -780,7 +780,7 @@ export function DashboardPage() {
                     <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{formatCurrency(netRevenue)}</p>
                   )}
                 </div>
-                <div className="rounded-xl border border-border bg-surface-2/80 px-4 py-2.5 backdrop-blur-sm">
+                <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm">
                   <p className="text-xs font-medium text-muted">{t.dashboard.ordersToday}</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-border" />
@@ -788,7 +788,7 @@ export function DashboardPage() {
                     <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{stats.totalOrders}</p>
                   )}
                 </div>
-                <div className="rounded-xl border border-border bg-surface-2/80 px-4 py-2.5 backdrop-blur-sm">
+                <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm">
                   <p className="text-xs font-medium text-muted">{t.dashboard.totalCustomers}</p>
                   {customersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-border" />
@@ -836,9 +836,9 @@ export function DashboardPage() {
                 title={t.dashboard.netRevenue}
                 value={netRevenue}
                 format={(n) => formatCurrency(n)}
-                icon={<DollarSign className="h-5 w-5 text-brand-ink" />}
+                icon={<DollarSign className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft"
-                sparkColor="text-brand-ink"
+                sparkColor="text-brand-strong"
                 kpiColor="rgb(var(--brand))"
                 spark={revenueSpark}
                 sparkId="spark-revenue"
@@ -857,9 +857,9 @@ export function DashboardPage() {
               <StatCard
                 title={t.dashboard.ordersToday}
                 value={stats.totalOrders}
-                icon={<ShoppingCart className="h-5 w-5 text-brand-ink" />}
+                icon={<ShoppingCart className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft"
-                sparkColor="text-brand-ink"
+                sparkColor="text-brand-strong"
                 kpiColor="rgb(var(--brand))"
                 spark={ordersSpark}
                 sparkId="spark-orders"
@@ -869,9 +869,9 @@ export function DashboardPage() {
                 title={t.dashboard.vatCollected}
                 value={stats.totalTax}
                 format={(n) => formatCurrency(n)}
-                icon={<Receipt className="h-5 w-5 text-brand-ink" />}
+                icon={<Receipt className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft"
-                sparkColor="text-brand-ink"
+                sparkColor="text-brand-strong"
                 kpiColor="rgb(var(--brand))"
                 spark={FALLBACK_AVG}
                 sparkId="spark-tax"
@@ -881,9 +881,9 @@ export function DashboardPage() {
                 title={t.dashboard.avgOrderValue}
                 value={stats.avgOrder}
                 format={(n) => formatCurrency(n)}
-                icon={<TrendingUp className="h-5 w-5 text-brand-ink" />}
+                icon={<TrendingUp className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft"
-                sparkColor="text-brand-ink"
+                sparkColor="text-brand-strong"
                 kpiColor="rgb(var(--brand))"
                 spark={avgSpark}
                 sparkId="spark-avg"
@@ -911,7 +911,7 @@ export function DashboardPage() {
                 </div>
                 <a
                   href="/sales"
-                  className="flex items-center gap-0.5 text-xs text-info hover:underline"
+                  className="flex items-center gap-0.5 text-xs text-brand-ink hover:underline"
                 >
                   {t.dashboard.viewAll}
                   <ChevronLeft className="h-3 w-3" />
@@ -965,7 +965,7 @@ export function DashboardPage() {
                   <AlertTriangle className="h-4 w-4 text-warning" />
                   <h2 className="text-sm font-semibold text-fg">{t.dashboard.inventoryAlerts}</h2>
                 </div>
-                <a href={alertsHref} className="text-xs text-info hover:underline">
+                <a href={alertsHref} className="text-xs text-brand-ink hover:underline">
                   {t.dashboard.viewAll}
                 </a>
               </div>

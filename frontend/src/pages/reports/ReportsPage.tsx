@@ -343,22 +343,22 @@ export function ReportsPage() {
                 title={t.sales.netRevenue}
                 value={formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total)}
                 sub={String(stats.totalOrders)}
-                icon={<DollarSign className="h-5 w-5 text-brand-ink" />}
-                iconWrap="bg-brand-soft text-brand-ink"
+                icon={<DollarSign className="h-5 w-5 text-brand-strong" />}
+                iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
               <KpiCard
                 title={t.reports.totalOrders}
                 value={String(stats.totalOrders)}
-                icon={<ShoppingCart className="h-5 w-5 text-brand-ink" />}
-                iconWrap="bg-brand-soft text-brand-ink"
+                icon={<ShoppingCart className="h-5 w-5 text-brand-strong" />}
+                iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
               <KpiCard
                 title={t.reports.avgOrderValue}
                 value={formatCurrency(stats.avgOrder)}
-                icon={<TrendingUp className="h-5 w-5 text-brand-ink" />}
-                iconWrap="bg-brand-soft text-brand-ink"
+                icon={<TrendingUp className="h-5 w-5 text-brand-strong" />}
+                iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
             </div>
@@ -367,8 +367,8 @@ export function ReportsPage() {
                 title={t.reports.totalVat}
                 value={formatCurrency(stats.totalTax)}
                 sub={t.reports.vatSummary}
-                icon={<Receipt className="h-5 w-5 text-brand-ink" />}
-                iconWrap="bg-brand-soft text-brand-ink"
+                icon={<Receipt className="h-5 w-5 text-brand-strong" />}
+                iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
               <KpiCard
@@ -382,8 +382,8 @@ export function ReportsPage() {
               <KpiCard
                 title={t.reports.totalRevenue}
                 value={formatCurrency(stats.totalRevenue)}
-                icon={<TrendingDown className="h-5 w-5 text-brand-ink" />}
-                iconWrap="bg-brand-soft text-brand-ink"
+                icon={<TrendingDown className="h-5 w-5 text-brand-strong" />}
+                iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
             </div>

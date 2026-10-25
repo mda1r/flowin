@@ -20,6 +20,8 @@ export default {
           fg: token('brand-fg'),
           // text and icons in the brand colour: deep mint on light, mint itself on graphite
           ink: token('brand-ink'),
+          // icons and chart lines: a clear mid-mint on light, mint on graphite
+          strong: token('brand-strong'),
         },
         success: token('success'),
         warning: token('warning'),

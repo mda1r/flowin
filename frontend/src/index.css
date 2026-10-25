@@ -19,6 +19,7 @@
     --muted: 104 109 118;
     --brand: 98 230 199;
     --brand-ink: 10 124 98;
+    --brand-strong: 22 176 141;
     --brand-soft: 226 249 242;
     --brand-fg: 35 38 45;
     --success: 22 150 92;
@@ -66,6 +67,7 @@
     --muted: 158 163 172;
     --brand: 98 230 199;
     --brand-ink: 98 230 199;
+    --brand-strong: 98 230 199;
     --brand-soft: 42 64 63;
     --brand-fg: 35 38 45;
     --success: 74 222 150;
@@ -93,6 +95,7 @@
       --muted: 158 163 172;
       --brand: 98 230 199;
       --brand-ink: 98 230 199;
+      --brand-strong: 98 230 199;
       --brand-soft: 42 64 63;
       --brand-fg: 35 38 45;
       --success: 74 222 150;
@@ -166,6 +169,7 @@
     --muted: 104 109 118;
     --brand: 98 230 199;
     --brand-ink: 10 124 98;
+    --brand-strong: 22 176 141;
     --brand-soft: 226 249 242;
     --brand-fg: 35 38 45;
     --success: 22 150 92;
@@ -191,6 +195,7 @@
     --muted: 158 163 172;
     --brand: 98 230 199;
     --brand-ink: 98 230 199;
+    --brand-strong: 98 230 199;
     --brand-soft: 42 64 63;
     --brand-fg: 35 38 45;
     --success: 74 222 150;
@@ -1208,6 +1213,7 @@
   /* ---------- dashboard ---------- */
 
   .kpi-topbar {
+    display: none;
     position: absolute;
     inset-inline: 0;
     top: 0;

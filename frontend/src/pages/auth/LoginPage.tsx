@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, Receipt, ShieldCheck, Sparkles } from 'lucide-react'
+import { ClipboardCheck, Eye, EyeOff, Receipt, Zap } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useI18n } from '@/i18n'
 import { authApi } from '@/api/auth'
@@ -66,14 +66,14 @@ export function LoginPage() {
   const ar = lang === 'ar'
   const highlights = ar
     ? [
-        { icon: Sparkles, text: 'كاشير سريع يعمل حتى دون إنترنت' },
-        { icon: Receipt, text: 'فواتير زاتكا وتقارير يومية جاهزة' },
-        { icon: ShieldCheck, text: 'بيانات كل متجر معزولة وآمنة' },
+        { icon: Zap, text: 'بيع سريع حتى لو انقطع الإنترنت' },
+        { icon: Receipt, text: 'فواتير متوافقة مع زاتكا تلقائياً' },
+        { icon: ClipboardCheck, text: 'إقفالك اليومي جاهز بضغطة' },
       ]
     : [
-        { icon: Sparkles, text: 'A fast till that keeps selling offline' },
-        { icon: Receipt, text: 'ZATCA invoices and daily reports, ready' },
-        { icon: ShieldCheck, text: "Every store's data isolated and secure" },
+        { icon: Zap, text: 'Fast sales, even when the internet drops' },
+        { icon: Receipt, text: 'ZATCA-compliant invoices, automatically' },
+        { icon: ClipboardCheck, text: 'Your daily close, ready in one tap' },
       ]
 
   return (
@@ -89,15 +89,15 @@ export function LoginPage() {
         <div className="relative my-auto hidden py-12 lg:block">
           <h1 className="max-w-md text-[2.6rem] font-semibold leading-[1.25] text-fg">
             {ar ? (
-              <>غدٌ أذكى <span className="text-brand">يتدفّق</span></>
+              <>أدِر متجرك <span className="text-brand">بانسيابية</span></>
             ) : (
-              <>A smarter tomorrow <span className="text-brand">flows</span></>
+              <>Run your store <span className="text-brand">smoothly</span></>
             )}
           </h1>
           <p className="mt-4 max-w-sm text-base leading-7 text-muted">
             {ar
-              ? 'نظام واحد للكاشير والمخزون والعملاء والضرائب، لمقهاك ومطعمك ومتجرك.'
-              : 'One system for the till, stock, customers and tax, for your café, restaurant and store.'}
+              ? 'الكاشير والمخزون والعملاء والضرائب في مكان واحد، لمقهاك ومطعمك ومتجرك.'
+              : 'The till, stock, customers and tax in one place, for your café, restaurant and store.'}
           </p>
           <ul className="mt-8 space-y-3">
             {highlights.map(({ icon: Icon, text }) => (

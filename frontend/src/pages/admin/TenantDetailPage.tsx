@@ -101,7 +101,7 @@ export function TenantDetailPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 text-muted">
         <p>المستأجر غير موجود</p>
-        <Link to="/admin/tenants" className="text-info hover:underline">
+        <Link to="/admin/tenants" className="text-brand-ink hover:underline">
           {t.common.back}
         </Link>
       </div>
