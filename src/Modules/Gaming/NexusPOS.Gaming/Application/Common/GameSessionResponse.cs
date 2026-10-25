@@ -25,4 +25,6 @@ public sealed record GameSessionBillResponse(
     double ActualDurationMinutes,
     decimal RatePerHour,
     decimal TotalAmount,
-    string Currency);
+    string Currency,
+    string? PaymentMethod = null,
+    DateTime? PaidAt = null);

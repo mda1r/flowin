@@ -24,4 +24,5 @@ public sealed record OrderResponse(
     DateTime? CompletedAt,
     IReadOnlyList<OrderLineResponse> Lines,
     int LoyaltyPointsRedeemed = 0,
-    decimal LoyaltyDiscountAmount = 0m);
+    decimal LoyaltyDiscountAmount = 0m,
+    OrderSource Source = OrderSource.Pos);

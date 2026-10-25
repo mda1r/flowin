@@ -36,7 +36,9 @@ internal sealed class ListCompletedSessionsQueryHandler(GamingDbContext db)
                 s.StartTime,
                 s.EndTime!.Value,
                 (int)Math.Round((s.EndTime!.Value - s.StartTime).TotalMinutes),
-                s.TotalAmount))
+                s.TotalAmount,
+                s.PaymentMethod,
+                s.PaidAt))
             .ToList();
     }
 }

@@ -16,6 +16,12 @@ internal sealed class OrderCompletedRecipeHandler(
 {
     public async Task Handle(OrderCompletedDomainEvent notification, CancellationToken cancellationToken)
     {
+        // Gaming and restaurant sales are recorded for money and tax only; their stock is handled at the source.
+        if (notification.Source != NexusPOS.POS.Domain.Enums.OrderSource.Pos)
+        {
+            return;
+        }
+
         try
         {
             await RecipeStockDeduction.DeductAsync(

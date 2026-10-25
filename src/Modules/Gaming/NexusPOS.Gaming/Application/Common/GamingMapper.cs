@@ -59,6 +59,8 @@ internal static class GamingMapper
             Math.Round(actualMinutes, 1),
             session.RatePerHour,
             session.TotalAmount,
-            station.Currency);
+            station.Currency,
+            session.PaymentMethod,
+            session.PaidAt);
     }
 }

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Gaming.Application.Commands.EndSessionById;
 using NexusPOS.Gaming.Application.Commands.ExtendSession;
+using NexusPOS.Gaming.Application.Commands.PaySession;
 using NexusPOS.Gaming.Application.Commands.CreateStation;
 using NexusPOS.Gaming.Application.Commands.StartSession;
 using NexusPOS.Gaming.Application.Common;
@@ -110,6 +111,18 @@ public sealed class GamingController(ISender mediator) : ControllerBase
     {
         ListCompletedSessionsQuery query = new(branchId, UtcDates.AsUtc(from), UtcDates.AsUtc(to));
         ErrorOr<IReadOnlyList<CompletedSessionResponse>> result = await mediator.Send(query, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    public sealed record PaySessionRequest(string PaymentMethod);
+
+    [HttpPost("sessions/{sessionId:guid}/pay")]
+    [ProducesResponseType(typeof(GameSessionBillResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PaySession(
+        Guid branchId, Guid sessionId, [FromBody] PaySessionRequest request, CancellationToken cancellationToken)
+    {
+        ErrorOr<GameSessionBillResponse> result = await mediator.Send(
+            new PaySessionCommand(branchId, sessionId, request.PaymentMethod), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 

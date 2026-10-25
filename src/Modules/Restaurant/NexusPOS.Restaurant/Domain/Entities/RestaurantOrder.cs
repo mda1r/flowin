@@ -28,7 +28,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
 
     public List<RestaurantOrderItem> Items { get; private set; } = [];
 
-    private const decimal TaxRate = 0.15m;
+    public const decimal VatRate = 0.15m;
 
     private RestaurantOrder() { }
 
@@ -55,7 +55,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         decimal subTotal = Math.Round(items.Sum(i => i.UnitPrice * i.Quantity), 4);
         decimal effectiveDiscount = Math.Min(discountAmount, subTotal);
         decimal taxable = subTotal - effectiveDiscount;
-        decimal taxAmount = Math.Round(taxable * TaxRate, 4);
+        decimal taxAmount = Math.Round(taxable * VatRate, 4);
         decimal total = Math.Round(taxable + taxAmount, 4);
 
         RestaurantOrder order = new RestaurantOrder

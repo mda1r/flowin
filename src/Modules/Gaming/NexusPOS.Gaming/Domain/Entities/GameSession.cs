@@ -15,6 +15,8 @@ public sealed class GameSession : Entity<Guid>
     public decimal RatePerHour { get; private set; }
     public decimal TotalAmount { get; private set; }
     public GameSessionStatus Status { get; private set; }
+    public string? PaymentMethod { get; private set; }
+    public DateTime? PaidAt { get; private set; }
 
     private GameSession() { }
 
@@ -53,6 +55,23 @@ public sealed class GameSession : Entity<Guid>
         double actualMinutes = (EndTime.Value - StartTime).TotalMinutes;
         TotalAmount = Math.Round((decimal)(actualMinutes / 60.0) * RatePerHour, 2);
         return TotalAmount;
+    }
+
+    public ErrorOr.ErrorOr<ErrorOr.Success> MarkPaid(string paymentMethod)
+    {
+        if (Status != GameSessionStatus.Completed)
+        {
+            return GamingErrors.SessionNotCompleted;
+        }
+
+        if (PaidAt.HasValue)
+        {
+            return GamingErrors.SessionAlreadyPaid;
+        }
+
+        PaymentMethod = paymentMethod;
+        PaidAt = DateTime.UtcNow;
+        return ErrorOr.Result.Success;
     }
 
     public void Cancel()

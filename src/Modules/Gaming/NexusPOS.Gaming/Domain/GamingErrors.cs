@@ -24,4 +24,10 @@ public static class GamingErrors
 
     public static readonly Error NoActiveSession =
         Error.Conflict("GameSession.NoActive", "No active session found for this station.");
+
+    public static readonly Error SessionNotCompleted =
+        Error.Conflict("GameSession.NotCompleted", "End the session before taking payment.");
+
+    public static readonly Error SessionAlreadyPaid =
+        Error.Conflict("GameSession.AlreadyPaid", "هذه الجلسة مدفوعة مسبقاً.");
 }

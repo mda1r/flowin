@@ -12,6 +12,8 @@ public sealed class Order : AggregateRoot<OrderId>
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public Guid? CustomerId { get; private set; }
+    public OrderSource Source { get; private set; } = OrderSource.Pos;
+    public Guid? SourceReferenceId { get; private set; }
     public string Currency { get; private set; } = string.Empty;
     public OrderStatus Status { get; private set; }
     public Discount OrderDiscount { get; private set; } = Discount.None();
@@ -52,6 +54,16 @@ public sealed class Order : AggregateRoot<OrderId>
         };
 
         order.RaiseDomainEvent(new OrderCreatedDomainEvent(order.Id.Value, tenantId, branchId));
+        return order;
+    }
+
+    // A sale paid outside the POS (gaming session, restaurant order), recorded so shifts, reports and ZATCA see it.
+    public static Order CreateExternal(
+        Guid tenantId, Guid branchId, string currency, decimal taxRate, OrderSource source, Guid sourceReferenceId)
+    {
+        Order order = Create(tenantId, branchId, currency, null, taxRate);
+        order.Source = source;
+        order.SourceReferenceId = sourceReferenceId;
         return order;
     }
 
@@ -195,7 +207,7 @@ public sealed class Order : AggregateRoot<OrderId>
         RaiseDomainEvent(new OrderCompletedDomainEvent(
             Id.Value, TenantId, BranchId,
             SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method, lineItems,
-            CustomerId, LoyaltyPointsRedeemed));
+            CustomerId, LoyaltyPointsRedeemed, Source));
         return Result.Success;
     }
 

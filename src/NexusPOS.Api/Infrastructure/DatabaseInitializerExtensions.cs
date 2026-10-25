@@ -237,6 +237,9 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS cost_price NUMERIC(18,4) NOT NULL DEFAULT 0",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS loyalty_points_redeemed INT NOT NULL DEFAULT 0",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS loyalty_discount_amount NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS source INT NOT NULL DEFAULT 0",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS source_reference_id UUID",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_source_reference ON orders (source, source_reference_id) WHERE source_reference_id IS NOT NULL",
         ];
 
         foreach (string sql in patches)
@@ -369,6 +372,22 @@ internal static class DatabaseInitializerExtensions
         {
             try { await invDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "Stock materials migration skipped"); }
+        }
+    }
+
+    internal static async Task MigrateGamingColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        GamingDbContext gamingDb = sp.GetRequiredService<GamingDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(16)",
+            "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP WITH TIME ZONE",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await gamingDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Gaming migration skipped: {Sql}", sql); }
         }
     }
 
@@ -1052,6 +1071,7 @@ internal static class DatabaseInitializerExtensions
                 if (bizType == BusinessType.Gaming)
                 {
                     await EnsureCreatedAsync<GamingDbContext>(sp, logger);
+                    await MigrateGamingColumnsAsync(sp, logger);
                 }
 
                 // Seed demo data only for known demo tenants

@@ -37,12 +37,19 @@ internal sealed class CloseShiftCommandHandler(
             .ToListAsync(cancellationToken);
 
         decimal totalSales = orders.Sum(o => o.TotalAmount);
-        decimal totalCashSales = orders
-            .Where(o => o.PaymentMethod == PaymentMethod.Cash)
-            .Sum(o => o.TotalAmount);
-        decimal totalCardSales = orders
-            .Where(o => o.PaymentMethod == PaymentMethod.Card)
-            .Sum(o => o.TotalAmount);
+        // Split payments count their cash and card portions; leaving them out understated expected cash.
+        decimal totalCashSales = orders.Sum(o => o.PaymentMethod switch
+        {
+            PaymentMethod.Cash => o.TotalAmount,
+            PaymentMethod.Split => o.SplitCash ?? 0m,
+            _ => 0m,
+        });
+        decimal totalCardSales = orders.Sum(o => o.PaymentMethod switch
+        {
+            PaymentMethod.Card => o.TotalAmount,
+            PaymentMethod.Split => o.SplitCard ?? 0m,
+            _ => 0m,
+        });
         decimal totalTax = orders.Sum(o => o.TaxAmount);
         int totalOrders = orders.Count;
 

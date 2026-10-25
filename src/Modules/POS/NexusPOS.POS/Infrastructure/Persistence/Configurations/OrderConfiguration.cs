@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NexusPOS.POS.Domain.Entities;
+using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.ValueObjects;
 
 namespace NexusPOS.POS.Infrastructure.Persistence.Configurations;
@@ -24,6 +25,8 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.TaxRate).HasColumnName("tax_rate").HasPrecision(5, 2);
         builder.Property(o => o.SubtotalAmount).HasColumnName("subtotal_amount").HasPrecision(18, 4);
         builder.Property(o => o.DiscountAmount).HasColumnName("discount_amount").HasPrecision(18, 4);
+        builder.Property(o => o.Source).HasColumnName("source").HasConversion<int>().HasDefaultValue(OrderSource.Pos);
+        builder.Property(o => o.SourceReferenceId).HasColumnName("source_reference_id");
         builder.Property(o => o.LoyaltyPointsRedeemed).HasColumnName("loyalty_points_redeemed").HasDefaultValue(0);
         builder.Property(o => o.LoyaltyDiscountAmount).HasColumnName("loyalty_discount_amount").HasPrecision(18, 4).HasDefaultValue(0m);
         builder.Property(o => o.TaxAmount).HasColumnName("tax_amount").HasPrecision(18, 4);

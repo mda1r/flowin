@@ -10,7 +10,9 @@ public sealed record CompletedSessionResponse(
     DateTime StartTime,
     DateTime EndTime,
     int ActualMinutes,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    string? PaymentMethod,
+    DateTime? PaidAt);
 
 public sealed record ListCompletedSessionsQuery(Guid BranchId, DateTime From, DateTime To)
     : IQuery<IReadOnlyList<CompletedSessionResponse>>;
