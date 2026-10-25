@@ -87,6 +87,8 @@ export const ar: Translations = {
     emailInvalid: 'البريد الإلكتروني غير صالح',
     passwordMin: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
     loginFailed: 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.',
+    serverUnreachable: 'لا يمكن الوصول إلى الخادم',
+    serverUnreachableHint: 'تحقق من اتصالك بالإنترنت، أو حاول بعد قليل إذا كان الخادم متوقفاً مؤقتاً',
   },
 
   dashboard: {

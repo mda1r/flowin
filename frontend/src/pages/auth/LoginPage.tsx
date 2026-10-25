@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff } from 'lucide-react'
+import { isAxiosError } from 'axios'
 import { useI18n } from '@/i18n'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/authStore'
@@ -216,8 +217,11 @@ export function LoginPage() {
       setPhase('success')
       timersRef.current.push(window.setTimeout(() => setPhase('exit'), EXIT_AT_MS))
       timersRef.current.push(window.setTimeout(() => navigate({ to }), NAVIGATE_AT_MS))
-    } catch {
-      toast.error(t.login.loginFailed, t.login.invalidCredentials)
+    } catch (err) {
+      // No response or a 5xx means the server is down or unreachable, not that the password is wrong.
+      const unreachable = isAxiosError(err) && (!err.response || err.response.status >= 500)
+      if (unreachable) toast.error(t.login.serverUnreachable, t.login.serverUnreachableHint)
+      else toast.error(t.login.loginFailed, t.login.invalidCredentials)
     } finally {
       setLoading(false)
     }

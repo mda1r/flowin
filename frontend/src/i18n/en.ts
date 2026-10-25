@@ -85,6 +85,8 @@ export const en = {
     emailInvalid: 'Invalid email address',
     passwordMin: 'Password must be at least 6 characters',
     loginFailed: 'Login failed. Please try again.',
+    serverUnreachable: "Can't reach the server",
+    serverUnreachableHint: 'Check your internet connection, or try again shortly if the server is temporarily down',
   },
 
   dashboard: {
