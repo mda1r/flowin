@@ -22,7 +22,6 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const [openingCash, setOpeningCash] = useState('')
   const [loading, setLoading] = useState(false)
-  const { pending: offlinePending } = useOfflineSales(tenantId, branchId)
 
   const handleOpen = async () => {
     const amount = parseFloat(openingCash) || 0
@@ -87,6 +86,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   const [closingCard, setClosingCard] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const { pending: offlinePending } = useOfflineSales(tenantId, branchId)
 
   const { data: shiftOrders } = useQuery({
     queryKey: ['shift-orders', branchId, shift.id, shift.openedAt],
