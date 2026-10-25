@@ -30,6 +30,8 @@ import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
+import { buildReceiptMessage } from '@/lib/whatsapp'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,6 +75,7 @@ interface CustomerReceiptData {
   orderType: 'here' | 'takeaway'
   completedAt: string
   customerName?: string
+  customerPhone?: string
   loyaltyDiscount?: number
   pointsRedeemed?: number
   pointsEarned?: number
@@ -321,6 +324,28 @@ function CustomerReceiptModal({
             <ZatcaQr value={qrCode} size={110} />
             <p className="text-[10px] text-muted">رمز ZATCA للتحقق</p>
           </div>
+        </div>
+
+        <div className="border-t border-border px-4 pt-3">
+          <p className="mb-1.5 text-xs font-medium text-muted">إرسال الفاتورة على واتساب</p>
+          <WhatsAppShare
+            defaultPhone={receipt.customerPhone}
+            message={buildReceiptMessage({
+              storeName: sellerName || 'كافيه',
+              invoiceNo: receipt.orderId.slice(-8).toUpperCase(),
+              date: new Date(receipt.completedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              items: receipt.items.map((i) => ({
+                name: i.variantName && i.variantName !== 'Standard' ? `${i.productName} - ${i.variantName}` : i.productName,
+                quantity: i.quantity,
+                total: i.unitPrice * i.quantity,
+              })),
+              discount: receipt.loyaltyDiscount,
+              vat: receipt.tax,
+              vatIncluded: true,
+              total: receipt.grandTotal,
+              payment: payLabel,
+            })}
+          />
         </div>
 
         {/* Actions */}
@@ -638,6 +663,7 @@ export function CafePosPage() {
         tableNumber,
         orderType,
         customerName: loyaltyCustomer?.name,
+        customerPhone: loyaltyCustomer?.phone ?? undefined,
         loyaltyDiscount: loyaltyDiscount || undefined,
         pointsRedeemed: appliedPoints || undefined,
         pointsEarned: loyaltyCustomer ? pointsEarned(grandTotal) : undefined,

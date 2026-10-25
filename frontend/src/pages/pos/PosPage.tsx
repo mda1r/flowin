@@ -27,6 +27,8 @@ import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
+import { buildReceiptMessage } from '@/lib/whatsapp'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -66,6 +68,7 @@ function RetailPosPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [showHeld, setShowHeld] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(null)
+  const [completedPhone, setCompletedPhone] = useState<string | undefined>(undefined)
   const [lastScanned, setLastScanned] = useState<string | null>(null)
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showCloseShift, setShowCloseShift] = useState(false)
@@ -200,6 +203,7 @@ function RetailPosPage() {
     },
     onSuccess: (order) => {
       setCompletedOrder(order)
+      setCompletedPhone(loyaltyCustomer?.phone ?? undefined)
       clear()
       setShowPayment(false)
       setPayMode('Cash')
@@ -731,6 +735,7 @@ function RetailPosPage() {
       {completedOrder && (
         <ZatcaReceiptModal
           order={completedOrder}
+          customerPhone={completedPhone}
           onClose={() => setCompletedOrder(null)}
         />
       )}
@@ -802,9 +807,11 @@ function ProductCard({
 
 function ZatcaReceiptModal({
   order,
+  customerPhone,
   onClose,
 }: {
   order: OrderResponse
+  customerPhone?: string
   onClose: () => void
 }) {
   const { data: zatcaSettings } = useQuery({
@@ -876,6 +883,26 @@ function ZatcaReceiptModal({
           <QrCode className="h-5 w-5 text-muted" />
           <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
           <ZatcaQr value={qrCode} size={120} />
+        </div>
+
+        <div className="mb-4">
+          <p className="mb-1.5 text-xs font-medium text-muted">إرسال الفاتورة على واتساب</p>
+          <WhatsAppShare
+            defaultPhone={customerPhone}
+            message={buildReceiptMessage({
+              storeName: zatcaSettings?.data?.sellerName ?? 'flowin',
+              invoiceNo: order.id.slice(-8).toUpperCase(),
+              date: new Date(order.completedAt ?? order.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              items: order.lines.map((l) => ({ name: l.productName, quantity: l.quantity, total: l.lineTotal })),
+              discount: order.discountAmount || undefined,
+              vat: order.taxAmount,
+              total: order.totalAmount,
+              payment:
+                order.paymentMethod === 'Cash' ? 'نقداً' :
+                order.paymentMethod === 'Card' ? 'بطاقة' :
+                order.paymentMethod === 'Split' ? 'تقسيم (نقد + بطاقة)' : String(order.paymentMethod ?? ''),
+            })}
+          />
         </div>
 
         <div className="flex gap-3">
