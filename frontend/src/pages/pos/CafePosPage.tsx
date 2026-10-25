@@ -32,6 +32,9 @@ import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
+import { OfflineBanner } from '@/components/pos/OfflineBanner'
+import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
+import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 
@@ -79,6 +82,7 @@ interface CustomerReceiptData {
   tableNumber: number | null
   orderType: 'here' | 'takeaway'
   completedAt: string
+  offline?: boolean
   customerName?: string
   customerPhone?: string
   loyaltyDiscount?: number
@@ -259,6 +263,9 @@ function CustomerReceiptModal({
               })}
             </p>
             <p className="text-xs font-mono text-muted">#{receipt.orderId.slice(-8).toUpperCase()}</p>
+            {receipt.offline && (
+              <p className="mt-1 rounded bg-warning/15 px-2 py-0.5 text-[11px] text-warning">رقم مؤقت · ستصدر الفاتورة عند المزامنة</p>
+            )}
             {receipt.orderType === 'here' && receipt.tableNumber && (
               <span className="mt-1 inline-block rounded-full bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">
                 طاولة {receipt.tableNumber}
@@ -613,49 +620,58 @@ export function CafePosPage() {
       if (!branchId || !tenantId) throw new Error('no-branch')
       if (cart.length === 0) throw new Error('empty')
 
-      // الأسعار شاملة الضريبة: نرسل سعر ما قبل الضريبة للباك اند ليحسب الضريبة
+      // Prices include VAT; the server receives the pre-VAT price and adds the tax back.
       const preTaxRate = 1 + SAUDI_VAT_RATE
-      const orderRes = await ordersApi.createOrder(branchId, {
-        tenantId,
+      const handed = payMode === 'Cash' ? parseFloat(cashTendered) || 0 : 0
+      const clientReference = newClientReference()
+      const payload: CheckoutPayload = {
+        clientReference,
         currency: 'SAR',
         taxRate: SAUDI_VAT_RATE,
         customerId: loyaltyCustomer?.id,
-      })
-      const orderId = orderRes.data.id
-
-      await Promise.all(
-        cart.map((item) =>
-          ordersApi.addLine(branchId, orderId, {
-            variantId: item.variantId,
-            productName: item.productName,
-            variantName: item.variantName,
-            unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
-            costPrice: item.costPrice,
-            quantity: item.quantity,
-          }),
-        ),
-      )
-
-      let serverTotal = 0
-      if (appliedPoints > 0) {
-        const redeemed = await ordersApi.redeemLoyalty(branchId, orderId, appliedPoints)
-        serverTotal = Math.ceil(redeemed.data.totalAmount * 100) / 100
-      }
-
-      const due = Math.max(grandTotal, serverTotal)
-      const handed = payMode === 'Cash' ? parseFloat(cashTendered) || 0 : 0
-      await ordersApi.complete(branchId, orderId, {
+        lines: cart.map((item) => ({
+          variantId: item.variantId,
+          productName: item.productName,
+          variantName: item.variantName,
+          unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
+          costPrice: item.costPrice,
+          quantity: item.quantity,
+        })),
+        loyaltyPoints: appliedPoints,
         paymentMethod: payMode as PaymentMethod,
-        amountTendered: Math.max(due, handed),
+        amountTendered: Math.max(grandTotal, handed),
         ...(payMode === 'Split' && {
           cashAmount: parseFloat(splitCash) || 0,
           cardAmount: parseFloat(splitCard) || 0,
         }),
-      })
+      }
 
-      return orderId
+      // Keep selling without a connection: the sale waits on this device and syncs when the network returns.
+      const saveOffline = () => {
+        queueSale({
+          clientReference,
+          tenantId,
+          branchId,
+          payload: { ...payload, offlineCreatedAt: new Date().toISOString() },
+          total: grandTotal,
+          itemCount: cart.reduce((s, i) => s + i.quantity, 0),
+        })
+        return { orderId: clientReference, offline: true }
+      }
+
+      if (!navigator.onLine) {
+        if (appliedPoints > 0) throw new Error('offline-loyalty')
+        return saveOffline()
+      }
+      try {
+        const { data } = await ordersApi.checkout(branchId, payload)
+        return { orderId: data.id, offline: false }
+      } catch (err) {
+        if (isNetworkError(err)) return saveOffline()
+        throw err
+      }
     },
-    onSuccess: (orderId) => {
+    onSuccess: ({ orderId, offline }) => {
       const snapshot = {
         items: [...cart],
         grandTotal,
@@ -688,7 +704,7 @@ export function CafePosPage() {
           })),
         })
       }
-      if (branchId && tenantId) {
+      if (branchId && tenantId && !offline) {
         restaurantApi
           .createOrder(branchId, {
             tenantId,
@@ -709,6 +725,7 @@ export function CafePosPage() {
         orderId,
         ...snapshot,
         completedAt: new Date().toISOString(),
+        offline,
       })
       setTicketCounter((n) => n + 1)
       setCart([])
@@ -723,13 +740,18 @@ export function CafePosPage() {
       }
       setLoyaltyCustomer(null)
       setRedeemPoints(0)
-      toast.success(
-        t.pos.orderProcessed,
-        snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString('ar-SA')} نقطة لـ${snapshot.customerName}` : undefined,
-      )
+      if (offline) {
+        toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
+      } else {
+        toast.success(
+          t.pos.orderProcessed,
+          snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString('ar-SA')} نقطة لـ${snapshot.customerName}` : undefined,
+        )
+      }
     },
     onError: (e: Error) => {
       if (e.message === 'empty') toast.error('السلة فارغة')
+      else if (e.message === 'offline-loyalty') toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
       else toast.error(t.pos.paymentFailed)
     },
   })
@@ -933,6 +955,7 @@ export function CafePosPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-2" dir="rtl" style={CAFE_ACCENT}>
+      <OfflineBanner />
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
       <ConfirmModal
         open={confirmClearCart}

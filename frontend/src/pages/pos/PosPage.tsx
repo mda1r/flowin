@@ -20,8 +20,12 @@ import { HotelPosPage } from './HotelPosPage'
 import { CafePosPage } from './CafePosPage'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { useI18n } from '@/i18n'
+import { apiErrorMessage } from '@/lib/apiError'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
+import { OfflineBanner } from '@/components/pos/OfflineBanner'
+import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
+import type { CheckoutPayload } from '@/api/orders'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
@@ -69,6 +73,7 @@ function RetailPosPage() {
   const [showHeld, setShowHeld] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(null)
   const [completedPhone, setCompletedPhone] = useState<string | undefined>(undefined)
+  const [completedOffline, setCompletedOffline] = useState(false)
   const [lastScanned, setLastScanned] = useState<string | null>(null)
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showCloseShift, setShowCloseShift] = useState(false)
@@ -168,40 +173,89 @@ function RetailPosPage() {
   const checkout = useMutation({
     mutationFn: async () => {
       const preTaxRate = 1 + SAUDI_VAT_RATE
-      const { data: order } = await ordersApi.createOrder(branchId!, {
-        tenantId: tenantId!,
+      const tendered = payMode === 'Cash' ? Math.max(parseFloat(amountTendered) || grossTotal, grossTotal) : grossTotal
+      const clientReference = newClientReference()
+      const payload: CheckoutPayload = {
+        clientReference,
         currency: 'SAR',
         taxRate: SAUDI_VAT_RATE,
         customerId: loyaltyCustomer?.id,
-      })
-      for (const line of lines) {
-        await ordersApi.addLine(branchId!, order.id, {
+        lines: lines.map((line) => ({
           variantId: line.variantId,
           productName: line.productName,
           variantName: line.variantName,
           unitPrice: Math.round((line.unitPrice / preTaxRate) * 10000) / 10000,
           costPrice: line.costPrice,
           quantity: line.quantity,
-        })
-      }
-      let serverTotal = 0
-      if (appliedPoints > 0) {
-        const redeemed = await ordersApi.redeemLoyalty(branchId!, order.id, appliedPoints)
-        serverTotal = Math.ceil(redeemed.data.totalAmount * 100) / 100
-      }
-      const due = Math.max(grossTotal, serverTotal)
-      const tendered = payMode === 'Cash' ? Math.max(parseFloat(amountTendered) || due, due) : due
-      const { data: completed } = await ordersApi.complete(branchId!, order.id, {
+        })),
+        loyaltyPoints: appliedPoints,
         paymentMethod: payMode as PaymentMethod,
         amountTendered: tendered,
         ...(payMode === 'Split' && {
           cashAmount: parseFloat(splitCash) || 0,
           cardAmount: parseFloat(splitCard) || 0,
         }),
-      })
-      return completed
+      }
+
+      // Keep selling without a connection: the sale waits on this device and syncs when the network returns.
+      const saveOffline = (): { order: OrderResponse; offline: boolean } => {
+        const now = new Date().toISOString()
+        queueSale({
+          clientReference,
+          tenantId: tenantId!,
+          branchId: branchId!,
+          payload: { ...payload, offlineCreatedAt: now },
+          total: grossTotal,
+          itemCount: lines.reduce((s, l) => s + l.quantity, 0),
+        })
+        const tax = Math.round((grossTotal * SAUDI_VAT_RATE / preTaxRate) * 100) / 100
+        // A local receipt with the same figures the server will record; its number is provisional.
+        const order: OrderResponse = {
+          id: clientReference,
+          tenantId: tenantId!,
+          branchId: branchId!,
+          currency: 'SAR',
+          status: 'Completed',
+          subtotalAmount: Math.round((grossTotal - tax) * 100) / 100,
+          discountAmount: 0,
+          taxAmount: tax,
+          totalAmount: grossTotal,
+          taxRate: SAUDI_VAT_RATE,
+          paymentMethod: payMode as PaymentMethod,
+          amountTendered: tendered,
+          splitCash: payload.cashAmount,
+          splitCard: payload.cardAmount,
+          createdAt: now,
+          completedAt: now,
+          lines: lines.map((l, i) => ({
+            id: `${clientReference}-${i}`,
+            variantId: l.variantId,
+            productName: l.productName,
+            variantName: l.variantName,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice / preTaxRate,
+            costPrice: l.costPrice,
+            lineTotal: Math.round((l.unitPrice * l.quantity / preTaxRate) * 100) / 100,
+          })),
+        }
+        return { order, offline: true }
+      }
+
+      if (!navigator.onLine) {
+        if (appliedPoints > 0) throw new Error('offline-loyalty')
+        return saveOffline()
+      }
+      try {
+        const { data } = await ordersApi.checkout(branchId!, payload)
+        return { order: data, offline: false }
+      } catch (err) {
+        if (isNetworkError(err)) return saveOffline()
+        throw err
+      }
     },
-    onSuccess: (order) => {
+    onSuccess: ({ order, offline }) => {
+      setCompletedOffline(offline)
+      if (offline) toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
       setCompletedOrder(order)
       setCompletedPhone(loyaltyCustomer?.phone ?? undefined)
       clear()
@@ -214,7 +268,10 @@ function RetailPosPage() {
       setRedeemPoints(0)
       toast.success(t.pos.paymentSuccess, t.pos.orderProcessed)
     },
-    onError: () => toast.error(t.pos.paymentFailed, 'يرجى المحاولة مرة أخرى'),
+    onError: (err: Error) =>
+      err.message === 'offline-loyalty'
+        ? toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
+        : toast.error(t.pos.paymentFailed, apiErrorMessage(err)),
   })
 
   const handleHold = () => {
@@ -312,6 +369,7 @@ function RetailPosPage() {
         confirmLabel="تفريغ"
         confirmVariant="danger"
       />
+      <OfflineBanner />
       <PageHeader
         title={t.pos.title}
         action={
@@ -735,6 +793,7 @@ function RetailPosPage() {
       {completedOrder && (
         <ZatcaReceiptModal
           order={completedOrder}
+          offline={completedOffline}
           customerPhone={completedPhone}
           onClose={() => setCompletedOrder(null)}
         />
@@ -807,10 +866,12 @@ function ProductCard({
 
 function ZatcaReceiptModal({
   order,
+  offline,
   customerPhone,
   onClose,
 }: {
   order: OrderResponse
+  offline?: boolean
   customerPhone?: string
   onClose: () => void
 }) {
@@ -877,6 +938,12 @@ function ZatcaReceiptModal({
             <span> · الباقي {formatCurrency(order.amountTendered - order.totalAmount)}</span>
           )}
         </div>
+
+        {offline && (
+          <p className="mb-3 rounded-lg bg-warning/15 px-3 py-2 text-center text-xs text-warning">
+            رقم مؤقت · حُفظت دون اتصال وستصدر الفاتورة عند المزامنة
+          </p>
+        )}
 
         {/* ZATCA QR Code */}
         <div className="card-3d mb-4 flex flex-col items-center gap-2 p-4">

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock, Unlock, Clock, ShoppingBag, CreditCard, Banknote, TrendingUp, AlertTriangle, Printer } from 'lucide-react'
 import { shiftsApi } from '@/api/shifts'
 import { ordersApi } from '@/api/orders'
+import { useOfflineSales } from '@/lib/offlineSales'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -21,6 +22,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const [openingCash, setOpeningCash] = useState('')
   const [loading, setLoading] = useState(false)
+  const { pending: offlinePending } = useOfflineSales(tenantId, branchId)
 
   const handleOpen = async () => {
     const amount = parseFloat(openingCash) || 0
@@ -89,7 +91,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   const { data: shiftOrders } = useQuery({
     queryKey: ['shift-orders', branchId, shift.id, shift.openedAt],
     queryFn: async () => {
-      const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', pageSize: 200 })
+      const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', from: shift.openedAt, pageSize: 500 })
       const raw: OrderResponse[] = Array.isArray(data) ? data : ((data as any)?.items ?? [])
       const shiftStart = new Date(shift.openedAt)
       return raw.filter((o) => new Date(o.completedAt ?? o.createdAt) >= shiftStart)
@@ -225,13 +227,18 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
               <span>{t.shiftGate.confirmClose}</span>
             </div>
           )}
+          {offlinePending.length > 0 && (
+            <p className="text-xs text-warning">
+              {offlinePending.length.toLocaleString('ar-SA')} عملية محفوظة دون اتصال لم تُزامن بعد. انتظر عودة الإنترنت قبل إغلاق الشفت حتى تدخل في حسابه.
+            </p>
+          )}
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
             <Button variant="secondary" onClick={handlePrint} className="gap-1">
               <Printer className="h-4 w-4" />
               {t.common.print}
             </Button>
-            <Button variant="danger" loading={loading} onClick={handleClose}>
+            <Button variant="danger" loading={loading} onClick={handleClose} disabled={offlinePending.length > 0}>
               <Lock className="h-4 w-4" />
               {t.shiftGate.close}
             </Button>

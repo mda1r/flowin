@@ -1,7 +1,25 @@
 import { apiClient } from './client'
 import type { OrderResponse, OrderStatus, PaymentMethod, RefundMethod, ReturnOrderResponse, ReturnReason } from '@/types/api'
 
+export interface CheckoutPayload {
+  clientReference: string
+  currency: string
+  taxRate: number
+  customerId?: string
+  lines: { variantId: string; productName: string; variantName: string; unitPrice: number; costPrice: number; quantity: number }[]
+  loyaltyPoints: number
+  paymentMethod: PaymentMethod
+  amountTendered: number
+  cashAmount?: number
+  cardAmount?: number
+  offlineCreatedAt?: string
+}
+
 export const ordersApi = {
+  // Whole sale in one request; resending the same clientReference returns the same order.
+  checkout: (branchId: string, payload: CheckoutPayload) =>
+    apiClient.post<OrderResponse>(`/api/v1/branches/${branchId}/orders/checkout`, payload),
+
   listOrders: (
     branchId: string,
     params?: { status?: OrderStatus; page?: number; pageSize?: number; from?: string; to?: string },
