@@ -21,6 +21,7 @@ import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
 import type { RoomResponse, ReservationResponse, RoomStatus } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { printElement } from '@/lib/print'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -1033,7 +1034,7 @@ function HotelReceiptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl">
+      <div data-print-area className="relative mx-4 w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl">
         <div className="mb-4 text-center">
           <h2 className="text-lg font-bold text-fg">{t.hotel.taxInvoice}</h2>
           <p className="text-xs text-muted">flowin</p>
@@ -1095,9 +1096,9 @@ function HotelReceiptModal({
           <ZatcaQr value={qrCode} size={100} />
         </div>
 
-        <div className="flex gap-3">
+        <div data-no-print className="flex gap-3">
           <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.cancel}</Button>
-          <Button variant="primary" onClick={() => window.print()} className="flex-1">{t.common.print}</Button>
+          <Button variant="primary" onClick={(e) => printElement(e.currentTarget.closest('[data-print-area]'))} className="flex-1">{t.common.print}</Button>
         </div>
       </div>
     </div>

@@ -31,6 +31,7 @@ import type {
   ValidateDiscountCodeResponse,
 } from '@/types/api'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { printElement } from '@/lib/print'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -791,7 +792,7 @@ function RestaurantReceiptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
+      <div data-print-area className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
         <div className="mb-4 text-center">
           <h2 className="text-lg font-bold">فاتورة ضريبية</h2>
           <p className="text-xs text-muted">طاولة {order.tableNumber}</p>
@@ -830,9 +831,9 @@ function RestaurantReceiptModal({
           <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
           <ZatcaQr value={qrCode} size={120} />
         </div>
-        <div className="flex gap-3">
+        <div data-no-print className="flex gap-3">
           <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.close}</Button>
-          <Button variant="primary" onClick={() => window.print()} className="flex-1">طباعة</Button>
+          <Button variant="primary" onClick={(e) => printElement(e.currentTarget.closest('[data-print-area]'))} className="flex-1">طباعة</Button>
         </div>
       </div>
     </div>

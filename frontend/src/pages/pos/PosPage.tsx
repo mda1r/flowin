@@ -33,6 +33,7 @@ import { maxRedeemablePoints, pointsValue } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { buildReceiptMessage } from '@/lib/whatsapp'
+import { printElement } from '@/lib/print'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -893,7 +894,7 @@ function ZatcaReceiptModal({
   return (
     <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RETAIL_ACCENT}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
+      <div data-print-area className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
         <div className="mb-4 text-center">
           <h2 className="text-emboss text-lg font-bold text-fg">فاتورة ضريبية</h2>
           {(zatcaSettings?.data?.sellerName) && (
@@ -952,7 +953,7 @@ function ZatcaReceiptModal({
           <ZatcaQr value={qrCode} size={120} />
         </div>
 
-        <div className="mb-4">
+        <div data-no-print className="mb-4">
           <p className="mb-1.5 text-xs font-medium text-muted">إرسال الفاتورة على واتساب</p>
           <WhatsAppShare
             defaultPhone={customerPhone}
@@ -972,13 +973,13 @@ function ZatcaReceiptModal({
           />
         </div>
 
-        <div className="flex gap-3">
+        <div data-no-print className="flex gap-3">
           <Button variant="secondary" onClick={onClose} className="flex-1">
             إغلاق
           </Button>
           <Button
             variant="primary"
-            onClick={() => window.print()}
+            onClick={(e) => printElement(e.currentTarget.closest('[data-print-area]'))}
             className="btn-3d flex-1"
           >
             طباعة

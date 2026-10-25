@@ -32,6 +32,7 @@ import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
+import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
 import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
@@ -194,7 +195,7 @@ function KitchenTicketModal({
         {/* Actions */}
         <div className="flex gap-2 border-t border-border p-4">
           <button
-            onClick={() => window.print()}
+            onClick={() => printElement(document.getElementById('cafe-kitchen-print'))}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fg py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-fg/85"
           >
             <Printer className="h-4 w-4" />
@@ -363,7 +364,7 @@ function CustomerReceiptModal({
         {/* Actions */}
         <div className="flex gap-2 border-t border-border p-4">
           <button
-            onClick={() => window.print()}
+            onClick={() => printElement(document.getElementById('cafe-receipt-print'))}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fg py-2.5 text-sm font-semibold text-bg hover:bg-fg/85"
           >
             <Printer className="h-4 w-4" />
@@ -1747,7 +1748,7 @@ export function CafePosPage() {
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => window.print()}
+                  onClick={() => printElement(document.getElementById('gaming-bill-print'))}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2 text-sm font-semibold text-fg hover:bg-surface-2 transition-colors"
                 >
                   <Printer className="h-4 w-4" />

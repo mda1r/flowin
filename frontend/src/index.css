@@ -1443,3 +1443,33 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* ── Single-element printing (src/lib/print.ts) ──────────────
+   Only the receipt copy in #print-root reaches the paper, sized
+   for 80mm thermal rolls, black on white whatever the theme. */
+#print-root { display: none; }
+
+@media print {
+  body.printing-element { background: #fff !important; }
+  body.printing-element > *:not(#print-root) { display: none !important; }
+  body.printing-element #print-root {
+    display: block;
+    width: 72mm;
+    margin: 0 auto;
+    font-size: 12px;
+    color: #000;
+  }
+  body.printing-element #print-root > * { padding: 0 !important; margin: 0 !important; }
+  body.printing-element #print-root * {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+    background: transparent !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+    animation: none !important;
+    transform: none !important;
+    backdrop-filter: none !important;
+  }
+}
