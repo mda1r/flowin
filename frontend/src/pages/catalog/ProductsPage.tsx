@@ -16,6 +16,7 @@ import { catalogApi } from '@/api/catalog'
 import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
+import { marginPercent } from '@/lib/pricing'
 import { formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
@@ -405,7 +406,7 @@ export function ProductsPage() {
                                     تكلفة الوصفة {recipeByVariant.get(v.id)!.totalCost.toFixed(2)} ر.س
                                     {v.salePrice > 0 && (
                                       <span className="ms-1">
-                                        · هامش {(((v.salePrice - recipeByVariant.get(v.id)!.totalCost) / v.salePrice) * 100).toFixed(0)}%
+                                        · هامش {marginPercent(v.salePrice, recipeByVariant.get(v.id)!.totalCost)!.toFixed(0)}%
                                       </span>
                                     )}
                                   </span>

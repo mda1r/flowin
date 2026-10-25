@@ -10,6 +10,7 @@ import { recipesApi } from '@/api/recipes'
 import { stockMaterialApi } from '@/api/stockMaterial'
 import { useAuthStore } from '@/stores/authStore'
 import { apiErrorMessage } from '@/lib/apiError'
+import { marginPercent, netOfVat } from '@/lib/pricing'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { StockMaterialResponse } from '@/types/stockMaterial'
 
@@ -57,7 +58,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
   const used = new Set(draft.map((l) => l.materialId))
   const lineCost = (l: DraftLine) => (parseFloat(l.quantity) || 0) * (byId.get(l.materialId)?.costPerComponentUnit ?? 0)
   const totalCost = draft.reduce((sum, l) => sum + lineCost(l), 0)
-  const margin = variant.salePrice > 0 ? ((variant.salePrice - totalCost) / variant.salePrice) * 100 : null
+  const margin = marginPercent(variant.salePrice, totalCost)
   const valid = draft.every((l) => l.materialId && parseFloat(l.quantity) > 0)
 
   const update = (key: number, patch: Partial<DraftLine>) => {
@@ -205,8 +206,9 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
               <dd className="mt-1 font-semibold tabular-nums text-fg">{totalCost.toFixed(2)} ر.س</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">سعر البيع</dt>
-              <dd className="mt-1 font-semibold tabular-nums text-fg">{formatCurrency(variant.salePrice, variant.currency)}</dd>
+              <dt className="text-xs text-muted">سعر البيع قبل الضريبة</dt>
+              <dd className="mt-1 font-semibold tabular-nums text-fg">{formatCurrency(netOfVat(variant.salePrice), variant.currency)}</dd>
+              <dd className="text-xs tabular-nums text-muted">{formatCurrency(variant.salePrice, variant.currency)} شامل الضريبة</dd>
             </div>
             <div>
               <dt className="text-xs text-muted">هامش الربح</dt>

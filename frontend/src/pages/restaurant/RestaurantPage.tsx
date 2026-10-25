@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
+import { marginPercent } from '@/lib/pricing'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import type {
@@ -1039,7 +1040,7 @@ function ManagerView({ branchId }: { branchId: string }) {
                   {recipeCost.has(item.id) && item.price > 0 && (
                     <span className="ms-2 tabular-nums">
                       · تكلفة {recipeCost.get(item.id)!.toFixed(2)} ر.س · هامش{' '}
-                      {(((item.price - recipeCost.get(item.id)!) / item.price) * 100).toFixed(0)}%
+                      {marginPercent(item.price, recipeCost.get(item.id)!)!.toFixed(0)}%
                     </span>
                   )}
                 </p>
