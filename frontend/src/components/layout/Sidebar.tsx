@@ -34,6 +34,7 @@ import {
   Moon,
   Monitor,
   X,
+  ClipboardCheck,
 } from 'lucide-react'
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { cn } from '@/lib/utils'
@@ -93,6 +94,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'kitchen', to: '/cafe/kitchen', icon: <ChefHat className="h-5 w-5" /> },
   { labelKey: 'shiftReports', to: '/shifts', icon: <FileText className="h-5 w-5" /> },
+  { labelKey: 'dailyClose', to: '/daily-close', icon: <ClipboardCheck className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'invoices', to: '/invoices', icon: <Receipt className="h-5 w-5" /> },
   { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
 ]
@@ -196,7 +198,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       )}
       <aside
         className={cn(
-          'sidebar-3d z-40 flex h-[100dvh] flex-col transition-[width,transform] duration-200 ease-out',
+          'sidebar-3d z-40 flex h-[100dvh] flex-col transition-[width,transform] duration-200 ease-out print:hidden',
           'fixed inset-y-0 start-0 w-64 lg:static',
           mobileOpen ? 'translate-x-0 shadow-lg' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
           isRail ? 'lg:w-[72px]' : 'lg:w-60',

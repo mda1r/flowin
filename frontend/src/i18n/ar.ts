@@ -22,6 +22,7 @@ export const ar: Translations = {
     taxes: 'الضرائب',
     kitchen: 'شاشة المطبخ',
     shiftReports: 'تقرير الشفت',
+    dailyClose: 'الإقفال اليومي',
     invoices: 'الفواتير',
     activityLogs: 'سجل النشاطات',
     stockMaterials: 'مواد المخزون',

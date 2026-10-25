@@ -7,6 +7,17 @@ import type {
 
 const BASE = (branchId: string) => `/api/v1/branches/${branchId}/gaming`
 
+export interface CompletedSessionResponse {
+  id: string
+  stationId: string
+  stationName: string
+  playerName: string
+  startTime: string
+  endTime: string
+  actualMinutes: number
+  totalAmount: number
+}
+
 export const gamingApi = {
   // ── Stations ────────────────────────────────────────────────────────────
 
@@ -43,6 +54,9 @@ export const gamingApi = {
     ),
 
   // ── Sessions ────────────────────────────────────────────────────────────
+
+  listCompletedSessions: (branchId: string, from: string, to: string) =>
+    apiClient.get<CompletedSessionResponse[]>(`${BASE(branchId)}/sessions/completed`, { params: { from, to } }),
 
   listActiveSessions: (branchId: string) =>
     apiClient.get<GameSessionResponse[]>(`${BASE(branchId)}/sessions/active`),

@@ -572,7 +572,7 @@ export function DashboardPage() {
   const today = localToday()
   const ordersQuery = useQuery({
     queryKey: ['dashboard-orders', branchId, today],
-    queryFn: () => salesApi.listCompletedOrders(branchId!, { dateFrom: today, dateTo: today }),
+    queryFn: () => salesApi.listAllCompletedOrders(branchId!, today, today).then((data) => ({ data })),
     enabled: !!branchId,
     refetchInterval: 60_000,
   })

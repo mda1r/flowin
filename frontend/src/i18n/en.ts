@@ -20,6 +20,7 @@ export const en = {
     taxes: 'Taxes',
     kitchen: 'Kitchen Screen',
     shiftReports: 'Shift Reports',
+    dailyClose: 'Daily Close',
     invoices: 'Invoices',
     activityLogs: 'Activity Logs',
     stockMaterials: 'Stock Materials',

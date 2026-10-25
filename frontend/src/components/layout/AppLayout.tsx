@@ -27,7 +27,7 @@ export function AppLayout() {
   }, [pathname])
 
   return (
-    <div className="flex h-[100dvh] bg-bg">
+    <div className="flex h-[100dvh] bg-bg print:block print:h-auto print:bg-white">
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
@@ -35,7 +35,7 @@ export function AppLayout() {
         onMobileClose={() => setMobileOpen(false)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 lg:hidden">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 lg:hidden print:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -47,7 +47,7 @@ export function AppLayout() {
           </button>
           <FlowinWordmark />
         </header>
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-y-auto print:overflow-visible">
           <Outlet />
         </main>
       </div>

@@ -233,7 +233,7 @@ export function ReportsPage() {
 
   const { data: rawOrders, isLoading, isError } = useQuery({
     queryKey: ['reports', branchId, dateFrom, dateTo],
-    queryFn: () => salesApi.listCompletedOrders(branchId!, { dateFrom, dateTo }),
+    queryFn: () => salesApi.listAllCompletedOrders(branchId!, dateFrom, dateTo).then((data) => ({ data })),
     enabled: !!branchId,
   })
 

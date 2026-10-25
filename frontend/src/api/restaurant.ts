@@ -76,6 +76,11 @@ export const restaurantApi = {
     ),
 
   // ── Restaurant Orders ──────────────────────────────────────────────────────
+  listPaidOrders: (branchId: string, from: string, to: string) =>
+    apiClient.get<RestaurantOrderResponse[]>(`/api/v1/branches/${branchId}/restaurant/orders/paid`, {
+      params: { from, to },
+    }),
+
   listActiveOrders: (branchId: string) =>
     apiClient.get<RestaurantOrderResponse[]>(
       `/api/v1/branches/${branchId}/restaurant/orders`,

@@ -33,6 +33,7 @@ import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
 import { CafeKitchenPage } from '@/pages/pos/CafeKitchenPage'
 import { ShiftReportsPage } from '@/pages/pos/ShiftReportsPage'
+import { DailyClosePage } from '@/pages/reports/DailyClosePage'
 import { InvoicesPage } from '@/pages/pos/InvoicesPage'
 import { TaxCenterPage } from '@/pages/taxes/TaxCenterPage'
 
@@ -259,6 +260,12 @@ const shiftReportsRoute = createRoute({
   component: ShiftReportsPage,
 })
 
+const dailyCloseRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/daily-close',
+  component: DailyClosePage,
+})
+
 const invoicesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/invoices',
@@ -301,6 +308,7 @@ const routeTree = rootRoute.addChildren([
     reportsRoute,
     activityLogsRoute,
     shiftReportsRoute,
+    dailyCloseRoute,
     invoicesRoute,
     taxesRoute,
     stockMaterialsRoute,
