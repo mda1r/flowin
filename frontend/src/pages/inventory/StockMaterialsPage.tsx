@@ -583,10 +583,14 @@ export function StockMaterialsPage() {
         action={
           <>
             {lowCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1 text-xs font-semibold text-warning">
+              <a
+                href="/purchasing?reorder=1"
+                className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1 text-xs font-semibold text-warning hover:bg-warning/25"
+                title="إنشاء أمر شراء للمواد تحت حد الطلب"
+              >
                 <AlertTriangle className="h-3.5 w-3.5" />
-                {lowCount} تحت حد الطلب
-              </span>
+                {lowCount} تحت حد الطلب · اطلبها
+              </a>
             )}
             <Button
               onClick={() => {

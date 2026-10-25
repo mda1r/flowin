@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, FlaskConical, PackageCheck, Send, AlertTriangle, CheckCircle2, RotateCw } from 'lucide-react'
+import { Plus, Trash2, FlaskConical, PackageCheck, Send, AlertTriangle, CheckCircle2, RotateCw, PackageSearch } from 'lucide-react'
+import { ReorderModal } from './ReorderModal'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -391,6 +392,7 @@ export function PurchasingPage() {
   const [showNewOrder, setShowNewOrder] = useState(false)
   const [showNewSupplier, setShowNewSupplier] = useState(false)
   const [openOrderId, setOpenOrderId] = useState<string | null>(null)
+  const [showReorder, setShowReorder] = useState(() => new URLSearchParams(window.location.search).get('reorder') === '1')
   const { branchId, tenantId } = useAuthStore()
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -471,10 +473,16 @@ export function PurchasingPage() {
               {t.purchasing.newSupplier}
             </Button>
           ) : (
-            <Button onClick={() => setShowNewOrder(true)}>
-              <Plus className="h-4 w-4" />
-              {t.purchasing.newOrder}
-            </Button>
+            <>
+              <Button variant="secondary" onClick={() => setShowReorder(true)}>
+                <PackageSearch className="h-4 w-4" />
+                طلب من النواقص
+              </Button>
+              <Button onClick={() => setShowNewOrder(true)}>
+                <Plus className="h-4 w-4" />
+                {t.purchasing.newOrder}
+              </Button>
+            </>
           )
         }
       />
@@ -648,8 +656,26 @@ export function PurchasingPage() {
         )}
       </Modal>
 
+      {showReorder && (
+        <ReorderModal
+          suppliers={suppliers}
+          onClose={() => setShowReorder(false)}
+          onCreated={(orderId) => {
+            setShowReorder(false)
+            setView('orders')
+            setOpenOrderId(orderId)
+          }}
+          onAddSupplier={() => {
+            setShowReorder(false)
+            setView('suppliers')
+            setShowNewSupplier(true)
+          }}
+        />
+      )}
+
       {openOrderId && (
         <OrderDetailModal
+          key={openOrderId}
           orderId={openOrderId}
           supplierName={openOrder ? supplierName(openOrder.supplierId) : ''}
           onClose={() => setOpenOrderId(null)}
