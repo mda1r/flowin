@@ -29,6 +29,7 @@ import type {
   RestaurantOrderResponse,
   ValidateDiscountCodeResponse,
 } from '@/types/api'
+import { ZatcaQr } from '@/components/pos/ZatcaQr'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -826,13 +827,7 @@ function RestaurantReceiptModal({
         <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-surface-2 p-4">
           <QrCode className="h-5 w-5 text-muted" />
           <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrCode)}`}
-            alt="رمز ZATCA للتحقق"
-            width={120}
-            height={120}
-            className="rounded-lg"
-          />
+          <ZatcaQr value={qrCode} size={120} />
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.close}</Button>

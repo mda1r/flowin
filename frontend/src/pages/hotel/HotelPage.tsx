@@ -20,6 +20,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
 import type { RoomResponse, ReservationResponse, RoomStatus } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { ZatcaQr } from '@/components/pos/ZatcaQr'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -1091,14 +1092,7 @@ function HotelReceiptModal({
         <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-surface-2 p-3">
           <QrCode className="h-4 w-4 text-muted" />
           <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrCode)}`}
-            alt="رمز ZATCA للتحقق"
-            width={100}
-            height={100}
-            className="rounded-lg"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-          />
+          <ZatcaQr value={qrCode} size={100} />
         </div>
 
         <div className="flex gap-3">

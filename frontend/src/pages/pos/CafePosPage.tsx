@@ -29,6 +29,7 @@ import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
+import { ZatcaQr } from '@/components/pos/ZatcaQr'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -317,13 +318,7 @@ function CustomerReceiptModal({
           {/* ZATCA QR */}
           <div className="mb-2 flex flex-col items-center gap-1">
             <QrCode className="h-4 w-4 text-muted" />
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(qrCode)}`}
-              alt="QR ZATCA"
-              width={110}
-              height={110}
-              className="rounded-lg"
-            />
+            <ZatcaQr value={qrCode} size={110} />
             <p className="text-[10px] text-muted">رمز ZATCA للتحقق</p>
           </div>
         </div>

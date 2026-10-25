@@ -26,6 +26,7 @@ import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHe
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue } from '@/lib/loyalty'
+import { ZatcaQr } from '@/components/pos/ZatcaQr'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -874,21 +875,7 @@ function ZatcaReceiptModal({
         <div className="card-3d mb-4 flex flex-col items-center gap-2 p-4">
           <QrCode className="h-5 w-5 text-muted" />
           <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrCode)}`}
-            alt="رمز ZATCA للتحقق"
-            width={120}
-            height={120}
-            className="rounded-lg"
-            onError={(e) => {
-              const target = e.currentTarget
-              target.style.display = 'none'
-              const fallback = document.createElement('div')
-              fallback.className = 'text-xs text-muted text-center'
-              fallback.textContent = qrCode.slice(0, 20) + '...'
-              target.parentNode?.appendChild(fallback)
-            }}
-          />
+          <ZatcaQr value={qrCode} size={120} />
         </div>
 
         <div className="flex gap-3">
