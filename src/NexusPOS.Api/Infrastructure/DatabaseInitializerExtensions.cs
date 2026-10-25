@@ -382,6 +382,24 @@ internal static class DatabaseInitializerExtensions
         [
             "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(16)",
             "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS package_id UUID",
+            "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS package_name VARCHAR(100)",
+            "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS package_price NUMERIC(18,4)",
+            "ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS package_minutes INT",
+            """
+            CREATE TABLE IF NOT EXISTS gaming_packages (
+                id UUID PRIMARY KEY,
+                tenant_id UUID NOT NULL,
+                branch_id UUID NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                duration_minutes INT NOT NULL,
+                price NUMERIC(18,4) NOT NULL,
+                station_type VARCHAR(32),
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS ix_gaming_packages_branch ON gaming_packages (branch_id, is_active)",
         ];
 
         foreach (string sql in patches)

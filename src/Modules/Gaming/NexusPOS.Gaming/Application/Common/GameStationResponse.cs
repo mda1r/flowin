@@ -21,4 +21,6 @@ public sealed record GameSessionSummary(
     string PlayerName,
     DateTime StartTime,
     int DurationMinutes,
-    decimal RatePerHour);
+    decimal RatePerHour,
+    string? PackageName = null,
+    decimal? PackagePrice = null);

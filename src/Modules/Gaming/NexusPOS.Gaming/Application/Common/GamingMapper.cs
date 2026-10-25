@@ -13,7 +13,9 @@ internal static class GamingMapper
                 activeSession.PlayerName,
                 activeSession.StartTime,
                 activeSession.DurationMinutes,
-                activeSession.RatePerHour);
+                activeSession.RatePerHour,
+                activeSession.PackageName,
+                activeSession.PackagePrice);
 
         return new GameStationResponse(
             station.Id.Value,
@@ -61,6 +63,9 @@ internal static class GamingMapper
             session.TotalAmount,
             station.Currency,
             session.PaymentMethod,
-            session.PaidAt);
+            session.PaidAt,
+            session.PackageName,
+            session.PackagePrice,
+            session.OvertimeMinutes);
     }
 }

@@ -9,6 +9,7 @@ using NexusPOS.Gaming.Application.Commands.PaySession;
 using NexusPOS.Gaming.Application.Commands.CreateStation;
 using NexusPOS.Gaming.Application.Commands.StartSession;
 using NexusPOS.Gaming.Application.Common;
+using NexusPOS.Gaming.Application.Packages;
 using NexusPOS.Gaming.Application.Queries.GetStation;
 using NexusPOS.Gaming.Application.Queries.ListActiveSessions;
 using NexusPOS.Gaming.Application.Queries.ListCompletedSessions;
@@ -84,7 +85,7 @@ public sealed class GamingController(ISender mediator) : ControllerBase
     {
         StartSessionCommand command = new(
             stationId, branchId,
-            request.PlayerName, request.DurationMinutes, request.RatePerHour);
+            request.PlayerName, request.DurationMinutes, request.RatePerHour, request.PackageId);
 
         ErrorOr<GameStationResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
@@ -99,6 +100,33 @@ public sealed class GamingController(ISender mediator) : ControllerBase
         ListActiveSessionsQuery query = new(branchId);
         ErrorOr<IReadOnlyList<GameSessionResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
+    }
+
+    // ── Packages ────────────────────────────────────────────────────────────
+
+    [HttpGet("packages")]
+    [ProducesResponseType(typeof(IReadOnlyList<GamingPackageResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListPackages(Guid branchId, CancellationToken cancellationToken)
+    {
+        ErrorOr<IReadOnlyList<GamingPackageResponse>> result = await mediator.Send(new ListPackagesQuery(branchId), cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpPost("packages")]
+    [ProducesResponseType(typeof(GamingPackageResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CreatePackage(Guid branchId, [FromBody] CreatePackageRequest request, CancellationToken cancellationToken)
+    {
+        ErrorOr<GamingPackageResponse> result = await mediator.Send(
+            new CreatePackageCommand(branchId, request.Name, request.DurationMinutes, request.Price, request.StationType), cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpDelete("packages/{packageId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeletePackage(Guid branchId, Guid packageId, CancellationToken cancellationToken)
+    {
+        ErrorOr<Success> result = await mediator.Send(new DeletePackageCommand(branchId, packageId), cancellationToken);
+        return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
     [HttpGet("sessions/completed")]
@@ -181,6 +209,9 @@ public sealed record CreateGamingStationRequest(
 public sealed record StartSessionRequest(
     string PlayerName,
     int DurationMinutes,
-    decimal RatePerHour);
+    decimal RatePerHour,
+    Guid? PackageId = null);
+
+public sealed record CreatePackageRequest(string Name, int DurationMinutes, decimal Price, StationType? StationType = null);
 
 public sealed record ExtendSessionRequest(int ExtraMinutes);

@@ -24,6 +24,11 @@ internal sealed class GameSessionConfiguration : IEntityTypeConfiguration<GameSe
         builder.Property(e => e.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 4).IsRequired();
         builder.Property(e => e.PaymentMethod).HasColumnName("payment_method").HasMaxLength(16);
         builder.Property(e => e.PaidAt).HasColumnName("paid_at");
+        builder.Property(e => e.PackageId).HasColumnName("package_id");
+        builder.Property(e => e.PackageName).HasColumnName("package_name").HasMaxLength(100);
+        builder.Property(e => e.PackagePrice).HasColumnName("package_price").HasPrecision(18, 4);
+        builder.Property(e => e.PackageMinutes).HasColumnName("package_minutes");
+        builder.Ignore(e => e.OvertimeMinutes);
 
         builder.Property(e => e.Status)
             .HasConversion<string>()

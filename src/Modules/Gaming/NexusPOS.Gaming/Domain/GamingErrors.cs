@@ -30,4 +30,10 @@ public static class GamingErrors
 
     public static readonly Error SessionAlreadyPaid =
         Error.Conflict("GameSession.AlreadyPaid", "هذه الجلسة مدفوعة مسبقاً.");
+
+    public static readonly Error PackageNotFound =
+        Error.NotFound("GamingPackage.NotFound", "الباقة غير موجودة.");
+
+    public static readonly Error PackageNotForStation =
+        Error.Validation("GamingPackage.NotForStation", "هذه الباقة لا تنطبق على نوع هذا الجهاز.");
 }

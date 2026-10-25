@@ -27,4 +27,10 @@ public sealed record GameSessionBillResponse(
     decimal TotalAmount,
     string Currency,
     string? PaymentMethod = null,
-    DateTime? PaidAt = null);
+    DateTime? PaidAt = null,
+    string? PackageName = null,
+    decimal? PackagePrice = null,
+    decimal OvertimeMinutes = 0m);
+
+public sealed record GamingPackageResponse(
+    Guid Id, string Name, int DurationMinutes, decimal Price, string? StationType);

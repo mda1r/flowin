@@ -9,6 +9,7 @@ public sealed class GamingDbContext(DbContextOptions<GamingDbContext> options, M
 {
     public DbSet<GameStation> GameStations => Set<GameStation>();
     public DbSet<GameSession> GameSessions => Set<GameSession>();
+    public DbSet<GamingPackage> GamingPackages => Set<GamingPackage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

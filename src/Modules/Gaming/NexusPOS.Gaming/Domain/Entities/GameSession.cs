@@ -16,6 +16,12 @@ public sealed class GameSession : Entity<Guid>
     public decimal TotalAmount { get; private set; }
     public GameSessionStatus Status { get; private set; }
     public string? PaymentMethod { get; private set; }
+
+    // Snapshot of the package at start, so later edits to the package never change a running session's bill.
+    public Guid? PackageId { get; private set; }
+    public string? PackageName { get; private set; }
+    public decimal? PackagePrice { get; private set; }
+    public int? PackageMinutes { get; private set; }
     public DateTime? PaidAt { get; private set; }
 
     private GameSession() { }
@@ -43,19 +49,43 @@ public sealed class GameSession : Entity<Guid>
         };
     }
 
+    public static GameSession CreateWithPackage(
+        Guid tenantId, Guid branchId, Guid stationId, string playerName, GamingPackage package, decimal ratePerHour)
+    {
+        GameSession session = Create(tenantId, branchId, stationId, playerName, package.DurationMinutes, ratePerHour);
+        session.PackageId = package.Id;
+        session.PackageName = package.Name;
+        session.PackagePrice = package.Price;
+        session.PackageMinutes = package.DurationMinutes;
+        return session;
+    }
+
     public void Extend(int extraMinutes)
     {
         DurationMinutes += extraMinutes;
     }
 
-    public decimal Complete()
+    public decimal Complete(DateTime? endTime = null)
     {
-        EndTime = DateTime.UtcNow;
+        EndTime = endTime ?? DateTime.UtcNow;
         Status = GameSessionStatus.Completed;
-        double actualMinutes = (EndTime.Value - StartTime).TotalMinutes;
-        TotalAmount = Math.Round((decimal)(actualMinutes / 60.0) * RatePerHour, 2);
+        decimal actualMinutes = (decimal)(EndTime.Value - StartTime).TotalMinutes;
+        TotalAmount = PackagePrice is decimal price
+            ? price + OvertimeCharge(actualMinutes)
+            : Math.Round(actualMinutes / 60m * RatePerHour, 2);
         return TotalAmount;
     }
+
+    // Time played beyond the package, billed at the station's hourly rate; ending early still costs the package price.
+    public decimal OvertimeMinutes =>
+        PackageMinutes is int included && EndTime.HasValue
+            ? Math.Max(0m, Math.Round((decimal)(EndTime.Value - StartTime).TotalMinutes - included, 2))
+            : 0m;
+
+    private decimal OvertimeCharge(decimal actualMinutes) =>
+        PackageMinutes is int included && actualMinutes > included
+            ? Math.Round((actualMinutes - included) / 60m * RatePerHour, 2)
+            : 0m;
 
     public ErrorOr.ErrorOr<ErrorOr.Success> MarkPaid(string paymentMethod)
     {
