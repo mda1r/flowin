@@ -175,6 +175,15 @@ internal static class DatabaseInitializerExtensions
             {
                 // Schema/table/index/constraint already exists — safe to skip
             }
+            catch (PostgresException ex) when (
+                ex.SqlState is "42703" // undefined_column
+                && stmt.StartsWith("CREATE", StringComparison.OrdinalIgnoreCase)
+                && stmt.Contains(" INDEX ", StringComparison.OrdinalIgnoreCase))
+            {
+                // Index on a column an existing table doesn't have yet; the Migrate*ColumnsAsync patches add
+                // the column and create the index right after, so this must not stop the app from starting.
+                logger.LogInformation("Index deferred to column patch for {Context}: {Sql}", typeof(TContext).Name, stmt);
+            }
         }
 
         if (created > 0)
