@@ -240,6 +240,9 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS source INT NOT NULL DEFAULT 0",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS source_reference_id UUID",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_source_reference ON orders (source, source_reference_id) WHERE source_reference_id IS NOT NULL",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_reference UUID",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS offline_created_at TIMESTAMP WITH TIME ZONE",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_client_reference ON orders (client_reference) WHERE client_reference IS NOT NULL",
         ];
 
         foreach (string sql in patches)

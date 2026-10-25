@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using NexusPOS.POS.Application.Commands.AddOrderLine;
 using NexusPOS.POS.Application.Commands.ApplyOrderDiscount;
 using NexusPOS.POS.Application.Commands.CancelOrder;
+using NexusPOS.POS.Application.Commands.Checkout;
 using NexusPOS.POS.Application.Commands.CompleteOrder;
 using NexusPOS.POS.Application.Commands.CreateOrder;
 using NexusPOS.POS.Application.Commands.RedeemOrderLoyaltyPoints;
@@ -70,8 +71,14 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         [FromBody] CreateOrderRequest request,
         CancellationToken cancellationToken)
     {
+        if (!Guid.TryParse(User.FindFirst("tenant_id")?.Value, out Guid tenantId))
+        {
+            return Forbid();
+        }
+
+        // The tenant always comes from the caller's token; the body value is ignored.
         CreateOrderCommand command = new(
-            request.TenantId, branchId, request.Currency, request.CustomerId, request.TaxRate);
+            tenantId, branchId, request.Currency, request.CustomerId, request.TaxRate);
 
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -146,6 +153,27 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
     {
         ErrorOr<OrderResponse> result = await mediator.Send(
             new RedeemOrderLoyaltyPointsCommand(orderId, branchId, request.Points), cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>Create and complete a whole sale in one request; resending the same clientReference returns the same order.</summary>
+    [HttpPost("checkout")]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Checkout(Guid branchId, [FromBody] CheckoutRequest request, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirst("tenant_id")?.Value, out Guid tenantId))
+        {
+            return Forbid();
+        }
+
+        CheckoutOrderCommand command = new(
+            tenantId, branchId, request.ClientReference, request.Currency, request.TaxRate, request.CustomerId,
+            [.. (request.Lines ?? []).Select(l => new CheckoutOrderCommand.Line(
+                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity))],
+            request.LoyaltyPoints, request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount,
+            UtcDates.AsUtc(request.OfflineCreatedAt));
+        ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 

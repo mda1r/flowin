@@ -14,6 +14,12 @@ public sealed class Order : AggregateRoot<OrderId>
     public Guid? CustomerId { get; private set; }
     public OrderSource Source { get; private set; } = OrderSource.Pos;
     public Guid? SourceReferenceId { get; private set; }
+
+    // Set by the till for one-shot checkout; unique, so a sale resent after a dropped connection is recorded once.
+    public Guid? ClientReference { get; private set; }
+
+    // When the till rang the sale up while offline; the order itself is created when the sale syncs.
+    public DateTime? OfflineCreatedAt { get; private set; }
     public string Currency { get; private set; } = string.Empty;
     public OrderStatus Status { get; private set; }
     public Discount OrderDiscount { get; private set; } = Discount.None();
@@ -65,6 +71,12 @@ public sealed class Order : AggregateRoot<OrderId>
         order.Source = source;
         order.SourceReferenceId = sourceReferenceId;
         return order;
+    }
+
+    public void TagClientReference(Guid clientReference, DateTime? offlineCreatedAt)
+    {
+        ClientReference = clientReference;
+        OfflineCreatedAt = offlineCreatedAt;
     }
 
     public ErrorOr<OrderLine> AddLine(

@@ -27,6 +27,8 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.DiscountAmount).HasColumnName("discount_amount").HasPrecision(18, 4);
         builder.Property(o => o.Source).HasColumnName("source").HasConversion<int>().HasDefaultValue(OrderSource.Pos);
         builder.Property(o => o.SourceReferenceId).HasColumnName("source_reference_id");
+        builder.Property(o => o.ClientReference).HasColumnName("client_reference");
+        builder.Property(o => o.OfflineCreatedAt).HasColumnName("offline_created_at");
         builder.Property(o => o.LoyaltyPointsRedeemed).HasColumnName("loyalty_points_redeemed").HasDefaultValue(0);
         builder.Property(o => o.LoyaltyDiscountAmount).HasColumnName("loyalty_discount_amount").HasPrecision(18, 4).HasDefaultValue(0m);
         builder.Property(o => o.TaxAmount).HasColumnName("tax_amount").HasPrecision(18, 4);
@@ -57,5 +59,6 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.BranchId).HasDatabaseName("ix_orders_branch_id");
         builder.HasIndex(o => new { o.BranchId, o.Status }).HasDatabaseName("ix_orders_branch_status");
         builder.HasIndex(o => o.CreatedAt).HasDatabaseName("ix_orders_created_at");
+        builder.HasIndex(o => o.ClientReference).IsUnique().HasFilter("client_reference IS NOT NULL").HasDatabaseName("ix_orders_client_reference");
     }
 }
