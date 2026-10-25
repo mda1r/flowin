@@ -773,7 +773,7 @@ export const en = {
     tables: 'Tables',
     discount: 'Discount',
     subtotal: 'Subtotal',
-    tax: 'VAT (15%)',
+    tax: 'incl. VAT 15%',
     total: 'Total',
     pay: 'Pay',
     clear: 'Clear',

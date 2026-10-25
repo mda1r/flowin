@@ -775,7 +775,7 @@ export const ar: Translations = {
     tables: 'الطاولات',
     discount: 'خصم',
     subtotal: 'المجموع',
-    tax: 'ضريبة 15%',
+    tax: 'منها ضريبة 15%',
     total: 'الإجمالي',
     pay: 'ادفع',
     clear: 'مسح',

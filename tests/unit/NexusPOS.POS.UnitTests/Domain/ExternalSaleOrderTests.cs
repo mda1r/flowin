@@ -57,4 +57,19 @@ public sealed class ExternalSaleOrderTests
         order.Source.Should().Be(OrderSource.Pos);
         order.SourceReferenceId.Should().BeNull();
     }
+
+    [Fact]
+    public void RestaurantSale_FromVatInclusivePrices_RecordsWhatTheCustomerPaid()
+    {
+        // Restaurant bill with VAT-inclusive prices: 2 × 30 + 12 − 12 discount = 60.00 paid.
+        // The sale is recorded net of VAT (prices ÷ 1.15) and must come back to 60.00.
+        Order order = External(OrderSource.Restaurant);
+        order.AddLine(Guid.NewGuid(), "برجر", "", Math.Round(30m / 1.15m, 4), 0m, 2m);
+        order.AddLine(Guid.NewGuid(), "عصير", "", Math.Round(12m / 1.15m, 4), 0m, 1m);
+        order.ApplyDiscount(DiscountType.Fixed, Math.Round(12m / 1.15m, 4));
+
+        Math.Round(order.TotalAmount, 2).Should().Be(60.00m);
+        Math.Round(order.TaxAmount, 2).Should().Be(7.83m);
+        order.Complete(PaymentMethod.Cash, 60m).IsError.Should().BeFalse();
+    }
 }

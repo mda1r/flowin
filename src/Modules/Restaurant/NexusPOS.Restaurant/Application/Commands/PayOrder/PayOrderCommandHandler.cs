@@ -45,13 +45,18 @@ internal sealed class PayOrderCommandHandler(
         // Kitchen copies of cafe sales hold no real menu items and were already sold at the cafe till.
         if (menuItemIds.Count > 0)
         {
+            // The sale is recorded with prices before VAT. Orders opened before menu prices became
+            // VAT-inclusive added VAT on top; their own totals tell which rule they were priced with.
+            bool vatInclusive = Math.Abs(order.Total - (order.SubTotal - order.DiscountAmount)) < 0.01m;
+            decimal toNet = vatInclusive ? 1 + RestaurantOrder.VatRate : 1m;
             await publisher.Publish(new ExternalSaleCompletedDomainEvent(
                 order.TenantId,
                 order.BranchId,
                 ExternalSaleCompletedDomainEvent.Restaurant,
                 order.Id.Value,
-                [.. order.Items.Select(i => new ExternalSaleCompletedDomainEvent.Line(i.MenuItemId, i.ItemName, i.UnitPrice, i.Quantity))],
-                order.DiscountAmount,
+                [.. order.Items.Select(i => new ExternalSaleCompletedDomainEvent.Line(
+                    i.MenuItemId, i.ItemName, Math.Round(i.UnitPrice / toNet, 4), i.Quantity))],
+                Math.Round(order.DiscountAmount / toNet, 4),
                 RestaurantOrder.VatRate,
                 request.PaymentMethod,
                 request.AmountTendered), cancellationToken);

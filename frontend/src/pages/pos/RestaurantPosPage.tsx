@@ -73,10 +73,10 @@ export function RestaurantPosPage() {
       ? setLines(prev => prev.filter(l => l.menuItemId !== id))
       : setLines(prev => prev.map(l => l.menuItemId === id ? { ...l, quantity: qty } : l))
 
-  // The server adds VAT on top of menu prices, so the screen shows the same bill it will charge.
-  const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0)
-  const vat = Math.round(subtotal * VAT * 100) / 100
-  const total = Math.round((subtotal + vat) * 100) / 100
+  // Menu prices include VAT, as on the cafe menu; the VAT shown is the share already inside the total.
+  const total = Math.round(lines.reduce((s, l) => s + l.price * l.quantity, 0) * 100) / 100
+  const subtotal = total
+  const vat = Math.round((total * VAT / (1 + VAT)) * 100) / 100
 
   const createOrder = useMutation({
     mutationFn: async () => {
@@ -327,7 +327,7 @@ export function RestaurantPosPage() {
                 <span>{t.restaurant.subtotal}</span><span className="tabular-nums">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-muted">
-                <span>{t.restaurant.tax} 15%</span><span className="tabular-nums">{formatCurrency(vat)}</span>
+                <span>{t.restaurant.tax}</span><span className="tabular-nums">{formatCurrency(vat)}</span>
               </div>
             </div>
             <div className="mb-4 flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--card-border)' }}>

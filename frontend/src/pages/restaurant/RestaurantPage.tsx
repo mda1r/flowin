@@ -203,9 +203,9 @@ function CashierView({ branchId }: { branchId: string }) {
 
   const subTotal = cart.reduce((s, c) => s + c.unitPrice * c.quantity, 0)
   const discountAmount = discount?.isValid ? (discount.discountAmount ?? 0) : 0
-  const taxable = subTotal - discountAmount
-  const taxAmount = Math.round(taxable * VAT * 100) / 100
-  const total = Math.round((taxable + taxAmount) * 100) / 100
+  // Menu prices include VAT: the customer pays the listed price less any discount.
+  const total = Math.round((subTotal - discountAmount) * 100) / 100
+  const taxAmount = Math.round((total * VAT / (1 + VAT)) * 100) / 100
 
   // ── Discount validation ───────────────────────────────────────────────────
 
