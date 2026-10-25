@@ -10,6 +10,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import type { MenuCategory, MenuItemResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
+import { CashTender } from '@/components/pos/CashTender'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 
@@ -382,18 +383,7 @@ export function RestaurantPosPage() {
             </div>
             {payMethod === 'Cash' && (
               <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium">المبلغ المستلم</label>
-                <input
-                  type="number"
-                  min={total}
-                  placeholder={total.toFixed(2)}
-                  value={amountTendered}
-                  onChange={e => setAmountTendered(e.target.value)}
-                  className="input-3d w-full"
-                />
-                {amountTendered && parseFloat(amountTendered) >= total && (
-                  <p className="mt-1 text-sm text-green-600">الباقي: {formatCurrency(parseFloat(amountTendered) - total)}</p>
-                )}
+                <CashTender total={total} value={amountTendered} onChange={setAmountTendered} autoFocus />
               </div>
             )}
             <div className="flex gap-3">

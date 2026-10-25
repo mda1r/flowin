@@ -22,6 +22,7 @@ import { gamingApi } from '@/api/gaming'
 import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
+import { CashTender } from '@/components/pos/CashTender'
 import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal } from '@/components/ui/Modal'
@@ -66,6 +67,7 @@ interface CustomerReceiptData {
   payMode: PayMode
   splitCash?: number
   splitCard?: number
+  cashTendered?: number
   tableNumber: number | null
   orderType: 'here' | 'takeaway'
   completedAt: string
@@ -305,6 +307,11 @@ function CustomerReceiptModal({
           {/* Payment */}
           <div className="mb-4 rounded-lg bg-surface-2 px-3 py-2 text-center text-xs text-muted">
             {payLabel}
+            {receipt.payMode === 'Cash' && receipt.cashTendered != null && receipt.cashTendered > receipt.grandTotal && (
+              <span className="mt-1 block tabular-nums">
+                المستلم {formatCurrency(receipt.cashTendered)} · الباقي {formatCurrency(receipt.cashTendered - receipt.grandTotal)}
+              </span>
+            )}
           </div>
 
           {/* ZATCA QR */}
@@ -369,6 +376,7 @@ export function CafePosPage() {
   const [cart, setCart] = useState<CafeCartItem[]>([])
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [payMode, setPayMode] = useState<PayMode>('Cash')
+  const [cashTendered, setCashTendered] = useState('')
   const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
   const [redeemPoints, setRedeemPoints] = useState(0)
   const queryClient = useQueryClient()
@@ -609,9 +617,11 @@ export function CafePosPage() {
         serverTotal = Math.ceil(redeemed.data.totalAmount * 100) / 100
       }
 
+      const due = Math.max(grandTotal, serverTotal)
+      const handed = payMode === 'Cash' ? parseFloat(cashTendered) || 0 : 0
       await ordersApi.complete(branchId, orderId, {
         paymentMethod: payMode as PaymentMethod,
-        amountTendered: Math.max(grandTotal, serverTotal),
+        amountTendered: Math.max(due, handed),
         ...(payMode === 'Split' && {
           cashAmount: parseFloat(splitCash) || 0,
           cardAmount: parseFloat(splitCard) || 0,
@@ -629,6 +639,7 @@ export function CafePosPage() {
         payMode,
         splitCash: splitCashNum || undefined,
         splitCard: splitCardNum || undefined,
+        cashTendered: payMode === 'Cash' && parseFloat(cashTendered) > 0 ? parseFloat(cashTendered) : undefined,
         tableNumber,
         orderType,
         customerName: loyaltyCustomer?.name,
@@ -678,6 +689,7 @@ export function CafePosPage() {
       setTableNumber(null)
       setSplitCash('')
       setSplitCard('')
+      setCashTendered('')
       setPayMode('Cash')
       if (loyaltyCustomer) {
         void queryClient.invalidateQueries({ queryKey: ['pos-customer-search'] })
@@ -702,7 +714,8 @@ export function CafePosPage() {
     splitCashNum > 0 && splitCardNum > 0 &&
     Math.abs(splitCashNum + splitCardNum - grandTotal) < 0.01
   )
-  const canCheckout = cart.length > 0 && splitValid
+  const cashShort = payMode === 'Cash' && cashTendered !== '' && (parseFloat(cashTendered) || 0) < grandTotal
+  const canCheckout = cart.length > 0 && splitValid && !cashShort
 
   // ── AI Cashier checkout ────────────────────────────────────────────────────
 
@@ -868,6 +881,7 @@ export function CafePosPage() {
       run: () => {
         if (!canCheckout) {
           if (cart.length === 0) toast.error('السلة فارغة')
+          else if (cashShort) toast.error('المبلغ المستلم أقل من الإجمالي')
           else toast.error('تحقق من مبالغ الدفع المقسّم')
           return
         }
@@ -1120,6 +1134,10 @@ export function CafePosPage() {
                 </div>
 
                 {/* Split inputs */}
+                {payMode === 'Cash' && (
+                  <CashTender total={grandTotal} value={cashTendered} onChange={setCashTendered} compact />
+                )}
+
                 {payMode === 'Split' && (
                   <div className="space-y-2 rounded-xl border border-dashed border-brand/40 bg-brand/5 p-3">
                     <p className="text-center text-xs font-semibold text-muted">

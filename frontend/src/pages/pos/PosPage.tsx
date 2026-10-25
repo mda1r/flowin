@@ -21,6 +21,7 @@ import { CafePosPage } from './CafePosPage'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { useI18n } from '@/i18n'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
+import { CashTender } from '@/components/pos/CashTender'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
@@ -596,24 +597,7 @@ function RetailPosPage() {
             {/* Cash input */}
             {payMode === 'Cash' && (
               <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium text-fg">
-                  {t.pos.tendered}
-                </label>
-                <input
-                  type="number"
-                  min={grossTotal}
-                  step="0.01"
-                  placeholder={String(grossTotal)}
-                  value={amountTendered}
-                  onChange={(e) => setAmountTendered(e.target.value)}
-                  className="input-3d w-full"
-                  autoFocus
-                />
-                {amountTendered && parseFloat(amountTendered) >= grossTotal && (
-                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">
-                    {t.pos.changeDue}: {formatCurrency(parseFloat(amountTendered) - grossTotal)}
-                  </p>
-                )}
+                <CashTender total={grossTotal} value={amountTendered} onChange={setAmountTendered} autoFocus />
               </div>
             )}
 
