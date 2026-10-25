@@ -11,26 +11,27 @@
 
 @layer base {
   :root {
-    --bg: 246 247 245;
+    --bg: 247 247 245;
     --surface: 255 255 255;
-    --surface-2: 239 242 239;
-    --border: 225 230 226;
-    --fg: 26 32 30;
-    --muted: 94 106 102;
-    --brand: 11 122 101;
-    --brand-soft: 227 244 239;
-    --brand-fg: 255 255 255;
-    --success: 31 157 85;
-    --warning: 154 103 0;
-    --danger: 214 69 69;
-    --info: 59 111 216;
+    --surface-2: 240 241 238;
+    --border: 226 228 224;
+    --fg: 35 38 45;
+    --muted: 104 109 118;
+    --brand: 98 230 199;
+    --brand-ink: 10 124 98;
+    --brand-soft: 226 249 242;
+    --brand-fg: 35 38 45;
+    --success: 22 150 92;
+    --warning: 168 104 0;
+    --danger: 212 66 66;
+    --info: 52 108 214;
 
-    --shadow-sm: 0 1px 2px rgb(16 24 22 / 0.06);
-    --shadow-md: 0 4px 16px rgb(16 24 22 / 0.08);
-    --shadow-lg: 0 12px 40px rgb(16 24 22 / 0.14);
+    --shadow-sm: 0 1px 2px rgb(35 38 45 / 0.05);
+    --shadow-md: 0 6px 20px -4px rgb(35 38 45 / 0.10);
+    --shadow-lg: 0 18px 48px -8px rgb(35 38 45 / 0.18);
 
-    --accent: #0b7a65;
-    --glow: rgb(11 122 101 / 0.18);
+    --accent: rgb(var(--brand));
+    --glow: rgb(98 230 199 / 0.22);
 
     /* aliases consumed by existing pages and inline styles */
     --color-bg: rgb(var(--bg));
@@ -57,23 +58,24 @@
 
   :root[data-theme='dark'],
   :root.dark {
-    --bg: 15 19 18;
-    --surface: 23 28 27;
-    --surface-2: 30 36 35;
-    --border: 42 50 48;
-    --fg: 233 238 236;
-    --muted: 147 160 156;
-    --brand: 63 211 176;
-    --brand-soft: 18 48 42;
-    --brand-fg: 15 19 18;
-    --success: 74 222 128;
+    --bg: 26 28 33;
+    --surface: 35 38 45;
+    --surface-2: 43 47 55;
+    --border: 55 59 68;
+    --fg: 247 247 245;
+    --muted: 158 163 172;
+    --brand: 98 230 199;
+    --brand-ink: 98 230 199;
+    --brand-soft: 42 64 63;
+    --brand-fg: 35 38 45;
+    --success: 74 222 150;
     --warning: 251 191 36;
     --danger: 248 113 113;
-    --info: 96 165 250;
+    --info: 110 168 255;
 
     --shadow-sm: 0 0 0 1px rgb(0 0 0 / 0);
-    --shadow-md: 0 6px 20px rgb(0 0 0 / 0.28);
-    --shadow-lg: 0 16px 48px rgb(0 0 0 / 0.45);
+    --shadow-md: 0 8px 24px rgb(0 0 0 / 0.30);
+    --shadow-lg: 0 20px 56px rgb(0 0 0 / 0.48);
     --shadow-mid: rgb(0 0 0 / 0.3);
     --shadow-far: rgb(0 0 0 / 0.2);
 
@@ -83,23 +85,24 @@
   /* before JS runs (or with theme = system): follow the OS */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme='light']):not(.light) {
-      --bg: 15 19 18;
-      --surface: 23 28 27;
-      --surface-2: 30 36 35;
-      --border: 42 50 48;
-      --fg: 233 238 236;
-      --muted: 147 160 156;
-      --brand: 63 211 176;
-      --brand-soft: 18 48 42;
-      --brand-fg: 15 19 18;
-      --success: 74 222 128;
+      --bg: 26 28 33;
+      --surface: 35 38 45;
+      --surface-2: 43 47 55;
+      --border: 55 59 68;
+      --fg: 247 247 245;
+      --muted: 158 163 172;
+      --brand: 98 230 199;
+      --brand-ink: 98 230 199;
+      --brand-soft: 42 64 63;
+      --brand-fg: 35 38 45;
+      --success: 74 222 150;
       --warning: 251 191 36;
       --danger: 248 113 113;
-      --info: 96 165 250;
+      --info: 110 168 255;
 
       --shadow-sm: 0 0 0 1px rgb(0 0 0 / 0);
-      --shadow-md: 0 6px 20px rgb(0 0 0 / 0.28);
-      --shadow-lg: 0 16px 48px rgb(0 0 0 / 0.45);
+      --shadow-md: 0 8px 24px rgb(0 0 0 / 0.30);
+      --shadow-lg: 0 20px 56px rgb(0 0 0 / 0.48);
       --shadow-mid: rgb(0 0 0 / 0.3);
       --shadow-far: rgb(0 0 0 / 0.2);
 
@@ -107,17 +110,16 @@
     }
   }
 
-  /* Per-business accent: scopes set --accent-l / --accent-d (both text-safe on
-     their surface) and the active theme picks one. Inline --accent is never set. */
+  /* --accent is kept for older inline styles; it is the brand ink, one palette for every business. */
   :root,
   [style*='--accent-l'] {
-    --accent: var(--accent-l, #0b7a65);
+    --accent: rgb(var(--brand-ink));
     --glow: color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
   :root.dark,
   .dark [style*='--accent-l'] {
-    --accent: var(--accent-d, #3fd3b0);
+    --accent: rgb(var(--brand));
   }
 
   html {
@@ -128,6 +130,7 @@
     @apply min-h-screen antialiased;
     font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 14px;
+    font-feature-settings: 'ss01';
     line-height: 1.6;
     color: rgb(var(--fg));
     background-color: rgb(var(--bg));
@@ -137,13 +140,69 @@
     text-wrap: balance;
   }
 
+  /* Page titles and big figures speak in the brand's geometric voice. */
+  h1,
+  .font-display {
+    font-family: 'Readex Pro', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
   :focus-visible {
-    outline: 2px solid rgb(var(--brand));
+    outline: 2px solid rgb(var(--brand-ink));
     outline-offset: 2px;
   }
 
   ::selection {
-    background: rgb(var(--brand) / 0.2);
+    background: rgb(var(--brand) / 0.35);
+  }
+
+  /* Light cards inside a graphite island (kitchen tickets), the identity's soft-white on graphite. */
+  .scheme-light {
+    --bg: 247 247 245;
+    --surface: 255 255 255;
+    --surface-2: 240 241 238;
+    --border: 226 228 224;
+    --fg: 35 38 45;
+    --muted: 104 109 118;
+    --brand: 98 230 199;
+    --brand-ink: 10 124 98;
+    --brand-soft: 226 249 242;
+    --brand-fg: 35 38 45;
+    --success: 22 150 92;
+    --warning: 168 104 0;
+    --danger: 212 66 66;
+    --info: 52 108 214;
+
+    --shadow-sm: 0 1px 2px rgb(35 38 45 / 0.05);
+    --shadow-md: 0 6px 20px -4px rgb(35 38 45 / 0.10);
+    --shadow-lg: 0 18px 48px -8px rgb(35 38 45 / 0.18);
+    color-scheme: light;
+  }
+
+  /* Graphite islands: the sidebar, kitchen screens and the platform console stay dark in both themes,
+     like the identity's mockups. Everything inside reads the same tokens, so components need no variants. */
+  .scheme-dark,
+  .sidebar-3d {
+    --bg: 26 28 33;
+    --surface: 35 38 45;
+    --surface-2: 43 47 55;
+    --border: 55 59 68;
+    --fg: 247 247 245;
+    --muted: 158 163 172;
+    --brand: 98 230 199;
+    --brand-ink: 98 230 199;
+    --brand-soft: 42 64 63;
+    --brand-fg: 35 38 45;
+    --success: 74 222 150;
+    --warning: 251 191 36;
+    --danger: 248 113 113;
+    --info: 110 168 255;
+
+    --shadow-sm: 0 0 0 1px rgb(0 0 0 / 0);
+    --shadow-md: 0 8px 24px rgb(0 0 0 / 0.30);
+    --shadow-lg: 0 20px 56px rgb(0 0 0 / 0.48);
+    color-scheme: dark;
+    color: rgb(var(--fg));
   }
 
   ::-webkit-scrollbar {
@@ -780,8 +839,8 @@
   }
 
   .btn-glow-anim {
-    border: 1px solid rgb(var(--brand) / 0.4);
-    color: rgb(var(--brand));
+    border: 1px solid rgb(var(--brand) / 0.5);
+    color: rgb(var(--brand-ink));
     font-weight: 600;
     background: rgb(var(--brand-soft));
     transition: background-color 0.15s ease;
@@ -812,8 +871,8 @@
 
   .input-3d:focus,
   .input:focus {
-    border-color: rgb(var(--brand));
-    box-shadow: 0 0 0 3px rgb(var(--brand) / 0.15);
+    border-color: rgb(var(--brand-ink) / 0.7);
+    box-shadow: 0 0 0 3px rgb(var(--brand) / 0.28);
   }
 
   .label {
@@ -951,6 +1010,12 @@
     border-inline-end: 1px solid rgb(var(--border));
   }
 
+  :root.dark .sidebar-3d,
+  :root[data-theme='dark'] .sidebar-3d {
+    --surface: 30 32 38;
+    background: rgb(30 32 38);
+  }
+
   .nav-item {
     @apply relative flex items-center gap-3 px-3 py-2 text-sm font-medium;
     border-radius: 10px;
@@ -973,9 +1038,10 @@
 
   .nav-item-active,
   .nav-item-active:hover {
-    color: rgb(var(--brand));
+    color: rgb(var(--fg));
     font-weight: 600;
-    background: rgb(var(--brand-soft));
+    background: rgb(var(--brand) / 0.14);
+    border-color: rgb(var(--brand) / 0.18);
   }
 
   .nav-item-active .nav-icon {
@@ -989,9 +1055,33 @@
     width: 3px;
     height: 60%;
     border-radius: 9999px;
-    background: var(--accent);
+    background: rgb(var(--brand));
+    box-shadow: 0 0 12px rgb(var(--brand) / 0.7);
     transform: translateY(-50%);
     pointer-events: none;
+  }
+
+  .nav-group-label {
+    padding: 0.9rem 0.75rem 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgb(var(--muted) / 0.8);
+  }
+
+  /* THINK • TRANSFORM • FLOW */
+  .brand-tagline {
+    font-family: 'Readex Pro', system-ui, sans-serif;
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgb(var(--muted));
+  }
+
+  .brand-tagline b {
+    color: rgb(var(--brand));
+    font-weight: 700;
   }
 
   .sidebar-3d .sidebar-username {
@@ -1033,7 +1123,7 @@
   /* ---------- text ---------- */
 
   .logo-3d {
-    color: rgb(var(--brand));
+    color: rgb(var(--brand-ink));
   }
 
   .text-emboss {
@@ -1125,7 +1215,7 @@
     border-start-start-radius: 14px;
     border-start-end-radius: 14px;
     background: var(--kpi-color, rgb(var(--brand)));
-    opacity: 0.8;
+    opacity: 0.9;
     pointer-events: none;
   }
 
@@ -1394,6 +1484,16 @@
   }
 }
 
+@keyframes wave-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes wave-glow {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
 @keyframes page-in {
   from {
     opacity: 0;
@@ -1448,6 +1548,22 @@
    Only the receipt copy in #print-root reaches the paper, sized
    for 80mm thermal rolls, black on white whatever the theme. */
 #print-root { display: none; }
+
+.flow-wave-track {
+  animation: wave-drift 14s linear infinite;
+}
+
+.flow-wave-glow {
+  filter: drop-shadow(0 0 10px rgb(98 230 199 / 0.65));
+  animation: wave-glow 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-wave-track,
+  .flow-wave-glow {
+    animation: none;
+  }
+}
 
 @media print {
   body.printing-element { background: #fff !important; }

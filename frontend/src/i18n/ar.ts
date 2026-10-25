@@ -1,6 +1,13 @@
 import type { Translations } from './en'
 
 export const ar: Translations = {
+  navGroups: {
+    main: 'الرئيسية',
+    operations: 'التشغيل',
+    customers: 'العملاء والمبيعات',
+    finance: 'المالية والتقارير',
+    admin: 'الإدارة',
+  },
   nav: {
     dashboard: 'لوحة التحكم',
     pos: 'نقطة البيع',

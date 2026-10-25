@@ -16,7 +16,7 @@ import type { StockCountType } from '@/types/api'
 
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-info/10 text-info',
-  Completed: 'bg-emerald-50 text-emerald-700',
+  Completed: 'bg-success/10 text-success',
   Cancelled: 'bg-surface-2 text-muted',
 }
 
@@ -168,7 +168,7 @@ export function StockCountPage() {
                   </td>
                   <td className="px-4 py-3 tabular-nums">
                     {session.discrepancyCount > 0
-                      ? <span className="font-medium text-amber-600">{session.discrepancyCount}</span>
+                      ? <span className="font-medium text-warning">{session.discrepancyCount}</span>
                       : <span className="text-muted/50">—</span>}
                   </td>
                   <td className="px-4 py-3 text-muted tabular-nums">
@@ -196,7 +196,7 @@ export function StockCountPage() {
                   onClick={() => setForm(f => ({ ...f, type: typeKey }))}
                   className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${
                     form.type === typeKey
-                      ? 'border-brand bg-brand-soft text-brand'
+                      ? 'border-brand bg-brand-soft text-brand-ink'
                       : 'border-border text-muted hover:border-border hover:bg-surface-2'
                   }`}
                 >

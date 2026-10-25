@@ -18,6 +18,8 @@ export default {
           DEFAULT: token('brand'),
           soft: token('brand-soft'),
           fg: token('brand-fg'),
+          // text and icons in the brand colour: deep mint on light, mint itself on graphite
+          ink: token('brand-ink'),
         },
         success: token('success'),
         warning: token('warning'),
@@ -30,6 +32,7 @@ export default {
       },
       fontFamily: {
         sans: ['IBM Plex Sans Arabic', 'Segoe UI', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Readex Pro', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
         mono: ['IBM Plex Mono', 'Cascadia Mono', 'Consolas', 'ui-monospace', 'monospace'],
       },
       fontSize: {

@@ -25,23 +25,23 @@ type T = Translations
 function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean, t: T) {
   if (!isActive) {
     return (
-      <span className="rounded-full bg-rose-900/60 px-2.5 py-0.5 text-xs font-semibold text-rose-300">
+      <span className="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-semibold text-danger">
         {t.admin.tenants.statuses.suspended}
       </span>
     )
   }
   if (!status) {
     return (
-      <span className="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs font-semibold text-slate-300">
+      <span className="rounded-full bg-border px-2.5 py-0.5 text-xs font-semibold text-muted">
         بدون اشتراك
       </span>
     )
   }
   const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
-    Active:    { bg: 'bg-emerald-900/60 text-emerald-300', label: t.admin.tenants.statuses.active },
-    Trial:     { bg: 'bg-blue-900/60 text-blue-300',       label: 'تجريبي' },
-    Expired:   { bg: 'bg-rose-900/60 text-rose-300',       label: t.admin.tenants.statuses.expired },
-    Suspended: { bg: 'bg-amber-900/60 text-amber-300',     label: t.admin.tenants.statuses.suspended },
+    Active:    { bg: 'bg-success/15 text-success', label: t.admin.tenants.statuses.active },
+    Trial:     { bg: 'bg-info/15 text-info',       label: 'تجريبي' },
+    Expired:   { bg: 'bg-danger/15 text-danger',       label: t.admin.tenants.statuses.expired },
+    Suspended: { bg: 'bg-warning/15 text-warning',     label: t.admin.tenants.statuses.suspended },
   }
   const { bg, label } = map[status]
   return (
@@ -54,12 +54,12 @@ function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean, 
 function businessTypeBadge(bt: BusinessType | undefined, labels: Record<BusinessType, string>) {
   if (!bt) return null
   const colors: Record<BusinessType, string> = {
-    Retail:       'bg-slate-700 text-slate-300',
-    Supermarket:  'bg-emerald-900/60 text-emerald-300',
-    Restaurant:   'bg-orange-900/60 text-orange-300',
-    Hotel:        'bg-blue-900/60 text-blue-300',
-    Gaming:       'bg-purple-900/60 text-purple-300',
-    Cafe:         'bg-amber-900/60 text-amber-300',
+    Retail:       'bg-border text-muted',
+    Supermarket:  'bg-success/15 text-success',
+    Restaurant:   'bg-warning/15 text-warning',
+    Hotel:        'bg-info/15 text-info',
+    Gaming:       'bg-brand/20 text-brand-ink',
+    Cafe:         'bg-warning/15 text-warning',
   }
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${colors[bt]}`}>
@@ -70,14 +70,14 @@ function businessTypeBadge(bt: BusinessType | undefined, labels: Record<Business
 
 function daysChip(days: number | undefined, t: T) {
   if (days === undefined) return null
-  if (days < 0) return <span className="text-xs text-rose-400">{t.admin.tenants.statuses.expired}</span>
+  if (days < 0) return <span className="text-xs text-danger">{t.admin.tenants.statuses.expired}</span>
   if (days <= 7)
     return (
-      <span className="rounded-full bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-300">
+      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
         {days} أيام
       </span>
     )
-  return <span className="text-xs text-slate-400">{days} يوم</span>
+  return <span className="text-xs text-muted">{days} يوم</span>
 }
 
 export function TenantsPage() {
@@ -146,14 +146,14 @@ export function TenantsPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t.admin.tenants.title}</h1>
-          <p className="mt-1 text-slate-400">
+          <h1 className="text-2xl font-bold text-fg">{t.admin.tenants.title}</h1>
+          <p className="mt-1 text-muted">
             {tenants.length} مستأجر مسجل
           </p>
         </div>
         <button
           onClick={() => setShowCreateTenant(true)}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
+          className="flex items-center gap-2 rounded-xl bg-info px-4 py-2 text-sm font-semibold text-white hover:bg-info transition-colors"
         >
           <UserPlus className="h-4 w-4" />
           إضافة مستأجر
@@ -162,19 +162,19 @@ export function TenantsPage() {
 
       {/* Search */}
       <div className="mb-5 relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="بحث باسم المستأجر أو البريد أو النطاق..."
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 pr-10 pl-4 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-xl border border-border bg-surface py-2.5 pr-10 pl-4 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
         />
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-800">
+      <div className="overflow-hidden rounded-xl border border-border">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-800 bg-slate-900">
+          <thead className="border-b border-border bg-surface">
             <tr>
               {[
                 t.admin.tenants.name,
@@ -189,20 +189,20 @@ export function TenantsPage() {
               ].map((h) => (
                 <th
                   key={h}
-                  className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                  className="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider"
                 >
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800 bg-slate-900/60">
+          <tbody className="divide-y divide-border bg-surface/60">
             {isLoading
               ? Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 9 }).map((_, j) => (
                       <td key={j} className="px-4 py-4">
-                        <div className="h-4 rounded bg-slate-800 animate-pulse" />
+                        <div className="h-4 rounded bg-surface-2 animate-pulse" />
                       </td>
                     ))}
                   </tr>
@@ -212,21 +212,21 @@ export function TenantsPage() {
                   const rowBg = !ten.isActive
                     ? 'opacity-60'
                     : sub?.daysRemaining !== undefined && sub.daysRemaining <= 7 && sub.daysRemaining >= 0
-                    ? 'bg-amber-950/20'
+                    ? 'bg-warning/15'
                     : ''
                   return (
-                    <tr key={ten.id} className={`hover:bg-slate-800/50 transition-colors ${rowBg}`}>
+                    <tr key={ten.id} className={`hover:bg-surface-2/50 transition-colors ${rowBg}`}>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-white">{ten.name}</p>
-                        <p className="text-xs text-slate-400">{ten.adminEmail}</p>
+                        <p className="font-medium text-fg">{ten.name}</p>
+                        <p className="text-xs text-muted">{ten.adminEmail}</p>
                       </td>
-                      <td className="px-4 py-3 text-slate-300">{ten.subdomain}</td>
+                      <td className="px-4 py-3 text-muted">{ten.subdomain}</td>
                       <td className="px-4 py-3">{businessTypeBadge(ten.businessType, BUSINESS_TYPE_LABELS)}</td>
-                      <td className="px-4 py-3 text-slate-300">{sub?.planName ?? '—'}</td>
+                      <td className="px-4 py-3 text-muted">{sub?.planName ?? '—'}</td>
                       <td className="px-4 py-3">
                         {statusBadge(sub?.status, ten.isActive, t)}
                       </td>
-                      <td className="px-4 py-3 text-slate-300">
+                      <td className="px-4 py-3 text-muted">
                         {sub?.expiryDate
                           ? new Date(sub.expiryDate).toLocaleDateString(locale)
                           : '—'}
@@ -237,14 +237,14 @@ export function TenantsPage() {
                           <Link
                             to="/admin/tenants/$id"
                             params={{ id: ten.id }}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                            className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-fg transition-colors"
                             title={t.admin.tenants.viewDetails}
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
                           <button
                             onClick={() => setSubscribeTarget(ten)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-blue-400 transition-colors"
+                            className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-info transition-colors"
                             title={t.admin.subscription.newSubscription}
                           >
                             <Plus className="h-4 w-4" />
@@ -252,7 +252,7 @@ export function TenantsPage() {
                           {ten.isActive ? (
                             <button
                               onClick={() => suspendMut.mutate(ten)}
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-amber-400 transition-colors"
+                              className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-warning transition-colors"
                               title={t.admin.tenants.suspend}
                             >
                               <PauseCircle className="h-4 w-4" />
@@ -260,7 +260,7 @@ export function TenantsPage() {
                           ) : (
                             <button
                               onClick={() => activateMut.mutate(ten)}
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-emerald-400 transition-colors"
+                              className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-success transition-colors"
                               title={t.admin.tenants.activate}
                             >
                               <PlayCircle className="h-4 w-4" />
@@ -271,7 +271,7 @@ export function TenantsPage() {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => setDeleteTarget(ten)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-700 hover:text-rose-400 transition-colors"
+                          className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-danger transition-colors"
                           title={t.admin.tenants.delete}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -283,7 +283,7 @@ export function TenantsPage() {
           </tbody>
         </table>
         {!isLoading && filtered.length === 0 && (
-          <div className="py-16 text-center text-slate-400">{t.common.noData}</div>
+          <div className="py-16 text-center text-muted">{t.common.noData}</div>
         )}
       </div>
 
@@ -309,7 +309,7 @@ export function TenantsPage() {
               <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t.common.cancel}</Button>
               <Button
                 loading={deleteMut.isPending}
-                className="bg-rose-600 hover:bg-rose-500"
+                className="bg-danger hover:bg-danger"
                 onClick={() => deleteMut.mutate(deleteTarget)}
               >
                 {t.common.delete}
@@ -318,11 +318,11 @@ export function TenantsPage() {
           }
         >
           <div dir="rtl" className="space-y-2 text-sm">
-            <p className="text-slate-300">
-              هل أنت متأكد من حذف المستأجر <span className="font-bold text-white">{deleteTarget.name}</span>؟
+            <p className="text-muted">
+              هل أنت متأكد من حذف المستأجر <span className="font-bold text-fg">{deleteTarget.name}</span>؟
             </p>
-            <p className="text-slate-400">{deleteTarget.adminEmail}</p>
-            <p className="rounded-lg bg-rose-900/30 border border-rose-700/40 px-3 py-2 text-rose-300 text-xs">
+            <p className="text-muted">{deleteTarget.adminEmail}</p>
+            <p className="rounded-lg bg-danger/15 border border-danger/40 px-3 py-2 text-danger text-xs">
               سيتم حذف المستأجر وجميع فروعه واشتراكاته بشكل نهائي لا يمكن التراجع عنه.
             </p>
           </div>

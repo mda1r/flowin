@@ -83,7 +83,7 @@ export function LoyaltySettingsModal({ open, onClose }: { open: boolean; onClose
             aria-label="تفعيل النقاط"
             checked={draft.enabled}
             onChange={(e) => setDraft((d) => ({ ...d, enabled: e.target.checked }))}
-            className="h-5 w-9 shrink-0 cursor-pointer accent-[rgb(var(--brand))]"
+            className="h-5 w-9 shrink-0 cursor-pointer accent-[rgb(var(--brand-ink))]"
           />
         </label>
 
@@ -128,7 +128,7 @@ export function LoyaltySettingsModal({ open, onClose }: { open: boolean; onClose
           <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>
         ) : rules && rules.enabled ? (
           <div className="rounded-xl bg-brand-soft px-4 py-3 text-sm text-fg">
-            <p className="mb-1 text-xs font-semibold text-brand">مثال</p>
+            <p className="mb-1 text-xs font-semibold text-brand-ink">مثال</p>
             <p>
               عميل دفع {formatCurrency(100)} يكسب{' '}
               <span className="font-semibold tabular-nums">{pointsEarned(100, rules).toLocaleString('ar-SA')}</span> نقطة.

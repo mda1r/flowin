@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { aiCashierApi } from '@/api/aiCashier'
 import { Link, useRouterState, useRouter } from '@tanstack/react-router'
@@ -38,6 +38,7 @@ import {
   Megaphone,
 } from 'lucide-react'
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
+import { BrandTagline, FlowinLogo, FlowinMark } from '@/components/brand/Brand'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -45,16 +46,6 @@ import { useI18n } from '@/i18n'
 import { getUserPermissions } from '@/lib/userPermissions'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import type { BusinessType } from '@/types/api'
-
-/* business-type accent identity: light/dark pairs, both readable as text on their surface */
-const BUSINESS_ACCENTS: Record<BusinessType, { light: string; dark: string }> = {
-  Restaurant:  { light: '#C2410C', dark: '#FB923C' },
-  Hotel:       { light: '#2563EB', dark: '#60A5FA' },
-  Gaming:      { light: '#7C3AED', dark: '#A78BFA' },
-  Supermarket: { light: '#0B7A65', dark: '#3FD3B0' },
-  Retail:      { light: '#BE185D', dark: '#F472B6' },
-  Cafe:        { light: '#0B7A65', dark: '#3FD3B0' },
-}
 
 /* themed identity chip shown under the brand name */
 const BUSINESS_META: Record<BusinessType, { emoji: string; ar: string; en: string }> = {
@@ -73,32 +64,61 @@ interface NavItem {
   roles?: string[]
 }
 
+type NavGroup = 'main' | 'operations' | 'customers' | 'finance' | 'admin'
+
+const NAV_GROUP: Record<string, NavGroup> = {
+  '/': 'main',
+  '/pos': 'main',
+  '/customers': 'customers',
+  '/campaigns': 'customers',
+  '/sales': 'customers',
+  '/invoices': 'customers',
+  '/finance': 'finance',
+  '/taxes': 'finance',
+  '/reports': 'finance',
+  '/daily-close': 'finance',
+  '/shifts': 'finance',
+  '/settings/zatca': 'finance',
+  '/users': 'admin',
+  '/branches': 'admin',
+  '/activity-logs': 'admin',
+}
+
+const GROUP_ORDER: NavGroup[] = ['main', 'operations', 'customers', 'finance', 'admin']
+
+// Sections in a fixed order; anything not listed (products, stock, kitchen, rooms…) is day-to-day operations.
+function groupNav(items: NavItem[]) {
+  return GROUP_ORDER
+    .map((group) => ({ group, items: items.filter((it) => (NAV_GROUP[it.to] ?? 'operations') === group) }))
+    .filter((g) => g.items.length > 0)
+}
+
 const ALL_NAV_ITEMS: NavItem[] = [
-  { labelKey: 'dashboard', to: '/', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { labelKey: 'pos', to: '/pos', icon: <ShoppingCart className="h-5 w-5" /> },
-  { labelKey: 'products', to: '/products', icon: <Package className="h-5 w-5" /> },
-  { labelKey: 'inventory', to: '/inventory', icon: <Warehouse className="h-5 w-5" /> },
-  { labelKey: 'stockMaterials', to: '/stock-materials', icon: <FlaskConical className="h-5 w-5" /> },
-  { labelKey: 'stockCount', to: '/stock-counts', icon: <ClipboardList className="h-5 w-5" /> },
-  { labelKey: 'customers', to: '/customers', icon: <Users className="h-5 w-5" /> },
-  { labelKey: 'campaigns', to: '/campaigns', icon: <Megaphone className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
-  { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-5 w-5" /> },
-  { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-5 w-5" /> },
-  { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-5 w-5" /> },
-  { labelKey: 'taxes', to: '/taxes', icon: <Calculator className="h-5 w-5" /> },
-  { labelKey: 'reports', to: '/reports', icon: <BarChart2 className="h-5 w-5" /> },
-  { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-5 w-5" /> },
-  { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-5 w-5" /> },
-  { labelKey: 'hotelContracts', to: '/hotel/contracts', icon: <FileText className="h-5 w-5" /> },
-  { labelKey: 'gaming', to: '/gaming', icon: <Gamepad2 className="h-5 w-5" /> },
-  { labelKey: 'zatca', to: '/settings/zatca', icon: <Shield className="h-5 w-5" /> },
-  { labelKey: 'users', to: '/users', icon: <UserCog className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
-  { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
-  { labelKey: 'kitchen', to: '/cafe/kitchen', icon: <ChefHat className="h-5 w-5" /> },
-  { labelKey: 'shiftReports', to: '/shifts', icon: <FileText className="h-5 w-5" /> },
-  { labelKey: 'dailyClose', to: '/daily-close', icon: <ClipboardCheck className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
-  { labelKey: 'invoices', to: '/invoices', icon: <Receipt className="h-5 w-5" /> },
-  { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'dashboard', to: '/', icon: <LayoutDashboard className="h-[18px] w-[18px]" /> },
+  { labelKey: 'pos', to: '/pos', icon: <ShoppingCart className="h-[18px] w-[18px]" /> },
+  { labelKey: 'products', to: '/products', icon: <Package className="h-[18px] w-[18px]" /> },
+  { labelKey: 'inventory', to: '/inventory', icon: <Warehouse className="h-[18px] w-[18px]" /> },
+  { labelKey: 'stockMaterials', to: '/stock-materials', icon: <FlaskConical className="h-[18px] w-[18px]" /> },
+  { labelKey: 'stockCount', to: '/stock-counts', icon: <ClipboardList className="h-[18px] w-[18px]" /> },
+  { labelKey: 'customers', to: '/customers', icon: <Users className="h-[18px] w-[18px]" /> },
+  { labelKey: 'campaigns', to: '/campaigns', icon: <Megaphone className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-[18px] w-[18px]" /> },
+  { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-[18px] w-[18px]" /> },
+  { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-[18px] w-[18px]" /> },
+  { labelKey: 'taxes', to: '/taxes', icon: <Calculator className="h-[18px] w-[18px]" /> },
+  { labelKey: 'reports', to: '/reports', icon: <BarChart2 className="h-[18px] w-[18px]" /> },
+  { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-[18px] w-[18px]" /> },
+  { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-[18px] w-[18px]" /> },
+  { labelKey: 'hotelContracts', to: '/hotel/contracts', icon: <FileText className="h-[18px] w-[18px]" /> },
+  { labelKey: 'gaming', to: '/gaming', icon: <Gamepad2 className="h-[18px] w-[18px]" /> },
+  { labelKey: 'zatca', to: '/settings/zatca', icon: <Shield className="h-[18px] w-[18px]" /> },
+  { labelKey: 'users', to: '/users', icon: <UserCog className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'kitchen', to: '/cafe/kitchen', icon: <ChefHat className="h-[18px] w-[18px]" /> },
+  { labelKey: 'shiftReports', to: '/shifts', icon: <FileText className="h-[18px] w-[18px]" /> },
+  { labelKey: 'dailyClose', to: '/daily-close', icon: <ClipboardCheck className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'invoices', to: '/invoices', icon: <Receipt className="h-[18px] w-[18px]" /> },
+  { labelKey: 'activityLogs', to: '/activity-logs', icon: <Activity className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
 ]
 
 
@@ -137,21 +157,7 @@ interface SidebarProps {
 }
 
 export function FlowinWordmark({ compact = false }: { compact?: boolean }) {
-  if (compact) {
-    return <span aria-label="flowin" className="block h-6 w-6 rounded-full border-[3px] border-brand" />
-  }
-  return (
-    <span dir="ltr" aria-label="flowin" className="select-none text-[1.35rem] font-bold leading-none tracking-tight text-fg">
-      fl
-      <span className="text-transparent [-webkit-text-stroke:2.5px_rgb(var(--brand))]">o</span>
-      w
-      <span className="relative inline-block">
-        <span aria-hidden="true" className="absolute -top-[5px] left-1/2 h-[7px] w-[7px] -translate-x-1/2 rounded-full bg-brand" />
-        ı
-      </span>
-      n
-    </span>
-  )
+  return compact ? <FlowinMark className="h-8 w-8" /> : <FlowinLogo className="h-[26px] text-fg" />
 }
 
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const
@@ -174,15 +180,6 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     enabled: !!branchId,
   })
   const aiAvailable = aiFeature?.available ?? false
-
-  useEffect(() => {
-    const identity = user?.businessType ? BUSINESS_ACCENTS[user.businessType] : BUSINESS_ACCENTS.Hotel
-    const root = document.documentElement.style
-    root.removeProperty('--accent')
-    root.removeProperty('--glow')
-    root.setProperty('--accent-l', identity.light)
-    root.setProperty('--accent-d', identity.dark)
-  }, [user?.businessType])
 
   const navItems = getNavItems(user?.businessType, user?.role, user?.id, tenantId ?? undefined)
 
@@ -229,37 +226,42 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
           </div>
           {!isRail && user?.businessType && (
             <span className="biz-badge mt-3">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'var(--accent)' }} aria-hidden="true" />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
               <span aria-hidden="true">{BUSINESS_META[user.businessType].emoji}</span>
               {lang === 'ar' ? BUSINESS_META[user.businessType].ar : BUSINESS_META[user.businessType].en}
             </span>
           )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3">
-          <ul className={cn('space-y-0.5 px-3', isRail && 'flex flex-col items-center px-2')}>
-            {navItems.map((item) => {
-              const isActive =
-                item.to === '/'
-                  ? pathname === '/'
-                  : pathname === item.to || (pathname.startsWith(item.to + '/') && item.to !== '/settings')
-              const label = t.nav[item.labelKey as keyof typeof t.nav]
-              return (
-                <li key={item.to}>
-                  <Link
-                    to={item.to}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={cn('nav-item', isActive && 'nav-item-active', isRail && 'h-10 w-10 justify-center px-0 py-0')}
-                    title={isRail ? label : undefined}
-                  >
-                    {isActive && !isRail && <span className="nav-accent-bar" aria-hidden="true" />}
-                    <span className="nav-icon">{item.icon}</span>
-                    {!isRail && <span className="truncate">{label}</span>}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
+        <nav className="flex-1 overflow-y-auto pb-3 pt-1">
+          {groupNav(navItems).map(({ group, items }, gi) => (
+            <div key={group} className={cn(isRail && gi > 0 && 'mt-2 border-t border-border pt-2')}>
+              {!isRail && group !== 'main' && <p className="nav-group-label">{t.navGroups[group]}</p>}
+              <ul className={cn('space-y-0.5 px-3', isRail ? 'flex flex-col items-center px-2' : group === 'main' && 'pt-2')}>
+                {items.map((item) => {
+                  const isActive =
+                    item.to === '/'
+                      ? pathname === '/'
+                      : pathname === item.to || (pathname.startsWith(item.to + '/') && item.to !== '/settings')
+                  const label = t.nav[item.labelKey as keyof typeof t.nav]
+                  return (
+                    <li key={item.to}>
+                      <Link
+                        to={item.to}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={cn('nav-item', isActive && 'nav-item-active', isRail && 'h-10 w-10 justify-center px-0 py-0')}
+                        title={isRail ? label : undefined}
+                      >
+                        {isActive && !isRail && <span className="nav-accent-bar" aria-hidden="true" />}
+                        <span className="nav-icon">{item.icon}</span>
+                        {!isRail && <span className="truncate">{label}</span>}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         <div className="border-t border-border p-3">
@@ -335,6 +337,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             </button>
           </div>
         </div>
+        {!isRail && <BrandTagline className="px-4 pb-4 text-center" />}
         <AiChatDrawer open={aiOpen} onClose={() => setAiOpen(false)} />
       </aside>
     </>

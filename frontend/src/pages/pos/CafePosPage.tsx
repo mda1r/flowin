@@ -30,6 +30,7 @@ import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { BrandTagline, FlowinLogo } from '@/components/brand/Brand'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
@@ -118,7 +119,7 @@ function TablePicker({
           className={cn(
             'flex h-12 items-center justify-center rounded-xl border-2 text-sm font-bold transition-all',
             selected === n
-              ? 'scale-95 border-brand bg-brand-soft text-brand'
+              ? 'scale-95 border-brand bg-brand-soft text-brand-ink'
               : 'border-border bg-surface text-fg hover:border-brand/40 hover:bg-brand-soft',
           )}
         >
@@ -146,7 +147,7 @@ function KitchenTicketModal({
           {/* Header */}
           <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
             <div className="mb-1 flex items-center justify-center gap-2 text-lg font-black">
-              <ChefHat className="h-5 w-5 text-brand" />
+              <ChefHat className="h-5 w-5 text-brand-ink" />
               طلب المطبخ
             </div>
             <p className="text-xs text-muted">
@@ -156,7 +157,7 @@ function KitchenTicketModal({
               <span className={cn(
                 'rounded-full px-3 py-0.5 text-sm font-bold',
                 ticket.orderType === 'here'
-                  ? 'bg-brand-soft text-brand'
+                  ? 'bg-brand-soft text-brand-ink'
                   : 'bg-info/10 text-info',
               )}>
                 {ticket.orderType === 'here'
@@ -178,7 +179,7 @@ function KitchenTicketModal({
                       <p className="text-xs text-muted">{item.variantName}</p>
                     )}
                     {item.notes && (
-                      <p className="mt-0.5 text-xs font-medium text-brand">
+                      <p className="mt-0.5 text-xs font-medium text-brand-ink">
                         📝 {item.notes}
                       </p>
                     )}
@@ -268,7 +269,7 @@ function CustomerReceiptModal({
               <p className="mt-1 rounded bg-warning/15 px-2 py-0.5 text-[11px] text-warning">رقم مؤقت · ستصدر الفاتورة عند المزامنة</p>
             )}
             {receipt.orderType === 'here' && receipt.tableNumber && (
-              <span className="mt-1 inline-block rounded-full bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">
+              <span className="mt-1 inline-block rounded-full bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand-ink">
                 طاولة {receipt.tableNumber}
               </span>
             )}
@@ -286,7 +287,7 @@ function CustomerReceiptModal({
                 <span className="flex-1">
                   {item.productName}
                   {item.quantity > 1 && <span className="text-muted"> ×{item.quantity}</span>}
-                  {item.notes && <span className="block text-xs text-brand">📝 {item.notes}</span>}
+                  {item.notes && <span className="block text-xs text-brand-ink">📝 {item.notes}</span>}
                 </span>
                 <span className="tabular-nums">{formatCurrency(item.unitPrice * item.quantity)}</span>
               </div>
@@ -338,6 +339,11 @@ function CustomerReceiptModal({
             <QrCode className="h-4 w-4 text-muted" />
             <ZatcaQr value={qrCode} size={110} />
             <p className="text-[10px] text-muted">رمز ZATCA للتحقق</p>
+          </div>
+          {/* signature: the system that issued the receipt, quiet at the bottom */}
+          <div className="mt-3 flex flex-col items-center gap-1 border-t border-dashed border-border pt-3 text-muted">
+            <FlowinLogo tone="mono" className="h-3.5" />
+            <BrandTagline className="!text-[8px]" />
           </div>
         </div>
 
@@ -977,7 +983,7 @@ export function CafePosPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3 shadow-sm">
         <div className="flex items-center gap-3">
-          <Coffee className="h-5 w-5 text-brand" />
+          <Coffee className="h-5 w-5 text-brand-ink" />
           <h1 className="text-base font-bold text-fg">{t.pos.title}</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -989,7 +995,7 @@ export function CafePosPage() {
                 'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors',
                 aiCashierActive
                   ? 'bg-brand text-brand-fg'
-                  : 'border border-brand/40 text-brand hover:bg-brand/10',
+                  : 'border border-brand/40 text-brand-ink hover:bg-brand/10',
               )}
             >
               <Bot className="h-4 w-4" />
@@ -1047,8 +1053,8 @@ export function CafePosPage() {
                   className={cn(
                     'w-full rounded-xl border-2 py-2 text-sm font-bold transition-colors',
                     tableNumber
-                      ? 'border-brand bg-brand-soft text-brand'
-                      : 'border-dashed border-brand/40 bg-brand-soft/60 text-brand hover:border-brand',
+                      ? 'border-brand bg-brand-soft text-brand-ink'
+                      : 'border-dashed border-brand/40 bg-brand-soft/60 text-brand-ink hover:border-brand',
                   )}
                 >
                   {tableNumber ? `${t.pos.tableNumber} ${tableNumber} ✏️` : '+ اختر طاولة'}
@@ -1064,7 +1070,7 @@ export function CafePosPage() {
               <p className="text-sm font-bold text-fg">
                 {t.pos.currentOrder}
                 {orderType === 'takeaway' && <span className="mr-1 text-info">— {t.pos.takeaway}</span>}
-                {orderType === 'here' && tableNumber && <span className="mr-1 text-brand">— {t.pos.tableNumber} {tableNumber}</span>}
+                {orderType === 'here' && tableNumber && <span className="mr-1 text-brand-ink">— {t.pos.tableNumber} {tableNumber}</span>}
               </p>
             </div>
 
@@ -1109,7 +1115,7 @@ export function CafePosPage() {
                         </button>
                         <button
                           onClick={() => removeItem(item.variantId)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg text-danger hover:bg-danger/10 dark:hover:bg-danger/15"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -1131,11 +1137,11 @@ export function CafePosPage() {
                     ) : (
                       <button
                         onClick={() => setEditingNoteId(item.variantId)}
-                        className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-brand transition-colors"
+                        className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-brand-ink transition-colors"
                       >
                         <MessageSquare className="h-3 w-3" />
                         {item.notes ? (
-                          <span className="font-medium text-brand">{item.notes}</span>
+                          <span className="font-medium text-brand-ink">{item.notes}</span>
                         ) : 'إضافة ملاحظة'}
                       </button>
                     )}
@@ -1245,7 +1251,7 @@ export function CafePosPage() {
                       </div>
                     </div>
                     {splitCashNum + splitCardNum > 0 && Math.abs(splitCashNum + splitCardNum - grandTotal) > 0.01 && (
-                      <p className="text-center text-[10px] font-semibold text-red-500">
+                      <p className="text-center text-[10px] font-semibold text-danger">
                         الفرق: {(grandTotal - splitCashNum - splitCardNum).toFixed(2)} ر.س
                       </p>
                     )}
@@ -1343,7 +1349,7 @@ export function CafePosPage() {
                         className={cn(
                           'relative flex flex-col rounded-xl border-2 p-4 transition-all',
                           station.status === 'Available'
-                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
+                            ? 'border-success/30 bg-success/10 dark:border-success/60 dark:bg-success/15'
                             : station.status === 'InUse'
                             ? 'border-brand/40 bg-brand-soft'
                             : 'border-border bg-surface-2',
@@ -1359,9 +1365,9 @@ export function CafePosPage() {
                           <span className={cn(
                             'rounded-full px-2 py-0.5 text-xs font-semibold',
                             station.status === 'Available'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                              ? 'bg-success/10 text-success dark:bg-success/15'
                               : station.status === 'InUse'
-                              ? 'bg-brand-soft text-brand'
+                              ? 'bg-brand-soft text-brand-ink'
                               : 'bg-surface-2 text-muted',
                           )}>
                             {station.status === 'Available' ? 'متاح' : station.status === 'InUse' ? 'شاغل' : 'صيانة'}
@@ -1369,7 +1375,7 @@ export function CafePosPage() {
                         </div>
 
                         {/* Hourly rate */}
-                        <p className="mb-3 text-sm font-semibold text-brand">
+                        <p className="mb-3 text-sm font-semibold text-brand-ink">
                           {formatCurrency(station.hourlyRate)} / ساعة
                         </p>
 
@@ -1391,7 +1397,7 @@ export function CafePosPage() {
                         })()}
                         {station.status === 'InUse' && station.activeSession && (
                           <div className="mb-3 rounded-lg bg-brand-soft/60 p-2.5">
-                            <p className="text-xs font-semibold text-brand">
+                            <p className="text-xs font-semibold text-brand-ink">
                               👤 {station.activeSession.playerName}
                               {station.activeSession.packageName && (
                                 <span className="ms-1.5 rounded-full bg-surface px-1.5 py-0.5 text-[10px] text-muted">
@@ -1399,7 +1405,7 @@ export function CafePosPage() {
                                 </span>
                               )}
                             </p>
-                            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-brand">
+                            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-brand-ink">
                               <Clock className="h-3 w-3" />
                               <span className="font-mono tabular-nums font-bold">
                                 {formatElapsed(station.activeSession.startTime)}
@@ -1422,7 +1428,7 @@ export function CafePosPage() {
                               playerName: '',
                               durationMinutes: 60,
                             })}
-                            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 text-sm font-bold text-white hover:bg-emerald-600 transition-colors"
+                            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl bg-success py-2 text-sm font-bold text-white hover:bg-success transition-colors"
                           >
                             <Play className="h-3.5 w-3.5" />
                             ابدأ جلسة
@@ -1446,7 +1452,7 @@ export function CafePosPage() {
                           <button
                             onClick={() => endSessionMut.mutate(station.activeSession!.sessionId)}
                             disabled={endSessionMut.isPending}
-                            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl bg-red-500 py-2 text-sm font-bold text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                            className="mt-auto flex items-center justify-center gap-1.5 rounded-xl bg-danger py-2 text-sm font-bold text-white hover:bg-danger transition-colors disabled:opacity-50"
                           >
                             <Square className="h-3.5 w-3.5 fill-current" />
                             إنهاء وادفع
@@ -1514,20 +1520,25 @@ export function CafePosPage() {
                           onClick={() =>
                             addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)
                           }
-                          className="group relative flex flex-col items-start overflow-hidden rounded-xl border border-border bg-surface p-3 text-right transition-all duration-200 hover:border-brand hover:shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                          className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-2.5 text-start transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md active:translate-y-0 active:scale-[0.98]"
                         >
-                          <p className="text-sm font-semibold leading-snug text-fg">
+                          {/* product art: the photo when there is one, otherwise its initial on a mint tile */}
+                          <span className="mb-2.5 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl bg-brand-soft font-display text-3xl font-semibold text-brand-ink transition-colors duration-200 group-hover:bg-brand group-hover:text-brand-fg">
+                            {product.imageUrl ? (
+                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                            ) : (
+                              product.name.trim().charAt(0)
+                            )}
+                          </span>
+                          <p className="px-0.5 text-sm font-semibold leading-snug text-fg">
                             {product.name}
                           </p>
-                          {variant.name && variant.name !== 'افتراضي' && variant.name !== product.name && (
-                            <p className="text-xs text-muted">{variant.name}</p>
+                          {variant.name && variant.name !== 'افتراضي' && variant.name !== 'Standard' && variant.name !== product.name && (
+                            <p className="px-0.5 text-xs text-muted">{variant.name}</p>
                           )}
-                          <p className="mt-auto pt-3 text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
+                          <p className="mt-auto px-0.5 pt-2 font-display text-sm font-semibold tabular-nums text-brand-ink">
                             {formatCurrency(variant.salePrice)}
                           </p>
-                          <span
-                            className="bg-brand pointer-events-none absolute inset-x-0 bottom-0 h-0.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 text-brand-fg"
-                          />
                         </button>
                       )),
                   )}
@@ -1663,7 +1674,7 @@ export function CafePosPage() {
               </div>
               <div className="rounded-xl bg-brand-soft py-3 text-center">
                 <p className="text-xs text-muted">الإجمالي المتوقع</p>
-                <p className="mt-0.5 text-2xl font-black tabular-nums text-brand">
+                <p className="mt-0.5 text-2xl font-black tabular-nums text-brand-ink">
                   {formatCurrency(startSessionForm.packagePrice ?? (startSessionForm.durationMinutes / 60) * startSessionForm.hourlyRate)}
                 </p>
                 <p className="text-xs text-muted">
@@ -1737,7 +1748,7 @@ export function CafePosPage() {
               <div className="mb-2 rounded-xl bg-brand-soft py-4 text-center">
                 <PackageBillLines bill={gamingBill} />
                 <p className="mt-2 text-xs text-muted">الإجمالي</p>
-                <p className="mt-1 text-3xl font-black tabular-nums text-brand">
+                <p className="mt-1 text-3xl font-black tabular-nums text-brand-ink">
                   {formatCurrency(gamingBill.totalAmount)}
                 </p>
               </div>

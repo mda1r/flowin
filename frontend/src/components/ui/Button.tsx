@@ -15,7 +15,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary: 'border border-border bg-surface text-fg hover:bg-surface-2',
   danger: 'bg-danger text-white hover:bg-danger/90',
   ghost: 'text-muted hover:bg-surface-2 hover:text-fg',
-  glow: 'border border-brand/40 bg-brand-soft text-brand font-semibold hover:bg-brand/15',
+  glow: 'border border-brand/40 bg-brand-soft text-brand-ink font-semibold hover:bg-brand/15',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {

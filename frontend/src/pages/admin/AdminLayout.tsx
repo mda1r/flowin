@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
+import { FlowinLogo } from '@/components/brand/Brand'
 
 export function AdminLayout() {
   const { logout, user } = useAuthStore()
@@ -28,18 +29,16 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950" dir="rtl">
+    <div className="scheme-dark flex h-screen bg-bg text-fg" dir="rtl">
       {/* Sidebar */}
-      <aside className="flex w-64 flex-col bg-slate-900 border-l border-slate-800">
+      <aside className="flex w-64 flex-col bg-surface border-l border-border">
         {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 shadow">
-            <ShieldCheck className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white">flowin</p>
-            <p className="text-xs text-blue-400">{t.admin.dashboard.title}</p>
-          </div>
+        <div className="border-b border-border px-5 py-5">
+          <FlowinLogo className="h-[26px] text-fg" />
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-brand-ink">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {t.admin.dashboard.title}
+          </p>
         </div>
 
         {/* Nav */}
@@ -50,21 +49,21 @@ export function AdminLayout() {
         </nav>
 
         {/* User footer */}
-        <div className="border-t border-slate-800 p-4">
+        <div className="border-t border-border p-4">
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-bold text-brand-fg">
               {user?.firstName?.charAt(0) ?? 'S'}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white">
+              <p className="truncate text-sm font-medium text-fg">
                 {user?.firstName} {user?.lastName}
               </p>
-              <p className="truncate text-xs text-slate-400">{user?.email}</p>
+              <p className="truncate text-xs text-muted">{user?.email}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted hover:bg-surface-2 hover:text-fg transition-colors"
           >
             <LogOut className="h-4 w-4" />
             {t.nav.logout}
@@ -99,8 +98,8 @@ function NavLink({
       to={to}
       className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
         isActive
-          ? 'bg-blue-600 text-white'
-          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+          ? 'nav-item-active'
+          : 'text-muted hover:bg-surface-2 hover:text-fg'
       }`}
     >
       <Icon className="h-4 w-4 flex-shrink-0" />

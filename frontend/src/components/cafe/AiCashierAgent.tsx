@@ -168,23 +168,23 @@ export function AiCashierAgent({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onDeactivate} />
 
       {/* Panel */}
-      <div className="relative flex h-[90dvh] w-full max-w-sm flex-col overflow-hidden rounded-3xl bg-gray-950 shadow-2xl ring-1 ring-indigo-400/30">
+      <div className="relative flex h-[90dvh] w-full max-w-sm flex-col overflow-hidden rounded-3xl bg-bg shadow-2xl ring-1 ring-info/40">
         {/* Header */}
-        <div className="flex items-center justify-between bg-gradient-to-l from-indigo-500/20 to-indigo-400/10 px-5 py-4">
+        <div className="flex items-center justify-between bg-gradient-to-l from-info/20 to-info/10 px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-400 text-lg font-bold text-gray-950">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info text-lg font-bold text-fg">
               س
             </div>
             <div>
-              <p className="text-sm font-bold text-indigo-300">سعد — كاشير AI</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-sm font-bold text-info">سعد — كاشير AI</p>
+              <p className="text-xs text-muted">
                 {isListening ? 'يستمع...' : isSpeaking ? 'يتكلم...' : isLoading ? 'يفكر...' : 'جاهز'}
               </p>
             </div>
           </div>
           <button
             onClick={onDeactivate}
-            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-full p-2 text-muted transition-colors hover:bg-white/10 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
@@ -194,20 +194,20 @@ export function AiCashierAgent({
         <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
           {!sessionStarted && (
             <div className="flex h-full flex-col items-center justify-center gap-5 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-400/20 text-4xl">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-info/20 text-4xl">
                 🎙️
               </div>
               <div>
                 <p className="text-base font-semibold text-white">كاشير AI</p>
-                <p className="mt-1 text-sm text-gray-400">اضغط لبدء جلسة مع سعد</p>
+                <p className="mt-1 text-sm text-muted">اضغط لبدء جلسة مع سعد</p>
                 {!speechSupported && (
-                  <p className="mt-2 text-xs text-red-400">⚠ المتصفح لا يدعم التعرف على الصوت</p>
+                  <p className="mt-2 text-xs text-danger">⚠ المتصفح لا يدعم التعرف على الصوت</p>
                 )}
               </div>
               <button
                 onClick={startSession}
                 disabled={isLoading}
-                className="rounded-2xl bg-indigo-400 px-8 py-3 text-sm font-bold text-gray-950 transition-transform active:scale-95 disabled:opacity-60"
+                className="rounded-2xl bg-info px-8 py-3 text-sm font-bold text-fg transition-transform active:scale-95 disabled:opacity-60"
               >
                 {isLoading ? 'جاري التحميل...' : 'ابدأ الجلسة'}
               </button>
@@ -220,19 +220,19 @@ export function AiCashierAgent({
               className={cn(
                 'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
                 msg.role === 'assistant'
-                  ? 'self-start bg-indigo-400/15 text-indigo-100 ring-1 ring-indigo-400/20'
-                  : 'ml-auto self-end bg-blue-500/20 text-blue-100 ring-1 ring-blue-500/20',
+                  ? 'self-start bg-info/15 text-info ring-1 ring-info/40'
+                  : 'ml-auto self-end bg-info/20 text-info ring-1 ring-info/40',
               )}
             >
               {msg.role === 'assistant' && (
-                <span className="mb-1 block text-xs font-semibold text-indigo-400">سعد</span>
+                <span className="mb-1 block text-xs font-semibold text-info">سعد</span>
               )}
               {msg.text}
             </div>
           ))}
 
           {isLoading && (
-            <div className="flex items-center gap-2 text-indigo-400">
+            <div className="flex items-center gap-2 text-info">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-xs">يفكر...</span>
             </div>
@@ -243,10 +243,10 @@ export function AiCashierAgent({
         {sessionStarted && (
           <div className="flex items-center justify-between border-t border-white/10 px-5 py-4">
             <div className="flex items-center gap-2">
-              {isSpeaking && <Volume2 className="h-4 w-4 animate-pulse text-indigo-400" />}
+              {isSpeaking && <Volume2 className="h-4 w-4 animate-pulse text-info" />}
               {isListening && (
-                <span className="flex items-center gap-1 text-xs text-green-400">
-                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
+                <span className="flex items-center gap-1 text-xs text-success">
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-success" />
                   يستمع
                 </span>
               )}
@@ -257,8 +257,8 @@ export function AiCashierAgent({
               className={cn(
                 'flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition-all active:scale-95',
                 isListening
-                  ? 'bg-red-500 text-white'
-                  : 'bg-indigo-600 text-white disabled:opacity-50',
+                  ? 'bg-danger text-white'
+                  : 'bg-info text-white disabled:opacity-50',
               )}
             >
               {isListening ? (

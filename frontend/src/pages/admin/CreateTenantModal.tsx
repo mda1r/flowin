@@ -39,17 +39,17 @@ function CredentialRow({ label, value }: { label: string; value: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
   return (
-    <div className="flex items-center justify-between rounded-lg bg-slate-800 px-4 py-3">
+    <div className="flex items-center justify-between rounded-lg bg-surface-2 px-4 py-3">
       <div>
-        <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-        <p className="font-mono text-sm text-white">{value}</p>
+        <p className="text-xs text-muted mb-0.5">{label}</p>
+        <p className="font-mono text-sm text-fg">{value}</p>
       </div>
       <button
         onClick={copy}
-        className="rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+        className="rounded-lg p-1.5 text-muted hover:text-fg hover:bg-border transition-colors"
         title="نسخ"
       >
-        {copied ? <CheckCircle className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+        {copied ? <CheckCircle className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
       </button>
     </div>
   )
@@ -98,9 +98,9 @@ export function CreateTenantModal({ onClose }: Props) {
         footer={<Button onClick={onClose}>{t.common.close}</Button>}
       >
         <div className="space-y-4" dir="rtl">
-          <div className="flex items-center gap-3 rounded-xl bg-emerald-900/30 border border-emerald-700/50 px-4 py-3">
-            <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
-            <p className="text-sm text-emerald-300">
+          <div className="flex items-center gap-3 rounded-xl bg-success/15 border border-success/50 px-4 py-3">
+            <CheckCircle className="h-5 w-5 text-success shrink-0" />
+            <p className="text-sm text-success">
               تم إنشاء حساب <span className="font-semibold">{created.name}</span> وتعيين كلمة مرور افتراضية.
               شارك بيانات الدخول مع المدير.
             </p>
@@ -109,7 +109,7 @@ export function CreateTenantModal({ onClose }: Props) {
             <CredentialRow label={t.admin.createTenant.email} value={created.adminEmail} />
             <CredentialRow label={t.admin.createTenant.password} value={created.defaultPassword ?? 'Nexus@123!'} />
           </div>
-          <p className="text-xs text-slate-500 text-center">يُنصح بتغيير كلمة المرور عند أول تسجيل دخول.</p>
+          <p className="text-xs text-muted text-center">يُنصح بتغيير كلمة المرور عند أول تسجيل دخول.</p>
         </div>
       </Modal>
     )

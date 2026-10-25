@@ -310,12 +310,12 @@ function CashierView({ branchId }: { branchId: string }) {
                   className={cn(
                     'flex h-10 w-full items-center justify-center rounded-lg text-sm font-bold transition-all',
                     selectedTable === n && 'ring-2 ring-offset-1',
-                    color === 'empty' && 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200',
-                    color === 'busy' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200',
-                    color === 'ready' && 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 hover:bg-orange-200',
-                    selectedTable === n && color === 'empty' && 'ring-green-500',
-                    selectedTable === n && color === 'busy' && 'ring-red-500',
-                    selectedTable === n && color === 'ready' && 'ring-orange-500',
+                    color === 'empty' && 'bg-success/10 text-success dark:bg-success/15 hover:bg-success/20',
+                    color === 'busy' && 'bg-danger/10 text-danger dark:bg-danger/15 hover:bg-danger/20',
+                    color === 'ready' && 'bg-warning/10 text-warning dark:bg-warning/15 hover:bg-warning/20',
+                    selectedTable === n && color === 'empty' && 'ring-success/40',
+                    selectedTable === n && color === 'busy' && 'ring-danger/40',
+                    selectedTable === n && color === 'ready' && 'ring-warning/40',
                   )}
                   title={
                     color === 'empty' ? t.restaurant.available :
@@ -328,9 +328,9 @@ function CashierView({ branchId }: { branchId: string }) {
             })}
           </div>
           <div className="mt-2 flex items-center gap-4 text-xs text-muted">
-            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-green-400" />{t.restaurant.available}</span>
-            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-red-400" />{t.restaurant.occupied}</span>
-            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-orange-400" />{t.kitchen.ready}</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-success" />{t.restaurant.available}</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-danger" />{t.restaurant.occupied}</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-warning" />{t.kitchen.ready}</span>
           </div>
         </div>
 
@@ -374,7 +374,7 @@ function CashierView({ branchId }: { branchId: string }) {
                     onClick={() => addToCart(item)}
                     className="flex flex-col rounded-xl border border-border bg-surface p-3 text-right transition-all hover:border-info/30 hover:shadow-sm active:scale-[0.98]"
                   >
-                    <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                    <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 dark:bg-warning/15">
                       <span className="text-lg">🍽️</span>
                     </div>
                     <p className="line-clamp-2 text-sm font-medium text-fg">
@@ -417,10 +417,10 @@ function CashierView({ branchId }: { branchId: string }) {
           {tableOrder && (
             <span className={cn(
               'mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium',
-              tableOrder.status === 'Pending' && 'bg-yellow-100 text-yellow-700',
+              tableOrder.status === 'Pending' && 'bg-warning/10 text-warning',
               tableOrder.status === 'InKitchen' && 'bg-info/10 text-info',
-              tableOrder.status === 'Ready' && 'bg-green-100 text-green-700',
-              tableOrder.status === 'Served' && 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+              tableOrder.status === 'Ready' && 'bg-success/10 text-success',
+              tableOrder.status === 'Served' && 'bg-brand-soft text-brand-ink dark:bg-brand/20',
             )}>
               {tableOrder.status === 'Pending' && 'قيد الانتظار'}
               {tableOrder.status === 'InKitchen' && 'في المطبخ'}
@@ -442,7 +442,7 @@ function CashierView({ branchId }: { branchId: string }) {
                   </span>
                   <span className={cn(
                     'text-xs',
-                    item.status === 'Ready' ? 'text-green-600' :
+                    item.status === 'Ready' ? 'text-success' :
                     item.status === 'Preparing' ? 'text-info' : 'text-muted',
                   )}>
                     {item.status === 'Ready' ? t.kitchen.ready :
@@ -474,7 +474,7 @@ function CashierView({ branchId }: { branchId: string }) {
                       </p>
                     </div>
                     <button onClick={() => removeFromCart(item.menuItemId)}
-                      className="text-muted/50 hover:text-red-500">
+                      className="text-muted/50 hover:text-danger">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -529,7 +529,7 @@ function CashierView({ branchId }: { branchId: string }) {
             {discount && (
               <p className={cn(
                 'mt-1 text-xs',
-                discount.isValid ? 'text-green-600' : 'text-red-500',
+                discount.isValid ? 'text-success' : 'text-danger',
               )}>
                 {discount.isValid
                   ? `${t.restaurant.discount}: ${formatCurrency(discount.discountAmount)}`
@@ -548,7 +548,7 @@ function CashierView({ branchId }: { branchId: string }) {
                 <span className="tabular-nums">{formatCurrency(subTotal)}</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-success">
                   <span>{t.restaurant.discount}</span>
                   <span className="tabular-nums">- {formatCurrency(discountAmount)}</span>
                 </div>
@@ -573,7 +573,7 @@ function CashierView({ branchId }: { branchId: string }) {
                 <span className="tabular-nums">{formatCurrency(tableOrder.subTotal)}</span>
               </div>
               {tableOrder.discountAmount > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-success">
                   <span>{t.restaurant.discount}</span>
                   <span className="tabular-nums">- {formatCurrency(tableOrder.discountAmount)}</span>
                 </div>
@@ -693,7 +693,7 @@ function PaymentModal({
             <span>{formatCurrency(order.subTotal)}</span>
           </div>
           {order.discountAmount > 0 && (
-            <div className="flex justify-between text-green-600">
+            <div className="flex justify-between text-success">
               <span>{t.restaurant.discount}</span>
               <span>- {formatCurrency(order.discountAmount)}</span>
             </div>
@@ -716,7 +716,7 @@ function PaymentModal({
               className={cn(
                 'flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors',
                 paymentMethod === m
-                  ? 'border-brand bg-brand-soft text-brand'
+                  ? 'border-brand bg-brand-soft text-brand-ink'
                   : 'border-border text-muted hover:bg-surface-2',
               )}
             >
@@ -741,7 +741,7 @@ function PaymentModal({
               dir="ltr"
             />
             {tendered >= total && tendered > 0 && (
-              <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+              <p className="mt-1 text-sm text-success">
                 الباقي: {formatCurrency(tendered - total)}
               </p>
             )}
@@ -812,7 +812,7 @@ function RestaurantReceiptModal({
             <span className="tabular-nums">{formatCurrency(order.subTotal)}</span>
           </div>
           {order.discountAmount > 0 && (
-            <div className="flex justify-between text-green-600">
+            <div className="flex justify-between text-success">
               <span>خصم {order.appliedDiscountCode}</span>
               <span className="tabular-nums">- {formatCurrency(order.discountAmount)}</span>
             </div>
@@ -1001,7 +1001,7 @@ function ManagerView({ branchId }: { branchId: string }) {
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted">إيرادات اليوم</p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+          <p className="text-2xl font-bold text-success">
             {formatCurrency(todayRevenue)}
           </p>
         </Card>
@@ -1063,7 +1063,7 @@ function ManagerView({ branchId }: { branchId: string }) {
                   e.stopPropagation()
                   toggleAvailabilityMutation.mutate({ id: item.id, isAvailable: !item.isAvailable })
                 }}
-                className={cn('text-sm', item.isAvailable ? 'text-green-600' : 'text-muted')}
+                className={cn('text-sm', item.isAvailable ? 'text-success' : 'text-muted')}
               >
                 {item.isAvailable
                   ? <ToggleRight className="h-5 w-5" />
@@ -1112,7 +1112,7 @@ function ManagerView({ branchId }: { branchId: string }) {
                 <span className={cn(
                   'rounded-full px-2 py-0.5 text-xs font-medium',
                   dc.isActive && new Date(dc.expiryDate) > new Date()
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-success/10 text-success'
                     : 'bg-surface-2 text-muted',
                 )}>
                   {dc.isActive && new Date(dc.expiryDate) > new Date() ? 'نشط' : 'منتهي'}

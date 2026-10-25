@@ -47,7 +47,7 @@ export function CashTender({ total, value, onChange, autoFocus, compact }: CashT
           onClick={() => onChange(exact)}
           className={cn(
             'rounded-lg border px-2 py-2 text-xs font-semibold transition-colors',
-            value === exact ? 'border-brand bg-brand-soft text-brand' : 'border-border bg-surface text-fg hover:bg-surface-2',
+            value === exact ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border bg-surface text-fg hover:bg-surface-2',
           )}
         >
           بالضبط
@@ -59,7 +59,7 @@ export function CashTender({ total, value, onChange, autoFocus, compact }: CashT
             onClick={() => onChange(String(amount))}
             className={cn(
               'rounded-lg border px-2 py-2 text-sm font-semibold tabular-nums transition-colors',
-              hasValue && tendered === amount ? 'border-brand bg-brand-soft text-brand' : 'border-border bg-surface text-fg hover:bg-surface-2',
+              hasValue && tendered === amount ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border bg-surface text-fg hover:bg-surface-2',
             )}
           >
             {amount}

@@ -1,4 +1,11 @@
 export const en = {
+  navGroups: {
+    main: 'Main',
+    operations: 'Operations',
+    customers: 'Customers & sales',
+    finance: 'Finance & reports',
+    admin: 'Admin',
+  },
   nav: {
     dashboard: 'Dashboard',
     pos: 'Point of Sale',

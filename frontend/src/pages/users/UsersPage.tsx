@@ -25,10 +25,10 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  Owner:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  Owner:      'bg-brand-soft text-brand-ink dark:bg-brand/20',
   Manager:    'bg-info/10 text-info',
-  Cashier:    'bg-emerald-100 text-emerald-700',
-  Accountant: 'bg-amber-100 text-amber-700',
+  Cashier:    'bg-success/10 text-success',
+  Accountant: 'bg-warning/10 text-warning',
   Staff:      'bg-surface-2 text-muted',
 }
 
@@ -95,7 +95,7 @@ function PermissionChip({ user: u, onClick }: { user: UserSummaryResponse; onCli
       title="تعديل الصفحات المسموح بها"
       className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted hover:bg-surface-2 hover:text-fg transition-colors"
     >
-      <ShieldCheck className={`h-3.5 w-3.5 ${hasCustom ? 'text-emerald-500' : 'text-muted/50'}`} />
+      <ShieldCheck className={`h-3.5 w-3.5 ${hasCustom ? 'text-success' : 'text-muted/50'}`} />
       {hasCustom ? t.users.xPages.replace('{n}', String(perms!.length)) : t.users.allPages}
     </button>
   )
@@ -167,7 +167,7 @@ function PagePermModal({
       <div dir="rtl" className="space-y-3">
         <p className="text-xs text-muted">{t.users.selectPages}</p>
         <div className="flex gap-2 text-xs">
-          <button onClick={selectAll} className="text-brand hover:underline">{t.users.selectAll}</button>
+          <button onClick={selectAll} className="text-brand-ink hover:underline">{t.users.selectAll}</button>
           <span className="text-muted/50">·</span>
           <button onClick={clearAll} className="text-muted hover:underline">إلغاء الكل</button>
         </div>
@@ -181,7 +181,7 @@ function PagePermModal({
                 type="checkbox"
                 checked={selected.has(p.route)}
                 onChange={() => toggle(p.route)}
-                className="accent-[rgb(var(--brand))]"
+                className="accent-[rgb(var(--brand-ink))]"
               />
               <span className="text-fg">{p.label}</span>
             </label>
@@ -353,7 +353,7 @@ export function UsersPage() {
                         {u.id !== currentUser?.id && (
                           <button
                             onClick={() => setDeleteTarget(u)}
-                            className="rounded-lg p-1.5 text-muted hover:bg-red-50 hover:text-red-500 transition-colors dark:hover:bg-red-900/20"
+                            className="rounded-lg p-1.5 text-muted hover:bg-danger/10 hover:text-danger transition-colors dark:hover:bg-danger/15"
                             title={t.common.delete}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -413,7 +413,7 @@ export function UsersPage() {
               <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t.common.cancel}</Button>
               <Button
                 loading={deleteMut.isPending}
-                className="bg-rose-600 hover:bg-rose-500"
+                className="bg-danger hover:bg-danger"
                 onClick={() => deleteMut.mutate(deleteTarget)}
               >
                 {t.common.delete}

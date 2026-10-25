@@ -221,17 +221,17 @@ export function HotelPage() {
 
         {/* ── Persistent alert bar ────────────────────────────────────────── */}
         {overdueCount > 0 && (
-          <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-900/20">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
-            <p className="text-sm font-medium text-red-700 dark:text-red-300">
+          <div className="flex items-center gap-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 dark:border-danger/60 dark:bg-danger/15">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-danger" />
+            <p className="text-sm font-medium text-danger">
               {overdueCount} ضيف تجاوز وقت المغادرة — يرجى المتابعة فوراً
             </p>
           </div>
         )}
         {soonCount > 0 && overdueCount === 0 && (
-          <div className="flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 dark:border-yellow-900 dark:bg-yellow-900/20">
-            <Clock className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
-            <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+          <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 dark:border-warning/60 dark:bg-warning/15">
+            <Clock className="h-5 w-5 shrink-0 text-warning" />
+            <p className="text-sm font-medium text-warning">
               {soonCount} ضيف سيغادر خلال ساعتين — كن مستعداً
             </p>
           </div>
@@ -357,7 +357,7 @@ function DashboardTab({
           <h3 className="mb-3 text-sm font-semibold text-fg">
             مغادرة اليوم ({todayCheckouts.length})
           </h3>
-          <div className="divide-y divide-border rounded-xl border border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-900/10">
+          <div className="divide-y divide-border rounded-xl border border-warning/30 bg-warning/10 dark:border-warning/60 dark:bg-warning/15">
             {todayCheckouts.map((r) => {
               const overdue = isCheckoutOverdue(r.checkOut)
               return (
@@ -423,23 +423,23 @@ function StatCard({
 }) {
   const colors = {
     gray: 'border-border bg-surface-2',
-    red: 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20',
-    green: 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20',
-    orange: 'border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-900/20',
+    red: 'border-danger/30 bg-danger/10 dark:border-danger/60 dark:bg-danger/15',
+    green: 'border-success/30 bg-success/10 dark:border-success/60 dark:bg-success/15',
+    orange: 'border-warning/30 bg-warning/10 dark:border-warning/60 dark:bg-warning/15',
   }
 
   const textColors = {
     gray: 'text-muted',
-    red: 'text-red-700 dark:text-red-400',
-    green: 'text-green-700 dark:text-green-400',
-    orange: 'text-orange-700 dark:text-orange-400',
+    red: 'text-danger',
+    green: 'text-success',
+    orange: 'text-warning',
   }
 
   const valueColors = {
     gray: 'text-fg',
-    red: 'text-red-900 dark:text-red-300',
-    green: 'text-green-900 dark:text-green-300',
-    orange: 'text-orange-900 dark:text-orange-300',
+    red: 'text-danger',
+    green: 'text-success',
+    orange: 'text-warning',
   }
 
   return (
@@ -470,16 +470,16 @@ function RoomCard({ room }: { room: RoomResponse }) {
     <div
       className={`relative rounded-xl border p-4 transition-all ${
         overdue
-          ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+          ? 'border-danger/30 bg-danger/10 dark:border-danger/60 dark:bg-danger/15'
           : today
-          ? 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20'
+          ? 'border-warning/30 bg-warning/10 dark:border-warning/60 dark:bg-warning/15'
           : 'border-border bg-surface '
       }`}
     >
       {/* Alert indicator */}
       {(overdue || today) && (
         <div className="absolute -top-1.5 -right-1.5">
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white shadow-sm">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-danger text-white shadow-sm">
             <AlertTriangle className="h-2.5 w-2.5" />
           </span>
         </div>
@@ -510,9 +510,9 @@ function RoomCard({ room }: { room: RoomResponse }) {
           <p className="truncate text-xs font-medium text-fg">{res.guestName}</p>
           <p className="text-xs text-muted">
             {overdue ? (
-              <span className="font-medium text-red-600 dark:text-red-400">متأخر عن المغادرة</span>
+              <span className="font-medium text-danger">متأخر عن المغادرة</span>
             ) : today ? (
-              <span className="font-medium text-orange-600 dark:text-orange-400">يغادر اليوم</span>
+              <span className="font-medium text-warning">يغادر اليوم</span>
             ) : (
               <span>يغادر بعد {daysLeft} {daysLeft === 1 ? 'يوم' : 'أيام'}</span>
             )}
@@ -638,7 +638,7 @@ function CashierTab({
           </Select>
 
           {availableRooms.length === 0 && (
-            <p className="rounded-lg bg-yellow-50 px-3 py-2 text-xs text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning dark:bg-warning/15">
               لا توجد غرف متاحة حالياً
             </p>
           )}
@@ -771,7 +771,7 @@ function CashierTab({
                         </span>
                         <span>{res.nights} {t.hotel.nights}</span>
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-green-700 dark:text-green-400">
+                      <p className="mt-1 text-xs font-semibold text-success">
                         {formatCurrency(res.totalAmount)} (قبل الضريبة)
                       </p>
                     </div>
@@ -825,7 +825,7 @@ function CleaningTab({
           غرف تحتاج تنظيف
         </h3>
         {dirtyRooms.length > 0 && (
-          <span className="rounded-full bg-orange-500 px-3 py-1 text-sm font-bold text-white">
+          <span className="rounded-full bg-warning px-3 py-1 text-sm font-bold text-white">
             {dirtyRooms.length}
           </span>
         )}
@@ -839,7 +839,7 @@ function CleaningTab({
         </div>
       ) : dirtyRooms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Sparkles className="mb-3 h-12 w-12 text-green-400" />
+          <Sparkles className="mb-3 h-12 w-12 text-success" />
           <p className="font-medium text-fg">جميع الغرف نظيفة</p>
           <p className="text-sm text-muted">لا توجد غرف تحتاج إلى تنظيف</p>
         </div>
@@ -848,7 +848,7 @@ function CleaningTab({
           {dirtyRooms.map((room) => (
             <div
               key={room.id}
-              className="rounded-xl border border-orange-200 bg-orange-50 p-5 dark:border-orange-900/50 dark:bg-orange-900/10"
+              className="rounded-xl border border-warning/30 bg-warning/10 p-5 dark:border-warning/60 dark:bg-warning/15"
             >
               <div className="mb-3 flex items-start justify-between">
                 <div>

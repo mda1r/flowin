@@ -60,19 +60,19 @@ export function ZatcaSettingsPage() {
       {/* Status banner */}
       <div className={`flex items-center gap-3 rounded-xl border p-4 ${
         isConfigured
-          ? 'border-emerald-200 bg-emerald-50'
-          : 'border-amber-200 bg-amber-50'
+          ? 'border-success/30 bg-success/10'
+          : 'border-warning/30 bg-warning/10'
       }`}>
         {isConfigured
-          ? <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
-          : <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />}
+          ? <CheckCircle className="h-5 w-5 shrink-0 text-success" />
+          : <AlertCircle className="h-5 w-5 shrink-0 text-warning" />}
         <div className="text-sm">
           {isConfigured ? (
-            <span className="font-medium text-emerald-800">
+            <span className="font-medium text-success">
               {t.zatca.connected} · {settings.invoiceCounter} فاتورة صادرة
             </span>
           ) : (
-            <span className="font-medium text-amber-800">
+            <span className="font-medium text-warning">
               {t.zatca.notConnected}
             </span>
           )}
@@ -82,8 +82,8 @@ export function ZatcaSettingsPage() {
       {/* Settings form */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
-            <Shield className="h-5 w-5 text-emerald-600" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10">
+            <Shield className="h-5 w-5 text-success" />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-fg">{t.zatca.supplierData}</h2>
@@ -118,10 +118,10 @@ export function ZatcaSettingsPage() {
                 onChange={e => setVatNumber(e.target.value)}
                 placeholder="300000000000003"
                 dir="ltr"
-                className={vatNumber && !vatValid ? 'border-red-300' : ''}
+                className={vatNumber && !vatValid ? 'border-danger/30' : ''}
               />
               {vatNumber && !vatValid && (
-                <p className="mt-1 text-xs text-red-500">{t.zatca.vatLengthError}</p>
+                <p className="mt-1 text-xs text-danger">{t.zatca.vatLengthError}</p>
               )}
             </div>
 
@@ -137,7 +137,7 @@ export function ZatcaSettingsPage() {
                 type="button"
                 onClick={() => setPhase2(v => !v)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  phase2 ? 'bg-emerald-500' : 'bg-border'
+                  phase2 ? 'bg-success' : 'bg-border'
                 }`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
@@ -168,7 +168,7 @@ export function ZatcaSettingsPage() {
           active={isConfigured}
         />
         <InfoCard
-          icon={<Shield className="h-5 w-5 text-emerald-600" />}
+          icon={<Shield className="h-5 w-5 text-success" />}
           title={t.zatca.phase2}
           description={t.zatca.phase2Info}
           active={isConfigured && settings?.isPhase2Enabled}
@@ -186,7 +186,7 @@ function InfoCard({ icon, title, description, active }: {
 }) {
   return (
     <div className={`flex gap-4 rounded-xl border p-4 ${
-      active ? 'border-emerald-200 bg-emerald-50' : 'border-border bg-surface'
+      active ? 'border-success/30 bg-success/10' : 'border-border bg-surface'
     }`}>
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
         active ? 'bg-surface' : 'bg-surface-2'
@@ -197,7 +197,7 @@ function InfoCard({ icon, title, description, active }: {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-fg">{title}</span>
           {active && (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">مُفعّل</span>
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs text-success">مُفعّل</span>
           )}
         </div>
         <p className="mt-0.5 text-xs text-muted">{description}</p>

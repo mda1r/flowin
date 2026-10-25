@@ -12,12 +12,12 @@ import { Button } from '@/components/ui/Button'
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    active: 'bg-emerald-900/60 text-emerald-300',
-    suspended: 'bg-amber-900/60 text-amber-300',
-    archived: 'bg-slate-700 text-slate-400',
+    active: 'bg-success/15 text-success',
+    suspended: 'bg-warning/15 text-warning',
+    archived: 'bg-border text-muted',
   }
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${colors[status.toLowerCase()] ?? 'bg-slate-700 text-slate-400'}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${colors[status.toLowerCase()] ?? 'bg-border text-muted'}`}>
       {status}
     </span>
   )
@@ -56,48 +56,48 @@ function CreateBrandModal({ open, onClose }: CreateBrandModalProps) {
     <Modal open={open} onClose={onClose} title={t.admin.brands.create}>
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.nameAr}
           </label>
           <input
             value={form.nameAr}
             onChange={(e) => setForm((f) => ({ ...f, nameAr: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
             dir="rtl"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.nameEn}
           </label>
           <input
             value={form.nameEn}
             onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
             dir="ltr"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.code}
           </label>
           <input
             value={form.code}
             onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white font-mono uppercase outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg font-mono uppercase outline-none ring-1 ring-border focus:ring-info/40"
             dir="ltr"
             placeholder="e.g. ACME"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.notes}
           </label>
           <textarea
             value={form.notes ?? ''}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             rows={3}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500 resize-none"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40 resize-none"
           />
         </div>
         <div className="flex justify-end gap-3 pt-2">
@@ -143,12 +143,12 @@ export function BrandsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600/20">
-            <Layers className="h-5 w-5 text-indigo-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/20">
+            <Layers className="h-5 w-5 text-info" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">{t.admin.brands.title}</h1>
-            <p className="text-xs text-slate-400">{total} brand{total !== 1 ? 's' : ''}</p>
+            <h1 className="text-lg font-bold text-fg">{t.admin.brands.title}</h1>
+            <p className="text-xs text-muted">{total} brand{total !== 1 ? 's' : ''}</p>
           </div>
         </div>
         <Button onClick={() => setShowCreate(true)}>
@@ -160,19 +160,19 @@ export function BrandsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder={t.admin.brands.search}
-            className="w-full rounded-lg bg-slate-800 pl-9 pr-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 pl-9 pr-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
             dir="ltr"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-          className="rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+          className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
         >
           <option value="">All statuses</option>
           <option value="active">{t.admin.brands.statuses.active}</option>
@@ -182,10 +182,10 @@ export function BrandsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+      <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800 text-xs font-medium text-slate-500">
+            <tr className="border-b border-border text-xs font-medium text-muted">
               <th className="px-4 py-3 text-right">{t.admin.brands.nameAr} / {t.admin.brands.nameEn}</th>
               <th className="px-4 py-3 text-right">{t.admin.brands.code}</th>
               <th className="px-4 py-3 text-right">{t.admin.brands.memberCount}</th>
@@ -194,36 +194,36 @@ export function BrandsPage() {
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-border">
             {isLoading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 6 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
-                        <div className="h-4 rounded bg-slate-800 animate-pulse" />
+                        <div className="h-4 rounded bg-surface-2 animate-pulse" />
                       </td>
                     ))}
                   </tr>
                 ))
               : items.map((brand: BrandResponse) => (
-                  <tr key={brand.id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={brand.id} className="hover:bg-surface-2/40 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-white">{brand.nameAr}</p>
-                      <p className="text-xs text-slate-400" dir="ltr">{brand.nameEn}</p>
+                      <p className="font-medium text-fg">{brand.nameAr}</p>
+                      <p className="text-xs text-muted" dir="ltr">{brand.nameEn}</p>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-300">{brand.code}</td>
-                    <td className="px-4 py-3 text-slate-300 tabular-nums">{brand.memberCount}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted">{brand.code}</td>
+                    <td className="px-4 py-3 text-muted tabular-nums">{brand.memberCount}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={brand.status} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-400">
+                    <td className="px-4 py-3 text-xs text-muted">
                       {new Date(brand.createdAt).toLocaleDateString('ar-SA')}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link
                         to="/admin/brands/$id"
                         params={{ id: brand.id }}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:bg-border hover:text-fg transition-colors"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         {t.admin.brands.overview}
@@ -233,7 +233,7 @@ export function BrandsPage() {
                 ))}
             {!isLoading && items.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-12 text-center text-muted">
                   No brands found
                 </td>
               </tr>
@@ -244,13 +244,13 @@ export function BrandsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center justify-between text-xs text-muted">
           <span>{total} total</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="rounded-lg px-3 py-1.5 hover:bg-slate-800 disabled:opacity-40"
+              className="rounded-lg px-3 py-1.5 hover:bg-surface-2 disabled:opacity-40"
             >
               ‹
             </button>
@@ -260,7 +260,7 @@ export function BrandsPage() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="rounded-lg px-3 py-1.5 hover:bg-slate-800 disabled:opacity-40"
+              className="rounded-lg px-3 py-1.5 hover:bg-surface-2 disabled:opacity-40"
             >
               ›
             </button>

@@ -28,19 +28,19 @@ function StatusBadge({ status, isActive }: { status?: SubscriptionStatus; isActi
 
   if (!isActive)
     return (
-      <span className="rounded-full bg-rose-900/60 px-3 py-1 text-sm font-semibold text-rose-300">
+      <span className="rounded-full bg-danger/15 px-3 py-1 text-sm font-semibold text-danger">
         {t.admin.tenantDetail.statuses.suspended}
       </span>
     )
   const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
-    Active:    { bg: 'bg-emerald-900/60 text-emerald-300', label: t.admin.tenantDetail.statuses.active },
-    Trial:     { bg: 'bg-blue-900/60 text-blue-300',       label: 'تجريبي' },
-    Expired:   { bg: 'bg-rose-900/60 text-rose-300',       label: t.admin.tenantDetail.statuses.expired },
-    Suspended: { bg: 'bg-amber-900/60 text-amber-300',     label: t.admin.tenantDetail.statuses.suspended },
+    Active:    { bg: 'bg-success/15 text-success', label: t.admin.tenantDetail.statuses.active },
+    Trial:     { bg: 'bg-info/15 text-info',       label: 'تجريبي' },
+    Expired:   { bg: 'bg-danger/15 text-danger',       label: t.admin.tenantDetail.statuses.expired },
+    Suspended: { bg: 'bg-warning/15 text-warning',     label: t.admin.tenantDetail.statuses.suspended },
   }
   if (!status)
     return (
-      <span className="rounded-full bg-slate-700 px-3 py-1 text-sm font-semibold text-slate-300">
+      <span className="rounded-full bg-border px-3 py-1 text-sm font-semibold text-muted">
         بدون اشتراك
       </span>
     )
@@ -92,16 +92,16 @@ export function TenantDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-info border-t-transparent" />
       </div>
     )
   }
 
   if (!tenant) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 text-slate-400">
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-muted">
         <p>المستأجر غير موجود</p>
-        <Link to="/admin/tenants" className="text-blue-400 hover:underline">
+        <Link to="/admin/tenants" className="text-info hover:underline">
           {t.common.back}
         </Link>
       </div>
@@ -115,7 +115,7 @@ export function TenantDetailPage() {
       {/* Back */}
       <Link
         to="/admin/tenants"
-        className="mb-6 flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+        className="mb-6 flex items-center gap-2 text-sm text-muted hover:text-fg transition-colors"
       >
         <ArrowRight className="h-4 w-4" />
         {t.admin.tenantDetail.back}
@@ -125,20 +125,20 @@ export function TenantDetailPage() {
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white">{tenant.name}</h1>
+            <h1 className="text-2xl font-bold text-fg">{tenant.name}</h1>
             <StatusBadge status={sub?.status} isActive={tenant.isActive} />
           </div>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-muted">
             {tenant.subdomain} · {tenant.adminEmail}
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-muted">
             عضو منذ {new Date(tenant.createdAt).toLocaleDateString(locale)}
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowSubscribeModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-info px-4 py-2 text-sm font-semibold text-white hover:bg-info transition-colors"
           >
             <Plus className="h-4 w-4" />
             {t.admin.subscription.newSubscription}
@@ -147,7 +147,7 @@ export function TenantDetailPage() {
             <button
               onClick={() => suspendMut.mutate()}
               disabled={suspendMut.isPending}
-              className="flex items-center gap-2 rounded-lg border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-400 hover:bg-amber-900/30 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-warning px-4 py-2 text-sm font-semibold text-warning hover:bg-warning/15 transition-colors"
             >
               <PauseCircle className="h-4 w-4" />
               {t.admin.tenants.suspend}
@@ -156,7 +156,7 @@ export function TenantDetailPage() {
             <button
               onClick={() => activateMut.mutate()}
               disabled={activateMut.isPending}
-              className="flex items-center gap-2 rounded-lg border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-400 hover:bg-emerald-900/30 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-success px-4 py-2 text-sm font-semibold text-success hover:bg-success/15 transition-colors"
             >
               <PlayCircle className="h-4 w-4" />
               {t.admin.tenants.activate}
@@ -167,32 +167,32 @@ export function TenantDetailPage() {
 
       {/* Active subscription card */}
       {sub && (
-        <div className="mb-8 rounded-xl border border-slate-700 bg-slate-900 p-6">
-          <h2 className="mb-4 text-base font-semibold text-white">{t.admin.tenantDetail.subscription}</h2>
+        <div className="mb-8 rounded-xl border border-border bg-surface p-6">
+          <h2 className="mb-4 text-base font-semibold text-fg">{t.admin.tenantDetail.subscription}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <InfoBox
-              icon={<Calendar className="h-4 w-4 text-blue-400" />}
+              icon={<Calendar className="h-4 w-4 text-info" />}
               label={t.admin.tenants.plan}
               value={sub.planName}
             />
             <InfoBox
-              icon={<Calendar className="h-4 w-4 text-emerald-400" />}
+              icon={<Calendar className="h-4 w-4 text-success" />}
               label={t.admin.tenantDetail.expires}
               value={new Date(sub.expiryDate).toLocaleDateString(locale)}
             />
             <InfoBox
-              icon={<GitBranch className="h-4 w-4 text-amber-400" />}
+              icon={<GitBranch className="h-4 w-4 text-warning" />}
               label={t.admin.plans.maxBranches}
               value={sub.maxBranches.toString()}
             />
             <InfoBox
-              icon={<Users className="h-4 w-4 text-purple-400" />}
+              icon={<Users className="h-4 w-4 text-brand-ink" />}
               label={t.admin.plans.maxUsers}
               value={sub.maxUsers.toString()}
             />
           </div>
           {sub.notes && (
-            <p className="mt-4 rounded-lg bg-slate-800 px-4 py-3 text-sm text-slate-300">
+            <p className="mt-4 rounded-lg bg-surface-2 px-4 py-3 text-sm text-muted">
               {sub.notes}
             </p>
           )}
@@ -200,14 +200,14 @@ export function TenantDetailPage() {
       )}
 
       {/* AI Access Toggle */}
-      <div className="mb-8 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 px-6 py-4">
+      <div className="mb-8 flex items-center justify-between rounded-xl border border-border bg-surface px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${tenant.aiEnabled ? 'bg-violet-900/40' : 'bg-slate-800'}`}>
-            <Sparkles className={`h-4 w-4 ${tenant.aiEnabled ? 'text-violet-400' : 'text-slate-500'}`} />
+          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${tenant.aiEnabled ? 'bg-brand/20' : 'bg-surface-2'}`}>
+            <Sparkles className={`h-4 w-4 ${tenant.aiEnabled ? 'text-brand-ink' : 'text-muted'}`} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">الذكاء الاصطناعي</p>
-            <p className="text-xs text-slate-400">
+            <p className="text-sm font-semibold text-fg">الذكاء الاصطناعي</p>
+            <p className="text-xs text-muted">
               {tenant.aiEnabled
                 ? 'مفعّل — يظهر كاشير AI ومساعد المبيعات ومستشار الضريبة'
                 : 'معطّل — أزرار AI مخفية عن المستأجر'}
@@ -218,7 +218,7 @@ export function TenantDetailPage() {
           onClick={() => aiToggleMut.mutate(!tenant.aiEnabled)}
           disabled={aiToggleMut.isPending}
           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-50 ${
-            tenant.aiEnabled ? 'bg-violet-600' : 'bg-slate-700'
+            tenant.aiEnabled ? 'bg-brand' : 'bg-border'
           }`}
           role="switch"
           aria-checked={tenant.aiEnabled}
@@ -232,28 +232,28 @@ export function TenantDetailPage() {
       </div>
 
       {/* Subscription history */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900">
-        <div className="border-b border-slate-800 px-6 py-4">
-          <h2 className="text-base font-semibold text-white">{t.admin.tenantDetail.history}</h2>
+      <div className="rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold text-fg">{t.admin.tenantDetail.history}</h2>
         </div>
-        <div className="divide-y divide-slate-800">
+        <div className="divide-y divide-border">
           {tenant.subscriptionHistory.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">{t.common.noData}</p>
+            <p className="py-12 text-center text-sm text-muted">{t.common.noData}</p>
           ) : (
             tenant.subscriptionHistory.map((s) => (
               <div key={s.id} className="flex items-center justify-between px-6 py-4">
                 <div>
-                  <p className="text-sm font-medium text-white">{s.planName}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm font-medium text-fg">{s.planName}</p>
+                  <p className="text-xs text-muted">
                     {new Date(s.startDate).toLocaleDateString(locale)} ←{' '}
                     {new Date(s.expiryDate).toLocaleDateString(locale)}
                   </p>
                   {s.notes && (
-                    <p className="mt-1 text-xs italic text-slate-500">{s.notes}</p>
+                    <p className="mt-1 text-xs italic text-muted">{s.notes}</p>
                   )}
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-fg">
                     {s.planPrice.toLocaleString(locale)} ر.س
                   </p>
                   <StatusBadgeMini status={s.status} />
@@ -265,31 +265,31 @@ export function TenantDetailPage() {
       </div>
 
       {/* Branches */}
-      <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900">
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+      <div className="mt-8 rounded-xl border border-border bg-surface">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-slate-400" />
-            <h2 className="text-base font-semibold text-white">الفروع</h2>
+            <GitBranch className="h-4 w-4 text-muted" />
+            <h2 className="text-base font-semibold text-fg">الفروع</h2>
             {branches.length > 0 && (
-              <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-300">
+              <span className="rounded-full bg-border px-2 py-0.5 text-xs font-medium text-muted">
                 {branches.length}
               </span>
             )}
           </div>
           {sub && (
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-muted">
               الحد الأقصى: {sub.maxBranches} فرع
             </span>
           )}
         </div>
 
         {branches.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-slate-500">
+          <div className="flex flex-col items-center gap-2 py-12 text-muted">
             <GitBranch className="h-8 w-8 opacity-40" />
             <p className="text-sm">لم يُنشئ المستأجر أي فروع بعد</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-800">
+          <div className="divide-y divide-border">
             {branches.map((branch) => (
               <BranchRow key={branch.id} branch={branch} />
             ))}
@@ -319,10 +319,10 @@ function InfoBox({
   value: string
 }) {
   return (
-    <div className="rounded-lg bg-slate-800 p-4">
+    <div className="rounded-lg bg-surface-2 p-4">
       <div className="mb-1.5">{icon}</div>
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className="mt-0.5 text-sm font-semibold text-white">{value}</p>
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-fg">{value}</p>
     </div>
   )
 }
@@ -330,10 +330,10 @@ function InfoBox({
 function StatusBadgeMini({ status }: { status: SubscriptionStatus }) {
   const { t } = useI18n()
   const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
-    Active:    { bg: 'text-emerald-400', label: t.admin.tenantDetail.statuses.active },
-    Trial:     { bg: 'text-blue-400',    label: 'تجريبي' },
-    Expired:   { bg: 'text-rose-400',    label: t.admin.tenantDetail.statuses.expired },
-    Suspended: { bg: 'text-amber-400',   label: t.admin.tenantDetail.statuses.suspended },
+    Active:    { bg: 'text-success', label: t.admin.tenantDetail.statuses.active },
+    Trial:     { bg: 'text-info',    label: 'تجريبي' },
+    Expired:   { bg: 'text-danger',    label: t.admin.tenantDetail.statuses.expired },
+    Suspended: { bg: 'text-warning',   label: t.admin.tenantDetail.statuses.suspended },
   }
   const { bg, label } = map[status]
   return <span className={`text-xs ${bg}`}>{label}</span>
@@ -350,20 +350,20 @@ function BranchRow({ branch }: { branch: BranchResponse }) {
   return (
     <div className="flex items-center justify-between px-6 py-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-800">
-          <GitBranch className="h-4 w-4 text-slate-400" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+          <GitBranch className="h-4 w-4 text-muted" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white">{branch.name}</p>
+            <p className="text-sm font-medium text-fg">{branch.name}</p>
             {branch.isMainBranch && (
-              <Star className="h-3.5 w-3.5 text-amber-400" aria-label="الفرع الرئيسي" />
+              <Star className="h-3.5 w-3.5 text-warning" aria-label="الفرع الرئيسي" />
             )}
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
               {BRANCH_TYPE_LABEL[branch.type] ?? branch.type}
             </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-3 text-xs text-slate-500">
+          <div className="mt-0.5 flex items-center gap-3 text-xs text-muted">
             {location && (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
@@ -387,12 +387,12 @@ function BranchRow({ branch }: { branch: BranchResponse }) {
       </div>
       <div className="flex items-center gap-2">
         {branch.isActive ? (
-          <span className="flex items-center gap-1 text-xs text-emerald-400">
+          <span className="flex items-center gap-1 text-xs text-success">
             <CheckCircle2 className="h-3.5 w-3.5" />
             نشط
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-xs text-muted">
             <XCircle className="h-3.5 w-3.5" />
             غير نشط
           </span>

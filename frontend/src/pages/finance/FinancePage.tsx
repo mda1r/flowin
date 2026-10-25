@@ -129,15 +129,15 @@ export function FinancePage() {
       <div className="p-6 space-y-6">
         {/* Summary */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-900/20">
-            <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">{t.finance.status.pending}</p>
-            <p className="mt-1 text-2xl font-bold text-yellow-900 dark:text-yellow-300 tabular-nums">
+          <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 dark:border-warning/60 dark:bg-warning/15">
+            <p className="text-xs font-medium text-warning">{t.finance.status.pending}</p>
+            <p className="mt-1 text-2xl font-bold text-warning tabular-nums">
               {formatCurrency(totalPending)}
             </p>
           </div>
-          <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-900/20">
-            <p className="text-xs font-medium text-green-700 dark:text-green-400">{t.finance.status.completed}</p>
-            <p className="mt-1 text-2xl font-bold text-green-900 dark:text-green-300 tabular-nums">
+          <div className="rounded-xl border border-success/30 bg-success/10 p-4 dark:border-success/60 dark:bg-success/15">
+            <p className="text-xs font-medium text-success">{t.finance.status.completed}</p>
+            <p className="mt-1 text-2xl font-bold text-success tabular-nums">
               {formatCurrency(totalApproved)}
             </p>
           </div>
@@ -193,7 +193,7 @@ export function FinancePage() {
                           variant="ghost"
                           onClick={(e) => { e.stopPropagation(); approve.mutate(r.id) }}
                         >
-                          <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                          <CheckCircle className="h-3.5 w-3.5 text-success" />
                           {t.finance.status.completed}
                         </Button>
                         <Button
@@ -201,7 +201,7 @@ export function FinancePage() {
                           variant="ghost"
                           onClick={(e) => { e.stopPropagation(); voidExpense.mutate(r.id) }}
                         >
-                          <XCircle className="h-3.5 w-3.5 text-red-500" />
+                          <XCircle className="h-3.5 w-3.5 text-danger" />
                           {t.common.cancel}
                         </Button>
                       </>

@@ -13,7 +13,7 @@ import { useI18n } from '@/i18n'
 
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-info/10 text-info border-info/30',
-  Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Completed: 'bg-success/10 text-success border-success/30',
   Cancelled: 'bg-surface-2 text-muted border-border',
 }
 
@@ -250,7 +250,7 @@ export function StockCountDetailPage() {
               return (
                 <tr
                   key={item.id}
-                  className={hasDiscrepancy ? 'bg-amber-50/60' : ''}
+                  className={hasDiscrepancy ? 'bg-warning/10' : ''}
                 >
                   <td className="px-4 py-3">
                     <div className="font-medium text-fg">{info?.productName ?? '—'}</div>
@@ -270,7 +270,7 @@ export function StockCountDetailPage() {
                         className={`w-28 rounded-lg border px-2.5 py-1.5 text-sm tabular-nums outline-none transition-all
                           focus:ring-2 focus:ring-brand/20 focus:border-brand
                           ${isCounted ? 'border-border' : 'border-dashed border-border bg-surface-2'}
-                          ${hasDiscrepancy ? 'border-amber-400 bg-amber-50' : ''}`}
+                          ${hasDiscrepancy ? 'border-warning bg-warning/10' : ''}`}
                       />
                     ) : (
                       <span className="tabular-nums text-fg">
@@ -281,8 +281,8 @@ export function StockCountDetailPage() {
                   <td className="px-4 py-3 tabular-nums">
                     {diff != null ? (
                       <span className={
-                        diff > 0 ? 'text-emerald-600 font-medium' :
-                        diff < 0 ? 'text-red-600 font-medium' :
+                        diff > 0 ? 'text-success font-medium' :
+                        diff < 0 ? 'text-danger font-medium' :
                         'text-muted'
                       }>
                         {diff > 0 ? '+' : ''}{diff.toFixed(3)}
@@ -306,24 +306,24 @@ export function StockCountDetailPage() {
 
       {/* Tax audit summary (visible when type = TaxAudit) */}
       {session.type === 'TaxAudit' && session.status === 'Completed' && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <h3 className="mb-3 font-semibold text-amber-900">ملخص التدقيق الضريبي</h3>
+        <div className="rounded-xl border border-warning/30 bg-warning/10 p-5">
+          <h3 className="mb-3 font-semibold text-warning">ملخص التدقيق الضريبي</h3>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <div className="text-amber-700">{t.stockCount.countedValue}</div>
-              <div className="mt-1 text-xl font-bold text-amber-900 tabular-nums">
+              <div className="text-warning">{t.stockCount.countedValue}</div>
+              <div className="mt-1 text-xl font-bold text-warning tabular-nums">
                 {session.totalCountedValue.toLocaleString(locale, { minimumFractionDigits: 2 })} {t.common.sar}
               </div>
             </div>
             <div>
-              <div className="text-amber-700">{t.stockCount.taxAmount}</div>
-              <div className="mt-1 text-xl font-bold text-amber-900 tabular-nums">
+              <div className="text-warning">{t.stockCount.taxAmount}</div>
+              <div className="mt-1 text-xl font-bold text-warning tabular-nums">
                 {session.totalTaxAmount.toLocaleString(locale, { minimumFractionDigits: 2 })} {t.common.sar}
               </div>
             </div>
             <div>
-              <div className="text-amber-700">الإجمالي شامل الضريبة</div>
-              <div className="mt-1 text-xl font-bold text-amber-900 tabular-nums">
+              <div className="text-warning">الإجمالي شامل الضريبة</div>
+              <div className="mt-1 text-xl font-bold text-warning tabular-nums">
                 {(session.totalCountedValue + session.totalTaxAmount).toLocaleString(locale, { minimumFractionDigits: 2 })} {t.common.sar}
               </div>
             </div>
@@ -335,9 +335,9 @@ export function StockCountDetailPage() {
       <Modal open={showComplete} onClose={() => setShowComplete(false)} title={t.stockCount.complete}>
         <div className="flex flex-col gap-5" dir="rtl">
           {session.discrepancyCount > 0 && (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-              <div className="text-sm text-amber-800">
+            <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+              <div className="text-sm text-warning">
                 {t.stockCount.confirmComplete}
               </div>
             </div>
@@ -348,7 +348,7 @@ export function StockCountDetailPage() {
               type="checkbox"
               checked={autoAdjust}
               onChange={e => setAutoAdjust(e.target.checked)}
-              className="h-4 w-4 rounded border-border accent-[rgb(var(--brand))]"
+              className="h-4 w-4 rounded border-border accent-[rgb(var(--brand-ink))]"
             />
             <span className="text-sm text-fg">{t.stockCount.autoAdjust}</span>
           </label>
@@ -384,13 +384,13 @@ function SummaryCard({
   return (
     <div className={`rounded-xl border p-4 ${
       accent ? 'border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,white)]' :
-      warn ? 'border-amber-200 bg-amber-50' :
+      warn ? 'border-warning/30 bg-warning/10' :
       'border-border bg-surface'
     }`}>
       <div className="text-xs text-muted">{label}</div>
       <div className={`mt-1 text-xl font-bold tabular-nums ${
-        accent ? 'text-brand' :
-        warn ? 'text-amber-700' :
+        accent ? 'text-brand-ink' :
+        warn ? 'text-warning' :
         'text-fg'
       }`}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}

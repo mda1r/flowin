@@ -219,9 +219,9 @@ export function InventoryPage() {
         description={t.inventory.description}
         action={
           totalAlerts > 0 && (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 dark:bg-red-900/30">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <span className="text-sm font-medium text-red-700 dark:text-red-400">
+            <div className="flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2 dark:bg-danger/15">
+              <AlertTriangle className="h-4 w-4 text-danger" />
+              <span className="text-sm font-medium text-danger">
                 {totalAlerts} {t.inventory.alerts}
               </span>
             </div>
@@ -235,28 +235,28 @@ export function InventoryPage() {
             <h2 className="text-sm font-semibold text-fg">{t.inventory.alerts}</h2>
 
             <AlertCard
-              icon={<XCircle className="h-4 w-4 text-red-600" />}
+              icon={<XCircle className="h-4 w-4 text-danger" />}
               label={t.inventory.expiredLabel}
               count={alerts.expired.length}
-              colorClass="border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+              colorClass="border-danger/30 bg-danger/10 text-danger dark:border-danger/60 dark:bg-danger/15"
               alerts={alerts.expired}
               variantMap={variantMap}
             />
 
             <AlertCard
-              icon={<Clock className="h-4 w-4 text-orange-600" />}
+              icon={<Clock className="h-4 w-4 text-warning" />}
               label={t.inventory.expiringSoonLabel}
               count={alerts.expiringSoon.length}
-              colorClass="border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-300"
+              colorClass="border-warning/30 bg-warning/10 text-warning dark:border-warning/60 dark:bg-warning/15"
               alerts={alerts.expiringSoon}
               variantMap={variantMap}
             />
 
             <AlertCard
-              icon={<TrendingDown className="h-4 w-4 text-yellow-600" />}
+              icon={<TrendingDown className="h-4 w-4 text-warning" />}
               label={t.inventory.lowStockAlert}
               count={alerts.lowStock.length}
-              colorClass="border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
+              colorClass="border-warning/30 bg-warning/10 text-warning dark:border-warning/60 dark:bg-warning/15"
               alerts={alerts.lowStock}
               variantMap={variantMap}
             />
@@ -333,9 +333,9 @@ export function InventoryPage() {
                   const now = new Date()
                   const daysLeft = Math.floor((d.getTime() - now.getTime()) / 86_400_000)
                   const colorClass = daysLeft < 0
-                    ? 'text-red-600'
+                    ? 'text-danger'
                     : daysLeft <= 7
-                    ? 'text-orange-600'
+                    ? 'text-warning'
                     : 'text-fg'
                   return (
                     <span className={`text-sm tabular-nums ${colorClass}`}>
@@ -375,7 +375,7 @@ export function InventoryPage() {
                       size="sm"
                       variant="ghost"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
-                      className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                      className="text-danger hover:bg-danger/10 hover:text-danger"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

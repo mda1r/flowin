@@ -292,7 +292,7 @@ export function RestaurantPosPage() {
                   <li key={line.menuItemId} className="card-3d animate-float-up p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="flex-1 truncate text-sm font-medium">{line.name}</p>
-                      <button onClick={() => updateQty(line.menuItemId, 0)} className="text-muted/50 transition-colors hover:text-red-500">
+                      <button onClick={() => updateQty(line.menuItemId, 0)} className="text-muted/50 transition-colors hover:text-danger">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

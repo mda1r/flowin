@@ -86,12 +86,12 @@ export function PlansPage() {
     <div className="p-8" dir="rtl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">{t.admin.plans.title}</h1>
-          <p className="mt-1 text-slate-400">{plans.length} خطة • منفصلة لكل نوع نشاط تجاري</p>
+          <h1 className="text-2xl font-bold text-fg">{t.admin.plans.title}</h1>
+          <p className="mt-1 text-muted">{plans.length} خطة • منفصلة لكل نوع نشاط تجاري</p>
         </div>
         <button
           onClick={() => { setBusinessType(activeTab); setShowForm((v) => !v) }}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-info px-4 py-2.5 text-sm font-semibold text-white hover:bg-info transition-colors"
         >
           <Plus className="h-4 w-4" />
           {t.admin.plans.create}
@@ -99,7 +99,7 @@ export function PlansPage() {
       </div>
 
       {/* Business type tabs */}
-      <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-slate-800/60 p-1">
+      <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-surface-2/60 p-1">
         {BUSINESS_TYPES.map((bt) => {
           const count = plans.filter((p) => p.businessType === bt.key).length
           return (
@@ -108,14 +108,14 @@ export function PlansPage() {
               onClick={() => setActiveTab(bt.key)}
               className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === bt.key
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                  ? 'bg-info text-white'
+                  : 'text-muted hover:bg-border hover:text-white'
               }`}
             >
               <span>{bt.emoji}</span>
               <span>{bt.label}</span>
               <span className={`rounded-full px-1.5 py-0.5 text-xs ${
-                activeTab === bt.key ? 'bg-blue-500 text-blue-100' : 'bg-slate-700 text-slate-400'
+                activeTab === bt.key ? 'bg-info text-info' : 'bg-border text-muted'
               }`}>
                 {count}
               </span>
@@ -126,26 +126,26 @@ export function PlansPage() {
 
       {/* Create form */}
       {showForm && (
-        <div className="mb-8 rounded-xl border border-slate-700 bg-slate-900 p-6">
-          <h2 className="mb-5 text-base font-semibold text-white">
+        <div className="mb-8 rounded-xl border border-border bg-surface p-6">
+          <h2 className="mb-5 text-base font-semibold text-fg">
             {t.admin.plans.create}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.name}</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted">{t.admin.plans.name}</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="مثال: احترافي مطعم"
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.createTenant.businessType}</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted">{t.admin.createTenant.businessType}</label>
               <select
                 value={businessType}
                 onChange={(e) => setBusinessType(e.target.value as BusinessType)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
               >
                 {BUSINESS_TYPES.map((bt) => (
                   <option key={bt.key} value={bt.key}>
@@ -155,49 +155,49 @@ export function PlansPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.price} (ر.س / شهر)</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted">{t.admin.plans.price} (ر.س / شهر)</label>
               <input
                 type="number"
                 min="0"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="499"
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.maxBranches}</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted">{t.admin.plans.maxBranches}</label>
               <input
                 type="number"
                 min="1"
                 value={maxBranches}
                 onChange={(e) => setMaxBranches(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.maxUsers}</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted">{t.admin.plans.maxUsers}</label>
               <input
                 type="number"
                 min="1"
                 value={maxUsers}
                 onChange={(e) => setMaxUsers(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">{t.admin.plans.features}</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted">{t.admin.plans.features}</label>
               <div className="flex gap-2">
                 <input
                   value={featureInput}
                   onChange={(e) => setFeatureInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
                   placeholder="اكتب ميزة واضغط إدخال"
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                  className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
                 />
                 <button
                   onClick={addFeature}
-                  className="rounded-lg bg-slate-700 px-3 py-2.5 text-sm text-white hover:bg-slate-600 transition-colors"
+                  className="rounded-lg bg-border px-3 py-2.5 text-sm text-fg hover:bg-muted/30 transition-colors"
                 >
                   إضافة
                 </button>
@@ -207,12 +207,12 @@ export function PlansPage() {
                   {features.map((f) => (
                     <span
                       key={f}
-                      className="flex items-center gap-1.5 rounded-full bg-blue-900/50 px-3 py-1 text-xs text-blue-300"
+                      className="flex items-center gap-1.5 rounded-full bg-info/15 px-3 py-1 text-xs text-info"
                     >
                       {f}
                       <button
                         onClick={() => setFeatures((prev) => prev.filter((x) => x !== f))}
-                        className="text-blue-400 hover:text-white"
+                        className="text-info hover:text-fg"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -226,13 +226,13 @@ export function PlansPage() {
             <button
               onClick={() => createMut.mutate()}
               disabled={!name || createMut.isPending}
-              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-info px-5 py-2.5 text-sm font-semibold text-white hover:bg-info disabled:opacity-50 transition-colors"
             >
               {createMut.isPending ? t.common.loading : t.admin.plans.save}
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+              className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-muted hover:bg-surface-2 transition-colors"
             >
               {t.common.cancel}
             </button>
@@ -244,11 +244,11 @@ export function PlansPage() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-64 animate-pulse rounded-xl bg-slate-800" />
+            <div key={i} className="h-64 animate-pulse rounded-xl bg-surface-2" />
           ))}
         </div>
       ) : tabPlans.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+        <div className="flex flex-col items-center justify-center py-20 text-muted">
           <p className="text-lg">{t.common.noData}</p>
           <p className="mt-1 text-sm">أضف خطة جديدة بالضغط على الزر أعلاه</p>
         </div>
@@ -286,29 +286,29 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
   }
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-700 bg-slate-900 p-6">
+    <div className="flex flex-col rounded-xl border border-border bg-surface p-6">
       <div className="mb-4 flex items-start justify-between">
-        <h3 className="text-base font-bold text-white">{plan.name}</h3>
+        <h3 className="text-base font-bold text-fg">{plan.name}</h3>
         <button
           onClick={() => { setDraftFeatures(plan.features); setEditingFeatures(v => !v) }}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg transition-colors"
           title={t.admin.plans.edit}
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
       </div>
-      <p className="mb-4 text-2xl font-bold text-white">
+      <p className="mb-4 text-2xl font-bold text-fg">
         {plan.price.toLocaleString(locale)}
-        <span className="text-sm font-normal text-slate-400"> ر.س / شهر</span>
+        <span className="text-sm font-normal text-muted"> ر.س / شهر</span>
       </p>
-      <div className="mb-4 flex gap-4 text-xs text-slate-400">
+      <div className="mb-4 flex gap-4 text-xs text-muted">
         <span>{plan.maxBranches >= 999 ? 'غير محدود' : plan.maxBranches} فروع</span>
         <span>{plan.maxUsers >= 999 ? 'غير محدود' : plan.maxUsers} مستخدم</span>
       </div>
 
       {editingFeatures ? (
         <div className="mt-auto">
-          <p className="mb-3 text-xs font-medium text-slate-300">{t.admin.plans.features}</p>
+          <p className="mb-3 text-xs font-medium text-muted">{t.admin.plans.features}</p>
           <div className="space-y-2">
             {PREDEFINED_FEATURES.map(f => {
               const enabled = draftFeatures.includes(f.key)
@@ -318,14 +318,14 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
                     type="button"
                     onClick={() => toggleFeature(f.key)}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      enabled ? 'bg-blue-600' : 'bg-slate-700'
+                      enabled ? 'bg-info' : 'bg-border'
                     }`}
                   >
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
                       enabled ? '-translate-x-5' : '-translate-x-0.5'
                     }`} />
                   </button>
-                  <span className="text-xs text-slate-300">{f.label}</span>
+                  <span className="text-xs text-muted">{f.label}</span>
                 </label>
               )
             })}
@@ -334,14 +334,14 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
             <button
               onClick={() => featureMut.mutate(draftFeatures)}
               disabled={featureMut.isPending}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-info px-3 py-1.5 text-xs font-semibold text-white hover:bg-info disabled:opacity-50 transition-colors"
             >
               <Save className="h-3.5 w-3.5" />
               {featureMut.isPending ? t.common.loading : t.common.save}
             </button>
             <button
               onClick={() => setEditingFeatures(false)}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800 transition-colors"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-2 transition-colors"
             >
               {t.common.cancel}
             </button>
@@ -350,12 +350,12 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
       ) : (
         <ul className="mt-auto space-y-2">
           {plan.features.length === 0 ? (
-            <li className="text-xs text-slate-500">لا توجد ميزات — اضغط ✏️ للإضافة</li>
+            <li className="text-xs text-muted">لا توجد ميزات — اضغط ✏️ للإضافة</li>
           ) : plan.features.map((f) => {
             const meta = PREDEFINED_FEATURES.find(pf => pf.key === f)
             return (
-              <li key={f} className="flex items-center gap-2 text-xs text-slate-300">
-                <Check className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
+              <li key={f} className="flex items-center gap-2 text-xs text-muted">
+                <Check className="h-3.5 w-3.5 flex-shrink-0 text-success" />
                 {meta ? meta.label : f}
               </li>
             )

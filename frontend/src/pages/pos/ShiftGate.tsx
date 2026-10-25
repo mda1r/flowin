@@ -222,7 +222,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       footer={
         <div className="flex w-full flex-col gap-2">
           {hasVariance && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+            <div className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger dark:border-danger/60 dark:bg-danger/15">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               <span>{t.shiftGate.confirmClose}</span>
             </div>
@@ -264,7 +264,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           <span className="text-muted"> و </span>
           <span className="font-semibold text-fg">{formatCurrency(computed.cardSales)} بطاقة</span>
           <span className="text-muted">، المجموع </span>
-          <span className="font-bold text-brand">{formatCurrency(computed.totalSales)}</span>
+          <span className="font-bold text-brand-ink">{formatCurrency(computed.totalSales)}</span>
         </div>
 
         {/* cash section */}
@@ -327,8 +327,8 @@ function VarianceBadge({ label, variance }: { label: string; variance: number })
   return (
     <div className={`flex items-center gap-2 rounded-lg p-2.5 text-sm font-medium ${
       exact
-        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-        : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+        ? 'bg-success/10 text-success dark:bg-success/15 dark:text-success'
+        : 'bg-danger/10 text-danger dark:bg-danger/15 dark:text-danger'
     }`}>
       {!exact && <AlertTriangle className="h-4 w-4 shrink-0" />}
       <span>
@@ -384,10 +384,10 @@ export function ShiftBadge({ shift, onCloseShift }: { shift: ShiftResponse; onCl
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-sm dark:bg-green-900/20">
-        <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-        <span className="font-medium text-green-700 dark:text-green-400">{t.shiftGate.shiftOpen}</span>
-        <span className="text-green-600/70 dark:text-green-500/70">{t.shiftGate.openedAt} {timeStr}</span>
+      <div className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-sm dark:bg-success/15">
+        <div className="h-2 w-2 animate-pulse rounded-full bg-success" />
+        <span className="font-medium text-success">{t.shiftGate.shiftOpen}</span>
+        <span className="text-success/70">{t.shiftGate.openedAt} {timeStr}</span>
       </div>
       <Button size="sm" variant="danger" onClick={onCloseShift} className="gap-1">
         <Lock className="h-3.5 w-3.5" />

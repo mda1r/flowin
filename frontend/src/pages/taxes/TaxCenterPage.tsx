@@ -96,7 +96,7 @@ function ErrorState({ message }: { message?: string }) {
   const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-danger/10 text-danger">
         <ServerCrash className="h-7 w-7" />
       </div>
       <h3 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{t.taxes.error.failedToLoad}</h3>
@@ -111,7 +111,7 @@ function PermissionDeniedState() {
   const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-warning/10 text-warning">
         <Lock className="h-7 w-7" />
       </div>
       <h3 className="mb-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{t.taxes.access.restricted}</h3>
@@ -182,7 +182,7 @@ function KpiCard({ label, value, sub, icon, color = 'var(--accent)', badge }: Kp
 // ── Readiness Badge ───────────────────────────────────────────────────────────
 
 function ReadinessBadge({ score }: { score: number }) {
-  const color = score >= 80 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444'
+  const color = score >= 80 ? 'rgb(var(--success))' : score >= 50 ? 'rgb(var(--warning))' : 'rgb(var(--danger))'
   return (
     <span
       className="rounded-full px-2 py-0.5 text-xs font-semibold"
@@ -197,11 +197,11 @@ function ReadinessBadge({ score }: { score: number }) {
 
 function SeverityBadge({ severity }: { severity: string }) {
   const map: Record<string, { bg: string; text: string }> = {
-    error:   { bg: '#ef444420', text: '#ef4444' },
-    warning: { bg: '#f59e0b20', text: '#f59e0b' },
-    info:    { bg: '#3b82f620', text: '#3b82f6' },
+    error:   { bg: 'rgb(var(--danger) / 0.13)', text: 'rgb(var(--danger))' },
+    warning: { bg: 'rgb(var(--warning) / 0.13)', text: 'rgb(var(--warning))' },
+    info:    { bg: 'rgb(var(--info) / 0.13)', text: 'rgb(var(--info))' },
   }
-  const style = map[severity] ?? { bg: '#6b728020', text: '#6b7280' }
+  const style = map[severity] ?? { bg: 'rgb(var(--muted) / 0.13)', text: 'rgb(var(--muted))' }
   return (
     <span
       className="rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
@@ -221,8 +221,8 @@ function PeriodStatusBadge({ status }: { status: string }) {
     <span
       className="rounded-full px-2 py-0.5 text-xs font-semibold"
       style={{
-        background: isOpen ? '#22c55e20' : '#6b728020',
-        color: isOpen ? '#22c55e' : '#9ca3af',
+        background: isOpen ? 'rgb(var(--success) / 0.13)' : 'rgb(var(--muted) / 0.13)',
+        color: isOpen ? 'rgb(var(--success))' : 'rgb(var(--muted))',
       }}
     >
       {t.taxes.periodStatus[status as keyof typeof t.taxes.periodStatus] ?? status}
@@ -299,7 +299,7 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
             className="w-full rounded-xl border px-3 py-2 text-sm"
             style={inputStyle}
           />
-          {errors.startDate && <p className="mt-1 text-xs text-red-500">{errors.startDate.message}</p>}
+          {errors.startDate && <p className="mt-1 text-xs text-danger">{errors.startDate.message}</p>}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -311,7 +311,7 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
             className="w-full rounded-xl border px-3 py-2 text-sm"
             style={inputStyle}
           />
-          {errors.endDate && <p className="mt-1 text-xs text-red-500">{errors.endDate.message}</p>}
+          {errors.endDate && <p className="mt-1 text-xs text-danger">{errors.endDate.message}</p>}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -326,7 +326,7 @@ function CreatePeriodModal({ onClose, onCreated }: { onClose: () => void; onCrea
           />
         </div>
         {createMutation.error && (
-          <p className="text-xs text-red-500">
+          <p className="text-xs text-danger">
             {isAxiosError(createMutation.error)
               ? (createMutation.error.response?.data?.detail ?? t.taxes.createPeriod.failed)
               : t.taxes.createPeriod.failed}
@@ -400,7 +400,7 @@ function RecordExpenseModal({
           <div className="col-span-2">
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Supplier Name</label>
             <input type="text" {...register('supplierName')} className={inputCls} style={inputStyle} />
-            {errors.supplierName && <p className="mt-1 text-xs text-red-500">{errors.supplierName.message}</p>}
+            {errors.supplierName && <p className="mt-1 text-xs text-danger">{errors.supplierName.message}</p>}
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Supplier VAT No.</label>
@@ -409,12 +409,12 @@ function RecordExpenseModal({
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Invoice No.</label>
             <input type="text" {...register('invoiceNumber')} className={inputCls} style={inputStyle} />
-            {errors.invoiceNumber && <p className="mt-1 text-xs text-red-500">{errors.invoiceNumber.message}</p>}
+            {errors.invoiceNumber && <p className="mt-1 text-xs text-danger">{errors.invoiceNumber.message}</p>}
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Invoice Date</label>
             <input type="date" {...register('invoiceDate')} className={inputCls} style={inputStyle} />
-            {errors.invoiceDate && <p className="mt-1 text-xs text-red-500">{errors.invoiceDate.message}</p>}
+            {errors.invoiceDate && <p className="mt-1 text-xs text-danger">{errors.invoiceDate.message}</p>}
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Currency</label>
@@ -423,7 +423,7 @@ function RecordExpenseModal({
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Base Amount</label>
             <input type="number" step="0.01" {...register('baseAmount')} className={inputCls} style={inputStyle} />
-            {errors.baseAmount && <p className="mt-1 text-xs text-red-500">{errors.baseAmount.message}</p>}
+            {errors.baseAmount && <p className="mt-1 text-xs text-danger">{errors.baseAmount.message}</p>}
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Tax Amount</label>
@@ -434,7 +434,7 @@ function RecordExpenseModal({
             <input type="text" {...register('notes')} className={inputCls} style={inputStyle} />
           </div>
         </div>
-        {mutation.error && <p className="text-xs text-red-500">Failed to record invoice. Please try again.</p>}
+        {mutation.error && <p className="text-xs text-danger">Failed to record invoice. Please try again.</p>}
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
             Cancel
@@ -475,7 +475,7 @@ function OverviewTab({
   if (isLoading) return <TabSkeleton />
   if (error || !data) return <ErrorState />
 
-  const netColor = data.netVatPayable >= 0 ? '#ef4444' : '#22c55e'
+  const netColor = data.netVatPayable >= 0 ? 'rgb(var(--danger))' : 'rgb(var(--success))'
 
   return (
     <div className="space-y-6">
@@ -485,14 +485,14 @@ function OverviewTab({
           value={`SAR ${fmt(data.totalOutputVat)}`}
           sub={`${data.saleTransactionCount} ${t.taxes.kpi.transactions}`}
           icon={<TrendingUp className="h-4 w-4" />}
-          color="#ef4444"
+          color="rgb(var(--danger))"
         />
         <KpiCard
           label={t.taxes.kpi.inputVatClaimable}
           value={`SAR ${fmt(data.totalInputVat)}`}
           sub={`${data.purchaseInvoiceCount} ${t.taxes.kpi.invoices}`}
           icon={<TrendingDown className="h-4 w-4" />}
-          color="#22c55e"
+          color="rgb(var(--success))"
         />
         <KpiCard
           label={t.taxes.kpi.netVatDue}
@@ -506,7 +506,7 @@ function OverviewTab({
           value={`${data.taxReadinessScore}/100`}
           sub={`${data.openAnomalyCount} ${t.taxes.kpi.openIssues}`}
           icon={<CheckCircle className="h-4 w-4" />}
-          color="#3b82f6"
+          color="rgb(var(--info))"
           badge={<ReadinessBadge score={data.taxReadinessScore} />}
         />
       </div>
@@ -600,7 +600,7 @@ function VatReturnTab({
           </span>
           <span
             className="text-lg font-bold tabular-nums"
-            style={{ color: data.box11NetVatDue >= 0 ? '#ef4444' : '#22c55e' }}
+            style={{ color: data.box11NetVatDue >= 0 ? 'rgb(var(--danger))' : 'rgb(var(--success))' }}
           >
             SAR {fmt(Math.abs(data.box11NetVatDue))}
             <span className="ml-1.5 text-xs font-normal">
@@ -703,13 +703,13 @@ function PurchasesTab({
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--text-secondary)' }}>{e.invoiceNumber}</td>
                       <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{fmtDate(e.invoiceDate)}</td>
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--text-primary)' }}>SAR {fmt(e.baseAmount)}</td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: '#22c55e' }}>SAR {fmt(e.taxAmount)}</td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: 'rgb(var(--success))' }}>SAR {fmt(e.taxAmount)}</td>
                       <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{e.currency}</td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => deleteMutation.mutate(e.id)}
                           disabled={deleteMutation.isPending}
-                          className="rounded-lg p-1 hover:bg-red-500/10 text-red-500 disabled:opacity-40"
+                          className="rounded-lg p-1 hover:bg-danger/10 text-danger disabled:opacity-40"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -809,7 +809,7 @@ function IssuesTab({
                     <SeverityBadge severity={a.severity} />
                     <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>{a.ruleCode}</span>
                     {a.isResolved && (
-                      <span className="text-xs text-green-500 flex items-center gap-1">
+                      <span className="text-xs text-success flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" /> Resolved
                       </span>
                     )}
@@ -920,8 +920,8 @@ function LedgerTab({
                         <span
                           className="rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
                           style={{
-                            background: e.entryType === 'output' ? '#ef444415' : '#22c55e15',
-                            color: e.entryType === 'output' ? '#ef4444' : '#22c55e',
+                            background: e.entryType === 'output' ? 'rgb(var(--danger) / 0.08)' : 'rgb(var(--success) / 0.08)',
+                            color: e.entryType === 'output' ? 'rgb(var(--danger))' : 'rgb(var(--success))',
                           }}
                         >
                           {e.entryType}
@@ -934,7 +934,7 @@ function LedgerTab({
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--text-primary)' }}>SAR {fmt(e.baseAmount)}</td>
                       <td
                         className="px-4 py-3 tabular-nums"
-                        style={{ color: e.entryType === 'output' ? '#ef4444' : '#22c55e' }}
+                        style={{ color: e.entryType === 'output' ? 'rgb(var(--danger))' : 'rgb(var(--success))' }}
                       >
                         SAR {fmt(e.taxAmount)}
                       </td>

@@ -28,12 +28,12 @@ type Tab = 'overview' | 'members' | 'tax' | 'activity'
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    active: 'bg-emerald-900/60 text-emerald-300',
-    suspended: 'bg-amber-900/60 text-amber-300',
-    archived: 'bg-slate-700 text-slate-400',
+    active: 'bg-success/15 text-success',
+    suspended: 'bg-warning/15 text-warning',
+    archived: 'bg-border text-muted',
   }
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${colors[status.toLowerCase()] ?? 'bg-slate-700 text-slate-400'}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${colors[status.toLowerCase()] ?? 'bg-border text-muted'}`}>
       {status}
     </span>
   )
@@ -76,13 +76,13 @@ function LinkTenantModal({ brandId, open, onClose }: LinkTenantModalProps) {
     <Modal open={open} onClose={onClose} title={t.admin.brands.linkTenant}>
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.tenantId}
           </label>
           <select
             value={form.tenantId}
             onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
           >
             <option value="">— Select tenant —</option>
             {tenants?.map((t) => (
@@ -93,23 +93,23 @@ function LinkTenantModal({ brandId, open, onClose }: LinkTenantModalProps) {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.branchDisplayName}
           </label>
           <input
             value={form.branchDisplayName ?? ''}
             onChange={(e) => setForm((f) => ({ ...f, branchDisplayName: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.branchCode}
           </label>
           <input
             value={form.branchCode ?? ''}
             onChange={(e) => setForm((f) => ({ ...f, branchCode: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white font-mono outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg font-mono outline-none ring-1 ring-border focus:ring-info/40"
             dir="ltr"
           />
         </div>
@@ -159,17 +159,17 @@ function CreateTaxScopeModal({ brandId, open, onClose }: CreateTaxScopeModalProp
     <Modal open={open} onClose={onClose} title={t.admin.brands.createTaxScope}>
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.scopeName}
           </label>
           <input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.vatNumber}
           </label>
           <input
@@ -177,20 +177,20 @@ function CreateTaxScopeModal({ brandId, open, onClose }: CreateTaxScopeModalProp
             onChange={(e) =>
               setForm((f) => ({ ...f, vatRegistrationNumber: e.target.value }))
             }
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white font-mono outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg font-mono outline-none ring-1 ring-border focus:ring-info/40"
             dir="ltr"
             placeholder="3XXXXXXXXXXXXXX"
             maxLength={15}
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.legalEntityName}
           </label>
           <input
             value={form.legalEntityName}
             onChange={(e) => setForm((f) => ({ ...f, legalEntityName: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
           />
         </div>
         <div className="flex justify-end gap-3 pt-2">
@@ -249,13 +249,13 @@ function AddToScopeModal({ scopeId, brandId, open, onClose }: AddToScopeModalPro
     <Modal open={open} onClose={onClose} title={t.admin.brands.addToScope}>
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.tenantId}
           </label>
           <select
             value={form.tenantId}
             onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
           >
             <option value="">— Select tenant —</option>
             {tenants?.map((t) => (
@@ -266,14 +266,14 @@ function AddToScopeModal({ scopeId, brandId, open, onClose }: AddToScopeModalPro
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">
+          <label className="mb-1 block text-xs font-medium text-muted">
             {t.admin.brands.effectiveFrom}
           </label>
           <input
             type="date"
             value={form.effectiveFrom}
             onChange={(e) => setForm((f) => ({ ...f, effectiveFrom: e.target.value }))}
-            className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white outline-none ring-1 ring-slate-700 focus:ring-blue-500"
+            className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
           />
         </div>
         <div className="flex justify-end gap-3 pt-2">
@@ -326,7 +326,7 @@ function MembersTab({ brandId, members }: MembersTabProps) {
         confirmVariant="danger"
       />
       <div className="flex justify-between items-center">
-        <p className="text-sm text-slate-400">{members.length} members</p>
+        <p className="text-sm text-muted">{members.length} members</p>
         <Button size="sm" onClick={() => setShowLink(true)}>
           <UserPlus className="h-4 w-4" />
           {t.admin.brands.linkTenant}
@@ -334,14 +334,14 @@ function MembersTab({ brandId, members }: MembersTabProps) {
       </div>
 
       {members.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 py-12 text-center text-slate-500">
+        <div className="rounded-xl border border-border py-12 text-center text-muted">
           {t.admin.brands.noMembers}
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+        <div className="rounded-xl border border-border bg-surface overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-xs font-medium text-slate-500">
+              <tr className="border-b border-border text-xs font-medium text-muted">
                 <th className="px-4 py-3 text-right">Tenant</th>
                 <th className="px-4 py-3 text-right">Type</th>
                 <th className="px-4 py-3 text-right">Branch Code</th>
@@ -350,28 +350,28 @@ function MembersTab({ brandId, members }: MembersTabProps) {
                 <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-border">
               {members.map((m: BrandMemberResponse) => (
-                <tr key={m.membershipId} className="hover:bg-slate-800/40">
+                <tr key={m.membershipId} className="hover:bg-surface-2/40">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-white">{m.tenantName}</p>
-                    <p className="text-xs text-slate-400">{m.tenantEmail}</p>
+                    <p className="font-medium text-fg">{m.tenantName}</p>
+                    <p className="text-xs text-muted">{m.tenantEmail}</p>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-400">{m.businessType}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-300">
+                  <td className="px-4 py-3 text-xs text-muted">{m.businessType}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted">
                     {m.branchCode ?? '—'}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={m.membershipStatus} />
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-400">
+                  <td className="px-4 py-3 text-xs text-muted">
                     {new Date(m.linkedAt).toLocaleDateString('ar-SA')}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {m.membershipStatus === 'Active' && (
                       <button
                         onClick={() => setUnlinkId(m.membershipId)}
-                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-900/30 transition-colors"
+                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-danger hover:bg-danger/15 transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         {t.admin.brands.unlinkTenant}
@@ -427,7 +427,7 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
         confirmVariant="danger"
       />
       <div className="flex justify-between items-center">
-        <p className="text-sm text-slate-400">{scopes.length} tax scope{scopes.length !== 1 ? 's' : ''}</p>
+        <p className="text-sm text-muted">{scopes.length} tax scope{scopes.length !== 1 ? 's' : ''}</p>
         <Button size="sm" onClick={() => setShowCreateScope(true)}>
           <Plus className="h-4 w-4" />
           {t.admin.brands.createTaxScope}
@@ -435,33 +435,33 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
       </div>
 
       {scopes.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 py-12 text-center text-slate-500">
+        <div className="rounded-xl border border-border py-12 text-center text-muted">
           {t.admin.brands.noTaxScopes}
         </div>
       ) : (
         scopes.map((scope: TaxScopeResponse) => (
-          <div key={scope.id} className="rounded-xl border border-slate-800 bg-slate-900">
-            <div className="flex items-start justify-between p-4 border-b border-slate-800">
+          <div key={scope.id} className="rounded-xl border border-border bg-surface">
+            <div className="flex items-start justify-between p-4 border-b border-border">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-white">{scope.name}</p>
+                  <p className="font-medium text-fg">{scope.name}</p>
                   {scope.isActive ? (
-                    <span className="rounded-full bg-emerald-900/60 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+                    <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">
                       Active
                     </span>
                   ) : (
-                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-400">
+                    <span className="rounded-full bg-border px-2 py-0.5 text-xs font-semibold text-muted">
                       Inactive
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-xs text-slate-400" dir="ltr">
+                <p className="mt-0.5 text-xs text-muted" dir="ltr">
                   VAT: {scope.vatRegistrationNumber} · {scope.legalEntityName}
                 </p>
               </div>
               <button
                 onClick={() => setAddToScopeId(scope.id)}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:bg-border hover:text-fg transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {t.admin.brands.addToScope}
@@ -469,14 +469,14 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
             </div>
             <div className="p-2">
               {scope.members.length === 0 ? (
-                <p className="px-2 py-3 text-xs text-slate-500 text-center">No members in this scope</p>
+                <p className="px-2 py-3 text-xs text-muted text-center">No members in this scope</p>
               ) : (
                 <table className="w-full text-xs">
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody className="divide-y divide-border">
                     {scope.members.map((m) => (
-                      <tr key={m.membershipId} className="hover:bg-slate-800/40">
-                        <td className="px-2 py-2 text-slate-300">{m.tenantName}</td>
-                        <td className="px-2 py-2 text-slate-400" dir="ltr">
+                      <tr key={m.membershipId} className="hover:bg-surface-2/40">
+                        <td className="px-2 py-2 text-muted">{m.tenantName}</td>
+                        <td className="px-2 py-2 text-muted" dir="ltr">
                           From {m.effectiveFrom}
                           {m.effectiveTo ? ` → ${m.effectiveTo}` : ''}
                         </td>
@@ -484,7 +484,7 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
                           {!m.effectiveTo && (
                             <button
                               onClick={() => setRemoveId(m.membershipId)}
-                              className="inline-flex items-center gap-1 rounded px-2 py-1 text-rose-400 hover:bg-rose-900/30"
+                              className="inline-flex items-center gap-1 rounded px-2 py-1 text-danger hover:bg-danger/15"
                             >
                               <Trash2 className="h-3 w-3" />
                               {t.admin.brands.removeFromScope}
@@ -541,7 +541,7 @@ export function BrandDetailPage() {
     return (
       <div className="p-6 space-y-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-10 rounded-xl bg-slate-800 animate-pulse" />
+          <div key={i} className="h-10 rounded-xl bg-surface-2 animate-pulse" />
         ))}
       </div>
     )
@@ -549,7 +549,7 @@ export function BrandDetailPage() {
 
   if (!brand) {
     return (
-      <div className="p-6 text-center text-slate-400">Brand not found</div>
+      <div className="p-6 text-center text-muted">Brand not found</div>
     )
   }
 
@@ -558,49 +558,49 @@ export function BrandDetailPage() {
       {/* Back link */}
       <Link
         to="/admin/brands"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg transition-colors"
       >
         <ArrowRight className="h-4 w-4" />
         {t.admin.brands.back}
       </Link>
 
       {/* Brand header */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+      <div className="rounded-xl border border-border bg-surface p-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/20">
-              <Layers className="h-6 w-6 text-indigo-400" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/20">
+              <Layers className="h-6 w-6 text-info" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white">{brand.nameAr}</h1>
-                <span className="font-mono text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded">
+                <h1 className="text-xl font-bold text-fg">{brand.nameAr}</h1>
+                <span className="font-mono text-xs text-muted bg-surface-2 px-2 py-0.5 rounded">
                   {brand.code}
                 </span>
               </div>
-              <p className="text-sm text-slate-400" dir="ltr">{brand.nameEn}</p>
+              <p className="text-sm text-muted" dir="ltr">{brand.nameEn}</p>
               {brand.notes && (
-                <p className="mt-1 text-xs text-slate-500">{brand.notes}</p>
+                <p className="mt-1 text-xs text-muted">{brand.notes}</p>
               )}
             </div>
           </div>
           <StatusBadge status={brand.status} />
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-4 border-t border-slate-800 pt-4">
+        <div className="mt-4 grid grid-cols-3 gap-4 border-t border-border pt-4">
           <div>
-            <p className="text-xs text-slate-500">{t.admin.brands.memberCount}</p>
-            <p className="mt-0.5 text-lg font-semibold text-white tabular-nums">{brand.memberCount}</p>
+            <p className="text-xs text-muted">{t.admin.brands.memberCount}</p>
+            <p className="mt-0.5 text-lg font-semibold text-fg tabular-nums">{brand.memberCount}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-500">{t.admin.brands.taxScopes}</p>
-            <p className="mt-0.5 text-lg font-semibold text-white tabular-nums">
+            <p className="text-xs text-muted">{t.admin.brands.taxScopes}</p>
+            <p className="mt-0.5 text-lg font-semibold text-fg tabular-nums">
               {brand.taxScopes?.length ?? 0}
             </p>
           </div>
           <div>
-            <p className="text-xs text-slate-500">{t.admin.brands.createdAt}</p>
-            <p className="mt-0.5 text-sm font-medium text-white">
+            <p className="text-xs text-muted">{t.admin.brands.createdAt}</p>
+            <p className="mt-0.5 text-sm font-medium text-fg">
               {new Date(brand.createdAt).toLocaleDateString('ar-SA')}
             </p>
           </div>
@@ -608,15 +608,15 @@ export function BrandDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-slate-800">
+      <div className="flex items-center gap-1 border-b border-border">
         {tabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === key
-                ? 'border-blue-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-white'
+                ? 'border-info text-fg'
+                : 'border-transparent text-muted hover:text-fg'
             }`}
           >
             <Icon className="h-4 w-4" />
@@ -627,29 +627,29 @@ export function BrandDetailPage() {
 
       {/* Tab content */}
       {tab === 'overview' && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-white">{t.admin.brands.overview}</h2>
+        <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-fg">{t.admin.brands.overview}</h2>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <dt className="text-xs text-slate-500">{t.admin.brands.nameAr}</dt>
-              <dd className="mt-0.5 text-white">{brand.nameAr}</dd>
+              <dt className="text-xs text-muted">{t.admin.brands.nameAr}</dt>
+              <dd className="mt-0.5 text-fg">{brand.nameAr}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">{t.admin.brands.nameEn}</dt>
-              <dd className="mt-0.5 text-white" dir="ltr">{brand.nameEn}</dd>
+              <dt className="text-xs text-muted">{t.admin.brands.nameEn}</dt>
+              <dd className="mt-0.5 text-fg" dir="ltr">{brand.nameEn}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">{t.admin.brands.code}</dt>
-              <dd className="mt-0.5 font-mono text-white">{brand.code}</dd>
+              <dt className="text-xs text-muted">{t.admin.brands.code}</dt>
+              <dd className="mt-0.5 font-mono text-fg">{brand.code}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500">{t.admin.brands.status}</dt>
+              <dt className="text-xs text-muted">{t.admin.brands.status}</dt>
               <dd className="mt-0.5"><StatusBadge status={brand.status} /></dd>
             </div>
             {brand.notes && (
               <div className="col-span-2">
-                <dt className="text-xs text-slate-500">{t.admin.brands.notes}</dt>
-                <dd className="mt-0.5 text-slate-300">{brand.notes}</dd>
+                <dt className="text-xs text-muted">{t.admin.brands.notes}</dt>
+                <dd className="mt-0.5 text-muted">{brand.notes}</dd>
               </div>
             )}
           </dl>

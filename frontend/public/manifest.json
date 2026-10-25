@@ -4,8 +4,8 @@
   "description": "نظام نقاط البيع الذكي",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#62E6C7",
-  "theme_color": "#62E6C7",
+  "background_color": "#23262D",
+  "theme_color": "#23262D",
   "orientation": "any",
   "lang": "ar",
   "icons": [

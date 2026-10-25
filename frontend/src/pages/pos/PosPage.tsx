@@ -31,6 +31,7 @@ import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { BrandTagline, FlowinLogo } from '@/components/brand/Brand'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
@@ -484,7 +485,7 @@ function RetailPosPage() {
                       </div>
                       <button
                         onClick={() => removeLine(line.variantId)}
-                        className="shrink-0 text-muted/50 transition-colors hover:text-red-500"
+                        className="shrink-0 text-muted/50 transition-colors hover:text-danger"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -555,7 +556,7 @@ function RetailPosPage() {
                 onClick={handleHold}
                 disabled={lines.length === 0}
                 title={t.pos.holdOrder}
-                className="card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-amber-600 disabled:opacity-40 dark:text-amber-400"
+                className="card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-warning disabled:opacity-40"
               >
                 <PauseCircle className="h-4 w-4" />
                 {t.pos.holdOrder}
@@ -568,7 +569,7 @@ function RetailPosPage() {
                   title={t.pos.heldOrders}
                 >
                   <PlayCircle className="h-4 w-4" />
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[10px] font-bold text-white">
                     {heldCarts.length}
                   </span>
                 </button>
@@ -716,12 +717,12 @@ function RetailPosPage() {
                     </div>
                   </div>
                   {cashNum + cardNum > 0 && !splitOk && (
-                    <p className="text-center text-xs font-semibold text-red-500">
+                    <p className="text-center text-xs font-semibold text-danger">
                       الفرق: {(grossTotal - cashNum - cardNum).toFixed(2)} ر.س
                     </p>
                   )}
                   {splitOk && (
-                    <p className="text-center text-xs font-semibold text-green-600 dark:text-green-400">✓ مجموع صحيح</p>
+                    <p className="text-center text-xs font-semibold text-success">✓ مجموع صحيح</p>
                   )}
                 </div>
               )
@@ -854,9 +855,9 @@ function ProductCard({
           <span className={cn(
             'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
             outOfStock
-              ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+              ? 'bg-danger/10 text-danger dark:bg-danger/15'
               : stockQty <= 5
-              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+              ? 'bg-warning/10 text-warning dark:bg-warning/15'
               : 'bg-surface-2 text-muted',
           )}>
             {outOfStock ? 'نفد' : stockQty}
@@ -953,6 +954,11 @@ function ZatcaReceiptModal({
           <QrCode className="h-5 w-5 text-muted" />
           <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
           <ZatcaQr value={qrCode} size={120} />
+          {/* signature: the system that issued the receipt, quiet at the bottom */}
+          <div className="mt-3 flex flex-col items-center gap-1 border-t border-dashed border-border pt-3 text-muted">
+            <FlowinLogo tone="mono" className="h-3.5" />
+            <BrandTagline className="!text-[8px]" />
+          </div>
         </div>
 
         <div data-no-print className="mb-4">

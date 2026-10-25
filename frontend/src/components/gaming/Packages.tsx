@@ -41,7 +41,7 @@ export function PackagePicker({
   const chip = (active: boolean) =>
     cn(
       'rounded-xl border px-3 py-2 text-start text-xs transition-colors',
-      active ? 'border-brand bg-brand-soft text-brand' : 'border-border text-fg hover:bg-surface-2',
+      active ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border text-fg hover:bg-surface-2',
     )
 
   return (

@@ -266,7 +266,7 @@ function OrderDetailModal({
                       <tr key={l.id}>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2">
-                            {l.stockMaterialId && <FlaskConical className="h-4 w-4 shrink-0 text-brand" aria-label="مادة مخزون" />}
+                            {l.stockMaterialId && <FlaskConical className="h-4 w-4 shrink-0 text-brand-ink" aria-label="مادة مخزون" />}
                             <span className="text-fg">{l.description}</span>
                           </div>
                         </td>

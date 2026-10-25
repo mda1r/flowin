@@ -157,10 +157,10 @@ function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrde
   const quarterLabel = getQuarterLabel(t.reports.quarter)
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 dark:border-amber-800/40 dark:bg-amber-900/10">
+    <div className="rounded-2xl border border-warning/30 bg-warning/10 p-6 dark:border-warning/60 dark:bg-warning/15">
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40">
-          <Receipt className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-warning/10 dark:bg-warning/15">
+          <Receipt className="h-6 w-6 text-warning" />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -180,9 +180,9 @@ function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrde
               <p className="text-xs font-medium text-muted">{t.reports.vatSummary}</p>
               <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{taxRate}%</p>
             </div>
-            <div className="rounded-xl bg-amber-100 p-4 dark:bg-amber-900/30 shadow-sm">
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{t.reports.totalVat}</p>
-              <p className="mt-1.5 text-lg font-bold tabular-nums text-amber-800 dark:text-amber-300">{formatCurrency(totalTax)}</p>
+            <div className="rounded-xl bg-warning/10 p-4 dark:bg-warning/15 shadow-sm">
+              <p className="text-xs font-medium text-warning">{t.reports.totalVat}</p>
+              <p className="mt-1.5 text-lg font-bold tabular-nums text-warning">{formatCurrency(totalTax)}</p>
             </div>
             <div className="rounded-xl bg-surface p-4 shadow-sm">
               <p className="text-xs font-medium text-muted">{t.reports.totalOrders}</p>
@@ -191,7 +191,7 @@ function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrde
           </div>
 
           <div className="mt-4 flex items-start gap-2 rounded-xl bg-surface/70 p-3 text-xs text-muted">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
             <span>{t.reports.vatDisclaimer}</span>
           </div>
         </div>
@@ -219,11 +219,11 @@ export function ReportsPage() {
   ]
 
   const PAYMENT_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-    Cash:         { label: t.reports.paymentMethods.cash,         icon: <Banknote   className="h-4 w-4" />, color: 'text-emerald-600' },
+    Cash:         { label: t.reports.paymentMethods.cash,         icon: <Banknote   className="h-4 w-4" />, color: 'text-success' },
     Card:         { label: t.reports.paymentMethods.card,         icon: <CreditCard className="h-4 w-4" />, color: 'text-info'    },
-    BankTransfer: { label: t.reports.paymentMethods.bankTransfer, icon: <Landmark   className="h-4 w-4" />, color: 'text-violet-600 dark:text-violet-400'  },
-    Voucher:      { label: t.reports.paymentMethods.voucher,      icon: <Ticket     className="h-4 w-4" />, color: 'text-amber-600'   },
-    Split:        { label: t.reports.paymentMethods.split,        icon: <Banknote   className="h-4 w-4" />, color: 'text-orange-600'  },
+    BankTransfer: { label: t.reports.paymentMethods.bankTransfer, icon: <Landmark   className="h-4 w-4" />, color: 'text-brand-ink'  },
+    Voucher:      { label: t.reports.paymentMethods.voucher,      icon: <Ticket     className="h-4 w-4" />, color: 'text-warning'   },
+    Split:        { label: t.reports.paymentMethods.split,        icon: <Banknote   className="h-4 w-4" />, color: 'text-warning'  },
   }
 
   const { dateFrom, dateTo } = useMemo(
@@ -333,7 +333,7 @@ export function ReportsPage() {
             ))}
           </div>
         ) : isError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger dark:border-danger/60 dark:bg-danger/15">
             {t.common.noData}
           </div>
         ) : (
@@ -343,23 +343,23 @@ export function ReportsPage() {
                 title={t.sales.netRevenue}
                 value={formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total)}
                 sub={String(stats.totalOrders)}
-                icon={<DollarSign className="h-5 w-5 text-info" />}
-                iconWrap="bg-info/10"
-                accent="#3b82f6"
+                icon={<DollarSign className="h-5 w-5 text-brand-ink" />}
+                iconWrap="bg-brand-soft text-brand-ink"
+                accent="rgb(var(--brand))"
               />
               <KpiCard
                 title={t.reports.totalOrders}
                 value={String(stats.totalOrders)}
-                icon={<ShoppingCart className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
-                iconWrap="bg-purple-50 dark:bg-purple-900/30"
-                accent="#a855f7"
+                icon={<ShoppingCart className="h-5 w-5 text-brand-ink" />}
+                iconWrap="bg-brand-soft text-brand-ink"
+                accent="rgb(var(--brand))"
               />
               <KpiCard
                 title={t.reports.avgOrderValue}
                 value={formatCurrency(stats.avgOrder)}
-                icon={<TrendingUp className="h-5 w-5 text-green-600" />}
-                iconWrap="bg-green-50 dark:bg-green-900/30"
-                accent="#22c55e"
+                icon={<TrendingUp className="h-5 w-5 text-brand-ink" />}
+                iconWrap="bg-brand-soft text-brand-ink"
+                accent="rgb(var(--brand))"
               />
             </div>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
@@ -367,24 +367,24 @@ export function ReportsPage() {
                 title={t.reports.totalVat}
                 value={formatCurrency(stats.totalTax)}
                 sub={t.reports.vatSummary}
-                icon={<Receipt className="h-5 w-5 text-amber-600" />}
-                iconWrap="bg-amber-50 dark:bg-amber-900/30"
-                accent="#f59e0b"
+                icon={<Receipt className="h-5 w-5 text-brand-ink" />}
+                iconWrap="bg-brand-soft text-brand-ink"
+                accent="rgb(var(--brand))"
               />
               <KpiCard
                 title={t.sales.returns}
                 value={String(returnStats.count)}
                 sub={returnStats.count > 0 ? formatCurrency(returnStats.total) : t.common.noData}
-                icon={<RotateCcw className="h-5 w-5 text-red-600" />}
-                iconWrap="bg-red-50 dark:bg-red-900/30"
-                accent="#ef4444"
+                icon={<RotateCcw className="h-5 w-5 text-danger" />}
+                iconWrap="bg-danger/10 dark:bg-danger/15"
+                accent="rgb(var(--danger))"
               />
               <KpiCard
                 title={t.reports.totalRevenue}
                 value={formatCurrency(stats.totalRevenue)}
-                icon={<TrendingDown className="h-5 w-5 text-muted" />}
-                iconWrap="bg-surface-2"
-                accent="#6b7280"
+                icon={<TrendingDown className="h-5 w-5 text-brand-ink" />}
+                iconWrap="bg-brand-soft text-brand-ink"
+                accent="rgb(var(--brand))"
               />
             </div>
 
@@ -524,7 +524,7 @@ export function ReportsPage() {
                         <span className="text-sm text-muted">{row.label}</span>
                         <span className={cn('tabular-nums text-sm',
                           row.bold ? 'font-bold text-fg' :
-                          (row as any).red ? 'font-medium text-red-600 dark:text-red-400' :
+                          (row as any).red ? 'font-medium text-danger' :
                           'text-fg')}>
                           {row.value}
                         </span>

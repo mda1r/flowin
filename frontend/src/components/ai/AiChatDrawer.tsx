@@ -17,25 +17,25 @@ const QUICK_PROMPTS: QuickPrompt[] = [
     label: 'تحليل المبيعات',
     icon: <TrendingUp className="h-4 w-4" />,
     prompt: 'حلّل مبيعات اليوم وأعطني ملخصاً عن الأداء مقارنة بالمعدل المعتاد.',
-    color: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    color: 'bg-info/10 text-info dark:bg-info/15',
   },
   {
     label: 'مراقبة المخزون',
     icon: <Package className="h-4 w-4" />,
     prompt: 'راجع حالة المخزون وأخبرني بالمنتجات التي تحتاج إعادة طلب أو قريبة من النفاد.',
-    color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    color: 'bg-success/10 text-success dark:bg-success/15',
   },
   {
     label: 'تقرير الأرباح',
     icon: <DollarSign className="h-4 w-4" />,
     prompt: 'اعمل لي تقريراً مالياً مختصراً عن إيرادات الشهر الحالي والضريبة المستحقة.',
-    color: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    color: 'bg-warning/10 text-warning dark:bg-warning/15',
   },
   {
     label: 'أفضل المنتجات',
     icon: <BarChart2 className="h-4 w-4" />,
     prompt: 'أخبرني بالمنتجات الأكثر مبيعاً هذا الشهر ونصائح لزيادة الإيرادات.',
-    color: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    color: 'bg-brand-soft text-brand-ink dark:bg-brand/20',
   },
 ]
 
@@ -74,7 +74,7 @@ function InsightsPanel({ branchId }: { branchId: string }) {
         <p className="text-sm text-muted">تعذّر تحميل التحليلات</p>
         <button
           onClick={() => refetch()}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-brand hover:bg-surface-2"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-surface-2"
         >
           <RefreshCw className="h-3 w-3" />
           إعادة المحاولة
@@ -84,9 +84,9 @@ function InsightsPanel({ branchId }: { branchId: string }) {
   }
 
   const cards = [
-    { icon: <TrendingUp className="h-4 w-4 text-blue-500" />, bg: 'bg-blue-50 dark:bg-blue-900/20', title: 'تحليل المبيعات', body: data.salesInsight },
-    { icon: <BarChart2  className="h-4 w-4 text-purple-500" />, bg: 'bg-purple-50 dark:bg-purple-900/20', title: 'الاتجاهات', body: data.trendInsight },
-    { icon: <Lightbulb className="h-4 w-4 text-amber-500" />, bg: 'bg-amber-50 dark:bg-amber-900/20', title: 'التوصيات', body: data.recommendation },
+    { icon: <TrendingUp className="h-4 w-4 text-info" />, bg: 'bg-info/10 dark:bg-info/15', title: 'تحليل المبيعات', body: data.salesInsight },
+    { icon: <BarChart2  className="h-4 w-4 text-brand-ink" />, bg: 'bg-brand-soft dark:bg-brand/20', title: 'الاتجاهات', body: data.trendInsight },
+    { icon: <Lightbulb className="h-4 w-4 text-warning" />, bg: 'bg-warning/10 dark:bg-warning/15', title: 'التوصيات', body: data.recommendation },
   ]
 
   return (
@@ -96,7 +96,7 @@ function InsightsPanel({ branchId }: { branchId: string }) {
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="flex items-center gap-1 text-xs text-muted hover:text-brand disabled:opacity-40"
+          className="flex items-center gap-1 text-xs text-muted hover:text-brand-ink disabled:opacity-40"
         >
           <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
           تحديث
@@ -204,12 +204,12 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{ background: 'color-mix(in srgb, var(--accent) 15%, white)' }}
               >
-                <Sparkles className="h-4 w-4 text-brand" />
+                <Sparkles className="h-4 w-4 text-brand-ink" />
               </div>
               <div className="flex-1">
                 <div className="text-sm font-bold text-fg">سعد</div>
                 <div className="flex items-center gap-1.5 text-xs text-muted">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
                   محاسب · مبيعات · مخزون
                 </div>
               </div>
@@ -233,7 +233,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors',
                     tab === t.key
-                      ? 'border-b-2 border-brand text-brand'
+                      ? 'border-b-2 border-brand text-brand-ink'
                       : 'text-muted hover:text-fg',
                   )}
                 >

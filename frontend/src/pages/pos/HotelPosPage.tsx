@@ -12,7 +12,7 @@ import { useI18n } from '@/i18n'
 
 /* hotel accent scoped to this page */
 const HOTEL_ACCENT: React.CSSProperties = {
-  '--accent-l': '#2563EB',
+  '--accent-l': 'rgb(var(--info))',
   '--accent-d': '#93C5FD',
 } as React.CSSProperties
 
@@ -127,7 +127,7 @@ export function HotelPosPage() {
           {t.hotel.status.available}: <strong style={{ color: 'var(--accent)' }}>{availableCount}</strong>
         </span>
         <span className="card-3d px-3 py-1.5 text-sm text-muted">
-          {t.hotel.status.occupied}: <strong className="text-amber-600">{occupiedCount}</strong>
+          {t.hotel.status.occupied}: <strong className="text-warning">{occupiedCount}</strong>
         </span>
         <span className="card-3d px-3 py-1.5 text-sm text-muted">
           الكل: <strong className="text-fg">{activeRooms.length}</strong>
@@ -190,7 +190,7 @@ export function HotelPosPage() {
                         {/* floating guest badge above the block */}
                         {isOccupied && reservation && (
                           <span
-                            className="glass-panel absolute -top-3 start-3 max-w-[80%] truncate rounded-full px-2.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
+                            className="glass-panel absolute -top-3 start-3 max-w-[80%] truncate rounded-full px-2.5 py-0.5 text-[10px] font-bold text-warning"
                             style={{ boxShadow: '0 4px 12px var(--shadow-mid), 0 0 12px rgba(245,158,11,0.35)' }}
                           >
                             {reservation.guestName}
@@ -202,7 +202,7 @@ export function HotelPosPage() {
                             className={cn(
                               'text-xs font-bold',
                               isOccupied
-                                ? room.checkOutAlert ? 'text-amber-600' : 'text-amber-500'
+                                ? room.checkOutAlert ? 'text-warning' : 'text-warning'
                                 : !isAvail && 'text-muted',
                             )}
                             style={isAvail ? { color: 'var(--accent)' } : undefined}
@@ -210,9 +210,9 @@ export function HotelPosPage() {
                             {isAvail ? t.hotel.status.available : isOccupied ? (room.checkOutAlert ? t.hotel.checkOut : t.hotel.status.occupied) : t.hotel.status.maintenance}
                           </span>
                           <div className="flex items-center gap-1">
-                            {needsClean && <Sparkles className="h-3.5 w-3.5 text-yellow-400" />}
+                            {needsClean && <Sparkles className="h-3.5 w-3.5 text-warning" />}
                             <BedDouble
-                              className={cn('h-4 w-4', isOccupied ? 'text-amber-500' : !isAvail && 'text-muted')}
+                              className={cn('h-4 w-4', isOccupied ? 'text-warning' : !isAvail && 'text-muted')}
                               style={isAvail ? { color: 'var(--accent)' } : undefined}
                             />
                           </div>
@@ -242,7 +242,7 @@ export function HotelPosPage() {
                             style={
                               isOccupied
                                 ? {
-                                    background: room.checkOutAlert ? '#d97706' : '#f59e0b',
+                                    background: room.checkOutAlert ? 'rgb(var(--warning))' : 'rgb(var(--warning))',
                                     boxShadow: '0 4px 0 rgba(0,0,0,0.3), 0 10px 24px rgba(245,158,11,0.35)',
                                   }
                                 : undefined

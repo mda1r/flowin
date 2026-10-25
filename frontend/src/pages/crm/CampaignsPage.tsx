@@ -128,7 +128,7 @@ export function CampaignsPage() {
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <label htmlFor="offer-text" className="text-sm font-medium text-fg">نص العرض</label>
-                <button type="button" onClick={insertName} className="rounded-full border border-border px-2.5 py-0.5 text-xs text-brand hover:bg-brand-soft">
+                <button type="button" onClick={insertName} className="rounded-full border border-border px-2.5 py-0.5 text-xs text-brand-ink hover:bg-brand-soft">
                   + اسم العميل
                 </button>
               </div>
@@ -183,7 +183,7 @@ export function CampaignsPage() {
                   disabled={!apiReady}
                   title="واتساب للأعمال (تلقائي)"
                   body={apiReady ? 'ترسل المنصة للجميع بالصورة عبر قالبك المعتمد.' : 'يحتاج إعداد حساب Meta أولاً.'}
-                  action={!apiReady ? <button type="button" onClick={() => setShowSettings(true)} className="text-xs font-medium text-brand underline">إعداد الآن</button> : undefined}
+                  action={!apiReady ? <button type="button" onClick={() => setShowSettings(true)} className="text-xs font-medium text-brand-ink underline">إعداد الآن</button> : undefined}
                 />
               </div>
               {channel === 'Api' && (
@@ -202,7 +202,7 @@ export function CampaignsPage() {
                 <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <input className="input ps-9 text-sm" placeholder="بحث بالاسم أو الجوال" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="بحث في المستلمين" />
               </div>
-              <button type="button" className="text-xs font-medium text-brand"
+              <button type="button" className="text-xs font-medium text-brand-ink"
                 onClick={() => setSelected(selected.size === reachable.length ? new Set() : new Set(reachable.map((r) => r.customerId)))}>
                 {selected.size === reachable.length ? 'إلغاء الكل' : 'تحديد الكل'}
               </button>
@@ -212,7 +212,7 @@ export function CampaignsPage() {
               <p className="border-b border-border bg-surface-2/60 px-4 py-2 text-xs text-muted">
                 {audience.withoutConsent > 0 && <>{audience.withoutConsent.toLocaleString('ar-SA')} عميل لم يوافقوا على العروض بعد. </>}
                 {audience.withoutValidPhone > 0 && <>{audience.withoutValidPhone.toLocaleString('ar-SA')} بلا رقم جوال صحيح. </>}
-                عدّلهم من <Link to="/customers" className="text-brand underline">صفحة العملاء</Link>.
+                عدّلهم من <Link to="/customers" className="text-brand-ink underline">صفحة العملاء</Link>.
               </p>
             )}
 
@@ -229,7 +229,7 @@ export function CampaignsPage() {
                 {visible.map((r) => (
                   <li key={r.customerId}>
                     <label className="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-surface-2">
-                      <input type="checkbox" className="accent-[rgb(var(--brand))]" checked={selected.has(r.customerId)}
+                      <input type="checkbox" className="accent-[rgb(var(--brand-ink))]" checked={selected.has(r.customerId)}
                         onChange={(e) => {
                           const next = new Set(selected)
                           if (e.target.checked) next.add(r.customerId)
@@ -310,7 +310,7 @@ function ChannelOption({ checked, onSelect, disabled, title, body, action }: {
       checked ? 'border-brand bg-brand-soft' : 'border-border hover:bg-surface-2',
       disabled && 'cursor-not-allowed opacity-70',
     )}>
-      <input type="radio" name="channel" className="mt-1 accent-[rgb(var(--brand))]" checked={checked} disabled={disabled} onChange={onSelect} />
+      <input type="radio" name="channel" className="mt-1 accent-[rgb(var(--brand-ink))]" checked={checked} disabled={disabled} onChange={onSelect} />
       <span className="space-y-0.5">
         <span className="block text-sm font-medium text-fg">{title}</span>
         <span className="block text-xs leading-5 text-muted">{body}</span>

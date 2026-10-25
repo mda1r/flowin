@@ -371,7 +371,7 @@ export function ProductsPage() {
                             onClick={() => setDeactivatingProductId(product.id)}
                             title={t.common.delete}
                           >
-                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            <Trash2 className="h-3.5 w-3.5 text-danger" />
                           </Button>
                         )}
                       </div>

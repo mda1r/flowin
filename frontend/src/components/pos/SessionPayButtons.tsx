@@ -46,7 +46,7 @@ export function SessionPayButtons({ bill, onPaid }: { bill: GameSessionBillRespo
         type="button"
         onClick={() => pay.mutate('Card')}
         disabled={pay.isPending}
-        className="flex items-center justify-center gap-2 rounded-xl border border-brand py-2.5 text-sm font-bold text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
+        className="flex items-center justify-center gap-2 rounded-xl border border-brand py-2.5 text-sm font-bold text-brand-ink transition-colors hover:bg-brand-soft disabled:opacity-50"
       >
         <CreditCard className="h-4 w-4" />
         دفع بطاقة

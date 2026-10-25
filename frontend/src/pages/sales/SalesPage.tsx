@@ -161,7 +161,7 @@ function ReturnModal({
                     checked={state.selected}
                     onChange={() => toggleLine(line.id)}
                     disabled={fullyReturned}
-                    className="mt-1 h-4 w-4 rounded border-border accent-[rgb(var(--brand))] disabled:cursor-not-allowed"
+                    className="mt-1 h-4 w-4 rounded border-border accent-[rgb(var(--brand-ink))] disabled:cursor-not-allowed"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -169,7 +169,7 @@ function ReturnModal({
                         {line.productName}
                       </p>
                       {fullyReturned && (
-                        <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                        <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning dark:bg-warning/15">
                           {t.sales.returnSuccess}
                         </span>
                       )}
@@ -177,7 +177,7 @@ function ReturnModal({
                     <p className="text-xs text-muted">
                       {line.variantName} · {formatCurrency(line.unitPrice)} × {line.quantity}
                       {!fullyReturned && state.maxQuantity < line.quantity && (
-                        <span className="mr-1 text-orange-500">({state.maxQuantity})</span>
+                        <span className="mr-1 text-warning">({state.maxQuantity})</span>
                       )}
                     </p>
 
@@ -247,7 +247,7 @@ function ReturnModal({
               onClick={() => setRestockItems(true)}
               className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors ${
                 restockItems
-                  ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-900/20 dark:text-green-400'
+                  ? 'border-success bg-success/10 text-success dark:border-success dark:bg-success/15 dark:text-success'
                   : 'border-border bg-surface text-muted hover:bg-surface-2 '
               }`}
             >
@@ -260,7 +260,7 @@ function ReturnModal({
               onClick={() => setRestockItems(false)}
               className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors ${
                 !restockItems
-                  ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-900/20 dark:text-red-400'
+                  ? 'border-danger bg-danger/10 text-danger dark:border-danger dark:bg-danger/15 dark:text-danger'
                   : 'border-border bg-surface text-muted hover:bg-surface-2 '
               }`}
             >
@@ -388,15 +388,15 @@ export function SalesPage() {
                 <p className="text-xs text-muted">{t.sales.netRevenue}</p>
                 <p className="text-xl font-bold tabular-nums">{formatCurrency(netRevenue)}</p>
                 {totalRefunds > 0 && (
-                  <p className="text-xs text-red-500 tabular-nums">−{formatCurrency(totalRefunds)} {t.sales.returns}</p>
+                  <p className="text-xs text-danger tabular-nums">−{formatCurrency(totalRefunds)} {t.sales.returns}</p>
                 )}
               </div>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="flex items-center gap-4">
-              <div className="rounded-xl bg-purple-50 p-3 dark:bg-purple-900/30">
-                <ShoppingCart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <div className="rounded-xl bg-brand-soft p-3 dark:bg-brand/20">
+                <ShoppingCart className="h-5 w-5 text-brand-ink" />
               </div>
               <div>
                 <p className="text-xs text-muted">{t.sales.totalOrders}</p>
@@ -406,8 +406,8 @@ export function SalesPage() {
           </Card>
           <Card>
             <CardBody className="flex items-center gap-4">
-              <div className="rounded-xl bg-green-50 p-3 dark:bg-green-900/30">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+              <div className="rounded-xl bg-success/10 p-3 dark:bg-success/15">
+                <TrendingUp className="h-5 w-5 text-success" />
               </div>
               <div>
                 <p className="text-xs text-muted">{t.reports.avgOrderValue}</p>
@@ -417,12 +417,12 @@ export function SalesPage() {
           </Card>
           <Card>
             <CardBody className="flex items-center gap-4">
-              <div className="rounded-xl bg-red-50 p-3 dark:bg-red-900/30">
-                <RotateCcw className="h-5 w-5 text-red-500" />
+              <div className="rounded-xl bg-danger/10 p-3 dark:bg-danger/15">
+                <RotateCcw className="h-5 w-5 text-danger" />
               </div>
               <div>
                 <p className="text-xs text-muted">{t.sales.returns}</p>
-                <p className="text-xl font-bold tabular-nums text-red-600">{formatCurrency(totalRefunds)}</p>
+                <p className="text-xl font-bold tabular-nums text-danger">{formatCurrency(totalRefunds)}</p>
               </div>
             </CardBody>
           </Card>
@@ -450,7 +450,7 @@ export function SalesPage() {
                       #{r.id.slice(-6).toUpperCase()}
                     </span>
                     {returnsMap.has(r.id) && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning dark:bg-warning/15">
                         <RotateCcw className="h-3 w-3" />
                         {t.sales.returns}
                       </span>
@@ -485,7 +485,7 @@ export function SalesPage() {
                 render: (r) => {
                   const refund = returnsMap.get(r.id)
                   return refund
-                    ? <span className="text-sm font-medium text-red-600 tabular-nums">−{formatCurrency(refund)}</span>
+                    ? <span className="text-sm font-medium text-danger tabular-nums">−{formatCurrency(refund)}</span>
                     : <span className="text-muted/50">—</span>
                 },
               },

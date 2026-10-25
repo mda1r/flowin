@@ -339,7 +339,7 @@ function ContractRow({
           )}
         </div>
         {contract.signedAt && (
-          <p className="mt-0.5 text-xs text-green-600 dark:text-green-400">
+          <p className="mt-0.5 text-xs text-success">
             وُقِّع في {formatDate(contract.signedAt, locale)}
           </p>
         )}
@@ -609,7 +609,7 @@ function ContractModal({
                     <button
                       type="button"
                       onClick={() => remove(index)}
-                      className="text-muted hover:text-red-500 transition-colors"
+                      className="text-muted hover:text-danger transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

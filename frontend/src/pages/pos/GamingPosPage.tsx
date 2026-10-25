@@ -12,8 +12,8 @@ import { useI18n } from '@/i18n'
 
 /* neon gaming accent scoped to this page */
 const GAMING_ACCENT: React.CSSProperties = {
-  '--accent-l': '#7C3AED',
-  '--accent-d': '#A78BFA',
+  '--accent-l': 'rgb(var(--brand-ink))',
+  '--accent-d': 'rgb(var(--brand-ink))',
 } as React.CSSProperties
 
 /* arcade cabinet: slightly angled top bezel in the accent color */
@@ -123,7 +123,7 @@ export function GamingPosPage() {
       {/* Stats bar */}
       <div className="flex gap-3 px-6 py-3">
         <span className="card-3d px-3 py-1.5 text-sm text-muted">
-          {t.gaming.idle}: <strong className="text-blue-500">{availableCount}</strong>
+          {t.gaming.idle}: <strong className="text-info">{availableCount}</strong>
         </span>
         <span className="card-3d px-3 py-1.5 text-sm text-muted">
           {t.gaming.active}: <strong style={{ color: 'var(--accent)' }}>{inUseCount}</strong>
@@ -180,9 +180,9 @@ export function GamingPosPage() {
                       className={cn(
                         'text-xs font-bold',
                         isAvail
-                          ? 'text-blue-500'
+                          ? 'text-info'
                           : isInUse
-                            ? isOvertime ? 'text-red-500' : ''
+                            ? isOvertime ? 'text-danger' : ''
                             : 'text-muted',
                       )}
                       style={isInUse && !isOvertime ? { color: 'var(--accent)' } : undefined}
@@ -192,7 +192,7 @@ export function GamingPosPage() {
                     <Gamepad2
                       className={cn(
                         'h-4 w-4',
-                        isAvail ? 'text-blue-500' : isInUse ? (isOvertime ? 'text-red-500' : '') : 'text-muted',
+                        isAvail ? 'text-info' : isInUse ? (isOvertime ? 'text-danger' : '') : 'text-muted',
                       )}
                       style={isInUse && !isOvertime ? { color: 'var(--accent)', filter: 'drop-shadow(0 0 6px var(--glow))' } : undefined}
                     />
@@ -216,9 +216,9 @@ export function GamingPosPage() {
                         {session.playerName}
                       </p>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <Timer className={cn('h-3 w-3', isOvertime ? 'text-red-500' : 'text-muted')} />
+                        <Timer className={cn('h-3 w-3', isOvertime ? 'text-danger' : 'text-muted')} />
                         <span
-                          className={cn('seg-display text-sm font-bold', isOvertime && 'text-red-500')}
+                          className={cn('seg-display text-sm font-bold', isOvertime && 'text-danger')}
                           style={!isOvertime ? { color: 'var(--accent)' } : { textShadow: '0 0 10px rgba(239,68,68,0.6)' }}
                         >
                           {elapsed}/{planned === 999 ? '∞' : planned}
@@ -231,7 +231,7 @@ export function GamingPosPage() {
                             className="h-full rounded-full transition-all"
                             style={{
                               width: `${progressPct}%`,
-                              background: isOvertime ? '#ef4444' : 'var(--accent)',
+                              background: isOvertime ? 'rgb(var(--danger))' : 'var(--accent)',
                               boxShadow: isOvertime ? '0 0 8px rgba(239,68,68,0.7)' : '0 0 8px var(--glow)',
                             }}
                           />
@@ -256,7 +256,7 @@ export function GamingPosPage() {
                         className="btn-3d w-full py-1.5 text-xs"
                         style={
                           isOvertime
-                            ? { background: '#ef4444', boxShadow: '0 4px 0 rgba(0,0,0,0.3), 0 10px 24px rgba(239,68,68,0.4)' }
+                            ? { background: 'rgb(var(--danger))', boxShadow: '0 4px 0 rgba(0,0,0,0.3), 0 10px 24px rgba(239,68,68,0.4)' }
                             : undefined
                         }
                       >

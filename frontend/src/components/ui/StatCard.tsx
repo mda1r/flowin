@@ -12,7 +12,7 @@ interface StatCardProps {
 }
 
 const toneClasses: Record<Tone, string> = {
-  brand: 'bg-brand-soft text-brand',
+  brand: 'bg-brand-soft text-brand-ink',
   success: 'bg-success/10 text-success',
   warning: 'bg-warning/15 text-warning',
   danger: 'bg-danger/10 text-danger',

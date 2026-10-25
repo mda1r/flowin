@@ -19,10 +19,10 @@ const CATEGORY_LABELS: Record<LogCategory, string> = {
 
 const CATEGORY_COLORS: Record<LogCategory, string> = {
   shift:         'bg-info/10 text-info',
-  inventory:     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  'stock-count': 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  order:         'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  user:          'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  inventory:     'bg-warning/10 text-warning dark:bg-warning/15',
+  'stock-count': 'bg-brand-soft text-brand-ink dark:bg-brand/20',
+  order:         'bg-success/10 text-success dark:bg-success/15',
+  user:          'bg-danger/10 text-danger dark:bg-danger/15',
   other:         'bg-surface-2 text-muted',
 }
 
@@ -236,7 +236,7 @@ export function ActivityLogsPage() {
                       key={log.id}
                       className={
                         isDeficit
-                          ? 'bg-red-50 dark:bg-red-900/15 border-r-4 border-red-500'
+                          ? 'bg-danger/10 dark:bg-danger/15 border-r-4 border-danger'
                           : 'hover:bg-surface-2 transition-colors'
                       }
                     >
@@ -262,7 +262,7 @@ export function ActivityLogsPage() {
                       </td>
                       <td className="px-4 py-3">
                         {isDeficit ? (
-                          <span className="flex items-center gap-1.5 font-semibold text-red-600 dark:text-red-400">
+                          <span className="flex items-center gap-1.5 font-semibold text-danger">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             {log.action}
                           </span>
@@ -270,7 +270,7 @@ export function ActivityLogsPage() {
                           <span className="font-medium text-fg">{log.action}</span>
                         )}
                       </td>
-                      <td className={`px-4 py-3 max-w-xs truncate ${isDeficit ? 'font-medium text-red-700 dark:text-red-300' : 'text-muted '}`}>
+                      <td className={`px-4 py-3 max-w-xs truncate ${isDeficit ? 'font-medium text-danger dark:text-danger' : 'text-muted '}`}>
                         {log.details ?? '—'}
                       </td>
                     </tr>

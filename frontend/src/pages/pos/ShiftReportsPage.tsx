@@ -129,7 +129,7 @@ export function ShiftReportsPage() {
       {/* Current open shift */}
       {currentShift && (
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-brand">{t.shiftReports.currentShift}</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-brand-ink">{t.shiftReports.currentShift}</p>
           <ShiftCard shift={currentShift} isCurrent />
         </div>
       )}
@@ -208,13 +208,13 @@ function ShiftCard({ shift, isCurrent = false }: { shift: ShiftResponse; isCurre
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {isCurrent ? (
-              <span className="flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success dark:bg-success/15">
+                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {t.shiftReports.status.open}
               </span>
             ) : (
               <span className="flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted">
-                <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                <CheckCircle className="h-3.5 w-3.5 text-success" />
                 {t.shiftReports.status.closed}
               </span>
             )}
@@ -229,7 +229,7 @@ function ShiftCard({ shift, isCurrent = false }: { shift: ShiftResponse; isCurre
           <span className="text-muted"> {t.shiftReports.and} </span>
           <span className="font-semibold">{formatCurrency(shift.totalCardSales)} {t.shiftReports.card}</span>
           <span className="text-muted">، {t.shiftReports.total} </span>
-          <span className="font-bold text-brand">{formatCurrency(shift.totalSales)}</span>
+          <span className="font-bold text-brand-ink">{formatCurrency(shift.totalSales)}</span>
         </div>
 
         {/* Stats grid */}
@@ -293,7 +293,7 @@ function ShiftCard({ shift, isCurrent = false }: { shift: ShiftResponse; isCurre
                     </span>
                     <span className={`rounded-full px-1.5 py-0.5 font-medium ${
                       order.paymentMethod === 'Cash'
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        ? 'bg-success/10 text-success dark:bg-success/15 dark:text-success'
                         : 'bg-info/10 text-info'
                     }`}>
                       {order.paymentMethod === 'Cash' ? t.shiftReports.cash : t.shiftReports.card}
@@ -331,8 +331,8 @@ function VarianceChip({ label, variance }: { label: string; variance: number }) 
   return (
     <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
       positive
-        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+        ? 'bg-success/10 text-success dark:bg-success/15 dark:text-success'
+        : 'bg-danger/10 text-danger dark:bg-danger/15 dark:text-danger'
     }`}>
       {!positive && <AlertTriangle className="h-3 w-3" />}
       {positive ? `${t.shiftReports.surplus} ${label}` : `${t.shiftReports.deficit} ${label}`}: {formatCurrency(Math.abs(variance))}

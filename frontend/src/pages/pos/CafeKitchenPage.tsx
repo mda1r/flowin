@@ -8,10 +8,12 @@ import { restaurantApi } from '@/api/restaurant'
 import type { RestaurantOrderResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
 
+// Light cards on the graphite board, like the identity's kitchen screen: new waits in amber,
+// in-progress carries a mint edge, ready turns mint.
 const STATUS_STYLE = {
-  pending:   { color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',        border: 'border-amber-300 dark:border-amber-700' },
-  preparing: { color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',            border: 'border-blue-400 dark:border-blue-600' },
-  ready:     { color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', border: 'border-emerald-400 dark:border-emerald-600' },
+  pending:   { color: 'bg-warning/15 text-warning', border: 'border-warning/50', card: 'bg-surface' },
+  preparing: { color: 'bg-brand-soft text-brand-ink', border: 'border-brand/60', card: 'bg-surface' },
+  ready:     { color: 'bg-brand text-brand-fg', border: 'border-brand', card: 'bg-brand-soft' },
 }
 
 type KitchenStatus = 'pending' | 'preparing' | 'ready'
@@ -50,26 +52,26 @@ function TicketCard({
   const isTakeaway = order.tableNumber === 99
 
   return (
-    <div className={cn('relative flex flex-col rounded-2xl border-2 bg-white p-4 shadow-sm dark:bg-gray-900', cfg.border)}>
+    <div className={cn('scheme-light relative flex flex-col rounded-2xl border-2 p-4 text-fg shadow-md', cfg.card, cfg.border)}>
       {/* Header */}
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-bold', cfg.color)}>
             {cfg.label}
           </span>
-          <span className="text-sm font-black text-gray-400">
+          <span className="text-sm font-black text-muted">
             #{order.id.slice(-4).toUpperCase()}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-xs text-gray-400">
+          <span className="flex items-center gap-1 text-xs text-muted">
             <Clock className="h-3 w-3" />
             {elapsed(order.createdAt, t)}
           </span>
           {status === 'ready' && (
             <button
               onClick={() => onDismiss(order.id)}
-              className="rounded-full p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+              className="rounded-full p-1 text-muted hover:bg-surface-2 hover:text-muted dark:hover:bg-surface-2"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -80,11 +82,11 @@ function TicketCard({
       {/* Order type */}
       <div className="mb-3">
         {isTakeaway ? (
-          <span className="inline-flex items-center rounded-lg bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+          <span className="inline-flex items-center rounded-lg bg-info/10 px-2 py-0.5 text-sm font-bold text-info dark:bg-info/15">
             🛍 {t.kitchen.takeaway}
           </span>
         ) : (
-          <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-0.5 text-sm font-bold text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+          <span className="inline-flex items-center rounded-lg bg-warning/10 px-2 py-0.5 text-sm font-bold text-warning dark:bg-warning/15">
             {t.kitchen.table} {order.tableNumber}
           </span>
         )}
@@ -93,15 +95,15 @@ function TicketCard({
       {/* Items */}
       <div className="flex-1 space-y-2">
         {order.items.map((item) => (
-          <div key={item.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0 dark:border-gray-800">
+          <div key={item.id} className="border-b border-border pb-2 last:border-0 last:pb-0">
             <div className="flex items-baseline justify-between gap-2">
-              <p className="font-semibold text-gray-900 dark:text-gray-100">{item.itemName}</p>
-              <span className="text-xl font-black tabular-nums text-gray-700 dark:text-gray-300">
+              <p className="font-semibold text-muted dark:text-fg">{item.itemName}</p>
+              <span className="text-xl font-black tabular-nums text-muted">
                 ×{item.quantity}
               </span>
             </div>
             {item.notes && (
-              <p className="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <p className="mt-0.5 text-xs font-medium text-warning">
                 📝 {item.notes}
               </p>
             )}
@@ -111,7 +113,7 @@ function TicketCard({
 
       {/* Notes */}
       {order.notes && order.notes !== 'تيك أواي' && (
-        <p className="mt-2 text-xs text-gray-400">{order.notes}</p>
+        <p className="mt-2 text-xs text-muted">{order.notes}</p>
       )}
 
       {/* Action buttons */}
@@ -119,7 +121,7 @@ function TicketCard({
         {status === 'pending' && (
           <button
             onClick={() => onPreparing(order.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-500 py-2 text-sm font-bold text-white hover:bg-blue-600"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-info py-2 text-sm font-bold text-white hover:bg-info"
           >
             <Loader2 className="h-4 w-4" />
             {t.kitchen.preparing}
@@ -128,7 +130,7 @@ function TicketCard({
         {status === 'preparing' && (
           <button
             onClick={() => onReady(order.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 text-sm font-bold text-white hover:bg-emerald-600"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2 text-sm font-bold text-brand-fg hover:bg-brand/90"
           >
             <CheckCircle className="h-4 w-4" />
             {t.kitchen.ready}
@@ -138,14 +140,14 @@ function TicketCard({
           <>
             <button
               onClick={() => onReturn(order.id)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-300 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/20"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-info/30 px-3 py-2 text-sm font-medium text-info hover:bg-info/10 dark:border-info dark:hover:bg-info/15"
               title="إرجاع للتحضير"
             >
               <RotateCcw className="h-4 w-4" />
             </button>
             <button
               onClick={() => onDismiss(order.id)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-sm font-medium text-muted hover:bg-surface-2"
             >
               <X className="h-4 w-4" />
               إزالة
@@ -220,36 +222,36 @@ export function CafeKitchenPage() {
   }, [pending.map((o) => o.id).join(',')])
 
   const columns = [
-    { key: 'preparing', label: t.kitchen.preparing,  count: preparing.length, items: preparing, accent: 'text-blue-500' },
-    { key: 'ready',     label: t.kitchen.ready,      count: ready.length,     items: ready,     accent: 'text-emerald-500' },
+    { key: 'preparing', label: t.kitchen.preparing,  count: preparing.length, items: preparing, accent: 'text-fg' },
+    { key: 'ready',     label: t.kitchen.ready,      count: ready.length,     items: ready,     accent: 'text-brand-ink' },
   ]
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-gray-950" dir="rtl">
+    <div className="scheme-dark flex h-screen flex-col overflow-hidden bg-bg text-fg" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 bg-gray-900 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate({ to: '/pos' })}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
           >
             <ArrowRight className="h-4 w-4" />
             <span className="text-xs">{t.common.back}</span>
           </button>
-          <ChefHat className="h-6 w-6 text-amber-400" />
-          <h1 className="text-lg font-black tracking-wide text-white">{t.kitchen.title}</h1>
-          <span className="rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-bold text-amber-400">
+          <ChefHat className="h-6 w-6 text-warning" />
+          <h1 className="text-lg font-black tracking-wide text-fg">{t.kitchen.title}</h1>
+          <span className="rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-bold text-warning">
             {kitchenOrders.filter((o) => o.status !== 'Ready').length} طلب نشط
           </span>
         </div>
         <div className="flex items-center gap-3">
           {isError && (
-            <span className="flex items-center gap-1 text-xs text-rose-400">
+            <span className="flex items-center gap-1 text-xs text-danger">
               <WifiOff className="h-3.5 w-3.5" />
               {t.kitchen.connectionError}
             </span>
           )}
-          <p className="text-xs text-gray-500">يتحدث كل 5 ثوانٍ</p>
+          <p className="text-xs text-muted">يتحدث كل 5 ثوانٍ</p>
         </div>
       </div>
 
@@ -260,14 +262,14 @@ export function CafeKitchenPage() {
             key={col.key}
             className={cn(
               'flex flex-1 flex-col overflow-hidden',
-              colIdx < columns.length - 1 && 'border-l border-gray-800',
+              colIdx < columns.length - 1 && 'border-l border-border',
             )}
           >
             {/* Column header */}
-            <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className={cn('text-sm font-bold', col.accent)}>{col.label}</h2>
               {col.count > 0 && (
-                <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs font-bold text-gray-300">
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-bold text-muted">
                   {col.count}
                 </span>
               )}
@@ -276,7 +278,7 @@ export function CafeKitchenPage() {
             {/* Cards */}
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
               {col.items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 py-16 text-gray-700">
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted">
                   <ChefHat className="h-8 w-8" />
                   <p className="text-xs">{t.kitchen.noOrders}</p>
                 </div>

@@ -14,15 +14,15 @@ function minutesSince(isoDate: string): number {
 }
 
 function timeColor(minutes: number): string {
-  if (minutes < 10) return 'text-green-400'
-  if (minutes < 20) return 'text-yellow-400'
-  return 'text-red-400'
+  if (minutes < 10) return 'text-success'
+  if (minutes < 20) return 'text-warning'
+  return 'text-danger'
 }
 
 function timeBorderColor(minutes: number): string {
-  if (minutes < 10) return 'border-green-600'
-  if (minutes < 20) return 'border-yellow-500'
-  return 'border-red-500'
+  if (minutes < 10) return 'border-success'
+  if (minutes < 20) return 'border-warning'
+  return 'border-danger'
 }
 
 function itemStatusLabel(status: OrderItemStatus, t: { kitchen: { ready: string; preparing: string } }): string {
@@ -67,15 +67,15 @@ function OrderCard({
   return (
     <div
       className={cn(
-        'rounded-2xl border-2 bg-gray-900 p-4 transition-all',
-        order.status === 'Ready' ? 'border-green-500' : timeBorderColor(minutes),
+        'scheme-light rounded-2xl border-2 p-4 text-fg shadow-md transition-all',
+        order.status === 'Ready' ? 'border-brand bg-brand-soft' : cn('bg-surface', timeBorderColor(minutes)),
       )}
     >
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <span className="text-4xl font-black text-white">#{order.tableNumber}</span>
-          <p className="text-xs text-gray-400">{t.kitchen.table}</p>
+          <span className="text-4xl font-black text-fg">#{order.tableNumber}</span>
+          <p className="text-xs text-muted">{t.kitchen.table}</p>
         </div>
         <div className={cn('text-right', timeColor(minutes))}>
           <div className="flex items-center gap-1.5 justify-end">
@@ -83,7 +83,7 @@ function OrderCard({
             <span className="text-lg font-bold">{minutes} {t.kitchen.minutes}</span>
           </div>
           {order.notes && (
-            <p className="mt-1 text-xs text-gray-400 max-w-[120px] text-right">
+            <p className="mt-1 text-xs text-muted max-w-[120px] text-right">
               {order.notes}
             </p>
           )}
@@ -99,8 +99,8 @@ function OrderCard({
               className={cn(
                 'flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors',
                 item.status === 'Ready'
-                  ? 'border-green-500 bg-green-500 text-white'
-                  : 'border-gray-600 bg-gray-800 hover:border-green-400',
+                  ? 'border-success bg-success text-white'
+                  : 'border-border bg-surface-2 hover:border-success',
               )}
               disabled={item.status === 'Ready'}
             >
@@ -109,18 +109,18 @@ function OrderCard({
             <div className="flex-1 min-w-0">
               <span className={cn(
                 'text-sm font-medium',
-                item.status === 'Ready' ? 'text-gray-500 line-through' : 'text-white',
+                item.status === 'Ready' ? 'text-muted line-through' : 'text-fg',
               )}>
                 {item.quantity}× {item.itemName}
               </span>
               {item.notes && (
-                <p className="text-xs text-yellow-400">{item.notes}</p>
+                <p className="text-xs text-warning">{item.notes}</p>
               )}
             </div>
             <span className={cn(
               'text-xs',
-              item.status === 'Ready' ? 'text-green-400' :
-              item.status === 'Preparing' ? 'text-blue-400' : 'text-gray-500',
+              item.status === 'Ready' ? 'text-success' :
+              item.status === 'Preparing' ? 'text-info' : 'text-muted',
             )}>
               {itemStatusLabel(item.status, t)}
             </span>
@@ -132,7 +132,7 @@ function OrderCard({
       {order.status === 'Pending' && onSendToKitchen && (
         <button
           onClick={() => onSendToKitchen(order.id)}
-          className="w-full rounded-xl bg-blue-500 py-2 text-sm font-bold text-white transition-all hover:bg-blue-400"
+          className="w-full rounded-xl bg-fg py-2 text-sm font-bold text-surface transition-all hover:bg-fg/90"
         >
           {t.kitchen.sendToKitchen}
         </button>
@@ -145,8 +145,8 @@ function OrderCard({
           className={cn(
             'w-full rounded-xl py-2 text-sm font-bold transition-all',
             allReady
-              ? 'bg-green-500 text-white hover:bg-green-400'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600',
+              ? 'bg-brand text-brand-fg hover:bg-brand/90'
+              : 'bg-border text-muted hover:bg-muted/30',
           )}
         >
           {allReady ? t.kitchen.markReady : 'الطلب جاهز'}
@@ -154,7 +154,7 @@ function OrderCard({
       )}
 
       {order.status === 'Ready' && (
-        <div className="w-full rounded-xl bg-green-500/20 py-2 text-center text-sm font-bold text-green-400">
+        <div className="w-full rounded-xl bg-brand py-2 text-center text-sm font-bold text-brand-fg">
           ✓ جاهز للتقديم
         </div>
       )}
@@ -226,33 +226,33 @@ export function KitchenPage() {
   const readyOrders = orders.filter((o) => o.status === 'Ready')
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white" dir="rtl">
+    <div className="scheme-dark min-h-screen bg-bg text-fg" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
-          <ChefHat className="h-7 w-7 text-orange-400" />
+          <ChefHat className="h-7 w-7 text-warning" />
           <h1 className="text-xl font-bold">{t.kitchen.title}</h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-muted">
             {new Date().toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
           </div>
           {!initialized && (
-            <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-400">
+            <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-muted">
               انقر لتفعيل التنبيهات الصوتية
             </span>
           )}
-          <div className="flex gap-3 text-xs text-gray-500">
+          <div className="flex gap-3 text-xs text-muted">
             <span>
-              <span className="inline-block h-2 w-2 rounded-full bg-yellow-500 ml-1" />
+              <span className="inline-block h-2 w-2 rounded-full bg-warning ml-1" />
               قيد الانتظار: {pendingOrders.length}
             </span>
             <span>
-              <span className="inline-block h-2 w-2 rounded-full bg-blue-500 ml-1" />
+              <span className="inline-block h-2 w-2 rounded-full bg-info ml-1" />
               تحضير: {inKitchenOrders.length}
             </span>
             <span>
-              <span className="inline-block h-2 w-2 rounded-full bg-green-500 ml-1" />
+              <span className="inline-block h-2 w-2 rounded-full bg-success ml-1" />
               {t.kitchen.ready}: {readyOrders.length}
             </span>
           </div>
@@ -260,12 +260,12 @@ export function KitchenPage() {
       </div>
 
       {/* Columns */}
-      <div className="grid h-[calc(100vh-73px)] grid-cols-3 divide-x divide-gray-800" style={{ direction: 'rtl' }}>
+      <div className="grid h-[calc(100vh-73px)] grid-cols-3 divide-x divide-border" style={{ direction: 'rtl' }}>
         {/* قيد الانتظار */}
         <div className="flex flex-col overflow-hidden">
-          <div className="border-b border-gray-800 bg-yellow-500/10 px-4 py-3">
-            <h2 className="font-bold text-yellow-400">قيد الانتظار</h2>
-            <p className="text-xs text-gray-500">{pendingOrders.length} طلب</p>
+          <div className="border-b border-border bg-warning/10 px-4 py-3">
+            <h2 className="font-bold text-warning">قيد الانتظار</h2>
+            <p className="text-xs text-muted">{pendingOrders.length} طلب</p>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {pendingOrders.map((order) => (
@@ -280,16 +280,16 @@ export function KitchenPage() {
               />
             ))}
             {pendingOrders.length === 0 && (
-              <p className="py-12 text-center text-sm text-gray-700">{t.kitchen.noOrders}</p>
+              <p className="py-12 text-center text-sm text-muted">{t.kitchen.noOrders}</p>
             )}
           </div>
         </div>
 
         {/* قيد التحضير */}
         <div className="flex flex-col overflow-hidden">
-          <div className="border-b border-gray-800 bg-blue-500/10 px-4 py-3">
-            <h2 className="font-bold text-blue-400">قيد التحضير</h2>
-            <p className="text-xs text-gray-500">{inKitchenOrders.length} طلب</p>
+          <div className="border-b border-border bg-info/10 px-4 py-3">
+            <h2 className="font-bold text-info">قيد التحضير</h2>
+            <p className="text-xs text-muted">{inKitchenOrders.length} طلب</p>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {inKitchenOrders.map((order) => (
@@ -303,16 +303,16 @@ export function KitchenPage() {
               />
             ))}
             {inKitchenOrders.length === 0 && (
-              <p className="py-12 text-center text-sm text-gray-700">{t.kitchen.noOrders}</p>
+              <p className="py-12 text-center text-sm text-muted">{t.kitchen.noOrders}</p>
             )}
           </div>
         </div>
 
         {/* جاهز */}
         <div className="flex flex-col overflow-hidden">
-          <div className="border-b border-gray-800 bg-green-500/10 px-4 py-3">
-            <h2 className="font-bold text-green-400">{t.kitchen.ready}</h2>
-            <p className="text-xs text-gray-500">{readyOrders.length} طلب</p>
+          <div className="border-b border-border bg-success/10 px-4 py-3">
+            <h2 className="font-bold text-success">{t.kitchen.ready}</h2>
+            <p className="text-xs text-muted">{readyOrders.length} طلب</p>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {readyOrders.map((order) => (
@@ -326,7 +326,7 @@ export function KitchenPage() {
               />
             ))}
             {readyOrders.length === 0 && (
-              <p className="py-12 text-center text-sm text-gray-700">{t.kitchen.noOrders}</p>
+              <p className="py-12 text-center text-sm text-muted">{t.kitchen.noOrders}</p>
             )}
           </div>
         </div>

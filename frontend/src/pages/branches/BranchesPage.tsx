@@ -137,13 +137,13 @@ export function BranchesPage() {
           </div>
           <div className="rounded-xl border border-border bg-surface p-4">
             <p className="text-xs text-muted">{t.branches.activeBranches}</p>
-            <p className="mt-1 text-2xl font-bold text-green-600">
+            <p className="mt-1 text-2xl font-bold text-success">
               {branches.filter((b) => b.isActive).length}
             </p>
           </div>
           <div className="rounded-xl border border-border bg-surface p-4">
             <p className="text-xs text-muted">{t.branches.inactiveBranches}</p>
-            <p className="mt-1 text-2xl font-bold text-red-600">
+            <p className="mt-1 text-2xl font-bold text-danger">
               {branches.filter((b) => !b.isActive).length}
             </p>
           </div>
@@ -165,7 +165,7 @@ export function BranchesPage() {
                     <div>
                       <p className="font-medium text-fg">{r.name}</p>
                       {r.isMainBranch && (
-                        <span className="flex items-center gap-0.5 text-xs text-yellow-600">
+                        <span className="flex items-center gap-0.5 text-xs text-warning">
                           <Star className="h-3 w-3" /> {t.branches.mainBranch}
                         </span>
                       )}
@@ -228,7 +228,7 @@ export function BranchesPage() {
                           {!r.isMainBranch && r.isActive && (
                             <button
                               onClick={() => setDeactivating(r)}
-                              className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-red-600"
+                              className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-danger"
                               title="تعطيل"
                             >
                               <span className="text-xs font-medium">تعطيل</span>

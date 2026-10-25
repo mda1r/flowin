@@ -479,7 +479,7 @@ export function GamingPage() {
                       'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                       !startForm.customDuration &&
                         startForm.durationMinutes === preset.value
-                        ? 'border-brand bg-brand-soft text-brand'
+                        ? 'border-brand bg-brand-soft text-brand-ink'
                         : 'border-border text-muted hover:border-muted/40',
                     )}
                   >
@@ -494,7 +494,7 @@ export function GamingPage() {
                   className={cn(
                     'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                     startForm.customDuration
-                      ? 'border-brand bg-brand-soft text-brand'
+                      ? 'border-brand bg-brand-soft text-brand-ink'
                       : 'border-border text-muted hover:border-muted/40',
                   )}
                 >
@@ -532,8 +532,8 @@ export function GamingPage() {
                 <label className="block text-sm font-medium text-fg">
                   التكلفة المتوقعة
                 </label>
-                <div className="flex h-9 items-center rounded-lg bg-green-50 px-3 dark:bg-green-900/20">
-                  <span className="font-bold text-green-700 dark:text-green-400">
+                <div className="flex h-9 items-center rounded-lg bg-success/10 px-3 dark:bg-success/15">
+                  <span className="font-bold text-success">
                     {formatCurrency(
                       startPackage?.price ??
                         ((startForm.customDuration
@@ -589,7 +589,7 @@ export function GamingPage() {
                     className={cn(
                       'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                       !extendCustom && extendMinutes === preset.value
-                        ? 'border-brand bg-brand-soft text-brand'
+                        ? 'border-brand bg-brand-soft text-brand-ink'
                         : 'border-border text-muted hover:border-muted/40',
                     )}
                   >
@@ -602,7 +602,7 @@ export function GamingPage() {
                   className={cn(
                     'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
                     extendCustom
-                      ? 'border-brand bg-brand-soft text-brand'
+                      ? 'border-brand bg-brand-soft text-brand-ink'
                       : 'border-border text-muted hover:border-muted/40',
                   )}
                 >
@@ -702,11 +702,11 @@ export function GamingPage() {
               ))}
 
               {/* Total */}
-              <div className="flex justify-between py-3 rounded-xl bg-green-50 dark:bg-green-900/20 px-4 mt-2">
-                <span className="font-bold text-green-800 dark:text-green-300 text-base">
+              <div className="flex justify-between py-3 rounded-xl bg-success/10 dark:bg-success/15 px-4 mt-2">
+                <span className="font-bold text-success text-base">
                   الإجمالي
                 </span>
-                <span className="font-bold text-green-700 dark:text-green-400 text-xl">
+                <span className="font-bold text-success text-xl">
                   {formatCurrency(billModal.totalAmount, billModal.currency)}
                 </span>
               </div>
@@ -729,7 +729,7 @@ export function GamingPage() {
                     className={cn(
                       'flex-1 rounded-lg border py-2.5 text-sm font-medium transition-all',
                       paymentMethod === m.value
-                        ? 'border-brand bg-brand-soft text-brand'
+                        ? 'border-brand bg-brand-soft text-brand-ink'
                         : 'border-border text-muted',
                     )}
                   >
@@ -759,15 +759,15 @@ function StatCard({
   const colors = {
     blue: 'border-info/30 bg-info/10 text-info',
     green:
-      'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-900/20 dark:text-green-200',
+      'border-success/30 bg-success/10 text-success dark:border-success/60 dark:bg-success/15',
     purple:
-      'border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-900 dark:bg-purple-900/20 dark:text-purple-200',
+      'border-brand/40 bg-brand-soft text-brand-ink dark:border-brand dark:bg-brand/20',
     gray: 'border-border bg-surface-2 text-fg',
   }
   const sub = {
     blue: 'text-info',
-    green: 'text-green-600 dark:text-green-400',
-    purple: 'text-purple-600 dark:text-purple-400',
+    green: 'text-success',
+    purple: 'text-brand-ink',
     gray: 'text-muted',
   }
 
@@ -870,14 +870,14 @@ function StationCard({
     'flex flex-col rounded-2xl border p-4 transition-all duration-300',
     'bg-surface',
     station.status === 'Available' &&
-      'border-green-300 shadow-md shadow-green-200/50 dark:border-green-800 dark:shadow-green-900/30',
+      'border-success/30 shadow-md shadow-success/20 dark:border-success/60',
     station.status === 'InUse' &&
       !isWarning &&
       !isExpired &&
       'border-info/30 shadow-md',
     (isWarning || (station.status === 'InUse' && !session)) &&
-      'border-red-400 shadow-md shadow-red-200/50 dark:border-red-800 dark:shadow-red-900/30',
-    isExpired && 'border-red-500 animate-pulse',
+      'border-danger shadow-md shadow-danger/20 dark:border-danger/60',
+    isExpired && 'border-danger animate-pulse',
     station.status === 'Maintenance' && 'border-border opacity-70',
   )
 
@@ -934,7 +934,7 @@ function StationCard({
           {/* Timer */}
           {isExpired ? (
             <div className="text-center py-1">
-              <p className="text-red-600 dark:text-red-400 font-bold text-base">
+              <p className="text-danger font-bold text-base">
                 {t.gaming.endSession}!
               </p>
             </div>
@@ -945,7 +945,7 @@ function StationCard({
                   className={cn(
                     'font-mono text-2xl font-bold tabular-nums',
                     isWarning
-                      ? 'text-red-600 dark:text-red-400'
+                      ? 'text-danger'
                       : 'text-fg',
                   )}
                 >
@@ -959,7 +959,7 @@ function StationCard({
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-1000',
-                    isWarning ? 'bg-red-500' : 'bg-info',
+                    isWarning ? 'bg-danger' : 'bg-info',
                   )}
                   style={{ width: `${progressPct}%` }}
                 />

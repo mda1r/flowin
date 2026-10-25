@@ -119,7 +119,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
           title="لا توجد مواد مخزون"
           description="أضف المواد الخام أولاً (مثل البن والحليب)، ثم ارجع لتحديد وصفة المنتج."
           action={
-            <Link to="/stock-materials" className="text-sm font-semibold text-brand hover:underline">
+            <Link to="/stock-materials" className="text-sm font-semibold text-brand-ink hover:underline">
               الذهاب إلى مواد المخزون
             </Link>
           }

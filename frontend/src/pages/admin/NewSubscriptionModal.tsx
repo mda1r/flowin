@@ -52,16 +52,16 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       dir="rtl"
     >
-      <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl bg-surface border border-border shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-white">{t.admin.subscription.newSubscription}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{tenantName}</p>
+            <h2 className="text-base font-semibold text-fg">{t.admin.subscription.newSubscription}</h2>
+            <p className="text-xs text-muted mt-0.5">{tenantName}</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg"
           >
             <X className="h-4 w-4" />
           </button>
@@ -70,13 +70,13 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
         {/* Form */}
         <div className="space-y-4 p-6">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-300">
+            <label className="mb-1.5 block text-xs font-medium text-muted">
               {t.admin.subscription.plan}
             </label>
             <select
               value={planId}
               onChange={(e) => setPlanId(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
             >
               <option value="">-- اختر خطة --</option>
               {plans
@@ -91,31 +91,31 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+              <label className="mb-1.5 block text-xs font-medium text-muted">
                 {t.admin.subscription.startDate}
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+              <label className="mb-1.5 block text-xs font-medium text-muted">
                 تاريخ الانتهاء
               </label>
               <input
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-300">
+            <label className="mb-1.5 block text-xs font-medium text-muted">
               ملاحظات (اختياري)
             </label>
             <textarea
@@ -123,23 +123,23 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="أي ملاحظات خاصة بهذا الاشتراك..."
-              className="w-full resize-none rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+              className="w-full resize-none rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 border-t border-slate-700 px-6 py-4">
+        <div className="flex gap-2 border-t border-border px-6 py-4">
           <button
             onClick={onClose}
-            className="flex-1 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+            className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted hover:bg-surface-2 transition-colors"
           >
             {t.common.cancel}
           </button>
           <button
             onClick={() => mutation.mutate()}
             disabled={!planId || mutation.isPending}
-            className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex-1 rounded-lg bg-info px-4 py-2.5 text-sm font-semibold text-white hover:bg-info disabled:opacity-50 transition-colors"
           >
             {mutation.isPending ? t.common.loading : t.admin.subscription.create}
           </button>

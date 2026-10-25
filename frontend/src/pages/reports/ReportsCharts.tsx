@@ -14,11 +14,11 @@ import type { OrderResponse } from '@/types/api'
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 
-const TEAL = '#13D9A0'
+const TEAL = 'rgb(var(--brand))'
 const TEAL_RGB = '19,217,160'
-const ORANGE = '#f97316'
-const AMBER = '#f59e0b'
-const PRODUCT_COLORS = [TEAL, '#22c55e', '#f59e0b', '#a855f7', '#64748b'] as const
+const ORANGE = 'rgb(var(--warning))'
+const AMBER = 'rgb(var(--warning))'
+const PRODUCT_COLORS = [TEAL, 'rgb(var(--success))', 'rgb(var(--warning))', 'rgb(var(--brand-ink))', 'rgb(var(--muted))'] as const
 const MUTED = 'var(--color-text-muted, #9ca3af)'
 const INK = 'var(--color-text, currentColor)'
 /** teal that stays legible as *text* on white cards */
@@ -617,7 +617,7 @@ function RevenueWave({ data, reduced }: { data: DailyPoint[]; reduced: boolean }
         <FloatingTip x={hover.px} y={hover.py}>
           <TipTitle>{hp.fullLabel}</TipTitle>
           <TipRow color={TEAL} label="الإيرادات" value={formatCurrency(hp.revenue)} />
-          <TipRow color="#e5e7eb" label="الصافي" value={formatCurrency(hp.net)} dashed />
+          <TipRow color="rgb(var(--border))" label="الصافي" value={formatCurrency(hp.net)} dashed />
           <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
             {hp.orders} طلب
           </div>
@@ -788,7 +788,7 @@ function HourWheel({ data, reduced }: { data: HourlyPoint[]; reduced: boolean })
           <FloatingTip x={hover.px} y={hover.py}>
             <TipTitle>الساعة {hp.label}</TipTitle>
             <TipRow color={TEAL} label="الطلبات" value={`${hp.orders} طلب`} />
-            <TipRow color="#e5e7eb" label="الإيرادات" value={formatCurrency(hp.revenue)} />
+            <TipRow color="rgb(var(--border))" label="الإيرادات" value={formatCurrency(hp.revenue)} />
             {hp.orders > 0 && (
               <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
                 {Math.round((hp.orders / maxOrders) * 100)}% من الذروة
@@ -954,7 +954,7 @@ function TripleRing({ rings, margin, gross, returnTotal, reduced }: {
         {returnTotal > 0 && (
           <li className="flex items-center justify-between gap-3 px-2 py-1.5">
             <span className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: '#ef4444', opacity: 0.8 }} />
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: 'rgb(var(--danger))', opacity: 0.8 }} />
               <span className="text-xs text-muted">المرتجعات</span>
             </span>
             <span className="text-xs font-semibold tabular-nums text-muted">− {formatCurrency(returnTotal)}</span>
@@ -1030,7 +1030,7 @@ function ProductBars({ data, gross, reduced }: { data: ProductPoint[]; gross: nu
                 className={cn('inline-flex shrink-0 items-center justify-center rounded-md text-[11px] font-bold tabular-nums', !reduced && 'fw-rise')}
                 style={{
                   width: BAR_RANK_W, height: BAR_RANK_W, animationDelay: `${delay}ms`,
-                  color: i === 0 ? '#07261c' : p.color,
+                  color: i === 0 ? 'rgb(var(--brand-fg))' : p.color,
                   background: i === 0 ? p.color : rgba(p.color, 0.14),
                   boxShadow: i === 0 ? `0 0 14px ${rgba(p.color, 0.45)}` : undefined,
                 }}
@@ -1105,7 +1105,7 @@ function ProductBars({ data, gross, reduced }: { data: ProductPoint[]; gross: nu
           <FloatingTip x={hover.px} y={hover.py}>
             <TipTitle>{hp.name}</TipTitle>
             <TipRow color={hp.color} label="الإيرادات" value={formatCurrency(hp.revenue)} />
-            <TipRow color="#e5e7eb" label="الكمية" value={`${hp.qty} وحدة`} />
+            <TipRow color="rgb(var(--border))" label="الكمية" value={`${hp.qty} وحدة`} />
             <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
               {pct(hp.revenue, gross).toFixed(1)}% من إجمالي الإيرادات
             </div>

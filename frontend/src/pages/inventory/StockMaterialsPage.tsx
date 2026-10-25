@@ -196,7 +196,7 @@ function MaterialModal({ categories, initial, onSave, onClose, saving, error }: 
             </Field>
           </div>
           {f.storageUnit && f.componentUnit && factor > 0 && (
-            <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm text-brand">
+            <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm text-brand-ink">
               1 {f.storageUnit} = {factor.toLocaleString('ar-SA')} {f.componentUnit}
             </p>
           )}
@@ -566,7 +566,7 @@ export function StockMaterialsPage() {
         className={cn(
           'w-full truncate rounded-lg px-3 py-2 text-start text-sm transition-colors',
           withAction && 'pe-8',
-          active ? 'bg-brand-soft font-semibold text-brand' : 'text-muted hover:bg-surface-2 hover:text-fg',
+          active ? 'bg-brand-soft font-semibold text-brand-ink' : 'text-muted hover:bg-surface-2 hover:text-fg',
         )}
       >
         {label}
@@ -684,7 +684,7 @@ export function StockMaterialsPage() {
             <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-border accent-[rgb(var(--brand))]"
+                className="h-4 w-4 rounded border-border accent-[rgb(var(--brand-ink))]"
                 checked={lowStockOnly}
                 onChange={(e) => setLowStockOnly(e.target.checked)}
               />

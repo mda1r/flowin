@@ -75,7 +75,7 @@ export function LoyaltyPanel({
                       <span className="block truncate font-medium text-fg">{c.name}</span>
                       {c.phone && <span className="block text-xs text-muted" dir="ltr">{c.phone}</span>}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-brand">{c.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
+                    <span className="shrink-0 text-xs tabular-nums text-brand-ink">{c.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
                   </button>
                 </li>
               ))
@@ -93,7 +93,7 @@ export function LoyaltyPanel({
         <UserRound className="h-4 w-4 shrink-0 text-muted" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{customer.name}</span>
         {rules.enabled && (
-          <span className="shrink-0 text-xs tabular-nums text-brand">{customer.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
+          <span className="shrink-0 text-xs tabular-nums text-brand-ink">{customer.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
         )}
         <button
           type="button"
@@ -115,7 +115,7 @@ export function LoyaltyPanel({
           aria-pressed={using}
           className={cn(
             'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
-            using ? 'border-brand bg-brand-soft text-brand' : 'border-border bg-surface text-fg hover:bg-surface-2',
+            using ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border bg-surface text-fg hover:bg-surface-2',
           )}
         >
           <span className="flex items-center gap-2">

@@ -119,11 +119,11 @@ export function WhatsAppSettingsModal({ open, onClose, current }: Props) {
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-medium text-fg">شكل القالب</legend>
           <label className="flex items-center gap-2 text-sm text-fg">
-            <input type="checkbox" checked={hasImageHeader} onChange={(e) => setHasImageHeader(e.target.checked)} className="accent-[rgb(var(--brand))]" />
+            <input type="checkbox" checked={hasImageHeader} onChange={(e) => setHasImageHeader(e.target.checked)} className="accent-[rgb(var(--brand-ink))]" />
             القالب فيه ترويسة صورة (كل حملة تحتاج صورة)
           </label>
           <label className="flex items-center gap-2 text-sm text-fg">
-            <input type="checkbox" checked={includeNameVariable} onChange={(e) => setIncludeNameVariable(e.target.checked)} className="accent-[rgb(var(--brand))]" />
+            <input type="checkbox" checked={includeNameVariable} onChange={(e) => setIncludeNameVariable(e.target.checked)} className="accent-[rgb(var(--brand-ink))]" />
             {'المتغير {{1}} اسم العميل، و{{2}} نص العرض'}
           </label>
           {!includeNameVariable && <p className="text-xs text-muted">{'سيُرسل نص العرض في المتغير {{1}} وحده.'}</p>}

@@ -94,7 +94,7 @@ export function InvoicesPage() {
                     key={order.id}
                     className={cn(
                       'transition-colors hover:bg-surface-2',
-                      isReturn && 'bg-red-50/50 dark:bg-red-900/10',
+                      isReturn && 'bg-danger/10 dark:bg-danger/15',
                     )}
                   >
                     <td className="px-4 py-3 font-mono text-xs text-muted">
@@ -115,7 +115,7 @@ export function InvoicesPage() {
                       <span className={cn(
                         'rounded-full px-2 py-0.5 text-xs font-medium',
                         order.paymentMethod === 'Cash'
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          ? 'bg-success/10 text-success dark:bg-success/15'
                           : 'bg-info/10 text-info',
                       )}>
                         {order.paymentMethod === 'Cash' ? t.invoices.payment.cash : t.invoices.payment.card}
@@ -126,7 +126,7 @@ export function InvoicesPage() {
                     </td>
                     <td className="px-4 py-3">
                       {isReturn ? (
-                        <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                        <span className="flex items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger dark:bg-danger/15">
                           <RotateCcw className="h-3 w-3" />
                           {t.invoices.refunded}
                         </span>
@@ -209,7 +209,7 @@ function ReceiptModal({
         {/* Header */}
         <div className="mb-4 text-center">
           {isReturn && (
-            <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-sm font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-danger/10 px-3 py-1 text-sm font-bold text-danger dark:bg-danger/15">
               <RotateCcw className="h-3.5 w-3.5" />
               {t.invoices.refunded}
             </div>

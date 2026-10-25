@@ -147,7 +147,7 @@ export function CustomersPage() {
                 header: t.customers.loyaltyPoints,
                 render: (r) => (
                   <div className="flex items-center gap-1.5">
-                    <Star className="h-3.5 w-3.5 text-yellow-500" />
+                    <Star className="h-3.5 w-3.5 text-warning" />
                     <span className="tabular-nums font-medium">{r.loyaltyPoints}</span>
                   </div>
                 ),
@@ -190,7 +190,7 @@ export function CustomersPage() {
           <Input label={t.customers.phone} type="tel" {...register('phone')} />
           <Input label={t.customers.address} {...register('address')} />
           <label className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-sm text-fg">
-            <input type="checkbox" className="mt-0.5 accent-[rgb(var(--brand))]" {...register('marketingOptIn')} />
+            <input type="checkbox" className="mt-0.5 accent-[rgb(var(--brand-ink))]" {...register('marketingOptIn')} />
             <span>
               يوافق على استلام العروض عبر واتساب
               <span className="block text-xs text-muted">فعّله فقط بعد أخذ موافقة العميل.</span>

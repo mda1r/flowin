@@ -36,7 +36,7 @@ type PasswordForm = z.infer<typeof passwordSchema>
 
 function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null
-  return <p className="mt-1 text-xs text-rose-500">{msg}</p>
+  return <p className="mt-1 text-xs text-danger">{msg}</p>
 }
 
 function PasswordInput({ placeholder, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { placeholder?: string }) {
@@ -231,7 +231,7 @@ export function SettingsPage() {
             onClick={() => setLang('ar')}
             className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
               lang === 'ar'
-                ? 'border-brand bg-brand-soft text-brand'
+                ? 'border-brand bg-brand-soft text-brand-ink'
                 : 'border-border text-muted hover:bg-surface-2 '
             }`}
           >
@@ -241,7 +241,7 @@ export function SettingsPage() {
             onClick={() => setLang('en')}
             className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
               lang === 'en'
-                ? 'border-brand bg-brand-soft text-brand'
+                ? 'border-brand bg-brand-soft text-brand-ink'
                 : 'border-border text-muted hover:bg-surface-2 '
             }`}
           >

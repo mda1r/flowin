@@ -178,7 +178,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
             >
               <input
                 type="checkbox"
-                className="h-4 w-4 shrink-0 accent-[rgb(var(--brand))]"
+                className="h-4 w-4 shrink-0 accent-[rgb(var(--brand-ink))]"
                 checked={l.selected}
                 onChange={(e) => update(l.key, { selected: e.target.checked })}
                 aria-label={`تضمين ${l.name}`}
