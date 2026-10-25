@@ -14,6 +14,9 @@ public sealed class Customer : AggregateRoot<CustomerId>
     public string? Address { get; private set; }
     public DateOnly? DateOfBirth { get; private set; }
     public int LoyaltyPoints { get; private set; }
+
+    // The customer agreed to receive offers on WhatsApp; only these customers are reachable by campaigns.
+    public bool MarketingOptIn { get; private set; }
     public string? Notes { get; private set; }
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -28,7 +31,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
         string? phone = null,
         string? address = null,
         DateOnly? dateOfBirth = null,
-        string? notes = null)
+        string? notes = null,
+        bool marketingOptIn = false)
     {
         Customer customer = new()
         {
@@ -40,6 +44,7 @@ public sealed class Customer : AggregateRoot<CustomerId>
             Address = address?.Trim(),
             DateOfBirth = dateOfBirth,
             LoyaltyPoints = 0,
+            MarketingOptIn = marketingOptIn,
             Notes = notes?.Trim(),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -50,8 +55,11 @@ public sealed class Customer : AggregateRoot<CustomerId>
         return customer;
     }
 
-    public void UpdateProfile(string name, string? email, string? phone, string? address, DateOnly? dateOfBirth, string? notes)
+    public void UpdateProfile(
+        string name, string? email, string? phone, string? address, DateOnly? dateOfBirth, string? notes,
+        bool? marketingOptIn = null)
     {
+        MarketingOptIn = marketingOptIn ?? MarketingOptIn;
         Name = name.Trim();
         Email = email?.Trim();
         Phone = phone?.Trim();

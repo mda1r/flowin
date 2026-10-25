@@ -24,6 +24,7 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.Address).HasColumnName("address").HasMaxLength(512);
         builder.Property(c => c.DateOfBirth).HasColumnName("date_of_birth");
         builder.Property(c => c.LoyaltyPoints).HasColumnName("loyalty_points").IsRequired();
+        builder.Property(c => c.MarketingOptIn).HasColumnName("marketing_opt_in").HasDefaultValue(false);
         builder.Property(c => c.Notes).HasColumnName("notes").HasMaxLength(2048);
         builder.Property(c => c.IsActive).HasColumnName("is_active").IsRequired();
         builder.Property(c => c.CreatedAt).HasColumnName("created_at").IsRequired();

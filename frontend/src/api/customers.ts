@@ -17,7 +17,7 @@ export const customersApi = {
 
   create: (
     tenantId: string,
-    data: { name: string; email?: string; phone?: string; address?: string },
+    data: { name: string; email?: string; phone?: string; address?: string; marketingOptIn?: boolean },
   ) =>
     apiClient.post<CustomerResponse>(
       `/api/v1/tenants/${tenantId}/customers`,
@@ -27,7 +27,7 @@ export const customersApi = {
   update: (
     tenantId: string,
     customerId: string,
-    data: { name: string; email?: string; phone?: string; address?: string },
+    data: { name: string; email?: string; phone?: string; address?: string; marketingOptIn?: boolean },
   ) =>
     apiClient.put<CustomerResponse>(
       `/api/v1/tenants/${tenantId}/customers/${customerId}`,

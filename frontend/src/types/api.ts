@@ -349,6 +349,8 @@ export interface CustomerResponse {
   loyaltyPoints: number
   isActive: boolean
   createdAt: string
+  // Agreed to receive offers on WhatsApp.
+  marketingOptIn: boolean
 }
 
 // ── Finance ──────────────────────────────────────────────────────────────────

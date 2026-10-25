@@ -64,6 +64,7 @@ internal static class DatabaseInitializerExtensions
             await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);
             await MigratePurchasingColumnsAsync(sp, logger);
             await EnsureCreatedAsync<CrmDbContext>(sp, logger);
+            await MigrateCrmColumnsAsync(sp, logger);
             await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
             await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
             await EnsureCreatedAsync<HotelDbContext>(sp, logger);
@@ -259,6 +260,21 @@ internal static class DatabaseInitializerExtensions
         {
             try { await posDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "POS migration skipped: {Sql}", sql); }
+        }
+    }
+
+    internal static async Task MigrateCrmColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        CrmDbContext crmDb = sp.GetRequiredService<CrmDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await crmDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "CRM migration skipped: {Sql}", sql); }
         }
     }
 
@@ -1084,6 +1100,7 @@ internal static class DatabaseInitializerExtensions
                 await MigrateStockMaterialsAsync(sp, logger);
                 await EnsureCreatedAsync<SalesDbContext>(sp, logger);
                 await EnsureCreatedAsync<CrmDbContext>(sp, logger);
+                await MigrateCrmColumnsAsync(sp, logger);
                 await EnsureCreatedAsync<PurchasingDbContext>(sp, logger);
                 await MigratePurchasingColumnsAsync(sp, logger);
                 await EnsureCreatedAsync<FinanceDbContext>(sp, logger);

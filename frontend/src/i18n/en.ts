@@ -21,6 +21,7 @@ export const en = {
     kitchen: 'Kitchen Screen',
     shiftReports: 'Shift Reports',
     dailyClose: 'Daily Close',
+    campaigns: 'WhatsApp Campaigns',
     invoices: 'Invoices',
     activityLogs: 'Activity Logs',
     stockMaterials: 'Stock Materials',

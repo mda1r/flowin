@@ -11,4 +11,5 @@ public sealed record UpdateCustomerCommand(
     string? Phone = null,
     string? Address = null,
     DateOnly? DateOfBirth = null,
-    string? Notes = null) : ICommand<CustomerResponse>;
+    string? Notes = null,
+    bool? MarketingOptIn = null) : ICommand<CustomerResponse>;

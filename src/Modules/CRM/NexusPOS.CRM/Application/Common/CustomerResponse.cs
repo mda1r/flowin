@@ -11,4 +11,5 @@ public sealed record CustomerResponse(
     int LoyaltyPoints,
     string? Notes,
     bool IsActive,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    bool MarketingOptIn);

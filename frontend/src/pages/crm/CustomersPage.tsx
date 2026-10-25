@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Gift, Plus, Search, Star } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Gift, Megaphone, MessageCircle, Plus, Search, Star } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -23,6 +24,7 @@ const schema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
+  marketingOptIn: z.boolean().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -64,7 +66,7 @@ export function CustomersPage() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({})
+    reset({ marketingOptIn: false })
     setShowModal(true)
   }
 
@@ -75,6 +77,7 @@ export function CustomersPage() {
       email: customer.email ?? '',
       phone: customer.phone ?? '',
       address: customer.address ?? '',
+      marketingOptIn: customer.marketingOptIn,
     })
     setShowModal(true)
   }
@@ -86,6 +89,12 @@ export function CustomersPage() {
         description={t.customers.description}
         action={
           <div className="flex gap-2">
+            {canManage && (
+              <Link to="/campaigns" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-fg transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
+                <Megaphone className="h-4 w-4" />
+                حملة واتساب
+              </Link>
+            )}
             {canManage && (
               <Button variant="secondary" onClick={() => setShowLoyalty(true)}>
                 <Gift className="h-4 w-4" />
@@ -125,7 +134,10 @@ export function CustomersPage() {
                 header: t.customers.name,
                 render: (r) => (
                   <div>
-                    <p className="font-medium text-fg">{r.name}</p>
+                    <p className="flex items-center gap-1.5 font-medium text-fg">
+                      {r.name}
+                      {r.marketingOptIn && <MessageCircle className="h-3.5 w-3.5 text-success" aria-label="يوافق على العروض" />}
+                    </p>
                     <p className="text-xs text-muted">{r.email ?? r.phone ?? '—'}</p>
                   </div>
                 ),
@@ -177,6 +189,13 @@ export function CustomersPage() {
           <Input label={t.customers.email} type="email" error={errors.email?.message} {...register('email')} />
           <Input label={t.customers.phone} type="tel" {...register('phone')} />
           <Input label={t.customers.address} {...register('address')} />
+          <label className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-sm text-fg">
+            <input type="checkbox" className="mt-0.5 accent-[rgb(var(--brand))]" {...register('marketingOptIn')} />
+            <span>
+              يوافق على استلام العروض عبر واتساب
+              <span className="block text-xs text-muted">فعّله فقط بعد أخذ موافقة العميل.</span>
+            </span>
+          </label>
         </form>
       </Modal>
 

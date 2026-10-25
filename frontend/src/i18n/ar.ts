@@ -23,6 +23,7 @@ export const ar: Translations = {
     kitchen: 'شاشة المطبخ',
     shiftReports: 'تقرير الشفت',
     dailyClose: 'الإقفال اليومي',
+    campaigns: 'حملات واتساب',
     invoices: 'الفواتير',
     activityLogs: 'سجل النشاطات',
     stockMaterials: 'مواد المخزون',

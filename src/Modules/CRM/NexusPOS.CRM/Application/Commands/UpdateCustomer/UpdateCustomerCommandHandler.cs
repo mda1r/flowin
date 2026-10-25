@@ -39,7 +39,7 @@ internal sealed class UpdateCustomerCommandHandler(
         }
 
         customer.UpdateProfile(request.Name, request.Email, request.Phone,
-            request.Address, request.DateOfBirth, request.Notes);
+            request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn);
 
         customerRepository.Update(customer);
         await dbContext.SaveChangesAsync(cancellationToken);

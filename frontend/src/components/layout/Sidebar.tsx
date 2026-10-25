@@ -35,6 +35,7 @@ import {
   Monitor,
   X,
   ClipboardCheck,
+  Megaphone,
 } from 'lucide-react'
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { cn } from '@/lib/utils'
@@ -80,6 +81,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'stockMaterials', to: '/stock-materials', icon: <FlaskConical className="h-5 w-5" /> },
   { labelKey: 'stockCount', to: '/stock-counts', icon: <ClipboardList className="h-5 w-5" /> },
   { labelKey: 'customers', to: '/customers', icon: <Users className="h-5 w-5" /> },
+  { labelKey: 'campaigns', to: '/campaigns', icon: <Megaphone className="h-5 w-5" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-5 w-5" /> },
   { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-5 w-5" /> },
   { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-5 w-5" /> },

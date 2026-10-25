@@ -15,5 +15,6 @@ internal static class CrmMapper
         customer.LoyaltyPoints,
         customer.Notes,
         customer.IsActive,
-        customer.CreatedAt);
+        customer.CreatedAt,
+        customer.MarketingOptIn);
 }

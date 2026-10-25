@@ -54,7 +54,7 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
     {
         CreateCustomerCommand command = new(
             tenantId, request.Name, request.Email, request.Phone,
-            request.Address, request.DateOfBirth, request.Notes);
+            request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn);
         ErrorOr<CustomerResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
             customer => CreatedAtAction(nameof(GetCustomer), new { tenantId, customerId = customer.Id }, customer),
@@ -72,7 +72,7 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
     {
         UpdateCustomerCommand command = new(
             customerId, tenantId, request.Name, request.Email, request.Phone,
-            request.Address, request.DateOfBirth, request.Notes);
+            request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn);
         ErrorOr<CustomerResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -127,7 +127,8 @@ public sealed record CreateCustomerRequest(
     string? Phone = null,
     string? Address = null,
     DateOnly? DateOfBirth = null,
-    string? Notes = null);
+    string? Notes = null,
+    bool? MarketingOptIn = null);
 
 public sealed record UpdateCustomerRequest(
     string Name,
@@ -135,6 +136,7 @@ public sealed record UpdateCustomerRequest(
     string? Phone = null,
     string? Address = null,
     DateOnly? DateOfBirth = null,
-    string? Notes = null);
+    string? Notes = null,
+    bool? MarketingOptIn = null);
 
 public sealed record LoyaltyPointsRequest(int Points);

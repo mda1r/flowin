@@ -30,7 +30,7 @@ internal sealed class CreateCustomerCommandHandler(
 
         Customer customer = Customer.Create(
             request.TenantId, request.Name, request.Email, request.Phone,
-            request.Address, request.DateOfBirth, request.Notes);
+            request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn ?? false);
 
         customerRepository.Add(customer);
         await dbContext.SaveChangesAsync(cancellationToken);

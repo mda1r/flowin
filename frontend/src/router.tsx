@@ -6,6 +6,7 @@ import { POSPage } from '@/pages/pos/PosPage'
 import { ProductsPage } from '@/pages/catalog/ProductsPage'
 import { InventoryPage } from '@/pages/inventory/InventoryPage'
 import { CustomersPage } from '@/pages/crm/CustomersPage'
+import { CampaignsPage } from '@/pages/crm/CampaignsPage'
 import { SalesPage } from '@/pages/sales/SalesPage'
 import { PurchasingPage } from '@/pages/purchasing/PurchasingPage'
 import { FinancePage } from '@/pages/finance/FinancePage'
@@ -266,6 +267,12 @@ const dailyCloseRoute = createRoute({
   component: DailyClosePage,
 })
 
+const campaignsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/campaigns',
+  component: CampaignsPage,
+})
+
 const invoicesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/invoices',
@@ -310,6 +317,7 @@ const routeTree = rootRoute.addChildren([
     shiftReportsRoute,
     dailyCloseRoute,
     invoicesRoute,
+    campaignsRoute,
     taxesRoute,
     stockMaterialsRoute,
   ]),
