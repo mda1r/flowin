@@ -9,6 +9,9 @@ import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { MenuCategory, MenuItemResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
+import { ConfirmModal } from '@/components/ui/Modal'
+import { useShortcuts } from '@/lib/useShortcuts'
 
 const VAT = 0.15
 
@@ -46,6 +49,8 @@ export function RestaurantPosPage() {
   const [showPayment, setShowPayment] = useState(false)
   const [payMethod, setPayMethod] = useState<'Cash' | 'Card'>('Cash')
   const [amountTendered, setAmountTendered] = useState('')
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [confirmClearCart, setConfirmClearCart] = useState(false)
 
   const { data: menuItems = [] } = useQuery({
     queryKey: ['restaurant', 'menu', branchId],
@@ -92,9 +97,58 @@ export function RestaurantPosPage() {
     onError: () => toast.error(t.pos.paymentFailed),
   })
 
+
+  const canConfirmPayment = !(payMethod === 'Cash' && !!amountTendered && parseFloat(amountTendered) < total)
+  const lastLine = () => lines[lines.length - 1]
+
+  const shortcutHints = [
+    { keys: ['+', '-'], label: 'زيادة / إنقاص آخر صنف' },
+    { keys: ['F9', 'Ctrl+Enter'], label: 'الدفع، ثم تأكيد الدفع' },
+    { keys: ['F5', 'F6'], label: 'نقداً / بطاقة (في نافذة الدفع)' },
+    { keys: ['Escape'], label: 'إغلاق نافذة الدفع' },
+    { keys: ['F8'], label: 'تفريغ الطلب' },
+    { keys: ['?'], label: 'عرض الاختصارات' },
+  ]
+
+  useShortcuts([
+    { keys: ['+', '='], label: 'inc', run: () => { const l = lastLine(); if (l) updateQty(l.menuItemId, l.quantity + 1) } },
+    { keys: ['-'], label: 'dec', run: () => { const l = lastLine(); if (l) updateQty(l.menuItemId, l.quantity - 1) } },
+    {
+      keys: ['F9', 'Ctrl+Enter'],
+      label: 'pay',
+      allowInInputs: true,
+      run: () => {
+        if (!showPayment) {
+          if (lines.length === 0) toast.error('الطلب فارغ')
+          else { setShowPayment(true); setAmountTendered('') }
+          return
+        }
+        if (canConfirmPayment && !createOrder.isPending) createOrder.mutate()
+      },
+    },
+    { keys: ['F5'], label: 'cash', allowInInputs: true, enabled: showPayment, run: () => setPayMethod('Cash') },
+    { keys: ['F6'], label: 'card', allowInInputs: true, enabled: showPayment, run: () => setPayMethod('Card') },
+    { keys: ['Escape'], label: 'close', allowInInputs: true, enabled: showPayment, run: () => setShowPayment(false) },
+    { keys: ['F8'], label: 'clear', allowInInputs: true, run: () => { if (lines.length > 0) setConfirmClearCart(true) } },
+    { keys: ['?', '؟', 'F1'], label: 'help', run: () => setShowShortcuts(true) },
+  ])
+
   return (
     <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RESTAURANT_ACCENT}>
-      <PageHeader title="نقطة البيع — المطعم" />
+      <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
+      <ConfirmModal
+        open={confirmClearCart}
+        onClose={() => setConfirmClearCart(false)}
+        onConfirm={() => {
+          setLines([])
+          setConfirmClearCart(false)
+        }}
+        title="تفريغ الطلب"
+        message="سيتم حذف كل الأصناف من الطلب. هل تريد المتابعة؟"
+        confirmLabel="تفريغ"
+        confirmVariant="danger"
+      />
+      <PageHeader title="نقطة البيع — المطعم" action={<ShortcutsHelpButton onClick={() => setShowShortcuts(true)} />} />
       <div className="flex flex-1 overflow-hidden">
 
         {/* Menu */}
@@ -348,7 +402,7 @@ export function RestaurantPosPage() {
                 variant="primary"
                 onClick={() => createOrder.mutate()}
                 loading={createOrder.isPending}
-                disabled={payMethod === 'Cash' && !!amountTendered && parseFloat(amountTendered) < total}
+                disabled={!canConfirmPayment}
                 className="btn-3d flex-1"
               >
                 {t.common.confirm}

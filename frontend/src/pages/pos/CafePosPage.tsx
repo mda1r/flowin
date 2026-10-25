@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot, QrCode,
-  Gamepad2, Clock, Play, Square,
+  Gamepad2, Clock, Play, Square, Search,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
@@ -23,6 +23,9 @@ import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationRespo
 import { useI18n } from '@/i18n'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
+import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
+import { ConfirmModal } from '@/components/ui/Modal'
+import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
 
@@ -356,6 +359,11 @@ export function CafePosPage() {
 
   // Products
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')
+  const [productSearch, setProductSearch] = useState('')
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [confirmClearCart, setConfirmClearCart] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const lastVariantRef = useRef<string | null>(null)
 
   // Cart
   const [cart, setCart] = useState<CafeCartItem[]>([])
@@ -440,9 +448,16 @@ export function CafePosPage() {
   const _rawCats = categoriesData?.data
   const categories: CategoryResponse[] = Array.isArray(_rawCats) ? _rawCats : ((_rawCats as any)?.items ?? [])
   const _rawProds = productsData?.data
-  const products: ProductResponse[] = Array.isArray(_rawProds) ? _rawProds : ((_rawProds as any)?.items ?? [])
+  const categoryProducts: ProductResponse[] = Array.isArray(_rawProds) ? _rawProds : ((_rawProds as any)?.items ?? [])
   const _rawAll = allProductsData?.data
   const allProducts: ProductResponse[] = Array.isArray(_rawAll) ? _rawAll : ((_rawAll as any)?.items ?? [])
+  // A search looks across every category; otherwise the grid shows the selected category.
+  const searchTerm = productSearch.trim().toLowerCase()
+  const products: ProductResponse[] = searchTerm
+    ? allProducts.filter((p) =>
+        p.name.toLowerCase().includes(searchTerm) ||
+        p.variants.some((v) => v.name.toLowerCase().includes(searchTerm) || v.sku?.toLowerCase().includes(searchTerm)))
+    : categoryProducts
 
   // Stock map: variantId → quantity on hand
   const stockMap = (() => {
@@ -495,6 +510,7 @@ export function CafePosPage() {
       toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
       return
     }
+    lastVariantRef.current = variantId
     setCart((prev) => {
       const existing = prev.find((i) => i.variantId === variantId)
       if (existing) return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + 1 } : i)
@@ -803,10 +819,83 @@ export function CafePosPage() {
     Console: '🎮', PC: '💻', VR: '🥽', Arcade: '🕹️', Board: '🎲',
   }
 
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+
+  const addFirstMatch = () => {
+    for (const product of products) {
+      const variant = product.variants.find((v) => v.isActive)
+      if (variant) {
+        addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)
+        setProductSearch('')
+        return
+      }
+    }
+    if (searchTerm) toast.error('لا يوجد منتج مطابق', productSearch)
+  }
+
+  const lastCartVariant = () =>
+    cart.some((i) => i.variantId === lastVariantRef.current) ? lastVariantRef.current : cart[cart.length - 1]?.variantId
+
+  const shortcutHints = [
+    { keys: ['F2', '/'], label: 'البحث عن منتج' },
+    { keys: ['Enter'], label: 'إضافة أول نتيجة (داخل البحث)' },
+    { keys: ['+', '-'], label: 'زيادة / إنقاص آخر صنف' },
+    { keys: ['F5', 'F6', 'F7'], label: 'الدفع: نقداً / بطاقة / تقسيم' },
+    { keys: ['F9', 'Ctrl+Enter'], label: 'إتمام الدفع' },
+    { keys: ['F8'], label: 'تفريغ السلة' },
+    { keys: ['?'], label: 'عرض الاختصارات' },
+  ]
+
+  useShortcuts([
+    {
+      keys: ['F2', '/'],
+      label: 'search',
+      allowInInputs: true,
+      run: () => {
+        if (selectedCategoryId === '__gaming__') setSelectedCategoryId('all')
+        window.setTimeout(() => searchInputRef.current?.focus(), 0)
+      },
+    },
+    { keys: ['+', '='], label: 'inc', run: () => { const v = lastCartVariant(); if (v) updateQty(v, 1) } },
+    { keys: ['-'], label: 'dec', run: () => { const v = lastCartVariant(); if (v) updateQty(v, -1) } },
+    { keys: ['F5'], label: 'cash', allowInInputs: true, run: () => setPayMode('Cash') },
+    { keys: ['F6'], label: 'card', allowInInputs: true, run: () => setPayMode('Card') },
+    { keys: ['F7'], label: 'split', allowInInputs: true, run: () => setPayMode('Split') },
+    {
+      keys: ['F9', 'Ctrl+Enter'],
+      label: 'pay',
+      allowInInputs: true,
+      run: () => {
+        if (!canCheckout) {
+          if (cart.length === 0) toast.error('السلة فارغة')
+          else toast.error('تحقق من مبالغ الدفع المقسّم')
+          return
+        }
+        if (!checkout.isPending) checkout.mutate()
+      },
+    },
+    { keys: ['F8'], label: 'clear', allowInInputs: true, run: () => { if (cart.length > 0) setConfirmClearCart(true) } },
+    { keys: ['?', '؟', 'F1'], label: 'help', allowInInputs: false, run: () => setShowShortcuts(true) },
+  ])
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-2" dir="rtl" style={CAFE_ACCENT}>
+      <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
+      <ConfirmModal
+        open={confirmClearCart}
+        onClose={() => setConfirmClearCart(false)}
+        onConfirm={() => {
+          setCart([])
+          setConfirmClearCart(false)
+          lastVariantRef.current = null
+        }}
+        title="تفريغ السلة"
+        message="سيتم حذف كل الأصناف من السلة. هل تريد المتابعة؟"
+        confirmLabel="تفريغ"
+        confirmVariant="danger"
+      />
       {/* ── Header ── */}
       <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3 shadow-sm">
         <div className="flex items-center gap-3">
@@ -1269,6 +1358,32 @@ export function CafePosPage() {
               </div>
             )}
 
+            {selectedCategoryId !== '__gaming__' && (
+              <div className="flex items-center gap-2 border-b border-border bg-surface px-4 py-2">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                  <input
+                    ref={searchInputRef}
+                    className="input ps-9 text-sm"
+                    placeholder="ابحث عن منتج واضغط Enter للإضافة (F2)"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addFirstMatch()
+                      } else if (e.key === 'Escape' && productSearch) {
+                        e.preventDefault()
+                        setProductSearch('')
+                      }
+                    }}
+                    aria-label="بحث عن منتج"
+                  />
+                </div>
+                <ShortcutsHelpButton onClick={() => setShowShortcuts(true)} />
+              </div>
+            )}
+
             {/* Product grid */}
             {selectedCategoryId !== '__gaming__' && (
             <div className="flex-1 overflow-y-auto p-4">
@@ -1281,8 +1396,8 @@ export function CafePosPage() {
               ) : products.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted/50">
                   <Coffee className="h-10 w-10" />
-                  <p className="text-sm">لا توجد منتجات</p>
-                  <p className="text-xs text-muted">أضف منتجات من صفحة المنتجات أولاً</p>
+                  <p className="text-sm">{searchTerm ? 'لا يوجد منتج مطابق' : 'لا توجد منتجات'}</p>
+                  {!searchTerm && <p className="text-xs text-muted">أضف منتجات من صفحة المنتجات أولاً</p>}
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">

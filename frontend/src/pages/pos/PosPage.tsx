@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, QrCode, ScanBarcode, Unlock, PauseCircle, PlayCircle, Clock } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -21,6 +21,9 @@ import { CafePosPage } from './CafePosPage'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { useI18n } from '@/i18n'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
+import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
+import { ConfirmModal } from '@/components/ui/Modal'
+import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue } from '@/lib/loyalty'
 
 export function POSPage() {
@@ -56,6 +59,9 @@ function RetailPosPage() {
   const [splitCash, setSplitCash] = useState('')
   const [splitCard, setSplitCard] = useState('')
   const [showPayment, setShowPayment] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [confirmClearCart, setConfirmClearCart] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [showHeld, setShowHeld] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(null)
   const [lastScanned, setLastScanned] = useState<string | null>(null)
@@ -224,8 +230,82 @@ function RetailPosPage() {
     toast.success(t.pos.orderResumed)
   }
 
+
+  const canConfirmPayment = !(
+    (payMode === 'Cash' && !!amountTendered && parseFloat(amountTendered) < grossTotal) ||
+    (payMode === 'Split' && (() => {
+      const c = parseFloat(splitCash) || 0
+      const k = parseFloat(splitCard) || 0
+      return !(c > 0 && k > 0 && Math.abs(c + k - grossTotal) < 0.01)
+    })())
+  )
+
+  const choosePayMode = (mode: PayMode) => {
+    setPayMode(mode)
+    setAmountTendered('')
+    setSplitCash('')
+    setSplitCard('')
+  }
+
+  const lastLine = () => lines[lines.length - 1]
+
+  const shortcutHints = [
+    { keys: ['F2', '/'], label: 'البحث / مسح الباركود' },
+    { keys: ['+', '-'], label: 'زيادة / إنقاص آخر صنف' },
+    { keys: ['F9', 'Ctrl+Enter'], label: 'الدفع، ثم تأكيد الدفع' },
+    { keys: ['F5', 'F6', 'F7'], label: 'نقداً / بطاقة / تقسيم (في نافذة الدفع)' },
+    { keys: ['Escape'], label: 'إغلاق نافذة الدفع' },
+    { keys: ['F8'], label: 'تفريغ السلة' },
+    { keys: ['?'], label: 'عرض الاختصارات' },
+  ]
+
+  useShortcuts([
+    { keys: ['F2', '/'], label: 'search', allowInInputs: true, run: () => searchInputRef.current?.focus() },
+    {
+      keys: ['+', '='],
+      label: 'inc',
+      run: () => {
+        const l = lastLine()
+        if (l && canAddToCart(l.variantId, l.quantity)) updateQuantity(l.variantId, l.quantity + 1)
+      },
+    },
+    { keys: ['-'], label: 'dec', run: () => { const l = lastLine(); if (l) updateQuantity(l.variantId, l.quantity - 1) } },
+    {
+      keys: ['F9', 'Ctrl+Enter'],
+      label: 'pay',
+      allowInInputs: true,
+      run: () => {
+        if (!showPayment) {
+          if (lines.length === 0) toast.error('السلة فارغة')
+          else { setShowPayment(true); setAmountTendered('') }
+          return
+        }
+        if (canConfirmPayment && !checkout.isPending) checkout.mutate()
+      },
+    },
+    { keys: ['F5'], label: 'cash', allowInInputs: true, enabled: showPayment, run: () => choosePayMode('Cash') },
+    { keys: ['F6'], label: 'card', allowInInputs: true, enabled: showPayment, run: () => choosePayMode('Card') },
+    { keys: ['F7'], label: 'split', allowInInputs: true, enabled: showPayment, run: () => choosePayMode('Split') },
+    { keys: ['Escape'], label: 'close', allowInInputs: true, enabled: showPayment, run: () => setShowPayment(false) },
+    { keys: ['F8'], label: 'clear', allowInInputs: true, run: () => { if (lines.length > 0) setConfirmClearCart(true) } },
+    { keys: ['?', '؟', 'F1'], label: 'help', run: () => setShowShortcuts(true) },
+  ])
+
   return (
     <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RETAIL_ACCENT}>
+      <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
+      <ConfirmModal
+        open={confirmClearCart}
+        onClose={() => setConfirmClearCart(false)}
+        onConfirm={() => {
+          clear()
+          setConfirmClearCart(false)
+        }}
+        title="تفريغ السلة"
+        message="سيتم حذف كل الأصناف من السلة. هل تريد المتابعة؟"
+        confirmLabel="تفريغ"
+        confirmVariant="danger"
+      />
       <PageHeader
         title={t.pos.title}
         action={
@@ -256,12 +336,16 @@ function RetailPosPage() {
         {/* Product shelf */}
         <div className="flex flex-1 flex-col overflow-hidden border-e" style={{ borderColor: 'var(--card-border)' }}>
           <div className="p-4">
+            <div className="mb-2 flex justify-end">
+              <ShortcutsHelpButton onClick={() => setShowShortcuts(true)} />
+            </div>
             {/* inset 3D search with scan-beam on barcode hit */}
             <div className="relative overflow-hidden rounded-xl">
               <Search className="absolute start-3 top-2.5 z-10 h-4 w-4 text-muted" />
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder={t.pos.searchProducts}
+                placeholder={`${t.pos.searchProducts} (F2)`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input-3d ps-9"
@@ -496,7 +580,7 @@ function RetailPosPage() {
               ] as { mode: PayMode; icon: React.ReactNode; label: string }[]).map(({ mode, icon, label }) => (
                 <button
                   key={mode}
-                  onClick={() => { setPayMode(mode); setAmountTendered(''); setSplitCash(''); setSplitCard('') }}
+                  onClick={() => choosePayMode(mode)}
                   className={cn(
                     'card-3d flex flex-col items-center gap-1 p-3 text-xs font-medium transition-all',
                     payMode === mode ? 'neon-border' : 'card-3d-lift text-muted',
@@ -601,14 +685,7 @@ function RetailPosPage() {
                 variant="primary"
                 onClick={() => checkout.mutate()}
                 loading={checkout.isPending}
-                disabled={
-                  (payMode === 'Cash' && !!amountTendered && parseFloat(amountTendered) < grossTotal) ||
-                  (payMode === 'Split' && (() => {
-                    const c = parseFloat(splitCash) || 0
-                    const k = parseFloat(splitCard) || 0
-                    return !(c > 0 && k > 0 && Math.abs(c + k - grossTotal) < 0.01)
-                  })())
-                }
+                disabled={!canConfirmPayment}
                 className="btn-3d flex-1"
               >
                 {t.pos.confirmPayment}
