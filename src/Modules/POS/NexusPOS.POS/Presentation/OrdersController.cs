@@ -17,6 +17,7 @@ using NexusPOS.POS.Application.Queries.ListOrders;
 using NexusPOS.POS.Application.Queries.ListReturns;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Presentation.Requests;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.POS.Presentation;
 
@@ -38,7 +39,8 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        ListOrdersQuery query = new(branchId, status, from, to, page, pageSize);
+        ListOrdersQuery query = new(
+            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Math.Max(page, 1), Math.Clamp(pageSize, 1, 500));
         ErrorOr<IReadOnlyList<OrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);

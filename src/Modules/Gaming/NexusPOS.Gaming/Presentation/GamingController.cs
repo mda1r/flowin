@@ -10,8 +10,10 @@ using NexusPOS.Gaming.Application.Commands.StartSession;
 using NexusPOS.Gaming.Application.Common;
 using NexusPOS.Gaming.Application.Queries.GetStation;
 using NexusPOS.Gaming.Application.Queries.ListActiveSessions;
+using NexusPOS.Gaming.Application.Queries.ListCompletedSessions;
 using NexusPOS.Gaming.Application.Queries.ListStations;
 using NexusPOS.Gaming.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Gaming.Presentation;
 
@@ -95,6 +97,19 @@ public sealed class GamingController(ISender mediator) : ControllerBase
     {
         ListActiveSessionsQuery query = new(branchId);
         ErrorOr<IReadOnlyList<GameSessionResponse>> result = await mediator.Send(query, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpGet("sessions/completed")]
+    [ProducesResponseType(typeof(IReadOnlyList<CompletedSessionResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListCompletedSessions(
+        Guid branchId,
+        [FromQuery] DateTime from,
+        [FromQuery] DateTime to,
+        CancellationToken cancellationToken)
+    {
+        ListCompletedSessionsQuery query = new(branchId, UtcDates.AsUtc(from), UtcDates.AsUtc(to));
+        ErrorOr<IReadOnlyList<CompletedSessionResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
