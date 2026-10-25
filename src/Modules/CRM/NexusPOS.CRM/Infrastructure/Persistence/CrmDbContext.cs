@@ -8,6 +8,7 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options, MediatR
     : BaseModuleDbContext(options, publisher)
 {
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<LoyaltySettings> LoyaltySettings => Set<LoyaltySettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

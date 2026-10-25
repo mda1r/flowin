@@ -4,6 +4,7 @@ using NexusPOS.POS.Application.Commands.Checkout;
 using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Enums;
+using NexusPOS.SharedKernel.Domain;
 
 namespace NexusPOS.POS.UnitTests.Domain;
 
@@ -24,7 +25,7 @@ public sealed class CheckoutBuilderTests
     {
         CheckoutOrderCommand cmd = Command(offlineAt: new DateTime(2026, 10, 25, 9, 0, 0, DateTimeKind.Utc));
 
-        ErrorOr<Order> result = CheckoutBuilder.Build(cmd);
+        ErrorOr<Order> result = CheckoutBuilder.Build(cmd, LoyaltyRules.Default);
 
         result.IsError.Should().BeFalse();
         Order order = result.Value;
@@ -39,7 +40,7 @@ public sealed class CheckoutBuilderTests
     [Fact]
     public void SplitPayment_KeepsBothPortions()
     {
-        ErrorOr<Order> result = CheckoutBuilder.Build(Command(PaymentMethod.Split, 57.50m, cash: 20m, card: 37.50m));
+        ErrorOr<Order> result = CheckoutBuilder.Build(Command(PaymentMethod.Split, 57.50m, cash: 20m, card: 37.50m), LoyaltyRules.Default);
 
         result.Value.SplitCash.Should().Be(20m);
         result.Value.SplitCard.Should().Be(37.50m);
@@ -48,7 +49,7 @@ public sealed class CheckoutBuilderTests
     [Fact]
     public void LoyaltyRedemption_IsAppliedBeforePayment()
     {
-        ErrorOr<Order> result = CheckoutBuilder.Build(Command(tendered: 52.50m, points: 100, customer: Guid.NewGuid()));
+        ErrorOr<Order> result = CheckoutBuilder.Build(Command(tendered: 52.50m, points: 100, customer: Guid.NewGuid()), LoyaltyRules.Default);
 
         result.Value.LoyaltyPointsRedeemed.Should().Be(100);
         Math.Round(result.Value.TotalAmount, 2).Should().Be(52.50m);
@@ -57,13 +58,13 @@ public sealed class CheckoutBuilderTests
     [Fact]
     public void LoyaltyWithoutCustomer_FailsAndNothingIsBuilt()
     {
-        CheckoutBuilder.Build(Command(points: 100)).FirstError.Should().Be(PosErrors.LoyaltyRequiresCustomer);
+        CheckoutBuilder.Build(Command(points: 100), LoyaltyRules.Default).FirstError.Should().Be(PosErrors.LoyaltyRequiresCustomer);
     }
 
     [Fact]
     public void ATenderRoundedToTheHalala_IsAccepted()
     {
         // 57.4999 from the till must not be rejected as short of a 57.50 total.
-        CheckoutBuilder.Build(Command(PaymentMethod.Card, 57.4999m)).IsError.Should().BeFalse();
+        CheckoutBuilder.Build(Command(PaymentMethod.Card, 57.4999m), LoyaltyRules.Default).IsError.Should().BeFalse();
     }
 }

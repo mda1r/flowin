@@ -329,6 +329,16 @@ export interface PurchaseOrderResponse {
 
 // ── CRM ──────────────────────────────────────────────────────────────────────
 
+// The store's loyalty programme: points per riyal paid, redeemPoints points are worth redeemValue riyals,
+// and a customer can start redeeming from minRedeemPoints.
+export interface LoyaltySettings {
+  enabled: boolean
+  pointsPerCurrencyUnit: number
+  redeemPoints: number
+  redeemValue: number
+  minRedeemPoints: number
+}
+
 export interface CustomerResponse {
   id: string
   tenantId: string

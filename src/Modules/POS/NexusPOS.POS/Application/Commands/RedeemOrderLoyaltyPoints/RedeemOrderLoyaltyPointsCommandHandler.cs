@@ -7,6 +7,7 @@ using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.SharedKernel.Application.Services;
+using NexusPOS.SharedKernel.Domain;
 
 namespace NexusPOS.POS.Application.Commands.RedeemOrderLoyaltyPoints;
 
@@ -26,16 +27,14 @@ internal sealed class RedeemOrderLoyaltyPointsCommandHandler(
             return PosErrors.OrderNotFound;
         }
 
-        if (request.Points > 0 && order.CustomerId is Guid customerId)
+        ErrorOr<LoyaltyRules> rules = await LoyaltyRedemption.CheckAsync(
+            loyalty, order.TenantId, order.CustomerId, request.Points, cancellationToken);
+        if (rules.IsError)
         {
-            int? available = await loyalty.GetPointsAsync(order.TenantId, customerId, cancellationToken);
-            if (available is null || available < request.Points)
-            {
-                return PosErrors.InsufficientLoyaltyPoints;
-            }
+            return rules.Errors;
         }
 
-        ErrorOr<Success> result = order.RedeemLoyaltyPoints(request.Points);
+        ErrorOr<Success> result = order.RedeemLoyaltyPoints(request.Points, rules.Value.ValuePerPoint);
         if (result.IsError)
         {
             return result.Errors;

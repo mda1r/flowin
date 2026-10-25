@@ -1,11 +1,11 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.POS.Application.Common;
-using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.SharedKernel.Application.Services;
+using NexusPOS.SharedKernel.Domain;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
 
@@ -20,16 +20,14 @@ internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoya
             return OrderMapper.ToResponse(existing);
         }
 
-        if (request.LoyaltyPoints > 0 && request.CustomerId is Guid customerId)
+        ErrorOr<LoyaltyRules> rules = await LoyaltyRedemption.CheckAsync(
+            loyalty, request.TenantId, request.CustomerId, request.LoyaltyPoints, cancellationToken);
+        if (rules.IsError)
         {
-            int? available = await loyalty.GetPointsAsync(request.TenantId, customerId, cancellationToken);
-            if (available is null || available < request.LoyaltyPoints)
-            {
-                return PosErrors.InsufficientLoyaltyPoints;
-            }
+            return rules.Errors;
         }
 
-        ErrorOr<Order> built = CheckoutBuilder.Build(request);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value);
         if (built.IsError)
         {
             return built.Errors;

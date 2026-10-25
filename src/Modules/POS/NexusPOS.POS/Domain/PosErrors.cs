@@ -49,6 +49,12 @@ public static class PosErrors
     public static readonly Error LoyaltyExceedsTotal =
         Error.Validation("POS.LoyaltyExceedsTotal", "قيمة النقاط أكبر من إجمالي الفاتورة.");
 
+    public static readonly Error LoyaltyDisabled =
+        Error.Validation("POS.LoyaltyDisabled", "برنامج النقاط متوقف في هذا المتجر.");
+
+    public static Error LoyaltyBelowMinimum(int minimum) =>
+        Error.Validation("POS.LoyaltyBelowMinimum", $"لا يمكن استبدال أقل من {minimum} نقطة.");
+
     public static readonly Error InsufficientLoyaltyPoints =
         Error.Validation("POS.InsufficientLoyaltyPoints", "رصيد العميل من النقاط لا يكفي.");
 }

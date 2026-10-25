@@ -29,7 +29,7 @@ import type { CheckoutPayload } from '@/api/orders'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
-import { maxRedeemablePoints, pointsValue } from '@/lib/loyalty'
+import { maxRedeemablePoints, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { buildReceiptMessage } from '@/lib/whatsapp'
@@ -64,6 +64,7 @@ function RetailPosPage() {
   const [payMode, setPayMode] = useState<PayMode>('Cash')
   const [amountTendered, setAmountTendered] = useState('')
   const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
+  const loyaltyRules = useLoyaltyRules()
   const [redeemPoints, setRedeemPoints] = useState(0)
   const [splitCash, setSplitCash] = useState('')
   const [splitCard, setSplitCard] = useState('')
@@ -86,9 +87,9 @@ function RetailPosPage() {
 
   // أسعار المنتجات شاملة الضريبة — نستخرج الضريبة من الإجمالي
   const cartTotal = subtotal()
-  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal) : 0
+  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal, loyaltyRules) : 0
   const appliedPoints = Math.min(redeemPoints, maxRedeemable)
-  const loyaltyDiscount = pointsValue(appliedPoints)
+  const loyaltyDiscount = pointsValue(appliedPoints, loyaltyRules)
   // grossTotal is what the customer pays, after any loyalty discount.
   const grossTotal = Math.round((cartTotal - loyaltyDiscount) * 100) / 100
   const extractedTax = Math.round(grossTotal * 0.15 / 1.15 * 100) / 100
@@ -632,6 +633,7 @@ function RetailPosPage() {
                 }}
                 maxRedeemable={maxRedeemable}
                 payable={grossTotal}
+                rules={loyaltyRules}
               />
             </div>
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Star } from 'lucide-react'
+import { Gift, Plus, Search, Star } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,6 +16,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
 import type { CustomerResponse } from '@/types/api'
+import { LoyaltySettingsModal } from '@/components/crm/LoyaltySettingsModal'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -30,7 +31,9 @@ export function CustomersPage() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<CustomerResponse | null>(null)
-  const { tenantId } = useAuthStore()
+  const { tenantId, user } = useAuthStore()
+  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
+  const [showLoyalty, setShowLoyalty] = useState(false)
   const { t } = useI18n()
   const qc = useQueryClient()
 
@@ -82,10 +85,18 @@ export function CustomersPage() {
         title={t.customers.title}
         description={t.customers.description}
         action={
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            {t.customers.addCustomer}
-          </Button>
+          <div className="flex gap-2">
+            {canManage && (
+              <Button variant="secondary" onClick={() => setShowLoyalty(true)}>
+                <Gift className="h-4 w-4" />
+                برنامج النقاط
+              </Button>
+            )}
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              {t.customers.addCustomer}
+            </Button>
+          </div>
         }
       />
       <div className="p-6">
@@ -168,6 +179,8 @@ export function CustomersPage() {
           <Input label={t.customers.address} {...register('address')} />
         </form>
       </Modal>
+
+      {canManage && <LoyaltySettingsModal open={showLoyalty} onClose={() => setShowLoyalty(false)} />}
     </div>
   )
 }

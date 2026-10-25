@@ -2,6 +2,7 @@ using ErrorOr;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NexusPOS.CRM.Application.Services;
 using NexusPOS.CRM.Domain.Entities;
 using NexusPOS.CRM.Domain.ValueObjects;
 using NexusPOS.CRM.Infrastructure.Persistence;
@@ -11,7 +12,7 @@ using NexusPOS.SharedKernel.Domain;
 namespace NexusPOS.CRM.Application.EventHandlers;
 
 // On a completed sale for a known customer: deduct the points redeemed on the order, then add the points earned
-// on the amount paid. Failures are logged and never undo the sale.
+// on the amount paid under the store's programme (none while it is switched off). Failures are logged and never undo the sale.
 internal sealed class OrderCompletedLoyaltyHandler(CrmDbContext db, ILogger<OrderCompletedLoyaltyHandler> logger)
     : INotificationHandler<OrderCompletedDomainEvent>
 {
@@ -44,7 +45,8 @@ internal sealed class OrderCompletedLoyaltyHandler(CrmDbContext db, ILogger<Orde
                 }
             }
 
-            int earned = LoyaltyPolicy.PointsEarned(notification.Total);
+            LoyaltyRules rules = await CustomerLoyaltyDirectory.LoadRulesAsync(db, notification.TenantId, cancellationToken);
+            int earned = rules.PointsEarned(notification.Total);
             if (earned > 0)
             {
                 customer.AddLoyaltyPoints(earned);

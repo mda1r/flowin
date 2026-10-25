@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { CustomerResponse } from '@/types/api'
+import type { CustomerResponse, LoyaltySettings } from '@/types/api'
 
 export const customersApi = {
   list: (
@@ -53,4 +53,10 @@ export const customersApi = {
       `/api/v1/tenants/${tenantId}/customers/${customerId}/loyalty/redeem`,
       data,
     ),
+
+  getLoyaltySettings: (tenantId: string) =>
+    apiClient.get<LoyaltySettings>(`/api/v1/tenants/${tenantId}/loyalty-settings`),
+
+  updateLoyaltySettings: (tenantId: string, data: LoyaltySettings) =>
+    apiClient.put<LoyaltySettings>(`/api/v1/tenants/${tenantId}/loyalty-settings`, data),
 }

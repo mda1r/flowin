@@ -28,7 +28,7 @@ import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHe
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
-import { maxRedeemablePoints, pointsEarned, pointsValue } from '@/lib/loyalty'
+import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
@@ -316,7 +316,9 @@ function CustomerReceiptModal({
             {receipt.customerName && (
               <div className="flex justify-between text-xs text-muted">
                 <span>{receipt.customerName}</span>
-                <span className="tabular-nums">+{(receipt.pointsEarned ?? 0).toLocaleString('ar-SA')} نقطة</span>
+                {receipt.pointsEarned !== undefined && (
+                  <span className="tabular-nums">+{receipt.pointsEarned.toLocaleString('ar-SA')} نقطة</span>
+                )}
               </div>
             )}
           </div>
@@ -411,6 +413,7 @@ export function CafePosPage() {
   const [payMode, setPayMode] = useState<PayMode>('Cash')
   const [cashTendered, setCashTendered] = useState('')
   const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
+  const loyaltyRules = useLoyaltyRules()
   const [redeemPoints, setRedeemPoints] = useState(0)
   const queryClient = useQueryClient()
   const payModeRef = useRef<PayMode>('Cash')
@@ -605,9 +608,9 @@ export function CafePosPage() {
 
   // الأسعار شاملة الضريبة — نستخرج الضريبة من الإجمالي
   const cartTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal) : 0
+  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal, loyaltyRules) : 0
   const appliedPoints = Math.min(redeemPoints, maxRedeemable)
-  const loyaltyDiscount = pointsValue(appliedPoints)
+  const loyaltyDiscount = pointsValue(appliedPoints, loyaltyRules)
   // grandTotal is what the customer pays, after any loyalty discount.
   const grandTotal = Math.round((cartTotal - loyaltyDiscount) * 100) / 100
   const vatOf = (gross: number) => Math.round((gross * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
@@ -688,7 +691,7 @@ export function CafePosPage() {
         customerPhone: loyaltyCustomer?.phone ?? undefined,
         loyaltyDiscount: loyaltyDiscount || undefined,
         pointsRedeemed: appliedPoints || undefined,
-        pointsEarned: loyaltyCustomer ? pointsEarned(grandTotal) : undefined,
+        pointsEarned: loyaltyCustomer && loyaltyRules.enabled ? pointsEarned(grandTotal, loyaltyRules) : undefined,
       }
 
       // Push to kitchen (fire and forget)
@@ -1151,6 +1154,7 @@ export function CafePosPage() {
                   onRedeemPointsChange={setRedeemPoints}
                   maxRedeemable={maxRedeemable}
                   payable={grandTotal}
+                  rules={loyaltyRules}
                 />
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-muted">

@@ -252,6 +252,7 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_reference UUID",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS offline_created_at TIMESTAMP WITH TIME ZONE",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_client_reference ON orders (client_reference) WHERE client_reference IS NOT NULL",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS loyalty_point_value NUMERIC(18,6) NOT NULL DEFAULT 0.05",
         ];
 
         foreach (string sql in patches)

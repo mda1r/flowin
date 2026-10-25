@@ -10,6 +10,7 @@ namespace NexusPOS.POS.UnitTests.Domain;
 public sealed class OrderLoyaltyTests
 {
     private static readonly Guid _customer = Guid.NewGuid();
+    private static readonly decimal _value = LoyaltyRules.Default.ValuePerPoint;
 
     // One line priced so the customer pays 115 SAR with 15% VAT.
     private static Order NewOrder(Guid? customerId)
@@ -24,7 +25,7 @@ public sealed class OrderLoyaltyTests
     {
         Order order = NewOrder(_customer);
 
-        order.RedeemLoyaltyPoints(100).IsError.Should().BeFalse();
+        order.RedeemLoyaltyPoints(100, _value).IsError.Should().BeFalse();
 
         Math.Round(order.TotalAmount, 2).Should().Be(110m);
         order.LoyaltyPointsRedeemed.Should().Be(100);
@@ -35,7 +36,7 @@ public sealed class OrderLoyaltyTests
     {
         Order order = NewOrder(null);
 
-        order.RedeemLoyaltyPoints(100).FirstError.Should().Be(PosErrors.LoyaltyRequiresCustomer);
+        order.RedeemLoyaltyPoints(100, _value).FirstError.Should().Be(PosErrors.LoyaltyRequiresCustomer);
     }
 
     [Fact]
@@ -43,16 +44,16 @@ public sealed class OrderLoyaltyTests
     {
         Order order = NewOrder(_customer);
 
-        order.RedeemLoyaltyPoints(3000).FirstError.Should().Be(PosErrors.LoyaltyExceedsTotal);
+        order.RedeemLoyaltyPoints(3000, _value).FirstError.Should().Be(PosErrors.LoyaltyExceedsTotal);
     }
 
     [Fact]
     public void Redeem_Zero_ClearsTheDiscount()
     {
         Order order = NewOrder(_customer);
-        order.RedeemLoyaltyPoints(100);
+        order.RedeemLoyaltyPoints(100, _value);
 
-        order.RedeemLoyaltyPoints(0);
+        order.RedeemLoyaltyPoints(0, _value);
 
         order.TotalAmount.Should().Be(115m);
         order.LoyaltyDiscountAmount.Should().Be(0m);
@@ -64,7 +65,7 @@ public sealed class OrderLoyaltyTests
         Order order = Order.Create(Guid.NewGuid(), Guid.NewGuid(), "SAR", _customer, taxRate: 0.15m);
         order.AddLine(Guid.NewGuid(), "ماء", "صغير", 10m, 0m, 1m);
         OrderLine big = order.AddLine(Guid.NewGuid(), "لاتيه", "كبير", 100m, 0m, 1m).Value;
-        order.RedeemLoyaltyPoints(1000);
+        order.RedeemLoyaltyPoints(1000, _value);
 
         order.RemoveLine(big.Id);
 
@@ -77,7 +78,7 @@ public sealed class OrderLoyaltyTests
     public void Complete_CarriesCustomerAndRedeemedPoints()
     {
         Order order = NewOrder(_customer);
-        order.RedeemLoyaltyPoints(100);
+        order.RedeemLoyaltyPoints(100, _value);
         order.ClearDomainEvents();
 
         order.Complete(PaymentMethod.Cash, order.TotalAmount).IsError.Should().BeFalse();
@@ -85,6 +86,6 @@ public sealed class OrderLoyaltyTests
         OrderCompletedDomainEvent evt = order.DomainEvents.OfType<OrderCompletedDomainEvent>().Single();
         evt.CustomerId.Should().Be(_customer);
         evt.LoyaltyPointsRedeemed.Should().Be(100);
-        LoyaltyPolicy.PointsEarned(evt.Total).Should().Be(110);
+        LoyaltyRules.Default.PointsEarned(evt.Total).Should().Be(110);
     }
 }

@@ -31,6 +31,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.OfflineCreatedAt).HasColumnName("offline_created_at");
         builder.Property(o => o.LoyaltyPointsRedeemed).HasColumnName("loyalty_points_redeemed").HasDefaultValue(0);
         builder.Property(o => o.LoyaltyDiscountAmount).HasColumnName("loyalty_discount_amount").HasPrecision(18, 4).HasDefaultValue(0m);
+        builder.Property(o => o.LoyaltyPointValue).HasColumnName("loyalty_point_value").HasPrecision(18, 6).HasDefaultValue(0.05m);
         builder.Property(o => o.TaxAmount).HasColumnName("tax_amount").HasPrecision(18, 4);
         builder.Property(o => o.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 4);
         builder.Property(o => o.PaymentMethod).HasColumnName("payment_method");

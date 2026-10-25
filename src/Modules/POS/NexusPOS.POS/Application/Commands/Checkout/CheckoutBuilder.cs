@@ -1,12 +1,13 @@
 using ErrorOr;
 using NexusPOS.POS.Domain.Entities;
+using NexusPOS.SharedKernel.Domain;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
 
 // Builds and completes the order entirely in memory, so nothing is saved unless every step succeeds.
 internal static class CheckoutBuilder
 {
-    public static ErrorOr<Order> Build(CheckoutOrderCommand cmd)
+    public static ErrorOr<Order> Build(CheckoutOrderCommand cmd, LoyaltyRules loyalty)
     {
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
         order.TagClientReference(cmd.ClientReference, cmd.OfflineCreatedAt);
@@ -23,7 +24,7 @@ internal static class CheckoutBuilder
 
         if (cmd.LoyaltyPoints > 0)
         {
-            ErrorOr<Success> redeemed = order.RedeemLoyaltyPoints(cmd.LoyaltyPoints);
+            ErrorOr<Success> redeemed = order.RedeemLoyaltyPoints(cmd.LoyaltyPoints, loyalty.ValuePerPoint);
             if (redeemed.IsError)
             {
                 return redeemed.Errors;

@@ -5,7 +5,7 @@ import { customersApi } from '@/api/customers'
 import { useAuthStore } from '@/stores/authStore'
 import { cn, formatCurrency } from '@/lib/utils'
 import { pointsEarned, pointsValue } from '@/lib/loyalty'
-import type { CustomerResponse } from '@/types/api'
+import type { CustomerResponse, LoyaltySettings } from '@/types/api'
 
 interface LoyaltyPanelProps {
   customer: CustomerResponse | null
@@ -14,6 +14,7 @@ interface LoyaltyPanelProps {
   onRedeemPointsChange: (points: number) => void
   maxRedeemable: number
   payable: number
+  rules: LoyaltySettings
 }
 
 export function LoyaltyPanel({
@@ -23,6 +24,7 @@ export function LoyaltyPanel({
   onRedeemPointsChange,
   maxRedeemable,
   payable,
+  rules,
 }: LoyaltyPanelProps) {
   const { tenantId } = useAuthStore()
   const [query, setQuery] = useState('')
@@ -90,7 +92,9 @@ export function LoyaltyPanel({
       <div className="flex items-center gap-2">
         <UserRound className="h-4 w-4 shrink-0 text-muted" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{customer.name}</span>
-        <span className="shrink-0 text-xs tabular-nums text-brand">{customer.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
+        {rules.enabled && (
+          <span className="shrink-0 text-xs tabular-nums text-brand">{customer.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -118,13 +122,21 @@ export function LoyaltyPanel({
             <Gift className="h-4 w-4" />
             {using ? `استبدال ${redeemPoints.toLocaleString('ar-SA')} نقطة` : 'استبدال النقاط'}
           </span>
-          <span className="tabular-nums">−{formatCurrency(pointsValue(using ? redeemPoints : maxRedeemable))}</span>
+          <span className="tabular-nums">−{formatCurrency(pointsValue(using ? redeemPoints : maxRedeemable, rules))}</span>
         </button>
       )}
 
-      <p className="text-xs text-muted">
-        سيكسب العميل <span className="tabular-nums text-fg">{pointsEarned(payable).toLocaleString('ar-SA')}</span> نقطة من هذه الفاتورة
-      </p>
+      {rules.enabled && maxRedeemable === 0 && customer.loyaltyPoints > 0 && customer.loyaltyPoints < rules.minRedeemPoints && (
+        <p className="text-xs text-muted">
+          يبدأ الاستبدال من <span className="tabular-nums text-fg">{rules.minRedeemPoints.toLocaleString('ar-SA')}</span> نقطة
+        </p>
+      )}
+
+      {rules.enabled && (
+        <p className="text-xs text-muted">
+          سيكسب العميل <span className="tabular-nums text-fg">{pointsEarned(payable, rules).toLocaleString('ar-SA')}</span> نقطة من هذه الفاتورة
+        </p>
+      )}
     </div>
   )
 }

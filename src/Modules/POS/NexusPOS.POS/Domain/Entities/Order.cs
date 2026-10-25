@@ -28,6 +28,10 @@ public sealed class Order : AggregateRoot<OrderId>
     public decimal DiscountAmount { get; private set; }
     public int LoyaltyPointsRedeemed { get; private set; }
     public decimal LoyaltyDiscountAmount { get; private set; }
+
+    // The store's riyal value per point when the points were redeemed, so later changes to the programme
+    // never reprice an order that is already open.
+    public decimal LoyaltyPointValue { get; private set; } = LoyaltyRules.Default.ValuePerPoint;
     public decimal TaxAmount { get; private set; }
     public decimal TotalAmount { get; private set; }
     public PaymentMethod? PaymentMethod { get; private set; }
@@ -155,7 +159,7 @@ public sealed class Order : AggregateRoot<OrderId>
 
     // Redeems points as a discount that lowers the amount paid by exactly their value (VAT included).
     // Zero points clears the redemption.
-    public ErrorOr<Success> RedeemLoyaltyPoints(int points)
+    public ErrorOr<Success> RedeemLoyaltyPoints(int points, decimal valuePerPoint)
     {
         if (Status != OrderStatus.Open)
         {
@@ -167,18 +171,19 @@ public sealed class Order : AggregateRoot<OrderId>
             return PosErrors.LoyaltyRequiresCustomer;
         }
 
-        if (points < 0)
+        if (points < 0 || valuePerPoint <= 0)
         {
             return PosErrors.InvalidLoyaltyPoints;
         }
 
         decimal grossBeforeLoyalty = (SubtotalAmount - OrderDiscount.ComputeAmount(SubtotalAmount)) * (1 + TaxRate);
-        if (LoyaltyPolicy.ValueOf(points) > Math.Round(grossBeforeLoyalty, 2))
+        if (LoyaltyRules.ValueOf(points, valuePerPoint) > Math.Round(grossBeforeLoyalty, 2))
         {
             return PosErrors.LoyaltyExceedsTotal;
         }
 
         LoyaltyPointsRedeemed = points;
+        LoyaltyPointValue = valuePerPoint;
         RecalculateTotals();
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
@@ -247,7 +252,7 @@ public sealed class Order : AggregateRoot<OrderId>
         // Removing lines can shrink the bill below the redeemed value; give back the points that no longer fit.
         if (PreTaxLoyalty(LoyaltyPointsRedeemed) > room)
         {
-            LoyaltyPointsRedeemed = (int)Math.Floor(room * (1 + TaxRate) / LoyaltyPolicy.ValuePerPoint);
+            LoyaltyPointsRedeemed = (int)Math.Floor(room * (1 + TaxRate) / LoyaltyPointValue);
             while (LoyaltyPointsRedeemed > 0 && PreTaxLoyalty(LoyaltyPointsRedeemed) > room)
             {
                 LoyaltyPointsRedeemed--;
@@ -261,5 +266,5 @@ public sealed class Order : AggregateRoot<OrderId>
         TotalAmount = Math.Round(taxable + TaxAmount, 4);
     }
 
-    private decimal PreTaxLoyalty(int points) => Math.Round(LoyaltyPolicy.ValueOf(points) / (1 + TaxRate), 4);
+    private decimal PreTaxLoyalty(int points) => Math.Round(LoyaltyRules.ValueOf(points, LoyaltyPointValue) / (1 + TaxRate), 4);
 }

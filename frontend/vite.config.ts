@@ -22,7 +22,8 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'https://flowin-production-46b8.up.railway.app',
+        // API_PROXY_TARGET=http://localhost:5097 runs the app against a local API instead of production.
+        target: process.env.API_PROXY_TARGET || 'https://flowin-production-46b8.up.railway.app',
         changeOrigin: true,
         secure: true,
       },
