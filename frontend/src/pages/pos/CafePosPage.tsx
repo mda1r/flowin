@@ -1287,27 +1287,29 @@ export function CafePosPage() {
                   {c.name}
                 </button>
               ))}
-              <button
-                onClick={() => setSelectedCategoryId('__gaming__')}
-                className={cn(
-                  'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
-                  selectedCategoryId === '__gaming__'
-                    ? 'bg-brand text-brand-fg shadow-sm'
-                    : 'text-muted hover:text-fg hover:bg-surface-2',
-                )}
-              >
-                <Gamepad2 className="h-3.5 w-3.5" />
-                الألعاب
-                {gamingAlertCounts.expired > 0 ? (
-                  <span className="rounded-full bg-danger px-1.5 text-[11px] font-bold leading-5 text-white tabular-nums" aria-label={`${gamingAlertCounts.expired} جلسة انتهى وقتها`}>
-                    {gamingAlertCounts.expired}
-                  </span>
-                ) : gamingAlertCounts.warning > 0 ? (
-                  <span className="rounded-full bg-warning px-1.5 text-[11px] font-bold leading-5 text-white tabular-nums" aria-label={`${gamingAlertCounts.warning} جلسة قاربت على الانتهاء`}>
-                    {gamingAlertCounts.warning}
-                  </span>
-                ) : null}
-              </button>
+              {isGamingLounge && (
+                <button
+                  onClick={() => setSelectedCategoryId('__gaming__')}
+                  className={cn(
+                    'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap',
+                    selectedCategoryId === '__gaming__'
+                      ? 'bg-brand text-brand-fg shadow-sm'
+                      : 'text-muted hover:text-fg hover:bg-surface-2',
+                  )}
+                >
+                  <Gamepad2 className="h-3.5 w-3.5" />
+                  الألعاب
+                  {gamingAlertCounts.expired > 0 ? (
+                    <span className="rounded-full bg-danger px-1.5 text-[11px] font-bold leading-5 text-white tabular-nums" aria-label={`${gamingAlertCounts.expired} جلسة انتهى وقتها`}>
+                      {gamingAlertCounts.expired}
+                    </span>
+                  ) : gamingAlertCounts.warning > 0 ? (
+                    <span className="rounded-full bg-warning px-1.5 text-[11px] font-bold leading-5 text-white tabular-nums" aria-label={`${gamingAlertCounts.warning} جلسة قاربت على الانتهاء`}>
+                      {gamingAlertCounts.warning}
+                    </span>
+                  ) : null}
+                </button>
+              )}
             </div>
 
             {isGamingLounge && (
