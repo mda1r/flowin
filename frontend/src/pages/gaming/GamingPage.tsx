@@ -17,6 +17,7 @@ import type {
 } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { playAlarmSequence, playBeep, requestNotificationPermission, sendGameNotification } from '@/lib/gamingAlerts'
+import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -616,14 +617,31 @@ export function GamingPage() {
         title={t.gaming.bill}
         size="md"
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setBillModal(null)}>
-              {t.common.cancel}
-            </Button>
-            <Button onClick={printReceipt}>
-              🖨️ {t.gaming.printBill}
-            </Button>
-          </>
+          billModal ? (
+            <div className="w-full space-y-2">
+              <SessionPayButtons
+                bill={billModal}
+                onPaid={(paid) => {
+                  setBillModal(paid)
+                  void qc.invalidateQueries({ queryKey: ['gaming-stations', branchId] })
+                }}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!billModal.paidAt) toast.warning('الجلسة غير مدفوعة', 'ستظهر كغير محصّلة في الإقفال اليومي')
+                    setBillModal(null)
+                  }}
+                >
+                  {billModal.paidAt ? 'إغلاق' : 'لاحقاً'}
+                </Button>
+                <Button variant="secondary" onClick={printReceipt}>
+                  🖨️ {t.gaming.printBill}
+                </Button>
+              </div>
+            </div>
+          ) : undefined
         }
       >
         {billModal && (

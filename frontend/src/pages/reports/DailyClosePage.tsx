@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle, Banknote, ChevronLeft, ChevronRight, ClipboardCheck, CreditCard, Gamepad2, Printer,
   Receipt, RotateCcw, TrendingUp, UtensilsCrossed,
@@ -16,6 +16,9 @@ import { useAuthStore } from '@/stores/authStore'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { cn, formatCurrency } from '@/lib/utils'
+import { toast } from '@/components/ui/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
+import type { CompletedSessionResponse } from '@/api/gaming'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -52,6 +55,33 @@ function Row({ label, value, strong, tone }: { label: React.ReactNode; value: Re
       <span className={strong ? 'text-fg' : 'text-muted'}>{label}</span>
       <span className={cn('tabular-nums', tone ? TONE_TEXT[tone] : 'text-fg')}>{value}</span>
     </div>
+  )
+}
+
+// Collects payment for a session that ended without one; it is recorded now, in the current shift.
+function UnpaidSession({ session }: { session: CompletedSessionResponse }) {
+  const { branchId } = useAuthStore()
+  const qc = useQueryClient()
+  const pay = useMutation({
+    mutationFn: (method: 'Cash' | 'Card') => gamingApi.paySession(branchId!, session.id, method),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['daily-close'] })
+      toast.success('تم تسجيل الدفع', `${session.stationName} · ${formatCurrency(session.totalAmount)}`)
+    },
+    onError: (err) => toast.error('تعذّر تسجيل الدفع', apiErrorMessage(err)),
+  })
+  return (
+    <li className="flex flex-wrap items-center gap-2 py-2 text-sm">
+      <span className="min-w-0 flex-1 text-fg">
+        {session.stationName} · {session.playerName}
+        <span className="ms-2 text-xs text-muted tabular-nums">{timeOf(session.endTime)}</span>
+      </span>
+      <span className="tabular-nums text-warning">{formatCurrency(session.totalAmount)}</span>
+      <span className="flex gap-1 print:hidden">
+        <Button size="sm" variant="secondary" loading={pay.isPending && pay.variables === 'Cash'} disabled={pay.isPending} onClick={() => pay.mutate('Cash')}>نقداً</Button>
+        <Button size="sm" variant="secondary" loading={pay.isPending && pay.variables === 'Card'} disabled={pay.isPending} onClick={() => pay.mutate('Card')}>بطاقة</Button>
+      </span>
+    </li>
   )
 }
 
@@ -96,7 +126,9 @@ export function DailyClosePage() {
     || (hasRestaurant && restaurantQ.isError) || (hasGaming && gamingQ.isError)
 
   const report = useMemo(() => {
-    const orders: OrderResponse[] = (ordersQ.data ?? []).filter((o) => localYmd(new Date(o.completedAt ?? o.createdAt)) === day)
+    const dayOrders: OrderResponse[] = (ordersQ.data ?? []).filter((o) => localYmd(new Date(o.completedAt ?? o.createdAt)) === day)
+    // Gaming and restaurant payments are also recorded as orders; they appear in their own sections below.
+    const orders = dayOrders.filter((o) => !o.source || o.source === 'Pos')
     const returns: ReturnOrderResponse[] = (Array.isArray(returnsQ.data?.data) ? returnsQ.data!.data : [])
       .filter((r) => localYmd(new Date(r.createdAt)) === day)
     const restaurant = hasRestaurant ? restaurantQ.data?.data ?? [] : []
@@ -157,15 +189,25 @@ export function DailyClosePage() {
       st.revenue += s.totalAmount
       stations.set(s.stationId, st)
     }
+    const unpaid = sessions.filter((x) => !x.paidAt && x.totalAmount > 0)
     const gaming = {
       count: sessions.length,
       minutes: sessions.reduce((s, x) => s + x.actualMinutes, 0),
-      total: sessions.reduce((s, x) => s + x.totalAmount, 0),
+      total: sessions.reduce((s, x) => s + (x.paidAt ? x.totalAmount : 0), 0),
+      unpaid,
+      unpaidCount: unpaid.length,
+      unpaidTotal: unpaid.reduce((s, x) => s + x.totalAmount, 0),
+      byMethod: sessions.filter((x) => x.paidAt).reduce<Record<string, number>>((m, x) => {
+        const k = x.paymentMethod ?? 'Cash'
+        return { ...m, [k]: (m[k] ?? 0) + x.totalAmount }
+      }, {}),
       stations: [...stations.values()].sort((a, b) => b.revenue - a.revenue),
     }
 
     const revenue = pos.gross + rest.total + gaming.total
-    return { pos, payments, topProducts, refunds, rest, gaming, shifts, revenue, net: revenue - refunds.total }
+    // VAT from every invoice recorded that day (till, restaurant and paid gaming sessions).
+    const vat = dayOrders.reduce((s, o) => s + o.taxAmount, 0)
+    return { pos, payments, topProducts, refunds, rest, gaming, shifts, revenue, vat, net: revenue - refunds.total }
   }, [ordersQ.data, returnsQ.data, restaurantQ.data, gamingQ.data, shiftsQ.data, day, today, hasGaming, hasRestaurant])
 
   const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -222,8 +264,7 @@ export function DailyClosePage() {
               <StatCard label="المرتجعات" value={formatCurrency(report.refunds.total)} icon={<RotateCcw />} tone="danger"
                 hint={`${report.refunds.count.toLocaleString('ar-SA')} عملية`} />
               <StatCard label="الصافي" value={formatCurrency(report.net)} icon={<Receipt />} tone="success" />
-              <StatCard label="ضريبة القيمة المضافة" value={formatCurrency(report.pos.vat + report.rest.vat)} icon={<ClipboardCheck />} tone="info"
-                hint={hasGaming ? 'لا تشمل جلسات الألعاب' : undefined} />
+              <StatCard label="ضريبة القيمة المضافة" value={formatCurrency(report.vat)} icon={<ClipboardCheck />} tone="info" hint="من الفواتير المسجّلة" />
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
@@ -273,7 +314,13 @@ export function DailyClosePage() {
                   {report.gaming.stations.map((s) => (
                     <Row key={s.name} label={`${s.name} · ${s.sessions.toLocaleString('ar-SA')} جلسة`} value={formatCurrency(s.revenue)} />
                   ))}
-                  <Row label="الإجمالي" value={formatCurrency(report.gaming.total)} strong />
+                  {Object.entries(report.gaming.byMethod).map(([k, v]) => (
+                    <Row key={k} label={`محصّل ${PAYMENT_LABELS[k] ?? k}`} value={formatCurrency(v)} />
+                  ))}
+                  {report.gaming.unpaidCount > 0 && (
+                    <Row label={`غير محصّل (${report.gaming.unpaidCount.toLocaleString('ar-SA')} جلسة)`} value={formatCurrency(report.gaming.unpaidTotal)} tone="warning" />
+                  )}
+                  <Row label="المحصّل" value={formatCurrency(report.gaming.total)} strong />
                 </Section>
               )}
 
@@ -346,12 +393,19 @@ export function DailyClosePage() {
               </Section>
             </div>
 
-            {(hasGaming || hasRestaurant) && (
+            {report.gaming.unpaidCount > 0 && (
               <p className="flex items-start gap-2 rounded-xl bg-warning/10 px-4 py-3 text-xs text-warning">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                {hasGaming ? 'إيرادات جلسات الألعاب' : 'طلبات المطعم المدفوعة'}{hasGaming && hasRestaurant ? ' وطلبات المطعم المدفوعة' : ''}
-                {' '}لا تُسجَّل حالياً ضمن مبيعات الشفت ولا في زاتكا، لذلك قد يظهر فائض في النقد عند إغلاق الشفت بقيمتها.
+                {report.gaming.unpaidCount.toLocaleString('ar-SA')} جلسة لعب انتهت دون تسجيل دفع بقيمة {formatCurrency(report.gaming.unpaidTotal)}.
+                سجّل دفعها هنا لتدخل في الشفت الحالي وزاتكا.
               </p>
+            )}
+            {report.gaming.unpaidCount > 0 && (
+              <Section title="جلسات غير محصّلة" icon={<Gamepad2 />}>
+                <ul className="divide-y divide-border">
+                  {report.gaming.unpaid.map((s) => <UnpaidSession key={s.id} session={s} />)}
+                </ul>
+              </Section>
             )}
           </>
         )}

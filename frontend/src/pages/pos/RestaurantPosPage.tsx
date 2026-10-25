@@ -73,19 +73,22 @@ export function RestaurantPosPage() {
       ? setLines(prev => prev.filter(l => l.menuItemId !== id))
       : setLines(prev => prev.map(l => l.menuItemId === id ? { ...l, quantity: qty } : l))
 
-  const total = lines.reduce((s, l) => s + l.price * l.quantity, 0)
-  const vat = +(total * VAT / (1 + VAT)).toFixed(2)
-  const subtotal = total - vat
+  // The server adds VAT on top of menu prices, so the screen shows the same bill it will charge.
+  const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0)
+  const vat = Math.round(subtotal * VAT * 100) / 100
+  const total = Math.round((subtotal + vat) * 100) / 100
 
   const createOrder = useMutation({
     mutationFn: async () => {
       const { data: order } = await restaurantApi.createOrder(branchId!, {
         tenantId: tenantId!,
-        tableNumber: isTakeaway ? 0 : tableNumber,
+        // The server requires a positive table number; 99 marks takeaway, as in the cafe cashier.
+        tableNumber: isTakeaway ? 99 : tableNumber,
         items: lines.map(l => ({ menuItemId: l.menuItemId, itemName: l.name, quantity: l.quantity, unitPrice: l.price })),
       })
       await restaurantApi.sendToKitchen(branchId!, order.id)
-      const tendered = payMethod === 'Cash' ? (parseFloat(amountTendered) || total) : total
+      const due = Math.ceil(order.total * 100) / 100
+      const tendered = payMethod === 'Cash' ? Math.max(parseFloat(amountTendered) || 0, due) : due
       await restaurantApi.payOrder(branchId!, order.id, { paymentMethod: payMethod, amountTendered: tendered })
     },
     onSuccess: () => {

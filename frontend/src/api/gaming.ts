@@ -16,6 +16,8 @@ export interface CompletedSessionResponse {
   endTime: string
   actualMinutes: number
   totalAmount: number
+  paymentMethod?: 'Cash' | 'Card'
+  paidAt?: string
 }
 
 export const gamingApi = {
@@ -66,6 +68,9 @@ export const gamingApi = {
       `${BASE(branchId)}/sessions/${sessionId}/extend`,
       { extraMinutes },
     ),
+
+  paySession: (branchId: string, sessionId: string, paymentMethod: 'Cash' | 'Card') =>
+    apiClient.post<GameSessionBillResponse>(`${BASE(branchId)}/sessions/${sessionId}/pay`, { paymentMethod }),
 
   endSessionById: (branchId: string, sessionId: string) =>
     apiClient.post<GameSessionBillResponse>(

@@ -244,6 +244,7 @@ export interface OrderResponse {
   createdAt: string
   completedAt?: string
   lines: OrderLineResponse[]
+  source?: 'Pos' | 'Gaming' | 'Restaurant'
 }
 
 // ── Returns ──────────────────────────────────────────────────────────────────
@@ -686,6 +687,8 @@ export interface GameSessionBillResponse {
   ratePerHour: number
   totalAmount: number
   currency: string
+  paymentMethod?: 'Cash' | 'Card'
+  paidAt?: string
 }
 
 
