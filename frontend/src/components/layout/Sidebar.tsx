@@ -38,7 +38,7 @@ import {
   Megaphone,
 } from 'lucide-react'
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
-import { BrandTagline, FlowinLogo, FlowinMark } from '@/components/brand/Brand'
+import { BrandTagline, FlowinLockup, FlowinMark } from '@/components/brand/Brand'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -157,7 +157,7 @@ interface SidebarProps {
 }
 
 export function FlowinWordmark({ compact = false }: { compact?: boolean }) {
-  return compact ? <FlowinMark className="h-8 w-8" /> : <FlowinLogo className="h-[26px] text-fg" />
+  return compact ? <FlowinMark framed={false} className="h-9 w-9 text-fg" /> : <FlowinLockup />
 }
 
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const

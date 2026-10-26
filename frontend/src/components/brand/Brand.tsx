@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
 /* The flowin identity, drawn as monoline rounded strokes so it stays crisp at every size:
@@ -36,15 +37,51 @@ export function FlowinLogo({ className, tone = 'brand', title = 'flowin' }: Logo
   )
 }
 
-/** The app icon: the mint "o" and "i" on a graphite tile. */
-export function FlowinMark({ className, framed = true }: { className?: string; framed?: boolean }) {
+/* The sprout: flowin's icon. Two mint leaves on an inked stem, drawn by hand like the dashboard art.
+   Outlines take currentColor, so it reads graphite on light and soft white on graphite. */
+export const SPROUT = {
+  stem: 'M28.2 50.4C28 43 29 37.5 30.6 33.2c.5-2 1-3.7 1.8-5.6',
+  leftLeaf: 'M14.3 22.2c5.7-1.7 12.2.8 15.4 10.4-5.7.4-12.7-3.6-15.4-10.4z',
+  rightLeaf: 'M32.2 27.9c2.8-6.9 9.8-11.1 17.1-11.1-2.8 7.2-9.8 11.7-17.1 11.1z',
+} as const
+
+/** The app icon. `framed` draws it on a rounded tile in the surface colour, like the app-store icon. */
+export function FlowinMark({ className, framed = true, inked = true }: { className?: string; framed?: boolean; inked?: boolean }) {
+  const id = useId().replace(/:/g, '')
   return (
     <svg viewBox="0 0 64 64" className={cn('h-9 w-9', className)} role="img" aria-label="flowin">
-      {framed && <rect width="64" height="64" rx="16" fill="#23262D" />}
-      <circle cx="25" cy="38" r="10.5" fill="none" stroke="#62E6C7" strokeWidth="7" />
-      <path d="M46 32v16" stroke="#62E6C7" strokeWidth="7" strokeLinecap="round" />
-      <circle cx="46" cy="19" r="4.75" fill="#62E6C7" />
+      {inked && (
+        <defs>
+          <filter id={id} x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="4" />
+            <feDisplacementMap in="SourceGraphic" scale="0.9" />
+          </filter>
+        </defs>
+      )}
+      {framed && <rect width="64" height="64" rx="15" fill="rgb(var(--surface-2))" />}
+      <g
+        filter={inked ? `url(#${id})` : undefined}
+        stroke="currentColor"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        transform={framed ? undefined : 'translate(-1 -3) scale(1.1)'}
+      >
+        <path d={SPROUT.stem} fill="none" />
+        <path d={SPROUT.leftLeaf} fill="rgb(var(--brand))" />
+        <path d={SPROUT.rightLeaf} fill="rgb(var(--brand))" />
+      </g>
     </svg>
+  )
+}
+
+/** The mark beside the wordmark: how flowin signs the sidebar, the login page and the console. */
+export function FlowinLockup({ className, markClassName }: { className?: string; markClassName?: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-2', className)} dir="ltr">
+      <FlowinMark framed={false} className={cn('h-8 w-8 shrink-0 text-fg', markClassName)} />
+      <FlowinLogo className="h-[24px] text-fg" />
+    </span>
   )
 }
 

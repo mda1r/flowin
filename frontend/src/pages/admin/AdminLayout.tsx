@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
-import { FlowinLogo } from '@/components/brand/Brand'
+import { FlowinLockup } from '@/components/brand/Brand'
 
 export function AdminLayout() {
   const { logout, user } = useAuthStore()
@@ -34,7 +34,7 @@ export function AdminLayout() {
       <aside className="flex w-64 flex-col bg-surface border-l border-border">
         {/* Brand */}
         <div className="border-b border-border px-5 py-5">
-          <FlowinLogo className="h-[26px] text-fg" />
+          <FlowinLockup />
           <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-brand-ink">
             <ShieldCheck className="h-3.5 w-3.5" />
             {t.admin.dashboard.title}

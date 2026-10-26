@@ -11,7 +11,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { toast } from '@/components/ui/Toast'
-import { BrandTagline, FlowWave, FlowinLogo } from '@/components/brand/Brand'
+import { BrandTagline, FlowWave, FlowinLockup } from '@/components/brand/Brand'
 import { cn } from '@/lib/utils'
 
 type FormData = { email: string; password: string }
@@ -82,7 +82,7 @@ export function LoginPage() {
       <aside className="scheme-dark relative flex flex-col overflow-hidden bg-surface px-6 py-6 text-fg sm:px-10 lg:py-10">
         <div className="pointer-events-none absolute -top-40 start-1/3 h-96 w-96 rounded-full bg-brand/15 blur-3xl" aria-hidden="true" />
         <div className="relative flex items-center justify-between">
-          <FlowinLogo className="h-8 text-fg sm:h-9" />
+          <FlowinLockup markClassName="h-10 w-10" />
           <BrandTagline className="hidden sm:block" />
         </div>
 
