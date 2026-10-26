@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { FlowWave } from '@/components/brand/Brand'
+import { SpillArt } from '@/components/brand/SpillArt'
 import { Badge } from '@/components/ui/Badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -758,10 +758,7 @@ export function DashboardPage() {
 
         {/* ── Hero ──────────────────────────────────────────────────── */}
         <section className="entrance-1 relative overflow-hidden rounded-2xl border border-border bg-surface p-7 text-fg shadow-sm">
-          <div className="pointer-events-none absolute -top-32 -end-20 h-72 w-72 rounded-full bg-brand/25 blur-3xl" aria-hidden="true" />
-          <FlowWave className="absolute inset-x-0 -bottom-6 h-20" glow={false} />
-
-          <div className="relative flex flex-wrap items-center justify-between gap-6">
+          <div className="relative grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(260px,40%)]">
             <div>
               <div className="flex items-center gap-2.5">
                 <GreetIcon className="h-6 w-6 text-brand-strong" />
@@ -807,18 +804,19 @@ export function DashboardPage() {
                     </p>
                   </a>
                 )}
+                <a
+                  href="/pos"
+                  className="inline-flex shrink-0 items-center gap-2.5 rounded-xl bg-brand px-5 py-3 text-sm font-bold text-brand-fg shadow-[0_8px_24px_-6px_rgb(var(--brand)/0.6)] transition-all hover:bg-brand/90 active:scale-95"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {t.dashboard.newSale}
+                </a>
               </div>
             </div>
 
-            <a
-              href="/pos"
-              className="inline-flex shrink-0 items-center gap-2.5 rounded-xl bg-brand px-5 py-3 text-sm font-bold text-brand-fg shadow-[0_8px_24px_-6px_rgb(var(--brand)/0.6)] transition-all hover:bg-brand/90 active:scale-95"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {t.dashboard.newSale}
-            </a>
+            {/* the café illustration: a spilled mug whose coffee is the brand's mint flow */}
+            <SpillArt className="pointer-events-none -mb-7 -ms-4 hidden h-44 w-auto max-w-full justify-self-end text-fg md:block lg:h-48" />
           </div>
-
         </section>
 
         {/* ── KPI grid ───────────────────────────────────────────────── */}
