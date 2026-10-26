@@ -29,13 +29,11 @@ export function SpillArt({ className }: { className?: string }) {
                c-16 0-30 6-50 8-24 2-34-10-54-8-22 2-32 18-60 18-24 0-38-12-56-18-18-6-38-6-58 4-18 9-34 14-50 8z"
             fill="rgb(var(--brand))"
           />
-          <path d="M226 172c14 2 26 8 24 16-2 7-20 8-30 4-11-4-9-21 6-20z" fill="rgb(var(--brand))" />
           <path d="M452 176c10-2 22 1 24 6 1 5-9 8-19 7-10-1-14-11-5-13z" fill="rgb(var(--brand))" className="spill-drop" />
           {/* highlights on the wet edge */}
           <g fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" opacity="0.75">
             <path d="M206 152c10-5 20-7 30-7" />
             <path d="M330 160c8 0 14-3 20-6" />
-            <path d="M228 186c6 1 12 0 16-2" />
           </g>
         </g>
 
@@ -48,7 +46,7 @@ export function SpillArt({ className }: { className?: string }) {
           <path d="M126 147c12-5 26 0 50-6v42h-50z" fill="rgb(var(--brand))" stroke="none" clipPath={`url(#${mouth})`} />
           {/* …and pouring over the lip onto the counter, where it joins the flow */}
           <path
-            d="M148 158c7-6 15-6 20 0 6 8 8 16 20 19 10 3 20 1 30 3v9c-14 0-28 1-42-3-14-4-24-11-28-28z"
+            d="M148 158c7-6 15-6 20 0 5 6 9 8 18 8 12 0 26-5 44-5v10c-16 1-30 4-46 4-14 0-24-6-30-17z"
             fill="rgb(var(--brand))"
             stroke="none"
           />
