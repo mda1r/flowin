@@ -9,4 +9,5 @@ public sealed class ZatcaDbContext(DbContextOptions<ZatcaDbContext> options, Med
 {
     public DbSet<ZatcaInvoice> ZatcaInvoices => Set<ZatcaInvoice>();
     public DbSet<ZatcaSettings> ZatcaSettings => Set<ZatcaSettings>();
+    public DbSet<ReceiptSettings> ReceiptSettings => Set<ReceiptSettings>();
 }

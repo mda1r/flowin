@@ -30,6 +30,7 @@ import { StockCountPage } from '@/pages/inventory/StockCountPage'
 import { StockCountDetailPage } from '@/pages/inventory/StockCountDetailPage'
 import { StockMaterialsPage } from '@/pages/inventory/StockMaterialsPage'
 import { ZatcaSettingsPage } from '@/pages/settings/ZatcaSettingsPage'
+import { ReceiptSettingsPage } from '@/pages/settings/ReceiptSettingsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
 import { CafeKitchenPage } from '@/pages/pos/CafeKitchenPage'
@@ -267,6 +268,12 @@ const dailyCloseRoute = createRoute({
   component: DailyClosePage,
 })
 
+const receiptSettingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/receipt',
+  component: ReceiptSettingsPage,
+})
+
 const campaignsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/campaigns',
@@ -318,6 +325,7 @@ const routeTree = rootRoute.addChildren([
     dailyCloseRoute,
     invoicesRoute,
     campaignsRoute,
+    receiptSettingsRoute,
     taxesRoute,
     stockMaterialsRoute,
   ]),

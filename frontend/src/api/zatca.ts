@@ -36,6 +36,17 @@ export interface SaveZatcaSettingsRequest {
   certificateExpiryDate?: string | null
 }
 
+// How the store's receipts look: logo, contact lines, notes and the receipt printer's paper width.
+export interface ReceiptSettings {
+  logoPath: string | null
+  phone: string | null
+  address: string | null
+  headerNote: string | null
+  footerNote: string | null
+  paperWidthMm: 58 | 80
+  showPoweredBy: boolean
+}
+
 export const zatcaApi = {
   getSettings: () =>
     apiClient.get<ZatcaSettingsResponse>('/api/v1/zatca/settings'),
@@ -45,6 +56,11 @@ export const zatcaApi = {
 
   getInvoice: (branchId: string, orderId: string) =>
     apiClient.get<ZatcaInvoiceResponse>(`/api/v1/branches/${branchId}/orders/${orderId}/zatca-invoice`),
+
+  getReceiptSettings: () => apiClient.get<ReceiptSettings>('/api/v1/zatca/receipt-settings'),
+
+  saveReceiptSettings: (data: ReceiptSettings) =>
+    apiClient.put<ReceiptSettings>('/api/v1/zatca/receipt-settings', data),
 
   downloadXmlUrl: (branchId: string, orderId: string) =>
     `/api/v1/branches/${branchId}/orders/${orderId}/zatca-invoice/xml`,

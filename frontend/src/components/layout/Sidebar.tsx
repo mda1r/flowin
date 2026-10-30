@@ -36,6 +36,7 @@ import {
   X,
   ClipboardCheck,
   Megaphone,
+  ReceiptText,
 } from 'lucide-react'
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { BrandTagline, FlowinLockup, FlowinMark } from '@/components/brand/Brand'
@@ -79,6 +80,7 @@ const NAV_GROUP: Record<string, NavGroup> = {
   '/daily-close': 'finance',
   '/shifts': 'finance',
   '/settings/zatca': 'finance',
+  '/settings/receipt': 'finance',
   '/users': 'admin',
   '/branches': 'admin',
   '/activity-logs': 'admin',
@@ -112,6 +114,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'hotelContracts', to: '/hotel/contracts', icon: <FileText className="h-[18px] w-[18px]" /> },
   { labelKey: 'gaming', to: '/gaming', icon: <Gamepad2 className="h-[18px] w-[18px]" /> },
   { labelKey: 'zatca', to: '/settings/zatca', icon: <Shield className="h-[18px] w-[18px]" /> },
+  { labelKey: 'receiptDesign', to: '/settings/receipt', icon: <ReceiptText className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'users', to: '/users', icon: <UserCog className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'branches', to: '/branches', icon: <GitBranch className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'kitchen', to: '/cafe/kitchen', icon: <ChefHat className="h-[18px] w-[18px]" /> },

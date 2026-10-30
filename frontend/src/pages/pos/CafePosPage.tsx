@@ -2,13 +2,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
-  Printer, MessageSquare, CreditCard, Banknote, Bot, QrCode,
+  Printer, MessageSquare, CreditCard, Banknote, Bot,
   Gamepad2, Clock, Play, Square, Search,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
 import { inventoryApi } from '@/api/inventory'
-import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -29,8 +28,8 @@ import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
-import { ZatcaQr } from '@/components/pos/ZatcaQr'
-import { BrandTagline, FlowinLogo } from '@/components/brand/Brand'
+import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
+import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
@@ -224,14 +223,8 @@ function CustomerReceiptModal({
   receipt: CustomerReceiptData
   onClose: () => void
 }) {
-  const { data: zatcaSettings } = useQuery({
-    queryKey: ['zatca-settings'],
-    queryFn: () => zatcaApi.getSettings(),
-    staleTime: 60_000,
-  })
-
-  const sellerName = zatcaSettings?.data?.sellerName ?? ''
-  const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
+  const { sellerName, vatNumber } = useSellerIdentity()
+  const receiptSettings = useReceiptSettings()
 
   const qrCode = generateZatcaQr({
     sellerName: sellerName || 'كافيه',
@@ -248,103 +241,40 @@ function CustomerReceiptModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-      <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
-        <div id="cafe-receipt-print" className="p-5">
-          {/* Header */}
-          <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
-            {sellerName && (
-              <p className="text-base font-black text-fg">{sellerName}</p>
-            )}
-            {vatNumber && (
-              <p className="text-xs text-muted">الرقم الضريبي: {vatNumber}</p>
-            )}
-            <p className="text-xs text-muted mt-1">
-              {new Date(receipt.completedAt).toLocaleString('ar-SA', {
-                year: 'numeric', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit',
-              })}
-            </p>
-            <p className="text-xs font-mono text-muted">#{receipt.orderId.slice(-8).toUpperCase()}</p>
-            {receipt.offline && (
-              <p className="mt-1 rounded bg-warning/15 px-2 py-0.5 text-[11px] text-warning">رقم مؤقت · ستصدر الفاتورة عند المزامنة</p>
-            )}
-            {receipt.orderType === 'here' && receipt.tableNumber && (
-              <span className="mt-1 inline-block rounded-full bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand-ink">
-                طاولة {receipt.tableNumber}
-              </span>
-            )}
-            {receipt.orderType === 'takeaway' && (
-              <span className="mt-1 inline-block rounded-full bg-info/10 px-2 py-0.5 text-xs font-bold text-info">
-                🛍 تيك أواي
-              </span>
-            )}
-          </div>
-
-          {/* Items */}
-          <div className="mb-4 space-y-2 text-sm">
-            {receipt.items.map((item) => (
-              <div key={item.variantId} className="flex justify-between text-fg">
-                <span className="flex-1">
-                  {item.productName}
-                  {item.quantity > 1 && <span className="text-muted"> ×{item.quantity}</span>}
-                  {item.notes && <span className="block text-xs text-brand-ink">📝 {item.notes}</span>}
-                </span>
-                <span className="tabular-nums">{formatCurrency(item.unitPrice * item.quantity)}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Totals */}
-          <div className="mb-4 space-y-1 border-t border-dashed border-border pt-3 text-sm">
-            <div className="flex justify-between text-muted">
-              <span>المجموع قبل الضريبة</span>
-              <span className="tabular-nums">{formatCurrency(receipt.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-muted">
-              <span>ضريبة القيمة المضافة 15%</span>
-              <span className="tabular-nums">{formatCurrency(receipt.tax)}</span>
-            </div>
-            {!!receipt.loyaltyDiscount && (
-              <div className="flex justify-between text-success">
-                <span>خصم نقاط الولاء ({(receipt.pointsRedeemed ?? 0).toLocaleString('ar-SA')} نقطة)</span>
-                <span className="tabular-nums">−{formatCurrency(receipt.loyaltyDiscount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-base font-bold text-fg">
-              <span>الإجمالي</span>
-              <span className="tabular-nums">{formatCurrency(receipt.grandTotal)}</span>
-            </div>
-            {receipt.customerName && (
-              <div className="flex justify-between text-xs text-muted">
-                <span>{receipt.customerName}</span>
-                {receipt.pointsEarned !== undefined && (
-                  <span className="tabular-nums">+{receipt.pointsEarned.toLocaleString('ar-SA')} نقطة</span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Payment */}
-          <div className="mb-4 rounded-lg bg-surface-2 px-3 py-2 text-center text-xs text-muted">
-            {payLabel}
-            {receipt.payMode === 'Cash' && receipt.cashTendered != null && receipt.cashTendered > receipt.grandTotal && (
-              <span className="mt-1 block tabular-nums">
-                المستلم {formatCurrency(receipt.cashTendered)} · الباقي {formatCurrency(receipt.cashTendered - receipt.grandTotal)}
-              </span>
-            )}
-          </div>
-
-          {/* ZATCA QR */}
-          <div className="mb-2 flex flex-col items-center gap-1">
-            <QrCode className="h-4 w-4 text-muted" />
-            <ZatcaQr value={qrCode} size={110} />
-            <p className="text-[10px] text-muted">رمز ZATCA للتحقق</p>
-          </div>
-          {/* signature: the system that issued the receipt, quiet at the bottom */}
-          <div className="mt-3 flex flex-col items-center gap-1 border-t border-dashed border-border pt-3 text-muted">
-            <FlowinLogo tone="mono" className="h-3.5" />
-            <BrandTagline className="!text-[8px]" />
-          </div>
+      <div className="w-[22rem] max-w-full overflow-hidden rounded-2xl bg-surface shadow-2xl">
+        <div className="max-h-[62vh] overflow-y-auto p-5">
+          <ReceiptDocument
+            id="cafe-receipt-print"
+            settings={receiptSettings}
+            sellerName={sellerName}
+            vatNumber={vatNumber}
+            invoiceNo={receipt.orderId.slice(-8).toUpperCase()}
+            issuedAt={receipt.completedAt}
+            lines={receipt.items.map((item) => ({
+              key: item.variantId,
+              name: item.productName,
+              quantity: item.quantity,
+              total: item.unitPrice * item.quantity,
+              detail: item.notes ? `ملاحظة: ${item.notes}` : undefined,
+            }))}
+            subtotal={receipt.subtotal}
+            tax={receipt.tax}
+            total={receipt.grandTotal}
+            loyalty={receipt.loyaltyDiscount ? { amount: receipt.loyaltyDiscount, points: receipt.pointsRedeemed ?? 0 } : undefined}
+            paymentLabel={payLabel}
+            tendered={receipt.payMode === 'Cash' ? receipt.cashTendered : undefined}
+            customer={receipt.customerName ? { name: receipt.customerName, pointsEarned: receipt.pointsEarned } : undefined}
+            badge={
+              receipt.offline
+                ? 'رقم مؤقت · تصدر الفاتورة عند المزامنة'
+                : receipt.orderType === 'takeaway'
+                  ? 'سفري'
+                  : receipt.tableNumber
+                    ? `طاولة ${receipt.tableNumber}`
+                    : undefined
+            }
+            qr={qrCode}
+          />
         </div>
 
         <div className="border-t border-border px-4 pt-3">

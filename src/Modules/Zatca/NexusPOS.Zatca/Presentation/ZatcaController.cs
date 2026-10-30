@@ -7,6 +7,7 @@ using NexusPOS.Zatca.Application.Commands.SaveZatcaSettings;
 using NexusPOS.Zatca.Application.Common;
 using NexusPOS.Zatca.Application.Queries.GetZatcaInvoice;
 using NexusPOS.Zatca.Application.Queries.GetZatcaSettings;
+using NexusPOS.Zatca.Application.Receipts;
 using NexusPOS.Zatca.Presentation.Requests;
 
 namespace NexusPOS.Zatca.Presentation;
@@ -54,6 +55,28 @@ public sealed class ZatcaController(ISender mediator) : ControllerBase
             request.CertificateBase64,
             request.CertificateExpiryDate);
 
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrors);
+    }
+
+    /// <summary>تصميم الفاتورة المطبوعة: الشعار والملاحظات ومقاس الورق. كل مستخدم في المتجر يقرؤها ليطبع.</summary>
+    [HttpGet("zatca/receipt-settings")]
+    [ProducesResponseType(typeof(ReceiptSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetReceiptSettings(CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetReceiptSettingsQuery(TenantId), cancellationToken);
+        return result.Match(Ok, MapErrors);
+    }
+
+    /// <summary>حفظ تصميم الفاتورة (المالك أو المدير فقط)</summary>
+    [HttpPut("zatca/receipt-settings")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(ReceiptSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveReceiptSettings([FromBody] SaveReceiptSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var command = new SaveReceiptSettingsCommand(
+            TenantId, request.LogoPath, request.Phone, request.Address, request.HeaderNote, request.FooterNote,
+            request.PaperWidthMm, request.ShowPoweredBy);
         var result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
     }

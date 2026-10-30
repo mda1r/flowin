@@ -31,6 +31,7 @@ export const ar: Translations = {
     shiftReports: 'تقرير الشفت',
     dailyClose: 'الإقفال اليومي',
     campaigns: 'حملات واتساب',
+    receiptDesign: 'تصميم الفاتورة',
     invoices: 'الفواتير',
     activityLogs: 'سجل النشاطات',
     stockMaterials: 'مواد المخزون',

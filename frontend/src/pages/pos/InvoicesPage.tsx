@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Receipt, Printer, RotateCcw, X, QrCode, Search } from 'lucide-react'
+import { Receipt, Printer, RotateCcw, X, Search } from 'lucide-react'
 import { ordersApi } from '@/api/orders'
 import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
@@ -8,7 +8,10 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { generateZatcaQr } from '@/lib/zatca'
 import { useI18n } from '@/i18n'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
-import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
+import { useReceiptSettings } from '@/lib/receipt'
+import { orderReceiptFigures, paymentLabel } from '@/lib/orderReceipt'
+import { printElement } from '@/lib/print'
 
 export function InvoicesPage() {
   const { branchId } = useAuthStore()
@@ -175,7 +178,7 @@ function ReceiptModal({
   isReturn: boolean
   onClose: () => void
 }) {
-  const { t, lang } = useI18n()
+  const { t } = useI18n()
   const { data: zatcaSettings } = useQuery({
     queryKey: ['zatca-settings'],
     queryFn: () => zatcaApi.getSettings(),
@@ -193,93 +196,48 @@ function ReceiptModal({
     vatAmount: order.taxAmount,
   })
 
-  const handlePrint = () => window.print()
+  const receiptSettings = useReceiptSettings()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl">
+      <div className="relative w-full max-w-[22rem] overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute left-4 top-4 rounded-lg p-1 text-muted hover:bg-surface-2 hover:text-fg"
+          className="absolute left-3 top-3 z-10 rounded-lg p-1 text-muted hover:bg-surface-2 hover:text-fg"
+          aria-label={t.common.close}
         >
           <X className="h-4 w-4" />
         </button>
-
-        {/* Header */}
-        <div className="mb-4 text-center">
-          {isReturn && (
-            <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-danger/10 px-3 py-1 text-sm font-bold text-danger dark:bg-danger/15">
-              <RotateCcw className="h-3.5 w-3.5" />
-              {t.invoices.refunded}
-            </div>
-          )}
-          {sellerName && (
-            <p className="text-base font-bold text-fg">{sellerName}</p>
-          )}
-          {vatNumber && (
-            <p className="text-xs text-muted">{t.zatca.vatNumber}: {vatNumber}</p>
-          )}
-          <p className="mt-1 text-xs text-muted">
-            {new Date(order.completedAt ?? order.createdAt).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', {
-              year: 'numeric', month: 'short', day: 'numeric',
-              hour: '2-digit', minute: '2-digit',
-            })}
-          </p>
-          <p className="text-xs font-mono text-muted">#{order.id.slice(-8).toUpperCase()}</p>
-        </div>
-
-        {/* Lines */}
-        <div className="mb-4 space-y-2 text-sm">
-          {order.lines.map((line) => (
-            <div key={line.id} className="flex justify-between text-fg">
-              <span className="flex-1 truncate">
-                {line.productName}
-                {line.quantity > 1 && <span className="text-muted"> ×{line.quantity}</span>}
+        <div className="max-h-[70vh] overflow-y-auto p-5">
+          <ReceiptDocument
+            id="invoice-receipt-print"
+            settings={receiptSettings}
+            sellerName={sellerName}
+            vatNumber={vatNumber}
+            invoiceNo={order.id.slice(-8).toUpperCase()}
+            issuedAt={order.completedAt ?? order.createdAt}
+            {...orderReceiptFigures(order)}
+            paymentLabel={paymentLabel(order.paymentMethod)}
+            tendered={order.paymentMethod === 'Cash' ? order.amountTendered ?? undefined : undefined}
+            badge={isReturn ? (
+              <span className="inline-flex items-center gap-1 text-danger">
+                <RotateCcw className="h-3.5 w-3.5" />
+                {t.invoices.refunded}
               </span>
-              <span className="tabular-nums">{formatCurrency(line.lineTotal)}</span>
-            </div>
-          ))}
+            ) : undefined}
+            qr={qrCode}
+          />
         </div>
-
-        {/* Totals */}
-        <div className="mb-4 space-y-1 border-t border-border pt-3 text-sm">
-          <div className="flex justify-between text-muted">
-            <span>المجموع قبل الضريبة</span>
-            <span className="tabular-nums">{formatCurrency(order.subtotalAmount)}</span>
-          </div>
-          <div className="flex justify-between text-muted">
-            <span>ضريبة القيمة المضافة 15%</span>
-            <span className="tabular-nums">{formatCurrency(order.taxAmount)}</span>
-          </div>
-          <div className="flex justify-between font-bold text-fg">
-            <span>الإجمالي</span>
-            <span className="tabular-nums">{formatCurrency(order.totalAmount)}</span>
-          </div>
+        <div className="border-t border-border p-4">
+          <button
+            onClick={() => printElement(document.getElementById('invoice-receipt-print'))}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-fg py-2.5 text-sm font-semibold text-bg hover:bg-fg/85"
+          >
+            <Printer className="h-4 w-4" />
+            {t.common.print}
+          </button>
         </div>
-
-        {/* Payment */}
-        <div className="mb-4 rounded-lg bg-surface-2 px-3 py-2 text-center text-xs text-muted">
-          {order.paymentMethod === 'Cash' ? t.invoices.payment.cash : t.invoices.payment.card}
-          {order.amountTendered && order.amountTendered > order.totalAmount && (
-            <span> · الباقي {formatCurrency(order.amountTendered - order.totalAmount)}</span>
-          )}
-        </div>
-
-        {/* ZATCA QR */}
-        <div className="mb-4 flex flex-col items-center gap-2">
-          <QrCode className="h-4 w-4 text-muted" />
-          <ZatcaQr value={qrCode} size={100} />
-          <p className="text-[10px] text-muted">{t.invoices.qrVerification}</p>
-        </div>
-
-        <button
-          onClick={handlePrint}
-          className="bg-brand flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-brand-fg"
-        >
-          <Printer className="h-4 w-4" />
-          {t.common.print}
-        </button>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, QrCode, ScanBarcode, Unlock, PauseCircle, PlayCircle, Clock } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, ScanBarcode, Unlock, PauseCircle, PlayCircle, Clock } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { useCartStore } from '@/stores/cartStore'
@@ -30,8 +30,9 @@ import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHe
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
-import { ZatcaQr } from '@/components/pos/ZatcaQr'
-import { BrandTagline, FlowinLogo } from '@/components/brand/Brand'
+import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
+import { useReceiptSettings } from '@/lib/receipt'
+import { orderReceiptFigures, paymentLabel } from '@/lib/orderReceipt'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
@@ -885,6 +886,7 @@ function ZatcaReceiptModal({
     staleTime: 60_000,
   })
   const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
+  const receiptSettings = useReceiptSettings()
 
   const qrCode = generateZatcaQr({
     sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
@@ -897,68 +899,21 @@ function ZatcaReceiptModal({
   return (
     <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RETAIL_ACCENT}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div data-print-area className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
-        <div className="mb-4 text-center">
-          <h2 className="text-emboss text-lg font-bold text-fg">فاتورة ضريبية</h2>
-          {(zatcaSettings?.data?.sellerName) && (
-            <p className="logo-3d mt-1 text-sm font-bold">{zatcaSettings.data.sellerName}</p>
-          )}
-          {vatNumber && <p className="text-xs text-muted">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
-        </div>
-
-        <div className="mb-4 space-y-2 text-sm">
-          {order.lines.map((line) => (
-            <div key={line.id} className="flex justify-between text-fg">
-              <span className="flex-1 truncate">
-                {line.productName} × {line.quantity}
-              </span>
-              <span className="tabular-nums">{formatCurrency(line.lineTotal)}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mb-4 space-y-1 border-t pt-3 text-sm" style={{ borderColor: 'var(--card-border)' }}>
-          <div className="flex justify-between text-muted">
-            <span>المجموع قبل الضريبة</span>
-            <span className="tabular-nums">{formatCurrency(order.subtotalAmount)}</span>
-          </div>
-          <div className="flex justify-between text-muted">
-            <span>ضريبة القيمة المضافة 15%</span>
-            <span className="tabular-nums">{formatCurrency(order.taxAmount)}</span>
-          </div>
-          <div className="flex justify-between font-bold text-fg">
-            <span>الإجمالي</span>
-            <span className="tabular-nums">{formatCurrency(order.totalAmount)}</span>
-          </div>
-        </div>
-
-        {/* Payment method */}
-        <div className="mb-3 rounded-lg bg-surface-2 px-3 py-2 text-center text-xs text-muted">
-          {order.paymentMethod === 'Cash' ? 'نقداً' :
-           order.paymentMethod === 'Card' ? 'بطاقة' :
-           order.paymentMethod === 'Split' ? 'تقسيم (نقد + بطاقة)' :
-           order.paymentMethod}
-          {order.paymentMethod === 'Cash' && order.amountTendered && order.amountTendered > order.totalAmount && (
-            <span> · الباقي {formatCurrency(order.amountTendered - order.totalAmount)}</span>
-          )}
-        </div>
-
-        {offline && (
-          <p className="mb-3 rounded-lg bg-warning/15 px-3 py-2 text-center text-xs text-warning">
-            رقم مؤقت · حُفظت دون اتصال وستصدر الفاتورة عند المزامنة
-          </p>
-        )}
-
-        {/* ZATCA QR Code */}
-        <div className="card-3d mb-4 flex flex-col items-center gap-2 p-4">
-          <QrCode className="h-5 w-5 text-muted" />
-          <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
-          <ZatcaQr value={qrCode} size={120} />
-          {/* signature: the system that issued the receipt, quiet at the bottom */}
-          <div className="mt-3 flex flex-col items-center gap-1 border-t border-dashed border-border pt-3 text-muted">
-            <FlowinLogo tone="mono" className="h-3.5" />
-            <BrandTagline className="!text-[8px]" />
-          </div>
+      <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
+        <div className="-mx-2 mb-4 max-h-[60vh] overflow-y-auto px-2">
+          <ReceiptDocument
+            id="retail-receipt-print"
+            settings={receiptSettings}
+            sellerName={zatcaSettings?.data?.sellerName ?? ''}
+            vatNumber={vatNumber}
+            invoiceNo={order.id.slice(-8).toUpperCase()}
+            issuedAt={order.completedAt ?? order.createdAt}
+            {...orderReceiptFigures(order)}
+            paymentLabel={paymentLabel(order.paymentMethod)}
+            tendered={order.paymentMethod === 'Cash' ? order.amountTendered ?? undefined : undefined}
+            badge={offline ? 'رقم مؤقت · تصدر الفاتورة عند المزامنة' : undefined}
+            qr={qrCode}
+          />
         </div>
 
         <div data-no-print className="mb-4">
@@ -987,7 +942,7 @@ function ZatcaReceiptModal({
           </Button>
           <Button
             variant="primary"
-            onClick={(e) => printElement(e.currentTarget.closest('[data-print-area]'))}
+            onClick={() => printElement(document.getElementById('retail-receipt-print'))}
             className="btn-3d flex-1"
           >
             طباعة

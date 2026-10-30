@@ -1551,9 +1551,62 @@
 }
 
 /* ── Single-element printing (src/lib/print.ts) ──────────────
-   Only the receipt copy in #print-root reaches the paper, sized
-   for 80mm thermal rolls, black on white whatever the theme. */
-#print-root { display: none; }
+   Only the copy in #print-root reaches the paper. Its sizing rules
+   apply outside @media print too, so print.ts can measure the slip
+   off-screen and size the page to it. Black on white whatever the theme. */
+#print-root {
+  display: none;
+  box-sizing: content-box;
+  padding: 3mm 4mm;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #000;
+  background: #fff;
+}
+
+#print-root.print-measuring {
+  display: block;
+  position: absolute;
+  inset-inline-start: -10000px;
+  top: 0;
+  visibility: hidden;
+}
+
+/* ── Receipt slip (components/pos/ReceiptDocument.tsx) ── */
+.receipt-paper {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgb(var(--fg));
+}
+
+.receipt-paper hr.receipt-rule {
+  margin: 0.6rem 0;
+  border: 0;
+  border-top: 1.5px dashed rgb(var(--border));
+}
+
+.receipt-center { text-align: center; }
+.receipt-logo { display: block; margin: 0 auto 0.35rem; max-height: 56px; max-width: 70%; object-fit: contain; }
+.receipt-store { font-size: 1.05rem; font-weight: 800; }
+.receipt-title { font-weight: 700; }
+.receipt-small { font-size: 0.78rem; color: rgb(var(--muted)); }
+.receipt-note { margin-top: 0.35rem; font-size: 0.8rem; white-space: pre-line; }
+.receipt-badge { margin-top: 0.3rem; font-size: 0.8rem; font-weight: 700; }
+.receipt-lines { display: grid; gap: 0.3rem; }
+.receipt-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.receipt-qty { color: rgb(var(--muted)); }
+.receipt-totals { display: grid; gap: 0.15rem; }
+.receipt-total { margin-top: 0.2rem; font-size: 1.05rem; font-weight: 800; }
+.receipt-qr { margin-top: 0.75rem; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+.receipt-powered { margin-top: 0.6rem; display: flex; justify-content: center; color: rgb(var(--muted)); }
+
+/* On paper: a fixed, scannable QR and a logo that suits a one-colour thermal head. */
+#print-root .receipt-paper { font-size: 11.5px; }
+#print-root .receipt-qr svg { width: 34mm !important; height: 34mm !important; }
+#print-root[data-paper='58'] .receipt-qr svg { width: 30mm !important; height: 30mm !important; }
+#print-root .receipt-qr > div { padding: 0 !important; }
+#print-root .receipt-logo { max-height: 16mm; filter: grayscale(1) contrast(1.15); }
+#print-root[data-paper='58'] .receipt-paper { font-size: 10.5px; }
 
 .spill-art .spill-pour {
   transform-box: fill-box;
@@ -1615,10 +1668,7 @@
   body.printing-element > *:not(#print-root) { display: none !important; }
   body.printing-element #print-root {
     display: block;
-    width: 72mm;
-    margin: 0 auto;
-    font-size: 12px;
-    color: #000;
+    margin: 0;
   }
   body.printing-element #print-root > * { padding: 0 !important; margin: 0 !important; }
   body.printing-element #print-root * {
