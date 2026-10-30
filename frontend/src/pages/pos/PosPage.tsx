@@ -31,6 +31,7 @@ import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
+import { invoiceNo } from '@/lib/invoiceNumber'
 import { useReceiptSettings } from '@/lib/receipt'
 import { orderReceiptFigures, paymentLabel } from '@/lib/orderReceipt'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
@@ -906,7 +907,7 @@ function ZatcaReceiptModal({
             settings={receiptSettings}
             sellerName={zatcaSettings?.data?.sellerName ?? ''}
             vatNumber={vatNumber}
-            invoiceNo={order.id.slice(-8).toUpperCase()}
+            invoiceNo={invoiceNo(order)}
             issuedAt={order.completedAt ?? order.createdAt}
             {...orderReceiptFigures(order)}
             paymentLabel={paymentLabel(order.paymentMethod)}
@@ -922,7 +923,7 @@ function ZatcaReceiptModal({
             defaultPhone={customerPhone}
             message={buildReceiptMessage({
               storeName: zatcaSettings?.data?.sellerName ?? 'flowin',
-              invoiceNo: order.id.slice(-8).toUpperCase(),
+              invoiceNo: invoiceNo(order),
               date: new Date(order.completedAt ?? order.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: order.lines.map((l) => ({ name: l.productName, quantity: l.quantity, total: l.lineTotal })),
               discount: order.discountAmount || undefined,

@@ -43,6 +43,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.CreatedAt).HasColumnName("created_at");
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at");
         builder.Property(o => o.CompletedAt).HasColumnName("completed_at");
+        builder.Property(o => o.Number).HasColumnName("number");
 
         builder.OwnsOne(o => o.OrderDiscount, d =>
         {

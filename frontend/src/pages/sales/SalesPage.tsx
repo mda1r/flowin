@@ -13,6 +13,7 @@ import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { toast } from '@/components/ui/Toast'
 import { useI18n } from '@/i18n'
 import type { OrderLineResponse, OrderResponse, RefundMethod, ReturnOrderResponse, ReturnReason } from '@/types/api'
+import { invoiceNo } from '@/lib/invoiceNumber'
 
 type DateRange = 'today' | 'week' | 'month' | 'year'
 
@@ -446,8 +447,8 @@ export function SalesPage() {
                 header: t.sales.orderId,
                 render: (r) => (
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-medium text-info">
-                      #{r.id.slice(-6).toUpperCase()}
+                    <span className="font-display text-sm font-semibold tabular-nums text-fg">
+                      <bdi dir="ltr">#{invoiceNo(r)}</bdi>
                     </span>
                     {returnsMap.has(r.id) && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning dark:bg-warning/15">

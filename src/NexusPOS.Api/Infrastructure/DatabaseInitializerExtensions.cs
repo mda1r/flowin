@@ -254,6 +254,11 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS offline_created_at TIMESTAMP WITH TIME ZONE",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_client_reference ON orders (client_reference) WHERE client_reference IS NOT NULL",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS loyalty_point_value NUMERIC(18,6) NOT NULL DEFAULT 0.05",
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS number BIGINT",
+            "CREATE TABLE IF NOT EXISTS order_number_counters (tenant_id UUID PRIMARY KEY, last_number BIGINT NOT NULL)",
+            // Number the existing invoices once, in the order they were completed; skipped once any order has a number.
+            "UPDATE orders o SET number = s.rn FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY COALESCE(completed_at, created_at), id) AS rn FROM orders WHERE status IN (2, 4)) s WHERE o.id = s.id AND NOT EXISTS (SELECT 1 FROM orders x WHERE x.number IS NOT NULL)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_number ON orders (number) WHERE number IS NOT NULL",
         ];
 
         foreach (string sql in patches)

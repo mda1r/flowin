@@ -11,7 +11,8 @@ namespace NexusPOS.POS.Application.Commands.CompleteOrder;
 
 internal sealed class CompleteOrderCommandHandler(
     IOrderRepository orderRepository,
-    PosDbContext dbContext)
+    PosDbContext dbContext,
+    IOrderNumberSequence numbers)
     : ICommandHandler<CompleteOrderCommand, OrderResponse>
 {
     public async Task<ErrorOr<OrderResponse>> Handle(
@@ -24,6 +25,11 @@ internal sealed class CompleteOrderCommandHandler(
         if (order is null || order.BranchId != request.BranchId)
         {
             return PosErrors.OrderNotFound;
+        }
+
+        if (order.Status == Domain.Enums.OrderStatus.Open && order.Lines.Count > 0)
+        {
+            order.AssignNumber(await numbers.NextAsync(order.TenantId, cancellationToken));
         }
 
         ErrorOr<Success> completeResult = order.Complete(request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount);

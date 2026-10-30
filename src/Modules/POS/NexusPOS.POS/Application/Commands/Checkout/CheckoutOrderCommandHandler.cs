@@ -9,7 +9,7 @@ using NexusPOS.SharedKernel.Domain;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
 
-internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoyaltyDirectory loyalty)
+internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoyaltyDirectory loyalty, IOrderNumberSequence numbers)
     : ICommandHandler<CheckoutOrderCommand, OrderResponse>
 {
     public async Task<ErrorOr<OrderResponse>> Handle(CheckoutOrderCommand request, CancellationToken cancellationToken)
@@ -27,7 +27,8 @@ internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoya
             return rules.Errors;
         }
 
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value);
+        long number = await numbers.NextAsync(request.TenantId, cancellationToken);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number);
         if (built.IsError)
         {
             return built.Errors;

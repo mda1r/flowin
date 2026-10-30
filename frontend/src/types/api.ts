@@ -225,6 +225,8 @@ export interface OrderLineResponse {
 
 export interface OrderResponse {
   id: string
+  // The store's sequential invoice number; null for older or not-yet-synced sales.
+  number?: number | null
   tenantId: string
   branchId: string
   customerId?: string

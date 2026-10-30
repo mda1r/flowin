@@ -22,7 +22,8 @@ internal sealed class OrderCompletedZatcaHandler(
             return;
         }
 
-        string invoiceNumber = settings.IncrementAndGetInvoiceNumber();
+        // The store's sequential order number is the invoice number; the old counter only covers orders without one.
+        string invoiceNumber = notification.Number is long n ? $"INV-{n:D6}" : settings.IncrementAndGetInvoiceNumber();
         DateTime invoiceDate = notification.OccurredAt;
 
         string qrCode = ZatcaQrService.GenerateQrBase64(

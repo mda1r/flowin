@@ -44,6 +44,17 @@ public sealed class Order : AggregateRoot<OrderId>
     public DateTime UpdatedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
 
+    // The store's sequential invoice number (1, 2, 3…), given when the sale completes and printed on the receipt.
+    public long? Number { get; private set; }
+
+    public void AssignNumber(long number)
+    {
+        if (Number is null && Status == OrderStatus.Open)
+        {
+            Number = number;
+        }
+    }
+
     public List<OrderLine> Lines { get; private set; } = [];
 
     private Order() { }
@@ -224,7 +235,7 @@ public sealed class Order : AggregateRoot<OrderId>
         RaiseDomainEvent(new OrderCompletedDomainEvent(
             Id.Value, TenantId, BranchId,
             SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method, lineItems,
-            CustomerId, LoyaltyPointsRedeemed, Source));
+            CustomerId, LoyaltyPointsRedeemed, Source, Number));
         return Result.Success;
     }
 

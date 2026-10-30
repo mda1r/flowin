@@ -29,6 +29,7 @@ import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
+import { invoiceNo } from '@/lib/invoiceNumber'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
@@ -72,6 +73,7 @@ interface KitchenTicketData {
 
 interface CustomerReceiptData {
   orderId: string
+  number?: number | null
   items: CafeCartItem[]
   grandTotal: number
   tax: number
@@ -248,7 +250,7 @@ function CustomerReceiptModal({
             settings={receiptSettings}
             sellerName={sellerName}
             vatNumber={vatNumber}
-            invoiceNo={receipt.orderId.slice(-8).toUpperCase()}
+            invoiceNo={invoiceNo({ id: receipt.orderId, number: receipt.number })}
             issuedAt={receipt.completedAt}
             lines={receipt.items.map((item) => ({
               key: item.variantId,
@@ -283,7 +285,7 @@ function CustomerReceiptModal({
             defaultPhone={receipt.customerPhone}
             message={buildReceiptMessage({
               storeName: sellerName || 'كافيه',
-              invoiceNo: receipt.orderId.slice(-8).toUpperCase(),
+              invoiceNo: invoiceNo({ id: receipt.orderId, number: receipt.number }),
               date: new Date(receipt.completedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: receipt.items.map((i) => ({
                 name: i.variantName && i.variantName !== 'Standard' ? `${i.productName} - ${i.variantName}` : i.productName,
@@ -596,7 +598,7 @@ export function CafePosPage() {
           total: grandTotal,
           itemCount: cart.reduce((s, i) => s + i.quantity, 0),
         })
-        return { orderId: clientReference, offline: true }
+        return { orderId: clientReference, number: null as number | null, offline: true }
       }
 
       if (!navigator.onLine) {
@@ -605,13 +607,13 @@ export function CafePosPage() {
       }
       try {
         const { data } = await ordersApi.checkout(branchId, payload)
-        return { orderId: data.id, offline: false }
+        return { orderId: data.id, number: data.number ?? null, offline: false }
       } catch (err) {
         if (isNetworkError(err)) return saveOffline()
         throw err
       }
     },
-    onSuccess: ({ orderId, offline }) => {
+    onSuccess: ({ orderId, number, offline }) => {
       const snapshot = {
         items: [...cart],
         grandTotal,
@@ -663,6 +665,7 @@ export function CafePosPage() {
       // Show customer receipt
       setCustomerReceipt({
         orderId,
+        number,
         ...snapshot,
         completedAt: new Date().toISOString(),
         offline,

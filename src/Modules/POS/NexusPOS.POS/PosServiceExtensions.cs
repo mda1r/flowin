@@ -1,3 +1,4 @@
+using NexusPOS.POS.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,7 @@ public static class PosServiceExtensions
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<PosDbContext>());
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IOrderNumberSequence, OrderNumberSequence>();
         services.AddScoped<IReturnOrderRepository, ReturnOrderRepository>();
         services.AddScoped<IShiftRepository, ShiftRepository>();
 

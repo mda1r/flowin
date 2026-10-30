@@ -1,4 +1,5 @@
 using MediatR;
+using NexusPOS.POS.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Enums;
@@ -10,7 +11,8 @@ namespace NexusPOS.POS.Application.EventHandlers;
 // Records a gaming or restaurant payment as a completed POS order, once per source reference.
 // Exceptions propagate on purpose: the paying module saves its "paid" state only after this succeeds,
 // so a failure leaves the payment retryable instead of recorded with no sale.
-internal sealed class ExternalSaleCompletedPosHandler(PosDbContext db)
+internal sealed class ExternalSaleCompletedPosHandler(PosDbContext db,
+    IOrderNumberSequence numbers)
     : INotificationHandler<ExternalSaleCompletedDomainEvent>
 {
     public async Task Handle(ExternalSaleCompletedDomainEvent notification, CancellationToken cancellationToken)
@@ -43,6 +45,7 @@ internal sealed class ExternalSaleCompletedPosHandler(PosDbContext db)
         }
 
         PaymentMethod method = notification.PaymentMethod == "Card" ? PaymentMethod.Card : PaymentMethod.Cash;
+        order.AssignNumber(await numbers.NextAsync(notification.TenantId, cancellationToken));
         Throw(order.Complete(method, Math.Max(notification.AmountTendered, Math.Ceiling(order.TotalAmount * 100) / 100)));
 
         db.Orders.Add(order);

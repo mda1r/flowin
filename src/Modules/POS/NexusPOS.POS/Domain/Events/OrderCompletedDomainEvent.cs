@@ -16,7 +16,8 @@ public sealed record OrderCompletedDomainEvent(
     IReadOnlyList<OrderCompletedDomainEvent.LineItem> Lines,
     Guid? CustomerId = null,
     int LoyaltyPointsRedeemed = 0,
-    OrderSource Source = OrderSource.Pos) : DomainEvent
+    OrderSource Source = OrderSource.Pos,
+    long? Number = null) : DomainEvent
 {
     public sealed record LineItem(Guid VariantId, decimal Quantity);
 }
