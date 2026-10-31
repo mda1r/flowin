@@ -139,7 +139,7 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
             new UpdateStockMaterialCommand(
                 tenantId, materialId, request.Code, request.NameAr, request.NameEn, request.CategoryId,
                 request.StorageUnit, request.ComponentUnit, request.ConversionFactor,
-                request.CostMethod, request.ManualCost, request.ManualQuantity,
+                request.CostMethod, request.ManualCost,
                 request.MinLevel, request.MaxLevel, request.ReorderLevel),
             cancellationToken);
 

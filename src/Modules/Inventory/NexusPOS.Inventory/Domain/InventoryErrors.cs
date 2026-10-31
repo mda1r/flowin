@@ -27,4 +27,7 @@ public static class InventoryErrors
 
     public static readonly Error StockCountAlreadyCompleted =
         Error.Validation("Inventory.StockCountAlreadyCompleted", "Stock count session is already completed.");
+
+    public static readonly Error MaterialArchived =
+        Error.Conflict("Inventory.MaterialArchived", "هذه المادة مؤرشفة. استرجعها من الأرشيف أولاً.");
 }

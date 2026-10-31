@@ -47,7 +47,25 @@ internal sealed class DeleteStockMaterialCommandHandler(InventoryDbContext db)
             db.StockMaterials.Remove(material);
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (!hasMovements)
+        {
+            // A movement landed after the check and the RESTRICT key kept it, so archive instead.
+            db.Entry(material).State = EntityState.Unchanged;
+            bool movedSince = await db.StockMaterialMovements
+                .AnyAsync(mv => mv.TenantId == request.TenantId && mv.MaterialId == material.Id, cancellationToken);
+            if (!movedSince)
+            {
+                throw;
+            }
+
+            material.Deactivate();
+            await db.SaveChangesAsync(cancellationToken);
+            return new DeleteStockMaterialResponse(true);
+        }
 
         return new DeleteStockMaterialResponse(hasMovements);
     }

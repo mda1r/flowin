@@ -133,7 +133,7 @@ public sealed class StockMaterialTests
         m.Consume(1500m);
 
         m.Update("cof-001", "بن مختص", "Coffee", null, "كيس", "جرام", 1000m,
-            CostMethod.WeightedAverage, null, null, null, null, 2m);
+            CostMethod.WeightedAverage, null, null, null, 2m);
 
         m.NameAr.Should().Be("بن مختص");
         m.ReorderLevel.Should().Be(2m);

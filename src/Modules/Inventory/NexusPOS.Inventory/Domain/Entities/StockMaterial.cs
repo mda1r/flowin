@@ -74,7 +74,6 @@ public sealed class StockMaterial
         decimal conversionFactor,
         CostMethod costMethod,
         decimal? manualCost,
-        decimal? manualQuantity,
         decimal? minLevel,
         decimal? maxLevel,
         decimal? reorderLevel)
@@ -90,10 +89,6 @@ public sealed class StockMaterial
         if (manualCost.HasValue)
         {
             CurrentCost = manualCost.Value;
-        }
-        if (manualQuantity.HasValue && manualQuantity.Value >= 0)
-        {
-            CurrentQuantityInStorageUnits = manualQuantity.Value;
         }
         MinLevel = minLevel;
         MaxLevel = maxLevel;

@@ -77,7 +77,6 @@ export interface UpdateStockMaterialPayload {
   conversionFactor: number
   costMethod: number
   manualCost?: number
-  manualQuantity?: number
   minLevel?: number
   maxLevel?: number
   reorderLevel?: number

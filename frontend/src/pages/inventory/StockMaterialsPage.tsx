@@ -627,6 +627,16 @@ export function StockMaterialsPage() {
   })
   const materials: StockMaterialResponse[] = matResp?.data ?? []
 
+  // The server archives a material with movement history and deletes one that never moved,
+  // so the confirm copy follows its history (neutral until the history has loaded).
+  const { data: deleteMovResp } = useQuery({
+    queryKey: ['stock-material-movements', tenantId, deleteMat?.id],
+    queryFn: () => stockMaterialApi.listMovements(tenantId!, deleteMat!.id),
+    enabled: !!tenantId && !!deleteMat,
+    staleTime: 0,
+  })
+  const deleteHasMovements = deleteMovResp ? deleteMovResp.data.length > 0 : null
+
   const invalidateMaterials = () => qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
   const invalidateCategories = () => qc.invalidateQueries({ queryKey: ['stock-material-categories', tenantId] })
 
@@ -1056,9 +1066,17 @@ export function StockMaterialsPage() {
         open={!!deleteMat}
         onClose={() => setDeleteMat(null)}
         onConfirm={() => deleteMat && deleteMatMut.mutate(deleteMat.id)}
-        title="أرشفة المادة"
-        message={deleteMat ? `سيتم نقل "${deleteMat.nameAr}" إلى الأرشيف مع الاحتفاظ بسجل حركتها، ويمكنك استرجاعها لاحقاً.` : ''}
-        confirmLabel="أرشفة"
+        title={deleteHasMovements === false ? 'حذف المادة' : 'أرشفة المادة'}
+        message={
+          !deleteMat
+            ? ''
+            : deleteHasMovements === true
+              ? `سيتم نقل "${deleteMat.nameAr}" إلى الأرشيف مع الاحتفاظ بسجل حركتها، ويمكنك استرجاعها لاحقاً.`
+              : deleteHasMovements === false
+                ? `سيتم حذف "${deleteMat.nameAr}" نهائياً لأنه لا توجد عليها أي حركة.`
+                : `ستُؤرشف "${deleteMat.nameAr}" إن كان لها سجل حركة، وإلا ستُحذف نهائياً.`
+        }
+        confirmLabel={deleteHasMovements === false ? 'حذف' : 'أرشفة'}
         confirmVariant="danger"
         loading={deleteMatMut.isPending}
       />

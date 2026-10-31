@@ -31,7 +31,6 @@ public sealed record UpdateStockMaterialRequest(
     decimal ConversionFactor,
     CostMethod CostMethod,
     decimal? ManualCost = null,
-    decimal? ManualQuantity = null,
     decimal? MinLevel = null,
     decimal? MaxLevel = null,
     decimal? ReorderLevel = null);
