@@ -454,7 +454,8 @@ function ForceCloseModal({ shift, onClose }: { shift: ShiftResponse; onClose: ()
   const s = live ?? shift
   const expected = reconcile(s).expectedCash
   const cardAmount = Number(card) || 0
-  const invalid = countedCash == null || countedCash < 0 || cardAmount < 0
+  // A skipped card total would be stored as 0 and book the whole card take as a shortfall, so it is required too.
+  const invalid = countedCash == null || countedCash < 0 || card.trim() === '' || cardAmount < 0
 
   const submit = async () => {
     if (invalid) return
@@ -522,7 +523,14 @@ function ForceCloseModal({ shift, onClose }: { shift: ShiftResponse; onClose: ()
           value={card}
           onChange={(e) => setCard(e.target.value)}
           error={cardAmount < 0 ? 'المبلغ لا يمكن أن يكون سالباً' : undefined}
+          hint="أدخل 0 إن لم تكن هناك مبيعات بطاقة"
         />
+        {card.trim() !== '' && cardAmount >= 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted">فرق البطاقات</span>
+            <Variance v={Math.round((cardAmount - s.totalCardSales) * 100) / 100} />
+          </div>
+        )}
         <Input
           label="ملاحظة (اختياري)"
           placeholder="مثال: الكاشير غادر دون إغلاق"

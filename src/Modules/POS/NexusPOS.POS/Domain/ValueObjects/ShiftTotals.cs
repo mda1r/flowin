@@ -31,27 +31,34 @@ public sealed record ShiftTotals(
         List<ShiftPaymentRow> list = rows.ToList();
 
         decimal total = list.Sum(r => r.Total);
-        // Split payments count their cash and card portions; leaving them out understated expected cash.
-        decimal cash = list.Sum(r => r.Method switch
-        {
-            PaymentMethod.Cash => r.Total,
-            PaymentMethod.Split => r.SplitCash,
-            _ => 0m,
-        });
+        // Split payments count their card portion as entered and the rest of the bill as cash. The cashier's
+        // two halves only match the 4-decimal total to the halala, so the leftover stays in cash, not digital.
         decimal card = list.Sum(r => r.Method switch
         {
             PaymentMethod.Card => r.Total,
-            PaymentMethod.Split => r.SplitCard,
+            PaymentMethod.Split => SplitCardPart(r),
             _ => 0m,
         });
+        decimal cash = list.Sum(r => r.Method switch
+        {
+            PaymentMethod.Cash => r.Total,
+            PaymentMethod.Split => r.Total - SplitCardPart(r),
+            _ => 0m,
+        });
+        decimal digital = list
+            .Where(r => r.Method is not (PaymentMethod.Cash or PaymentMethod.Card or PaymentMethod.Split))
+            .Sum(r => r.Total);
 
         return new ShiftTotals(
             total,
             cash,
             card,
-            total - cash - card,
+            digital,
             Math.Max(0m, cashRefunds),
             list.Sum(r => r.Tax),
             list.Sum(r => r.Orders));
     }
+
+    // The card part can never exceed the bill, so a bad split from a client cannot turn cash negative.
+    private static decimal SplitCardPart(ShiftPaymentRow r) => Math.Clamp(r.SplitCard, 0m, Math.Max(r.Total, 0m));
 }

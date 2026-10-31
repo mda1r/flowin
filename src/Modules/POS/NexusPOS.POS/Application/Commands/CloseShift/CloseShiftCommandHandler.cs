@@ -1,4 +1,5 @@
 using ErrorOr;
+using Microsoft.EntityFrameworkCore;
 using NexusPOS.POS.Application.Commands.OpenShift;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain;
@@ -52,7 +53,15 @@ internal sealed class CloseShiftCommandHandler(
         }
 
         shiftRepository.Update(shift);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Someone else closed it between our read and our save; their close stands.
+            return PosErrors.ShiftNotOpen;
+        }
 
         return OpenShiftCommandHandler.ToResponse(shift);
     }

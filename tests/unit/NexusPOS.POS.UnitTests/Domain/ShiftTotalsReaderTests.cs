@@ -36,4 +36,13 @@ public sealed class ShiftTotalsReaderTests
 
         sql.Should().Contain("refund_method").And.Contain("branch_id").And.Contain("created_at");
     }
+
+    [Fact]
+    public void ShiftRowVersion_IsTheXminSystemColumnAndIsNeverCreated()
+    {
+        using PosDbContext db = Context();
+
+        db.Model.FindEntityType(typeof(CashierShift))!.FindProperty("xmin")!.IsConcurrencyToken.Should().BeTrue();
+        db.Database.GenerateCreateScript().Should().NotContain("xmin");
+    }
 }

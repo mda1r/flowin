@@ -31,6 +31,34 @@ public sealed class CashierShiftTests
     }
 
     [Fact]
+    public void Totals_SplitRoundingLeftoverStaysInCashNotDigital()
+    {
+        // Two split bills whose 2-decimal halves miss the 4-decimal totals by under a halala, either way.
+        ShiftTotals totals = ShiftTotals.From(
+        [
+            new ShiftPaymentRow(PaymentMethod.Cash, 1, 20m, 2.6m, 0m, 0m),
+            new ShiftPaymentRow(PaymentMethod.Card, 1, 30m, 3.9m, 0m, 0m),
+            new ShiftPaymentRow(PaymentMethod.Split, 2, 23.0083m, 3m, 13.00m, 10.01m),
+        ], 0m);
+
+        totals.DigitalSales.Should().Be(0m);
+        totals.CardSales.Should().Be(40.01m);
+        totals.CashSales.Should().Be(32.9983m);
+        (totals.CashSales + totals.CardSales).Should().Be(totals.TotalSales);
+    }
+
+    [Fact]
+    public void Totals_SplitCardLargerThanTheBillCannotPushBucketsNegative()
+    {
+        ShiftTotals totals = ShiftTotals.From(
+            [new ShiftPaymentRow(PaymentMethod.Split, 1, 50m, 6.52m, 0m, 500m)], 0m);
+
+        totals.CardSales.Should().Be(50m);
+        totals.CashSales.Should().Be(0m);
+        totals.DigitalSales.Should().Be(0m);
+    }
+
+    [Fact]
     public void Totals_DigitalSalesGetTheirOwnBucketSoTheBucketsAddUp()
     {
         ShiftTotals totals = ShiftTotals.From(

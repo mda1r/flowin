@@ -38,6 +38,10 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
         builder.Property(s => s.ClosedAt).HasColumnName("closed_at");
         builder.Property(s => s.ClosedByName).HasColumnName("closed_by_name").HasMaxLength(200);
 
+        // A cashier and a manager can close the same shift at once; Postgres' xmin makes the second save fail
+        // instead of overwriting the first close. It is a system column, so no table change is needed.
+        builder.Property<uint>("xmin").HasColumnName("xmin").IsRowVersion();
+
         builder.HasIndex(s => new { s.BranchId, s.UserId, s.Status })
             .HasDatabaseName("ix_cashier_shifts_branch_user_status");
         builder.HasIndex(s => s.OpenedAt).HasDatabaseName("ix_cashier_shifts_opened_at");

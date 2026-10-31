@@ -118,7 +118,8 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   const expectedCash = live?.expectedCash ?? null
   const cashVariance = expectedCash == null ? null : Math.round((cashAmount - expectedCash) * 100) / 100
   const cardVariance = live ? Math.round((cardAmount - live.totalCardSales) * 100) / 100 : null
-  const invalid = cashAmount < 0 || cardAmount < 0
+  // An uncounted drawer would close as zero cash and store the whole take as a deficit; an empty one is typed as 0.
+  const invalid = countedCash == null || countedCash < 0 || cardAmount < 0
 
   const cashierName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
   const printReport = (id: string) => window.setTimeout(() => printElement(document.getElementById(id)), 0)
