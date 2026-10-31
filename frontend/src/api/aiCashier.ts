@@ -11,7 +11,9 @@ export interface AiCashierAction {
 export interface AiCashierResponse {
   message: string
   actions: AiCashierAction[]
-  state: 'greeting' | 'taking_order' | 'summarizing' | 'payment_method' | 'complete' | string
+  state: 'greeting' | 'taking_order' | 'summarizing' | 'payment_method' | 'complete' | 'error' | string
+  /** The server dropped something the model asked for; `message` is only the correction. */
+  corrected?: boolean
 }
 
 export interface AiCashierMessage {

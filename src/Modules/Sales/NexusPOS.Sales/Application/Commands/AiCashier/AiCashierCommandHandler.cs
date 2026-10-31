@@ -3,6 +3,7 @@ using System.Text.Json;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Catalog.Infrastructure.Persistence;
+using NexusPOS.Sales.Infrastructure.Services;
 using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Application.Messaging;
 
@@ -345,9 +346,11 @@ internal sealed class AiCashierCommandHandler(
             actions.Add(completion);
         }
 
-        string message = notes.Count > 0
-            ? $"{response.Message.TrimEnd()} {string.Join(" ", notes)}"
-            : response.Message;
+        // The model's text confirms what it asked for (and often quotes a total), so once
+        // something was dropped it is no longer true. Say only the correction; the client
+        // follows it with the real cart (Corrected = true).
+        bool corrected = notes.Count > 0;
+        string message = corrected ? string.Join(" ", notes) : response.Message;
 
         // "complete" without a payment would stop the mic while the order is still open.
         string state = response.State;
@@ -356,19 +359,30 @@ internal sealed class AiCashierCommandHandler(
             state = projected.Values.Any(q => q > 0) && !itemDropped ? "payment_method" : "taking_order";
         }
 
-        return new AiCashierResponse(message, actions, state);
+        return new AiCashierResponse(message, actions, state, corrected);
     }
 
     internal static AiCashierResponse ParseResponse(string raw)
     {
+        string text = raw.Trim();
+
+        // The server cannot reach the model at all: say why and stop the voice loop.
+        if (text is ClaudeApiService.NotConfiguredReply or ClaudeApiService.UnavailableReply)
+        {
+            return new AiCashierResponse(text, [], "error");
+        }
+
+        int start = raw.IndexOf('{');
+        int end = raw.LastIndexOf('}');
+        if (start < 0 || end <= start)
+        {
+            // A plain-text reply (or the empty-reply notice) is still worth saying.
+            return new AiCashierResponse(text.Length > 0 ? text : ClaudeApiService.EmptyReply, [], "taking_order");
+        }
+
+        raw = raw[start..(end + 1)];
         try
         {
-            int start = raw.IndexOf('{');
-            int end = raw.LastIndexOf('}');
-            if (start >= 0 && end > start)
-            {
-                raw = raw[start..(end + 1)];
-            }
 
             using JsonDocument doc = JsonDocument.Parse(raw);
             JsonElement root = doc.RootElement;

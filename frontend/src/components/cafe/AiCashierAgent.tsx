@@ -10,7 +10,7 @@ import {
 } from '@/api/aiCashier'
 import type { ProductResponse } from '@/types/api'
 import { apiErrorMessage } from '@/lib/apiError'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 
 /** What happened when the agent tried to change the POS cart. */
 export type AiCartResult = 'ok' | 'not_found' | 'out_of_stock' | 'not_in_cart'
@@ -23,7 +23,8 @@ interface AiCashierAgentProps {
   onAddVariant: (variantId: string, qty: number, notes: string) => AiCartResult
   onSetQuantity: (variantId: string, qty: number) => AiCartResult
   onRemoveVariant: (variantId: string) => AiCartResult
-  onCompleteOrder: (paymentMethod: 'Cash' | 'Card') => void
+  /** Resolves false when the checkout failed and the order is still open. */
+  onCompleteOrder: (paymentMethod: 'Cash' | 'Card') => Promise<boolean>
   onDeactivate: () => void
 }
 
@@ -34,6 +35,7 @@ interface DisplayMessage {
 }
 
 const ERROR_REPLY = 'عذراً، حدث خطأ. هل تودّ تكرار طلبك؟'
+const PAYMENT_FAILED_REPLY = 'تعذّر إتمام الدفع، نحاول مرة ثانية؟'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Recognition = any
@@ -45,6 +47,7 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
   const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isPaying, setIsPaying] = useState(false)
   const [speechSupported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
 
   // Callbacks fire long after the render that created them (speech end, recognition result),
@@ -173,6 +176,34 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
     }
   }
 
+  // What the POS cart really holds, so a correction never repeats a stale total.
+  const cartSummary = (): string => {
+    const { lines, total } = latest.current.getCart()
+    if (lines.length === 0) return 'طلبك فاضي الحين.'
+    const items = lines.map((l) => `${l.name} × ${l.quantity}`).join('، ')
+    return `طلبك الحين: ${items}. المجموع ${formatCurrency(total, 'SAR', 'ar-SA')}.`
+  }
+
+  const completeOrder = async (method: 'Cash' | 'Card') => {
+    if (!activeRef.current || completingRef.current) return
+    completingRef.current = true
+    // Nothing listens or talks to the AI while the payment runs.
+    busyRef.current = true
+    setIsPaying(true)
+    const ok = await latest.current.onCompleteOrder(method)
+    // On success the POS closes the panel; keep the guards up until it does.
+    if (!activeRef.current || ok) return
+    busyRef.current = false
+    completingRef.current = false
+    setIsPaying(false)
+    historyRef.current = [
+      ...historyRef.current,
+      { role: 'assistant', content: JSON.stringify({ message: PAYMENT_FAILED_REPLY, actions: [], state: 'payment_method' }) },
+    ]
+    addDisplay('assistant', PAYMENT_FAILED_REPLY)
+    speak(PAYMENT_FAILED_REPLY, startListening)
+  }
+
   const sendToAI = async (msgs: AiCashierMessage[]) => {
     if (!activeRef.current || busyRef.current) return
     busyRef.current = true
@@ -223,7 +254,11 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
     if (problems.length > 0) payment = null
     if (payment) applied.push({ type: 'complete_order', paymentMethod: payment })
 
-    const message = problems.length > 0 ? `${response.message} ${problems.join(' ')}` : response.message
+    // Once something was refused the model's confirmation (and any total it quoted) is wrong,
+    // so say what went wrong and then what the cart really holds.
+    const message = response.corrected || problems.length > 0
+      ? [...(response.corrected ? [response.message] : []), ...problems, cartSummary()].join(' ')
+      : response.message
     const state = problems.length > 0 && response.state === 'complete' ? 'taking_order' : response.state
 
     // The model sees its own past actions next turn, not just what it said.
@@ -235,16 +270,13 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
 
     if (payment) {
       const method = payment
-      speak(message, () => {
-        if (!activeRef.current || completingRef.current) return
-        completingRef.current = true
-        latest.current.onCompleteOrder(method)
-      })
+      speak(message, () => { void completeOrder(method) })
       return
     }
 
+    // 'error' means the server cannot reach the AI; listening again would only repeat it.
     speak(message, () => {
-      if (state !== 'complete') startListening()
+      if (state !== 'complete' && state !== 'error') startListening()
     })
   }
 
@@ -303,7 +335,7 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
             <div>
               <p className="text-sm font-bold text-brand-ink">سعد — كاشير AI</p>
               <p className="text-xs text-muted">
-                {isListening ? 'يستمع...' : isSpeaking ? 'يتكلم...' : isLoading ? 'يفكر...' : 'جاهز'}
+                {isListening ? 'يستمع...' : isSpeaking ? 'يتكلم...' : isPaying ? 'جاري الدفع...' : isLoading ? 'يفكر...' : 'جاهز'}
               </p>
             </div>
           </div>
@@ -357,10 +389,10 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
             </div>
           ))}
 
-          {isLoading && (
+          {(isLoading || isPaying) && (
             <div className="flex items-center gap-2 text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-xs">يفكر...</span>
+              <span className="text-xs">{isPaying ? 'جاري الدفع...' : 'يفكر...'}</span>
             </div>
           )}
         </div>
@@ -379,7 +411,7 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
             </div>
             <button
               onClick={handleManualListen}
-              disabled={!isListening && (isLoading || isSpeaking || !speechSupported)}
+              disabled={!isListening && (isLoading || isSpeaking || isPaying || !speechSupported)}
               className={cn(
                 'flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition-all active:scale-95 disabled:opacity-50',
                 isListening

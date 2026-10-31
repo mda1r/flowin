@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using NexusPOS.Catalog.Infrastructure.Persistence;
 using NexusPOS.Sales.Application.Commands.AiCashier;
+using NexusPOS.Sales.Infrastructure.Services;
 using NexusPOS.SharedKernel.Application.Services;
 
 namespace NexusPOS.Sales.UnitTests.Application.AiCashier;
@@ -68,13 +69,55 @@ public sealed class AiCashierCommandHandlerTests
     [Fact]
     public void ParseResponse_MalformedJson_ReturnsFallbackResponse()
     {
-        const string json = "this is definitely not json";
+        const string json = """{"message":"تمام","actions":[}""";
 
         AiCashierResponse result = AiCashierCommandHandler.ParseResponse(json);
 
         result.Message.Should().Be("عذراً، حدث خطأ. هل تودّ تكرار طلبك؟");
         result.State.Should().Be("taking_order");
         result.Actions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseResponse_PlainTextReply_IsSaidAsIs()
+    {
+        AiCashierResponse result = AiCashierCommandHandler.ParseResponse("  أهلاً، وش تحب تطلب؟ ");
+
+        result.Message.Should().Be("أهلاً، وش تحب تطلب؟");
+        result.State.Should().Be("taking_order");
+        result.Actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(ClaudeApiService.NotConfiguredReply)]
+    [InlineData(ClaudeApiService.UnavailableReply)]
+    public void ParseResponse_ServiceDownReply_ShowsReasonAndStops(string reply)
+    {
+        AiCashierResponse result = AiCashierCommandHandler.ParseResponse(reply);
+
+        result.Message.Should().Be(reply);
+        result.State.Should().Be("error");
+        result.Actions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_ServerNotConfigured_ReturnsErrorState()
+    {
+        var claudeMock = new Mock<IClaudeApiService>();
+        claudeMock
+            .Setup(c => c.ChatWithHistoryAsync(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<ClaudeMessage>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ClaudeApiService.NotConfiguredReply);
+
+        using var db = CreateCatalogDb();
+        var handler = new AiCashierCommandHandler(claudeMock.Object, db);
+
+        var result = await handler.Handle(new AiCashierCommand(Guid.NewGuid(), []), CancellationToken.None);
+
+        result.Value.Message.Should().Be(ClaudeApiService.NotConfiguredReply);
+        result.Value.State.Should().Be("error");
     }
 
     [Fact]
@@ -252,6 +295,7 @@ public sealed class AiCashierCommandHandlerTests
         action.Quantity.Should().Be(2);
         action.Notes.Should().Be("بدون سكر");
         result.Message.Should().Be("أضفت لاتيه");
+        result.Corrected.Should().BeFalse();
     }
 
     [Fact]
@@ -259,8 +303,10 @@ public sealed class AiCashierCommandHandlerTests
     {
         AiCashierResponse result = Validate($$"""{"message":"أضفت لك","actions":[{"type":"add_item","variantId":"{{Guid.NewGuid()}}","quantity":1},{"type":"add_item","variantId":"not-a-guid","quantity":1}],"state":"taking_order"}""");
 
+        // "أضفت لك" is no longer true, so only the correction is said.
         result.Actions.Should().BeEmpty();
-        result.Message.Should().Be($"أضفت لك {AiCashierCommandHandler.UnknownItemNote}");
+        result.Message.Should().Be(AiCashierCommandHandler.UnknownItemNote);
+        result.Corrected.Should().BeTrue();
     }
 
     [Theory]

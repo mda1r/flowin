@@ -800,9 +800,10 @@ export function CafePosPage() {
     onError: () => toast.error(t.pos.paymentFailed),
   })
 
+  // Resolves false on failure so the agent can say so and keep the session going.
   const handleAiCompleteOrder = useCallback((paymentMethod: 'Cash' | 'Card') => {
     payModeRef.current = paymentMethod
-    aiCheckout.mutate(paymentMethod)
+    return aiCheckout.mutateAsync(paymentMethod).then(() => true, () => false)
   }, [aiCheckout])
 
   // ── Gaming mutations ───────────────────────────────────────────────────────
