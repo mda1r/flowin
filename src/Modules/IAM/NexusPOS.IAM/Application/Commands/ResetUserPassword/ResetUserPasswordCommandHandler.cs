@@ -1,4 +1,5 @@
 using ErrorOr;
+using MediatR;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Application.Services;
 using NexusPOS.IAM.Domain;
@@ -8,7 +9,10 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.IAM.Application.Commands.ResetUserPassword;
 
-internal sealed class ResetUserPasswordCommandHandler(IamDbContext db, IPasswordService passwordService)
+internal sealed class ResetUserPasswordCommandHandler(
+    IamDbContext db,
+    IPasswordService passwordService,
+    IPublisher publisher)
     : ICommandHandler<ResetUserPasswordCommand>
 {
     public async Task<ErrorOr<Success>> Handle(
@@ -34,6 +38,9 @@ internal sealed class ResetUserPasswordCommandHandler(IamDbContext db, IPassword
         }
 
         user.ResetPassword(passwordService.HashPassword(request.NewPassword));
+        await publisher.PublishStaffChangeAsync(
+            db, request.TenantId, request.CurrentUserId, StaffAudit.PasswordReset, StaffAudit.Describe(user), cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
 
         return Result.Success;

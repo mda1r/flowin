@@ -1,4 +1,5 @@
 using ErrorOr;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Domain;
@@ -11,7 +12,8 @@ namespace NexusPOS.IAM.Application.Commands.SetUserActive;
 
 internal sealed class SetUserActiveCommandHandler(
     IamDbContext db,
-    ITenantSubscriptionChecker subscriptionChecker)
+    ITenantSubscriptionChecker subscriptionChecker,
+    IPublisher publisher)
     : ICommandHandler<SetUserActiveCommand, UserSummaryResponse>
 {
     public async Task<ErrorOr<UserSummaryResponse>> Handle(
@@ -66,6 +68,10 @@ internal sealed class SetUserActiveCommandHandler(
 
             user.Deactivate();
         }
+
+        await publisher.PublishStaffChangeAsync(
+            db, request.TenantId, request.CurrentUserId,
+            request.IsActive ? StaffAudit.Reactivated : StaffAudit.Deactivated, StaffAudit.Describe(user), cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
         return user.ToSummary();

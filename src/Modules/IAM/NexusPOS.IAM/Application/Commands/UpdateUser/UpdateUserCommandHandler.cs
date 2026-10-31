@@ -1,4 +1,5 @@
 using ErrorOr;
+using MediatR;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Domain;
 using NexusPOS.IAM.Domain.Entities;
@@ -8,7 +9,7 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.IAM.Application.Commands.UpdateUser;
 
-internal sealed class UpdateUserCommandHandler(IamDbContext db)
+internal sealed class UpdateUserCommandHandler(IamDbContext db, IPublisher publisher)
     : ICommandHandler<UpdateUserCommand, UserSummaryResponse>
 {
     public async Task<ErrorOr<UserSummaryResponse>> Handle(
@@ -34,6 +35,7 @@ internal sealed class UpdateUserCommandHandler(IamDbContext db)
             return canManage.Errors;
         }
 
+        UserRole oldRole = user.Roles.Count > 0 ? user.Roles.Min() : newRole;
         bool roleChanged = user.Roles.Count != 1 || user.Roles[0] != newRole;
         if (roleChanged)
         {
@@ -62,7 +64,23 @@ internal sealed class UpdateUserCommandHandler(IamDbContext db)
             user.SetRole(newRole);
         }
 
-        user.UpdateProfile(request.FirstName.Trim(), request.LastName.Trim());
+        string firstName = request.FirstName.Trim();
+        string lastName = request.LastName.Trim();
+        bool nameChanged = firstName != user.FirstName || lastName != user.LastName;
+        user.UpdateProfile(firstName, lastName);
+
+        if (roleChanged)
+        {
+            await publisher.PublishStaffChangeAsync(
+                db, request.TenantId, request.CurrentUserId, StaffAudit.RoleChanged,
+                $"{user.FullName}: {StaffAudit.RoleLabel(oldRole)} ← {StaffAudit.RoleLabel(newRole)}", cancellationToken);
+        }
+        else if (nameChanged)
+        {
+            await publisher.PublishStaffChangeAsync(
+                db, request.TenantId, request.CurrentUserId, StaffAudit.Edited, user.FullName, cancellationToken);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return user.ToSummary();

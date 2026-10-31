@@ -680,6 +680,8 @@ export const en = {
     currentBranch: 'Current branch',
     allBranches: 'All branches',
     loadMore: 'Load more',
+    loadError: 'Could not load the activity log',
+    retry: 'Try again',
   },
 
   invoices: {

@@ -58,6 +58,18 @@ public sealed class ActivityLogsQueryTests
     }
 
     [Fact]
+    public void Paging_WithSameTimestamp_NeitherRepeatsNorSkips()
+    {
+        // Several entries written in one transaction share OccurredAt.
+        List<ActivityLog> logs = [.. Enumerable.Range(0, 5).Select(i => Log(_branchA, "inventory", _base, $"s{i}"))];
+
+        List<ActivityLog> page1 = Run(logs, new GetActivityLogsQuery(null, null, null, null, 3));
+        List<ActivityLog> page2 = Run(logs.AsEnumerable().Reverse(), new GetActivityLogsQuery(null, null, null, null, 3, Skip: 3));
+
+        page1.Concat(page2).Should().OnlyHaveUniqueItems().And.BeEquivalentTo(logs);
+    }
+
+    [Fact]
     public void PageSize_IsCapped()
     {
         List<ActivityLog> logs = [.. Enumerable.Range(0, 600).Select(i => Log(null, "shift", _base.AddSeconds(i)))];

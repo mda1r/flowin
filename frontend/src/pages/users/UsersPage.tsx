@@ -17,14 +17,6 @@ import { logActivity } from '@/lib/activityLog'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import { useI18n } from '@/i18n'
 
-const ROLE_LABELS: Record<string, string> = {
-  Owner: 'مالك',
-  Manager: 'مدير',
-  Cashier: 'كاشير',
-  Accountant: 'محاسب',
-  Staff: 'موظف',
-}
-
 const ROLE_COLORS: Record<string, string> = {
   Owner:      'bg-brand-soft text-brand-ink dark:bg-brand/20',
   Manager:    'bg-info/10 text-info',
@@ -216,7 +208,6 @@ function EditUserModal({
   roleOptions: [string, string][]
   onClose: () => void
 }) {
-  const { user: currentUser, tenantId } = useAuthStore()
   const { t } = useI18n()
   const qc = useQueryClient()
   const currentRole = topRole(target.roles)
@@ -232,19 +223,9 @@ function EditUserModal({
 
   const mut = useMutation({
     mutationFn: (data: EditForm) => usersApi.update(target.id, data),
-    onSuccess: (res, data) => {
+    // The server writes the activity-log entry for this and the other account changes below.
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      const roleChanged = data.role !== currentRole
-      logActivity(tenantId ?? '', {
-        userId: currentUser?.id ?? '',
-        userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
-        userEmail: currentUser?.email,
-        category: 'user',
-        action: roleChanged ? 'تغيير دور مستخدم' : 'تعديل مستخدم',
-        details: roleChanged
-          ? `${res.data.fullName}: ${ROLE_LABELS[currentRole] ?? currentRole} ← ${ROLE_LABELS[data.role] ?? data.role}`
-          : res.data.fullName,
-      })
       toast.success(t.users.updated)
       onClose()
     },
@@ -287,7 +268,6 @@ function generatePassword(): string {
 }
 
 function ResetPasswordModal({ target, onClose }: { target: UserSummaryResponse; onClose: () => void }) {
-  const { user: currentUser, tenantId } = useAuthStore()
   const { t } = useI18n()
   const [password, setPassword] = useState('')
   const tooShort = password.length > 0 && password.length < 8
@@ -295,14 +275,6 @@ function ResetPasswordModal({ target, onClose }: { target: UserSummaryResponse; 
   const mut = useMutation({
     mutationFn: () => usersApi.resetPassword(target.id, password),
     onSuccess: () => {
-      logActivity(tenantId ?? '', {
-        userId: currentUser?.id ?? '',
-        userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
-        userEmail: currentUser?.email,
-        category: 'user',
-        action: 'إعادة تعيين كلمة المرور',
-        details: `${target.fullName} — ${target.email}`,
-      })
       toast.success(t.users.passwordReset)
       onClose()
     },
@@ -346,7 +318,7 @@ function ResetPasswordModal({ target, onClose }: { target: UserSummaryResponse; 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export function UsersPage() {
-  const { user: currentUser, tenantId } = useAuthStore()
+  const { user: currentUser } = useAuthStore()
   const { t, lang } = useI18n()
   const roleLabels: Record<string, string> = {
     Owner:      t.users.roles.owner,
@@ -382,22 +354,10 @@ export function UsersPage() {
     defaultValues: { role: 'Staff' },
   })
 
-  const actor = () => ({
-    userId: currentUser?.id ?? '',
-    userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
-    userEmail: currentUser?.email,
-  })
-
   const createMut = useMutation({
     mutationFn: (data: CreateForm) => usersApi.create(data),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      logActivity(tenantId ?? '', {
-        ...actor(),
-        category: 'user',
-        action: 'إضافة مستخدم',
-        details: `${res.data.fullName} — ${ROLE_LABELS[res.data.roles[0]] ?? res.data.roles[0]}`,
-      })
       toast.success(t.users.created, '')
       setShowCreate(false)
       reset()
@@ -411,14 +371,8 @@ export function UsersPage() {
   const activeMut = useMutation({
     mutationFn: ({ u, active }: { u: UserSummaryResponse; active: boolean }) =>
       active ? usersApi.activate(u.id) : usersApi.deactivate(u.id),
-    onSuccess: (_res, { u, active }) => {
+    onSuccess: (_res, { active }) => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      logActivity(tenantId ?? '', {
-        ...actor(),
-        category: 'user',
-        action: active ? 'إعادة تفعيل مستخدم' : 'إيقاف مستخدم',
-        details: `${u.fullName} — ${u.email}`,
-      })
       toast.success(active ? t.users.activated : t.users.deactivated)
       setRemoveTarget(null)
     },
@@ -429,14 +383,8 @@ export function UsersPage() {
 
   const deleteMut = useMutation({
     mutationFn: (u: UserSummaryResponse) => usersApi.delete(u.id, true),
-    onSuccess: (_res, deleted) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      logActivity(tenantId ?? '', {
-        ...actor(),
-        category: 'user',
-        action: 'حذف مستخدم',
-        details: `${deleted.fullName} — ${deleted.email}`,
-      })
       toast.success(t.users.deleted, '')
       setRemoveTarget(null)
     },
@@ -664,6 +612,10 @@ export function UsersPage() {
             <p className="text-muted">
               {removeTarget.isActive ? t.users.deactivateMessage : t.users.deletePermanentlyMessage}
             </p>
+            {/* Active but never signed in: the footer also offers deletion, so warn that it is final */}
+            {removeTarget.isActive && !removeTarget.lastLoginAt && (
+              <p className="text-xs text-muted">{t.users.deletePermanentlyMessage}</p>
+            )}
           </div>
         </Modal>
       )}

@@ -6,6 +6,7 @@ import { resolveDisplayName } from '@/lib/activityLog'
 import type { LogCategory } from '@/lib/activityLog'
 import type { ActivityLogResponse } from '@/types/api'
 import { useAuthStore } from '@/stores/authStore'
+import { apiErrorMessage } from '@/lib/apiError'
 import { useI18n } from '@/i18n'
 
 const CATEGORY_LABELS: Record<LogCategory, string> = {
@@ -85,7 +86,7 @@ export function ActivityLogsPage() {
   // Category and dates are filtered on the server so older entries stay reachable;
   // tenant-wide entries (staff changes) come back with every branch.
   const scopeBranch = allBranches ? undefined : branchId ?? undefined
-  const { data, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, error, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useInfiniteQuery({
     queryKey: ['activity-logs', scopeBranch ?? 'all', filterCategory, filterFrom, filterTo],
     queryFn: ({ pageParam }) => activityLogsApi.list({
       branchId: scopeBranch,
@@ -102,7 +103,8 @@ export function ActivityLogsPage() {
   })
 
   const logs = useMemo(() => {
-    const all = data?.pages.flat() ?? []
+    // New entries shift offset pages down, so a row can come back on the next page; keep it once.
+    const all = [...new Map((data?.pages.flat() ?? []).map((l) => [l.id, l])).values()]
     if (!filterUser) return all
     const q = filterUser.toLowerCase()
     return all.filter((l) => l.userName.toLowerCase().includes(q) || (l.userEmail ?? '').toLowerCase().includes(q))
@@ -220,6 +222,20 @@ export function ActivityLogsPage() {
           <Loader2 className="h-6 w-6 animate-spin text-muted" />
           <span className="text-muted">{t.common.loading}</span>
         </div>
+      ) : isError && !data ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface py-20 text-center">
+          <AlertTriangle className="h-10 w-10 text-danger" />
+          <p className="font-medium text-fg">{t.activityLogs.loadError}</p>
+          <p className="text-xs text-muted">{apiErrorMessage(error)}</p>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2 disabled:opacity-40"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            {t.activityLogs.retry}
+          </button>
+        </div>
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface py-20 text-center">
           <Activity className="h-10 w-10 text-muted/50" />
@@ -304,7 +320,8 @@ export function ActivityLogsPage() {
             </table>
           </div>
           {hasNextPage && (
-            <div className="flex justify-center border-t border-border p-3">
+            <div className="flex flex-col items-center gap-2 border-t border-border p-3">
+              {isFetchNextPageError && <p className="text-xs text-danger">{apiErrorMessage(error)}</p>}
               <button
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}

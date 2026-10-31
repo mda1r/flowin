@@ -50,8 +50,10 @@ internal sealed class GetActivityLogsQueryHandler(PosDbContext dbContext)
 
         int pageSize = request.PageSize > 0 ? Math.Min(request.PageSize, MaxPageSize) : DefaultPageSize;
 
+        // Id breaks timestamp ties (entries written in one transaction) so offset pages never overlap.
         return query
             .OrderByDescending(l => l.OccurredAt)
+            .ThenByDescending(l => l.Id)
             .Skip(Math.Max(request.Skip, 0))
             .Take(pageSize);
     }

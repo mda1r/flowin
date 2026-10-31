@@ -1,4 +1,5 @@
 using ErrorOr;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Application.Services;
@@ -15,7 +16,8 @@ namespace NexusPOS.IAM.Application.Commands.CreateUser;
 internal sealed class CreateUserCommandHandler(
     IamDbContext db,
     IPasswordService passwordService,
-    ITenantSubscriptionChecker subscriptionChecker)
+    ITenantSubscriptionChecker subscriptionChecker,
+    IPublisher publisher)
     : ICommandHandler<CreateUserCommand, UserSummaryResponse>
 {
     public async Task<ErrorOr<UserSummaryResponse>> Handle(
@@ -67,6 +69,10 @@ internal sealed class CreateUserCommandHandler(
         user.AddRole(role);
         user.VerifyEmail();
         user.ClearDomainEvents();
+
+        await publisher.PublishStaffChangeAsync(
+            db, request.TenantId, request.CurrentUserId,
+            StaffAudit.Created, $"{user.FullName} — {StaffAudit.RoleLabel(role)}", cancellationToken);
 
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);

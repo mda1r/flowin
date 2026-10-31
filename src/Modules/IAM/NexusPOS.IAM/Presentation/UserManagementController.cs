@@ -43,7 +43,7 @@ public sealed class UserManagementController(ISender mediator) : ControllerBase
         [FromBody] CreateUserRequest request,
         CancellationToken cancellationToken)
     {
-        var command = new CreateUserCommand(TenantId, request.Email, request.FirstName, request.LastName, request.Password, request.Role, CallerRoles);
+        var command = new CreateUserCommand(TenantId, request.Email, request.FirstName, request.LastName, request.Password, request.Role, CallerRoles, CurrentUserId);
         var result = await mediator.Send(command, cancellationToken);
         return result.Match(user => CreatedAtAction(nameof(ListUsers), user), MapErrors);
     }

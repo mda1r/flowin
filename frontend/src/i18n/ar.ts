@@ -585,7 +585,7 @@ export const ar: Translations = {
     deactivated: 'تم إيقاف الحساب',
     deleted: 'تم حذف المستخدم',
     confirmDeactivate: 'إيقاف حساب المستخدم',
-    deactivateMessage: 'سيُسجَّل خروجه من كل الأجهزة ولن يستطيع الدخول، وتبقى شفتاته وطلباته محفوظة. تقدر تعيد تفعيله متى شئت.',
+    deactivateMessage: 'سيُسجَّل خروجه من جميع الأجهزة ولن يتمكن من الدخول، مع الاحتفاظ بورديّاته وطلباته. يمكنك إعادة تفعيله في أي وقت.',
     deletePermanently: 'حذف نهائي',
     deletePermanentlyMessage: 'هذا المستخدم لم يسجّل دخول أبداً، لذلك يمكن حذفه نهائياً. لا يمكن التراجع عن الحذف.',
     resetPassword: 'تعيين كلمة مرور',
@@ -682,6 +682,8 @@ export const ar: Translations = {
     currentBranch: 'الفرع الحالي',
     allBranches: 'كل الفروع',
     loadMore: 'عرض المزيد',
+    loadError: 'تعذّر تحميل سجل النشاطات',
+    retry: 'إعادة المحاولة',
   },
 
   invoices: {

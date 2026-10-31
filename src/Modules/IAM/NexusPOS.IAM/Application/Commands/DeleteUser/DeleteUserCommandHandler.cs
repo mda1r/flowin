@@ -1,4 +1,5 @@
 using ErrorOr;
+using MediatR;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Domain;
 using NexusPOS.IAM.Domain.Entities;
@@ -7,7 +8,7 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.IAM.Application.Commands.DeleteUser;
 
-internal sealed class DeleteUserCommandHandler(IamDbContext db)
+internal sealed class DeleteUserCommandHandler(IamDbContext db, IPublisher publisher)
     : ICommandHandler<DeleteUserCommand>
 {
     public async Task<ErrorOr<Success>> Handle(
@@ -46,10 +47,18 @@ internal sealed class DeleteUserCommandHandler(IamDbContext db)
                 return Error.Conflict("User.HasHistory", "هذا المستخدم له سجل عمل، يمكنك إيقافه بدل حذفه");
             }
 
+            await publisher.PublishStaffChangeAsync(
+                db, request.TenantId, request.CurrentUserId, StaffAudit.Deleted, StaffAudit.Describe(user), cancellationToken);
             db.Users.Remove(user);
         }
         else
         {
+            if (user.IsActive)
+            {
+                await publisher.PublishStaffChangeAsync(
+                    db, request.TenantId, request.CurrentUserId, StaffAudit.Deactivated, StaffAudit.Describe(user), cancellationToken);
+            }
+
             user.Deactivate();
         }
 
