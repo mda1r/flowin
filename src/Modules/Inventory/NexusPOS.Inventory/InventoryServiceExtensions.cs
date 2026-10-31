@@ -25,6 +25,7 @@ public static class InventoryServiceExtensions
         services.AddScoped<IStockItemRepository, StockItemRepository>();
         services.AddScoped<IStockCountRepository, StockCountRepository>();
         services.AddScoped<IStockMaterialDirectory, StockMaterialDirectory>();
+        services.AddScoped<IVariantCostLookup, VariantCostLookup>();
 
         return services;
     }

@@ -20,6 +20,7 @@ public interface IStockItemRepository
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StockItem>> LockForUpdateAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
     void Add(StockItem stockItem);
     void Update(StockItem stockItem);
     void Remove(StockItem stockItem);

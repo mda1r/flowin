@@ -169,6 +169,19 @@ public sealed class StockItem : AggregateRoot<StockItemId>
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // Applies a stock count's surplus or shortage on top of the current level, so sales and
+    // receipts made while the count was open are kept. Stock never goes below zero.
+    public ErrorOr<Success> ApplyCountDifference(decimal difference, string? reference = null, string? notes = null)
+    {
+        decimal target = Math.Max(0, Quantity + difference);
+        if (target == Quantity)
+        {
+            return Result.Success;
+        }
+
+        return Adjust(target, reference, notes);
+    }
+
     public void SetReorderThresholds(decimal reorderPoint, decimal reorderQuantity)
     {
         ReorderPoint = reorderPoint >= 0 ? reorderPoint : 0;

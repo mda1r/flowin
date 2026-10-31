@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.Inventory.Application.Commands.CancelStockCountSession;
 using NexusPOS.Inventory.Application.Commands.CompleteStockCountSession;
 using NexusPOS.Inventory.Application.Commands.CreateStockCountSession;
 using NexusPOS.Inventory.Application.Commands.SaveStockCountItems;
@@ -47,9 +48,11 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    /// <summary>Create a new stock count session.</summary>
+    /// <summary>Create a new stock count session from the branch's current stock.</summary>
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockCountSessionResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CreateSession(
         Guid branchId,
@@ -61,10 +64,7 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
             request.Type,
             request.PeriodStart,
             request.PeriodEnd,
-            request.Notes,
-            request.Items
-                .Select(i => new CreateStockCountSessionItemInput(i.StockItemId, i.VariantId, i.SystemQuantity, i.UnitCost))
-                .ToList());
+            request.Notes);
 
         ErrorOr<StockCountSessionResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -109,6 +109,23 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken = default)
     {
         CompleteStockCountSessionCommand command = new(branchId, sessionId, request.AutoAdjust);
+        ErrorOr<StockCountSessionResponse> result = await mediator.Send(command, cancellationToken);
+
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>Cancel an open stock count session without changing stock.</summary>
+    [HttpPost("{sessionId:guid}/cancel")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(StockCountSessionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> CancelSession(
+        Guid branchId,
+        Guid sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        CancelStockCountSessionCommand command = new(branchId, sessionId);
         ErrorOr<StockCountSessionResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);

@@ -11,6 +11,10 @@ const CODE_MESSAGES: Record<string, string> = {
   'Catalog.LastActiveVariant': 'لا يمكن إيقاف آخر نوع نشط، أوقف المنتج بدلاً منه',
   'Catalog.ProductInactive': 'المنتج موقوف، فعّله أولاً',
   'Catalog.CategoryNameExists': 'يوجد تصنيف بنفس الاسم',
+  'Inventory.StockCountOpenExists': 'يوجد جرد مفتوح لهذا الفرع، أكمله أو ألغِه أولاً',
+  'Inventory.StockCountNoItems': 'لا توجد أصناف في مخزون هذا الفرع لجردها',
+  'Inventory.StockCountNotInProgress': 'هذا الجرد لم يعد مفتوحاً',
+  'Inventory.StockCountAlreadyCompleted': 'هذا الجرد مكتمل ولا يمكن إلغاؤه',
 }
 
 // Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line.
@@ -19,6 +23,8 @@ export function apiErrorMessage(err: unknown, fallback = 'حدث خطأ، حاو
   if (!err.response) return 'تعذّر الاتصال بالخادم، تحقق من الإنترنت'
   const data = err.response.data as { title?: string; detail?: string; errors?: Record<string, string[]> } | undefined
   if (data?.title && CODE_MESSAGES[data.title]) return CODE_MESSAGES[data.title]
+  const knownCode = data?.errors ? Object.keys(data.errors).find(code => CODE_MESSAGES[code]) : undefined
+  if (knownCode) return CODE_MESSAGES[knownCode]
   const firstValidation = data?.errors ? Object.values(data.errors).flat()[0] : undefined
   if (firstValidation) return firstValidation
   if (data?.detail) return data.detail

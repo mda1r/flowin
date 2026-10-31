@@ -83,6 +83,17 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
         return (items, total);
     }
 
+    // Row-locks the items until the caller's transaction ends, so a sale cannot change them
+    // between this read and the caller's save. Ordered by id so concurrent lockers never deadlock.
+    public async Task<IReadOnlyList<StockItem>> LockForUpdateAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        Guid[] idArray = [.. ids];
+        return await dbContext.StockItems
+            .FromSql($"SELECT * FROM stock_items WHERE id = ANY({idArray}) ORDER BY id FOR UPDATE")
+            .ToListAsync(cancellationToken);
+    }
+
     public void Add(StockItem stockItem) => dbContext.StockItems.Add(stockItem);
 
     public void Update(StockItem stockItem) => dbContext.StockItems.Update(stockItem);
