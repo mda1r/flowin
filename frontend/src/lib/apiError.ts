@@ -1,4 +1,7 @@
 import { isAxiosError } from 'axios'
+import { ar } from '@/i18n/ar'
+import { en } from '@/i18n/en'
+import { activeLang } from '@/lib/locale'
 
 const CODE_MESSAGES: Record<string, string> = {
   'Inventory.MaterialCodeExists': 'يوجد مادة أخرى بنفس الكود',
@@ -22,20 +25,27 @@ const CODE_MESSAGES: Record<string, string> = {
   'Organization.MainBranchMustBeActive': 'فعّل الفرع أولاً قبل تعيينه كرئيسي',
 }
 
-// Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line.
-export function apiErrorMessage(err: unknown, fallback = 'حدث خطأ، حاول مرة أخرى'): string {
-  if (!isAxiosError(err)) return fallback
-  if (!err.response) return 'تعذّر الاتصال بالخادم، تحقق من الإنترنت'
+// Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line in the UI language.
+// Known ErrorOr codes are translated; the server's own text is used only when the code is unknown.
+export function apiErrorMessage(err: unknown, fallback?: string): string {
+  const lang = activeLang()
+  const t = (lang === 'ar' ? ar : en).errors
+  // Codes not yet in the translation tables keep their Arabic text on an Arabic screen.
+  const known = (code: string): string | undefined => t.codes[code] ?? (lang === 'ar' ? CODE_MESSAGES[code] : undefined)
+  if (!isAxiosError(err)) return fallback ?? t.generic
+  if (!err.response) return t.network
   const data = err.response.data as { title?: string; detail?: string; message?: string; errors?: Record<string, string[]> } | undefined
-  if (data?.title && CODE_MESSAGES[data.title]) return CODE_MESSAGES[data.title]
-  const knownCode = data?.errors ? Object.keys(data.errors).find(code => CODE_MESSAGES[code]) : undefined
-  if (knownCode) return CODE_MESSAGES[knownCode]
+  const titleText = data?.title ? known(data.title) : undefined
+  if (titleText) return titleText
+  // Validation problems are keyed by code for domain errors and by property name for FluentValidation.
+  const knownField = data?.errors ? Object.keys(data.errors).find((k) => known(k)) : undefined
+  if (knownField) return known(knownField)!
   const firstValidation = data?.errors ? Object.values(data.errors).flat()[0] : undefined
   if (firstValidation) return firstValidation
   if (data?.detail) return data.detail
   // { code, message } bodies, e.g. 402 feature_not_available
   if (data?.message) return data.message
-  if (err.response.status === 403) return 'ليس لديك صلاحية لهذا الإجراء'
-  if (err.response.status === 409) return 'السجل موجود مسبقاً'
-  return data?.title ?? fallback
+  if (err.response.status === 403) return t.forbidden
+  if (err.response.status === 409) return t.conflict
+  return fallback ?? t.generic
 }

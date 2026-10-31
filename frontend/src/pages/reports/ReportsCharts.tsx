@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 're
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react'
 import { Card } from '@/components/ui/Card'
 import { cn, formatCurrency } from '@/lib/utils'
+import { fmtDate } from '@/lib/locale'
 import type { OrderResponse } from '@/types/api'
 import { orderCost, orderNet, type ReportSummary } from './reportMath'
 
@@ -47,10 +48,6 @@ interface HourlyPoint { hour: number; label: string; orders: number; revenue: nu
 
 interface ProductPoint { name: string; revenue: number; qty: number; color: string }
 
-const DAY_FMT = new Intl.DateTimeFormat('ar-u-ca-gregory-nu-latn', {
-  weekday: 'short', day: 'numeric', month: 'short',
-})
-
 function dayKey(d: Date): string {
   return d.toLocaleDateString('en-CA')
 }
@@ -59,7 +56,7 @@ function makeDay(d: Date): DailyPoint {
   return {
     date: dayKey(d),
     label: `${d.getDate()}/${d.getMonth() + 1}`,
-    fullLabel: DAY_FMT.format(d),
+    fullLabel: fmtDate(d, { weekday: 'short', day: 'numeric', month: 'short' }),
     revenue: 0, net: 0, orders: 0,
   }
 }

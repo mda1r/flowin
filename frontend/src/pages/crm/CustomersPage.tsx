@@ -14,6 +14,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
 import { CUSTOMERS_PAGE_SIZE, customersApi } from '@/api/customers'
 import { useAuthStore } from '@/stores/authStore'
+import { formatDate } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
 import type { CustomerResponse } from '@/types/api'
@@ -196,7 +197,7 @@ export function CustomersPage() {
               {
                 key: 'createdAt',
                 header: t.sales.date,
-                render: (r) => new Date(r.createdAt).toLocaleDateString(),
+                render: (r) => formatDate(r.createdAt),
               },
             ]}
           />

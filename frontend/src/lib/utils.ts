@@ -1,39 +1,26 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { fmtDate, fmtNum } from './locale'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// `locale` takes a UI language ('ar' | 'en') or a legacy tag like 'ar-SA'; it defaults to the active language.
 export function formatCurrency(
   amount: number,
   currency = 'SAR',
   locale?: string,
 ): string {
-  const loc = locale ?? (localStorage.getItem('flowin_lang') === 'ar' ? 'ar-SA' : 'en-US')
-  return new Intl.NumberFormat(loc, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount)
+  return fmtNum(amount, { style: 'currency', currency, minimumFractionDigits: 2 }, locale)
 }
 
-export function formatDate(date: string | Date, locale = 'en-US'): string {
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(date))
+export function formatDate(date: string | Date, locale?: string): string {
+  return fmtDate(date, { year: 'numeric', month: 'short', day: 'numeric' }, locale)
 }
 
-export function formatDateTime(date: string | Date, locale = 'en-US'): string {
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date))
+export function formatDateTime(date: string | Date, locale?: string): string {
+  return fmtDate(date, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }, locale)
 }
 
 export function getInitials(name: string): string {

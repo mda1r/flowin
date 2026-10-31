@@ -14,6 +14,7 @@ import {
 } from '@/lib/subscriptionBilling'
 import type { TenantSubscriptionResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 interface Props {
   tenantId: string
@@ -26,7 +27,7 @@ interface Props {
 export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType, currentSubscription, onClose }: Props) {
   const qc = useQueryClient()
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const [planId, setPlanId] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   // Plan prices are monthly, so the default period is one month; the chips pick longer ones.
@@ -82,7 +83,6 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      dir="rtl"
     >
       <div className="w-full max-w-md rounded-2xl bg-surface border border-border shadow-2xl">
         {/* Header */}

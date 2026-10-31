@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
 import { apiErrorMessage } from '@/lib/apiError'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-info/10 text-info border-info/30',
@@ -211,7 +212,7 @@ export function StockCountDetailPage() {
     ? Math.round((localStats.counted / session.totalItems) * 100)
     : 0
 
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
 
   return (
     <div className="flex flex-col gap-6 p-6" dir="rtl">

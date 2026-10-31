@@ -31,7 +31,7 @@ internal sealed class UpdateVariantCommandHandler(
 
         if (variant is null)
         {
-            return Error.NotFound("Variant.NotFound", "النوع غير موجود");
+            return CatalogErrors.VariantNotFound;
         }
 
         // A null SKU or barcode keeps the stored value; only a changed value is checked for clashes.

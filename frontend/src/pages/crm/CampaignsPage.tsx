@@ -17,6 +17,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { compressImage } from '@/lib/image'
 import { whatsAppUrl } from '@/lib/whatsapp'
 import { cn } from '@/lib/utils'
+import { intlLocale } from '@/lib/locale'
 
 const MAX_MESSAGE = 1000
 const NAME = '{الاسم}'
@@ -258,7 +259,7 @@ export function CampaignsPage() {
           <Card className="p-0">
             <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
               <p className="text-sm font-medium text-fg">
-                المستلمون <span className="tabular-nums text-muted">({selected.size.toLocaleString('ar-SA')} من {reachable.length.toLocaleString('ar-SA')})</span>
+                المستلمون <span className="tabular-nums text-muted">({selected.size.toLocaleString(intlLocale())} من {reachable.length.toLocaleString(intlLocale())})</span>
               </p>
               <div className="relative ms-auto w-full max-w-56">
                 <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -272,8 +273,8 @@ export function CampaignsPage() {
 
             {audience && (audience.withoutConsent > 0 || audience.withoutValidPhone > 0) && (
               <p className="border-b border-border bg-surface-2/60 px-4 py-2 text-xs text-muted">
-                {audience.withoutConsent > 0 && <>{audience.withoutConsent.toLocaleString('ar-SA')} عميل لم يوافقوا على العروض بعد. </>}
-                {audience.withoutValidPhone > 0 && <>{audience.withoutValidPhone.toLocaleString('ar-SA')} بلا رقم جوال صحيح. </>}
+                {audience.withoutConsent > 0 && <>{audience.withoutConsent.toLocaleString(intlLocale())} عميل لم يوافقوا على العروض بعد. </>}
+                {audience.withoutValidPhone > 0 && <>{audience.withoutValidPhone.toLocaleString(intlLocale())} بلا رقم جوال صحيح. </>}
                 عدّلهم من <Link to="/customers" className="text-brand-ink underline">صفحة العملاء</Link>.
               </p>
             )}
@@ -327,7 +328,7 @@ export function CampaignsPage() {
           )}
           <Button className="w-full" disabled={!canCreate} loading={create.isPending} onClick={startCampaign}>
             <Send className="h-4 w-4" />
-            {channel === 'Api' ? `إنشاء الحملة وإرسالها لـ ${selected.size.toLocaleString('ar-SA')}` : `تجهيز الإرسال لـ ${selected.size.toLocaleString('ar-SA')}`}
+            {channel === 'Api' ? `إنشاء الحملة وإرسالها لـ ${selected.size.toLocaleString(intlLocale())}` : `تجهيز الإرسال لـ ${selected.size.toLocaleString(intlLocale())}`}
           </Button>
           {channel === 'Api' && apiReady && (
             <details className="rounded-xl border border-border px-3 py-2">
@@ -351,10 +352,10 @@ export function CampaignsPage() {
                     <button type="button" onClick={() => setOpenCampaignId(c.id)} className="w-full px-4 py-3 text-start hover:bg-surface-2">
                       <p className="truncate text-sm text-fg">{c.message || 'صورة فقط'}</p>
                       <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted">
-                        <span>{new Date(c.createdAt).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' })}</span>
+                        <span>{new Date(c.createdAt).toLocaleDateString(intlLocale(), { day: 'numeric', month: 'short' })}</span>
                         <span>{c.channel === 'Api' ? 'تلقائي' : 'روابط'}</span>
-                        <span className="tabular-nums">{c.sent.toLocaleString('ar-SA')}/{c.total.toLocaleString('ar-SA')} أُرسلت</span>
-                        {c.failed > 0 && <span className="tabular-nums text-danger">{c.failed.toLocaleString('ar-SA')} فشلت</span>}
+                        <span className="tabular-nums">{c.sent.toLocaleString(intlLocale())}/{c.total.toLocaleString(intlLocale())} أُرسلت</span>
+                        {c.failed > 0 && <span className="tabular-nums text-danger">{c.failed.toLocaleString(intlLocale())} فشلت</span>}
                       </p>
                     </button>
                   </li>
@@ -461,7 +462,7 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
         current = await marketingApi.sendBatch(tenantId!, campaignId, TAB_RUNNER_ID)
         update(current)
       }
-      if (!stopRef.current) toast.success('انتهى الإرسال', `${current.sent.toLocaleString('ar-SA')} أُرسلت · ${current.failed.toLocaleString('ar-SA')} فشلت`)
+      if (!stopRef.current) toast.success('انتهى الإرسال', `${current.sent.toLocaleString(intlLocale())} أُرسلت · ${current.failed.toLocaleString(intlLocale())} فشلت`)
     } catch (err) {
       if (isAxiosError(err) && !err.response) {
         // No answer: the server may still be sending this batch, so it keeps the lease until the batch ends.
@@ -550,9 +551,9 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
           <div>
             <div className="mb-1.5 flex justify-between text-sm">
               <span className="text-fg">
-                أُرسلت <span className="tabular-nums font-semibold">{campaign.sent.toLocaleString('ar-SA')}</span> من{' '}
-                <span className="tabular-nums">{campaign.total.toLocaleString('ar-SA')}</span>
-                {campaign.failed > 0 && <span className="text-danger"> · فشلت {campaign.failed.toLocaleString('ar-SA')}</span>}
+                أُرسلت <span className="tabular-nums font-semibold">{campaign.sent.toLocaleString(intlLocale())}</span> من{' '}
+                <span className="tabular-nums">{campaign.total.toLocaleString(intlLocale())}</span>
+                {campaign.failed > 0 && <span className="text-danger"> · فشلت {campaign.failed.toLocaleString(intlLocale())}</span>}
               </span>
               <span className="tabular-nums text-muted">{progress}%</span>
             </div>

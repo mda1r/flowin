@@ -3,6 +3,7 @@ import type { ReceiptSettings } from '@/api/zatca'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { FlowinLogo } from '@/components/brand/Brand'
 import { formatCurrency } from '@/lib/utils'
+import { intlLocale } from '@/lib/locale'
 
 export interface ReceiptLine {
   key: string
@@ -39,7 +40,7 @@ export interface ReceiptDocumentProps {
   reference?: string
 }
 
-const n = (v: number) => v.toLocaleString('ar-SA')
+const n = (v: number) => v.toLocaleString(intlLocale('ar'))
 
 /* One receipt for every till and the invoices page. It is laid out for a thermal roll: centred header,
    dashed rules, two-column rows and a large ZATCA QR. On screen it is a white slip; printElement copies it
@@ -66,7 +67,7 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
         <p className="receipt-small tabular-nums" dir="ltr">#{p.invoiceNo}</p>
         {p.reference && <p className="receipt-small">مرجع الفاتورة <bdi dir="ltr" className="tabular-nums">#{p.reference}</bdi></p>}
         <p className="receipt-small">
-          {new Date(p.issuedAt).toLocaleString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          {new Date(p.issuedAt).toLocaleString(intlLocale('ar'), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </p>
         {p.badge && <div className="receipt-badge">{p.badge}</div>}
       </div>
