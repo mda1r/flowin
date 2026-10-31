@@ -9,7 +9,7 @@ public sealed record UpdateProductCommand(
     string Name,
     string? Description,
     Guid? CategoryId,
-    TaxClass TaxClass,
+    TaxClass? TaxClass,
     bool TrackInventory,
     string? ImageUrl = null,
     UnitType UnitType = UnitType.Piece) : ICommand<ProductResponse>;

@@ -16,6 +16,25 @@ internal sealed class ProductRepository(CatalogDbContext dbContext) : IProductRe
         await dbContext.ProductVariants
             .AnyAsync(v => v.Sku.Value == sku, cancellationToken);
 
+    public async Task<bool> ExistsBySkuAsync(
+        string sku, VariantId excludeVariantId, CancellationToken cancellationToken = default) =>
+        await dbContext.ProductVariants
+            .AnyAsync(v => v.Sku.Value == sku && v.Id != excludeVariantId, cancellationToken);
+
+    public async Task<bool> IsBarcodeTakenAsync(
+        string barcode, VariantId? excludeVariantId = null, CancellationToken cancellationToken = default)
+    {
+        IQueryable<ProductVariant> query = dbContext.ProductVariants
+            .Where(v => v.IsActive && (v.Barcode == barcode || v.Sku.Value == barcode));
+
+        if (excludeVariantId is not null)
+        {
+            query = query.Where(v => v.Id != excludeVariantId);
+        }
+
+        return await query.AnyAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Product>> FindAllActiveAsync(CancellationToken cancellationToken = default) =>
         await dbContext.Products
             .Include(p => p.Variants)

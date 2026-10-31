@@ -30,6 +30,12 @@ internal sealed class CreateProductCommandHandler(
             return CatalogErrors.SkuAlreadyExists;
         }
 
+        string? barcode = ProductVariant.NormalizeBarcode(request.Barcode);
+        if (barcode is not null && await productRepository.IsBarcodeTakenAsync(barcode, cancellationToken: cancellationToken))
+        {
+            return CatalogErrors.BarcodeAlreadyExists;
+        }
+
         ErrorOr<Money> costResult = Money.Create(request.CostPrice, request.Currency);
         if (costResult.IsError)
         {
@@ -60,7 +66,7 @@ internal sealed class CreateProductCommandHandler(
             request.VariantName,
             costResult.Value,
             salePriceResult.Value,
-            request.Barcode,
+            barcode,
             request.ExpiryDate);
 
         if (variantResult.IsError)

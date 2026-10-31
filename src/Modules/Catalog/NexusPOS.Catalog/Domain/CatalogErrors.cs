@@ -22,6 +22,12 @@ public static class CatalogErrors
     public static readonly Error VariantNotFound =
         Error.NotFound("Catalog.VariantNotFound", "Product variant was not found.");
 
+    public static readonly Error BarcodeAlreadyExists =
+        Error.Conflict("Catalog.BarcodeAlreadyExists", "Another product already uses this barcode.");
+
+    public static readonly Error LastActiveVariant =
+        Error.Conflict("Catalog.LastActiveVariant", "A product needs at least one active variant; deactivate the product instead.");
+
     public static readonly Error InvalidPrice =
         Error.Validation("Catalog.InvalidPrice", "Price must be a non-negative value.");
 }

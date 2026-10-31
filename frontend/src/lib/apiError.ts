@@ -6,6 +6,11 @@ const CODE_MESSAGES: Record<string, string> = {
   'Inventory.CategoryNameExists': 'يوجد تصنيف بنفس الاسم',
   'Inventory.CategoryHasItems': 'لا يمكن حذف تصنيف يحتوي على مواد، انقل المواد أو احذفها أولاً',
   'Inventory.CategoryNotFound': 'التصنيف غير موجود',
+  'Catalog.SkuAlreadyExists': 'الرمز (SKU) مستخدم لمنتج آخر',
+  'Catalog.BarcodeAlreadyExists': 'الباركود مستخدم لمنتج آخر',
+  'Catalog.LastActiveVariant': 'لا يمكن إيقاف آخر نوع نشط، أوقف المنتج بدلاً منه',
+  'Catalog.ProductInactive': 'المنتج موقوف، فعّله أولاً',
+  'Catalog.CategoryNameExists': 'يوجد تصنيف بنفس الاسم',
 }
 
 // Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line.
