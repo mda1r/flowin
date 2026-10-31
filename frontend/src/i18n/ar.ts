@@ -837,7 +837,7 @@ export const ar: Translations = {
     extendStay: 'تمديد',
     newCheckoutDate: 'تاريخ المغادرة الجديد',
     stayExtended: 'تم تمديد الإقامة',
-    earlyCheckout: 'مغادرة مبكرة: تُحسب {n} ليالي فقط',
+    earlyCheckout: 'مغادرة مبكرة: الليالي المحتسبة {n}',
     subtotal: 'المجموع قبل الضريبة',
     vat: 'ضريبة القيمة المضافة 15%',
     totalWithVat: 'الإجمالي شامل الضريبة',

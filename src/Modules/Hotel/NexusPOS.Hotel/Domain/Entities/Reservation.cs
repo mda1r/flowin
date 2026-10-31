@@ -7,6 +7,10 @@ namespace NexusPOS.Hotel.Domain.Entities;
 
 public sealed class Reservation : AggregateRoot<ReservationId>
 {
+    // Booked dates are the calendar days the user picked (stored as UTC midnight), so a check-out
+    // moment has to be read as a Saudi calendar day before it is compared with them.
+    private static readonly TimeZoneInfo _businessTimeZone = ResolveBusinessTimeZone();
+
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public Guid RoomId { get; private set; }
@@ -81,9 +85,12 @@ public sealed class Reservation : AggregateRoot<ReservationId>
             return HotelErrors.ReservationNotActive;
         }
 
-        if (checkedOutAt.Date < CheckOut.Date)
+        DateTime leftOn = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(checkedOutAt, DateTimeKind.Utc), _businessTimeZone).Date;
+
+        if (leftOn < CheckOut.Date)
         {
-            Nights = Math.Max(1, (checkedOutAt.Date - CheckIn.Date).Days);
+            Nights = Math.Max(1, (leftOn - CheckIn.Date).Days);
             TotalAmount = Nights * RatePerNight;
             if (checkedOutAt > CheckIn)
             {
@@ -126,5 +133,18 @@ public sealed class Reservation : AggregateRoot<ReservationId>
         Status = ReservationStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
+    }
+
+    private static TimeZoneInfo ResolveBusinessTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Riyadh");
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            // Saudi Arabia is UTC+3 all year (no daylight saving).
+            return TimeZoneInfo.CreateCustomTimeZone("Asia/Riyadh", TimeSpan.FromHours(3), "Riyadh", "Riyadh");
+        }
     }
 }

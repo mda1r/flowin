@@ -24,9 +24,10 @@ const utcDay = (iso: string | Date) => {
 /**
  * Nights the guest will be billed if they check out at `at`. Mirrors the server:
  * leaving before the booked date bills the nights stayed (min 1); otherwise the booked nights.
+ * The departure day is the Saudi calendar day, compared with the booked yyyy-mm-dd dates.
  */
 export function billableNights(res: Pick<ReservationResponse, 'checkIn' | 'checkOut' | 'nights'>, at: Date = new Date()) {
-  const today = utcDay(at)
+  const today = utcDay(`${at.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' })}T00:00:00Z`)
   if (today >= utcDay(res.checkOut)) return res.nights
   return Math.max(1, today - utcDay(res.checkIn))
 }

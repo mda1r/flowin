@@ -68,6 +68,7 @@ internal static class DatabaseInitializerExtensions
             await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
             await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
             await EnsureCreatedAsync<HotelDbContext>(sp, logger);
+            await MigrateHotelColumnsAsync(sp, logger);
             await EnsureCreatedAsync<GamingDbContext>(sp, logger);
             await EnsureCreatedAsync<SuperAdminDbContext>(sp, logger);
             await EnsureCreatedAsync<TaxConfigDbContext>(sp, logger);
@@ -406,6 +407,29 @@ internal static class DatabaseInitializerExtensions
         {
             try { await invDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "Stock materials migration skipped"); }
+        }
+    }
+
+    internal static async Task MigrateHotelColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        HotelDbContext hotelDb = sp.GetRequiredService<HotelDbContext>();
+        string[] patches =
+        [
+            // One active stay per room. Skipped (not failed) while legacy duplicates exist, so startup never breaks.
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM reservations WHERE status = 'Active' GROUP BY room_id HAVING COUNT(*) > 1) THEN
+                    CREATE UNIQUE INDEX IF NOT EXISTS ux_reservations_active_room ON reservations (room_id) WHERE status = 'Active';
+                END IF;
+            END $$
+            """,
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await hotelDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Hotel migration skipped: {Sql}", sql); }
         }
     }
 
@@ -1119,6 +1143,7 @@ internal static class DatabaseInitializerExtensions
                 if (bizType == BusinessType.Hotel)
                 {
                     await EnsureCreatedAsync<HotelDbContext>(sp, logger);
+                    await MigrateHotelColumnsAsync(sp, logger);
                 }
 
                 if (bizType == BusinessType.Gaming)

@@ -835,7 +835,7 @@ export const en = {
     extendStay: 'Extend',
     newCheckoutDate: 'New check-out date',
     stayExtended: 'Stay extended',
-    earlyCheckout: 'Early check-out: billed for {n} nights only',
+    earlyCheckout: 'Early check-out: nights billed: {n}',
     subtotal: 'Subtotal before VAT',
     vat: 'VAT 15%',
     totalWithVat: 'Total incl. VAT',

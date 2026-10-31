@@ -44,6 +44,7 @@ internal sealed class TenantSchemaProvisioner(
         await DatabaseInitializerExtensions.EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<HotelDbContext>(sp, logger);
+        await DatabaseInitializerExtensions.MigrateHotelColumnsAsync(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<GamingDbContext>(sp, logger);
 
         logger.LogInformation(

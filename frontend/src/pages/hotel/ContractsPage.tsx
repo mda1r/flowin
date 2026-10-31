@@ -355,7 +355,7 @@ function ContractRow({
   const isOpen = contract.status === 'Draft' || contract.status === 'Active'
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-5 py-4 sm:flex-row sm:items-center sm:gap-4">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-semibold text-fg">{contract.tenantName}</p>
@@ -388,7 +388,7 @@ function ContractRow({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
         <Button size="sm" variant="secondary" onClick={onPrint} title={t.contracts.printContract}>
           <Printer className="h-4 w-4" />
         </Button>

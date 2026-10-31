@@ -57,6 +57,23 @@ public sealed class ReservationTests
     }
 
     [Fact]
+    public void Complete_OnBookedDateBeforeThreeAmRiyadh_KeepsBookedNights()
+    {
+        // Booked 30 Oct to 1 Nov; leaves 1 Nov 02:00 Riyadh time, which is still 31 Oct in UTC.
+        Reservation reservation = Reservation.Create(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "Guest", "1234567890", "0500000000",
+            new DateTime(2026, 10, 30, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), 200m).Value;
+
+        reservation.Complete(new DateTime(2026, 10, 31, 23, 0, 0, DateTimeKind.Utc));
+
+        reservation.Nights.Should().Be(2);
+        reservation.TotalAmount.Should().Be(400m);
+        reservation.CheckOut.Should().Be(new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
     public void Complete_SameDayCheckout_BillsOneNight()
     {
         Reservation reservation = CreateFourNights();

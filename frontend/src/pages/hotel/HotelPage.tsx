@@ -762,7 +762,7 @@ function CashierTab({
               const overdue = isCheckoutOverdue(res.checkOut)
               return (
                 <div key={res.id} className="px-6 py-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium text-fg truncate">{res.guestName}</p>
@@ -788,7 +788,7 @@ function CashierTab({
                         {formatCurrency(stayTotals(res.totalAmount).total)} ({t.hotel.totalWithVat})
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
                       <Button size="sm" variant="secondary" onClick={() => setExtending(res)}>
                         <CalendarPlus className="h-4 w-4" />
                         {t.hotel.extendStay}
