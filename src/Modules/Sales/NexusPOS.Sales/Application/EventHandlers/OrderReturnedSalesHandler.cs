@@ -22,7 +22,7 @@ internal sealed class OrderReturnedSalesHandler(
             return;
         }
 
-        summary.RecordReturn(notification.RefundAmount);
+        summary.RecordReturn(notification.RefundAmount, notification.RefundTaxAmount);
         salesSummaryRepository.Update(summary);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }

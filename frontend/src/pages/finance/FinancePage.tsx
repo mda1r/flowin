@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Table } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { financeApi, type ExpenseFilters } from '@/api/finance'
@@ -69,6 +69,7 @@ export function FinancePage() {
   const [status, setStatus] = useState<ExpenseStatus | ''>('')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
+  const [voidingId, setVoidingId] = useState<string | null>(null)
   const { branchId, user } = useAuthStore()
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const qc = useQueryClient()
@@ -107,13 +108,13 @@ export function FinancePage() {
     placeholderData: keepPreviousData,
   })
 
-  const { data: summaryData } = useQuery({
+  const { data: summaryData, isLoading: summaryLoading, isError: summaryError } = useQuery({
     queryKey: ['expenses', branchId, 'summary', from, to],
     queryFn: () => financeApi.getSummary(branchId!, from, to),
     enabled: !!branchId,
   })
 
-  const { data: salesData, isLoading: salesLoading } = useQuery({
+  const { data: salesData, isLoading: salesLoading, isError: salesError } = useQuery({
     queryKey: ['sales-summary-range', branchId, from, to],
     queryFn: () => salesApi.getSummary(branchId!, from, to),
     enabled: !!branchId,
@@ -153,10 +154,14 @@ export function FinancePage() {
   const voidExpense = useMutation({
     mutationFn: (expenseId: string) => financeApi.void(branchId!, expenseId),
     onSuccess: () => {
+      setVoidingId(null)
       refresh()
       toast.success(t.finance.voidedToast)
     },
-    onError,
+    onError: (err) => {
+      setVoidingId(null)
+      onError(err)
+    },
   })
 
   const expenses = listData?.data ?? []
@@ -169,6 +174,12 @@ export function FinancePage() {
   const approvedTotal = summary?.approved.total ?? 0
   const netProfit = netSales - approvedTotal
   const margin = netSales > 0 ? Math.round((netProfit / netSales) * 100) : null
+
+  // Never show zeros in place of figures that have not arrived.
+  const failedValue = <span className="text-sm font-normal text-muted">{t.finance.summaryFailed}</span>
+  const summaryValue = (amount: number) =>
+    summaryError ? failedValue : summaryLoading || !summary ? '…' : formatCurrency(amount)
+  const profitReady = !!summary && !!salesData
 
   // Row count for the active filters, from the server's category × status totals.
   const filteredCount = (summary?.groups ?? [])
@@ -238,29 +249,38 @@ export function FinancePage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label={t.finance.netSales}
-            value={salesLoading ? '…' : formatCurrency(netSales)}
-            hint={t.finance.ordersCount.replace('{n}', String(orderCount))}
+            value={salesError ? failedValue : salesLoading || !salesData ? '…' : formatCurrency(netSales)}
+            hint={salesData ? t.finance.ordersCount.replace('{n}', String(orderCount)) : undefined}
             icon={<TrendingUp />}
             tone="brand"
           />
           <StatCard
             label={t.finance.totalExpenses}
-            value={formatCurrency(approvedTotal)}
-            hint={t.finance.approvedCount.replace('{n}', String(summary?.approved.count ?? 0))}
+            value={summaryValue(approvedTotal)}
+            hint={summary ? t.finance.approvedCount.replace('{n}', String(summary.approved.count)) : undefined}
             icon={<Receipt />}
             tone="info"
           />
-          <StatCard
-            label={netProfit < 0 ? t.finance.netLoss : t.finance.netProfit}
-            value={<span className={netProfit < 0 ? 'text-danger' : 'text-success'}>{formatCurrency(Math.abs(netProfit))}</span>}
-            hint={margin !== null ? t.finance.margin.replace('{n}', String(margin)) : undefined}
-            icon={netProfit < 0 ? <TrendingDown /> : <TrendingUp />}
-            tone={netProfit < 0 ? 'danger' : 'success'}
-          />
+          {profitReady ? (
+            <StatCard
+              label={netProfit < 0 ? t.finance.netLoss : t.finance.netProfit}
+              value={<span className={netProfit < 0 ? 'text-danger' : 'text-success'}>{formatCurrency(Math.abs(netProfit))}</span>}
+              hint={margin !== null ? t.finance.margin.replace('{n}', String(margin)) : undefined}
+              icon={netProfit < 0 ? <TrendingDown /> : <TrendingUp />}
+              tone={netProfit < 0 ? 'danger' : 'success'}
+            />
+          ) : (
+            <StatCard
+              label={t.finance.netProfit}
+              value={summaryError || salesError ? failedValue : '…'}
+              icon={<TrendingUp />}
+              tone="success"
+            />
+          )}
           <StatCard
             label={t.finance.awaitingApproval}
-            value={formatCurrency(summary?.pending.total ?? 0)}
-            hint={t.finance.pendingCount.replace('{n}', String(summary?.pending.count ?? 0))}
+            value={summaryValue(summary?.pending.total ?? 0)}
+            hint={summary ? t.finance.pendingCount.replace('{n}', String(summary.pending.count)) : undefined}
             icon={<Clock />}
             tone="warning"
           />
@@ -272,7 +292,18 @@ export function FinancePage() {
             <h2 className="text-sm font-semibold text-fg">{t.finance.byCategory}</h2>
           </CardHeader>
           <CardBody>
-            {summary && summary.byCategory.length > 0 ? (
+            {summaryError ? (
+              <p className="text-sm text-muted">{t.finance.summaryFailed}</p>
+            ) : summaryLoading || !summary ? (
+              <div className="space-y-3" aria-hidden>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="h-4 w-1/3 animate-pulse rounded bg-surface-2" />
+                    <div className="h-2 animate-pulse rounded-full bg-surface-2" />
+                  </div>
+                ))}
+              </div>
+            ) : summary.byCategory.length > 0 ? (
               <ul className="space-y-3">
                 {summary.byCategory.map((c) => {
                   const pct = approvedTotal > 0 ? (c.total / approvedTotal) * 100 : 0
@@ -383,10 +414,7 @@ export function FinancePage() {
                         size="sm"
                         variant="ghost"
                         disabled={voidExpense.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (window.confirm(t.finance.voidConfirm)) voidExpense.mutate(r.id)
-                        }}
+                        onClick={(e) => { e.stopPropagation(); setVoidingId(r.id) }}
                       >
                         <XCircle className="h-3.5 w-3.5 text-danger" />
                         {t.finance.voidAction}
@@ -399,19 +427,30 @@ export function FinancePage() {
           />
           {pageCount > 1 && (
             <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm">
-              <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <Button size="sm" variant="secondary" aria-label={t.finance.prevPage} disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 <ChevronRight className="h-4 w-4 ltr:rotate-180" />
               </Button>
               <span className="text-muted tabular-nums">
                 {t.finance.pageOf.replace('{page}', String(page)).replace('{pages}', String(pageCount))}
               </span>
-              <Button size="sm" variant="secondary" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>
+              <Button size="sm" variant="secondary" aria-label={t.finance.nextPage} disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>
                 <ChevronLeft className="h-4 w-4 ltr:rotate-180" />
               </Button>
             </div>
           )}
         </Card>
       </div>
+
+      <ConfirmModal
+        open={!!voidingId}
+        onClose={() => setVoidingId(null)}
+        onConfirm={() => { if (voidingId) voidExpense.mutate(voidingId) }}
+        title={t.finance.voidTitle}
+        message={t.finance.voidConfirm}
+        confirmLabel={t.finance.voidAction}
+        confirmVariant="danger"
+        loading={voidExpense.isPending}
+      />
 
       <Modal
         open={showModal}

@@ -280,7 +280,7 @@ export interface ReturnOrderResponse {
 
 // ── Sales ────────────────────────────────────────────────────────────────────
 
-// One day of GET sales/summary/range. totalRevenue includes VAT and is reduced by refunds.
+// One day of GET sales/summary/range. totalRevenue includes VAT; refunds reduce it and totalTax.
 export interface SalesSummaryResponse {
   branchId: string
   summaryDate: string

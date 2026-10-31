@@ -522,6 +522,10 @@ export const ar: Translations = {
     voidedToast: 'تم إلغاء المصروف',
     pageOf: 'صفحة {page} من {pages}',
     exportEmpty: 'لا توجد مصروفات للتصدير',
+    voidTitle: 'إلغاء المصروف',
+    summaryFailed: 'تعذّر تحميل الملخص',
+    prevPage: 'الصفحة السابقة',
+    nextPage: 'الصفحة التالية',
   },
 
   reports: {

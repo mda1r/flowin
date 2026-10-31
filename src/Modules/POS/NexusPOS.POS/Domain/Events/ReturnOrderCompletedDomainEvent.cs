@@ -8,6 +8,7 @@ public sealed record ReturnOrderCompletedDomainEvent(
     Guid TenantId,
     Guid BranchId,
     decimal RefundAmount,
+    decimal RefundTaxAmount,
     string Currency,
     IReadOnlyList<ReturnOrderCompletedDomainEvent.LineItem> Lines,
     bool RestockItems) : DomainEvent

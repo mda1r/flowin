@@ -37,8 +37,10 @@ public sealed class SalesSummary : AggregateRoot<SalesSummaryId>
         TotalTax += tax;
     }
 
-    public void RecordReturn(decimal refundAmount)
+    // refundAmount is tax-inclusive, so the VAT it carries comes off TotalTax too.
+    public void RecordReturn(decimal refundAmount, decimal refundTax)
     {
         TotalRevenue -= refundAmount;
+        TotalTax -= refundTax;
     }
 }

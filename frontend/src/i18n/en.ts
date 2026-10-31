@@ -520,6 +520,10 @@ export const en = {
     voidedToast: 'Expense voided',
     pageOf: 'Page {page} of {pages}',
     exportEmpty: 'No expenses to export',
+    voidTitle: 'Void expense',
+    summaryFailed: 'Could not load summary',
+    prevPage: 'Previous page',
+    nextPage: 'Next page',
   },
 
   reports: {

@@ -61,7 +61,7 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
             .ToList();
         returnOrder.RaiseDomainEvent(new ReturnOrderCompletedDomainEvent(
             returnOrder.Id.Value, originalOrderId, tenantId, branchId,
-            refundAmount, currency.ToUpperInvariant(), lineItems, restockItems));
+            refundAmount, refundAmount - pretaxTotal, currency.ToUpperInvariant(), lineItems, restockItems));
 
         return returnOrder;
     }
