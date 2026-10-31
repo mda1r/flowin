@@ -97,7 +97,7 @@ export function CreateTenantModal({ onClose }: Props) {
         title={t.admin.createTenant.success}
         footer={<Button onClick={onClose}>{t.common.close}</Button>}
       >
-        <div className="space-y-4" dir="rtl">
+        <div className="space-y-4">
           <div className="flex items-center gap-3 rounded-xl bg-success/15 border border-success/50 px-4 py-3">
             <CheckCircle className="h-5 w-5 text-success shrink-0" />
             <p className="text-sm text-success">
@@ -132,7 +132,7 @@ export function CreateTenantModal({ onClose }: Props) {
         </>
       }
     >
-      <form className="space-y-4" dir="rtl">
+      <form className="space-y-4">
         <Input
           label={t.admin.createTenant.businessName}
           placeholder="مثال: سوبرماركت الأمين"

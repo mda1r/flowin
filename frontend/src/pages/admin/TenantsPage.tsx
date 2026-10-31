@@ -143,7 +143,7 @@ export function TenantsPage() {
   )
 
   return (
-    <div className="p-8" dir="rtl">
+    <div className="p-8">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>

@@ -94,9 +94,8 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
 
       <div
-        className="relative flex h-full w-full max-w-md flex-col border-l shadow-2xl"
+        className="relative flex h-full w-full max-w-md flex-col border-s shadow-2xl"
         style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-        dir="rtl"
       >
         {/* Header */}
         <div
@@ -147,7 +146,7 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
                   <button
                     key={q.label}
                     onClick={() => send(q.prompt)}
-                    className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-right text-xs font-medium transition-colors hover:bg-black/5"
+                    className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-start text-xs font-medium transition-colors hover:bg-black/5"
                     style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <span style={{ color: 'var(--accent)' }}>{q.icon}</span>
@@ -161,6 +160,7 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
                 <div
                   className="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed"
+                  dir="auto"
                   style={
                     msg.role === 'user'
                       ? { background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--text-primary)' }

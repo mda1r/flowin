@@ -3,6 +3,7 @@ import { Mic, MicOff, X, Volume2, Loader2 } from 'lucide-react'
 import { aiCashierApi, type AiCashierMessage } from '@/api/aiCashier'
 import type { ProductResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 interface AiCashierAgentProps {
   branchId: string
@@ -25,6 +26,8 @@ export function AiCashierAgent({
   onCompleteOrder,
   onDeactivate,
 }: AiCashierAgentProps) {
+  const { lang } = useI18n()
+  const speechLang = lang === 'ar' ? 'ar-SA' : 'en-US'
   const [sessionStarted, setSessionStarted] = useState(false)
   const [messages, setMessages] = useState<AiCashierMessage[]>([])
   const [displayMessages, setDisplayMessages] = useState<DisplayMessage[]>([])
@@ -54,7 +57,8 @@ export function AiCashierAgent({
     }
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'ar-SA'
+    // The assistant may answer in Arabic whatever the UI language, so the voice follows the text.
+    utterance.lang = /[\u0600-\u06FF]/.test(text) ? 'ar-SA' : speechLang
     utterance.rate = 0.95
     utterance.pitch = 1.05
     setIsSpeaking(true)
@@ -67,7 +71,7 @@ export function AiCashierAgent({
       onEnd?.()
     }
     window.speechSynthesis.speak(utterance)
-  }, [])
+  }, [speechLang])
 
   const startListening = useCallback(
     (currentMessages: AiCashierMessage[]) => {
@@ -76,7 +80,7 @@ export function AiCashierAgent({
       if (!SR) return
 
       const recognition: any = new SR()
-      recognition.lang = 'ar-SA'
+      recognition.lang = speechLang
       recognition.interimResults = false
       recognition.maxAlternatives = 1
       recognitionRef.current = recognition
@@ -97,7 +101,7 @@ export function AiCashierAgent({
     },
     // sendToAI is defined below; ESLint disabled since it's circular
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addDisplay],
+    [addDisplay, speechLang],
   )
 
   const sendToAI = useCallback(
@@ -163,7 +167,7 @@ export function AiCashierAgent({
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onDeactivate} />
 
@@ -221,8 +225,9 @@ export function AiCashierAgent({
                 'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
                 msg.role === 'assistant'
                   ? 'self-start bg-info/15 text-info ring-1 ring-info/40'
-                  : 'ml-auto self-end bg-info/20 text-info ring-1 ring-info/40',
+                  : 'ms-auto self-end bg-info/20 text-info ring-1 ring-info/40',
               )}
+              dir="auto"
             >
               {msg.role === 'assistant' && (
                 <span className="mb-1 block text-xs font-semibold text-info">سعد</span>

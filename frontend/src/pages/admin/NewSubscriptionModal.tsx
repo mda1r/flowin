@@ -51,7 +51,6 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      dir="rtl"
     >
       <div className="w-full max-w-md rounded-2xl bg-surface border border-border shadow-2xl">
         {/* Header */}

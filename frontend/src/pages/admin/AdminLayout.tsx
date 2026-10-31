@@ -29,7 +29,7 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="scheme-dark flex h-screen bg-bg text-fg" dir="rtl">
+    <div className="scheme-dark flex h-screen bg-bg text-fg">
       {/* Sidebar */}
       <aside className="flex w-64 flex-col bg-surface border-l border-border">
         {/* Brand */}

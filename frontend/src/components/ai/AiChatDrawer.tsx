@@ -109,7 +109,7 @@ function InsightsPanel({ branchId }: { branchId: string }) {
             {card.icon}
             <span className="text-xs font-semibold text-muted">{card.title}</span>
           </div>
-          <p className="text-sm leading-relaxed text-fg">{card.body}</p>
+          <p className="text-sm leading-relaxed text-fg" dir="auto">{card.body}</p>
         </div>
       ))}
       {data.generatedAt && (
@@ -198,7 +198,6 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
         >
           <div
             className="absolute bottom-0 left-0 flex h-[600px] w-full max-w-sm flex-col rounded-t-2xl border border-border bg-surface shadow-2xl md:bottom-24 md:left-6 md:h-[580px] md:rounded-2xl"
-            dir="rtl"
           >
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-border px-4 py-3">
@@ -263,7 +262,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                             onClick={() => sendMessage(qp.prompt)}
                             disabled={chatMutation.isPending}
                             className={cn(
-                              'flex items-center gap-2 rounded-xl px-3 py-2 text-right text-xs font-medium transition-opacity disabled:opacity-40',
+                              'flex items-center gap-2 rounded-xl px-3 py-2 text-start text-xs font-medium transition-opacity disabled:opacity-40',
                               qp.color,
                             )}
                           >
@@ -286,9 +285,10 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                           className={cn(
                             'max-w-[87%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
                             msg.role === 'user'
-                              ? 'bg-brand text-brand-fg rounded-tr-sm'
-                              : 'bg-surface-2 text-fg rounded-tl-sm',
+                              ? 'bg-brand text-brand-fg rounded-ss-sm'
+                              : 'bg-surface-2 text-fg rounded-se-sm',
                           )}
+                          dir="auto"
                         >
                           {msg.content}
                         </div>
@@ -296,7 +296,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                     ))}
                     {chatMutation.isPending && (
                       <div className="flex justify-end">
-                        <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-surface-2 px-3.5 py-2.5">
+                        <div className="flex items-center gap-2 rounded-2xl rounded-se-sm bg-surface-2 px-3.5 py-2.5">
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />
                           <span className="text-xs text-muted">جارٍ التحليل...</span>
                         </div>

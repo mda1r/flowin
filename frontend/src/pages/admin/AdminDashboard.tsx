@@ -83,7 +83,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-8 p-8" dir="rtl">
+    <div className="space-y-8 p-8">
       <div>
         <h1 className="text-2xl font-bold text-fg">{t.admin.dashboard.title}</h1>
         <p className="mt-1 text-muted">نظرة شاملة على الإيرادات والمستأجرين</p>

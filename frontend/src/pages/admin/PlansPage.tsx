@@ -84,7 +84,7 @@ export function PlansPage() {
   }
 
   return (
-    <div className="p-8" dir="rtl">
+    <div className="p-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-fg">{t.admin.plans.title}</h1>

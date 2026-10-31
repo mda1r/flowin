@@ -112,7 +112,7 @@ export function TenantDetailPage() {
   const sub = tenant.activeSubscription
 
   return (
-    <div className="p-8" dir="rtl">
+    <div className="p-8">
       {/* Back */}
       <Link
         to="/admin/tenants"
