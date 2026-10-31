@@ -37,8 +37,10 @@ internal sealed class AddProductVariantCommandHandler(
             return skuResult.Errors;
         }
 
-        // SKUs are unique across the whole catalog (ix_product_variants_sku), not just within this product.
-        if (await productRepository.ExistsBySkuAsync(skuResult.Value.Value, cancellationToken))
+        // SKUs are unique across the whole catalog (ix_product_variants_sku), not just within this product,
+        // and may not equal another active variant's barcode since scans match on either.
+        if (await productRepository.ExistsBySkuAsync(skuResult.Value.Value, cancellationToken) ||
+            await productRepository.IsBarcodeTakenAsync(skuResult.Value.Value, cancellationToken: cancellationToken))
         {
             return CatalogErrors.SkuAlreadyExists;
         }

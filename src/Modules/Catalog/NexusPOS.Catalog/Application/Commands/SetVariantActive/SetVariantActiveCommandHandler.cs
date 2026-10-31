@@ -33,11 +33,19 @@ internal sealed class SetVariantActiveCommandHandler(
             return CatalogErrors.VariantNotFound;
         }
 
-        // Reactivating must not bring back a barcode that another active variant took over meanwhile.
-        if (request.IsActive && !variant.IsActive && variant.Barcode is not null &&
-            await productRepository.IsBarcodeTakenAsync(variant.Barcode, variantId, cancellationToken))
+        // Reactivating must not bring back a barcode or SKU that another active variant took over meanwhile.
+        if (request.IsActive && !variant.IsActive)
         {
-            return CatalogErrors.BarcodeAlreadyExists;
+            if (variant.Barcode is not null &&
+                await productRepository.IsBarcodeTakenAsync(variant.Barcode, variantId, cancellationToken))
+            {
+                return CatalogErrors.BarcodeAlreadyExists;
+            }
+
+            if (await productRepository.IsBarcodeTakenAsync(variant.Sku.Value, variantId, cancellationToken))
+            {
+                return CatalogErrors.SkuAlreadyExists;
+            }
         }
 
         ErrorOr<Success> result = product.SetVariantActive(variantId, request.IsActive);

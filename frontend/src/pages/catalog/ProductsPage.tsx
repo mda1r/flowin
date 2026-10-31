@@ -54,6 +54,7 @@ export function ProductsPage() {
   const [editingVariant, setEditingVariant] = useState<{ productId: string; variant: ProductVariantResponse } | null>(null)
   const [addingVariantTo, setAddingVariantTo] = useState<ProductResponse | null>(null)
   const [deactivatingProductId, setDeactivatingProductId] = useState<string | null>(null)
+  const [deactivatingVariant, setDeactivatingVariant] = useState<{ productId: string; variant: ProductVariantResponse } | null>(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const { branchId, tenantId, user } = useAuthStore()
@@ -269,6 +270,7 @@ export function ProductsPage() {
       catalogApi.setVariantStatus(productId, variant.id, !variant.isActive),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['products'] })
+      setDeactivatingVariant(null)
       toast.success(res.data.isActive ? 'تم تفعيل النوع' : 'تم إيقاف النوع')
     },
     onError: (err: unknown) => toast.error('تعذّر تغيير حالة النوع', apiErrorMessage(err)),
@@ -472,7 +474,7 @@ export function ProductsPage() {
                           {product.variants.map((v) => (
                             <div
                               key={v.id}
-                              className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                             >
                               <div className="flex flex-wrap items-center gap-x-2">
                                 <span className="font-medium text-fg">
@@ -486,7 +488,7 @@ export function ProductsPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-4">
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                                 <span className="text-xs text-muted">
                                   {t.products.costPrice}: {formatCurrency(v.costPrice, v.currency)}
                                 </span>
@@ -529,7 +531,12 @@ export function ProductsPage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => toggleVariant.mutate({ productId: product.id, variant: v })}
+                                    onClick={() =>
+                                      // Switching off pulls the variant from the POS, so it asks first; switching on is one tap.
+                                      v.isActive
+                                        ? setDeactivatingVariant({ productId: product.id, variant: v })
+                                        : toggleVariant.mutate({ productId: product.id, variant: v })
+                                    }
                                     disabled={toggleVariant.isPending}
                                     title={v.isActive ? 'إيقاف النوع' : 'تفعيل النوع'}
                                     aria-label={v.isActive ? `إيقاف ${v.name}` : `تفعيل ${v.name}`}
@@ -621,14 +628,12 @@ export function ProductsPage() {
                 placeholder="0"
                 {...createForm.register('initialQuantity')}
               />
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-fg">تاريخ الانتهاء (اختياري)</label>
-                <input
-                  type="date"
-                  {...createForm.register('expiryDate')}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg"
-                />
-              </div>
+              <Input
+                id="create-expiry-date"
+                label="تاريخ الانتهاء (اختياري)"
+                type="date"
+                {...createForm.register('expiryDate')}
+              />
             </div>
           )}
         </form>
@@ -761,14 +766,12 @@ export function ProductsPage() {
                 placeholder="0"
                 {...addVariantForm.register('initialQuantity')}
               />
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-fg">تاريخ الانتهاء (اختياري)</label>
-                <input
-                  type="date"
-                  {...addVariantForm.register('expiryDate')}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg"
-                />
-              </div>
+              <Input
+                id="add-variant-expiry-date"
+                label="تاريخ الانتهاء (اختياري)"
+                type="date"
+                {...addVariantForm.register('expiryDate')}
+              />
             </div>
           )}
         </form>
@@ -805,6 +808,18 @@ export function ProductsPage() {
         confirmLabel="إلغاء التفعيل"
         confirmVariant="danger"
         loading={deactivate.isPending}
+      />
+
+      {/* Deactivate variant confirm */}
+      <ConfirmModal
+        open={!!deactivatingVariant}
+        onClose={() => setDeactivatingVariant(null)}
+        onConfirm={() => { if (deactivatingVariant) { toggleVariant.mutate(deactivatingVariant) } }}
+        title="إيقاف النوع"
+        message={`إيقاف النوع «${deactivatingVariant?.variant.name ?? ''}»؟ لن يظهر في نقطة البيع.`}
+        confirmLabel="إيقاف"
+        confirmVariant="danger"
+        loading={toggleVariant.isPending}
       />
     </div>
   )

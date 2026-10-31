@@ -46,7 +46,9 @@ internal sealed class UpdateVariantCommandHandler(
 
             if (skuResult.Value.Value != variant.Sku.Value)
             {
-                if (await productRepository.ExistsBySkuAsync(skuResult.Value.Value, variantId, cancellationToken))
+                // Scans match on barcode or SKU, so a SKU may not equal another active variant's barcode either.
+                if (await productRepository.ExistsBySkuAsync(skuResult.Value.Value, variantId, cancellationToken) ||
+                    await productRepository.IsBarcodeTakenAsync(skuResult.Value.Value, variantId, cancellationToken))
                 {
                     return CatalogErrors.SkuAlreadyExists;
                 }

@@ -24,7 +24,9 @@ internal sealed class CreateProductCommandHandler(
             return skuResult.Errors;
         }
 
-        bool skuExists = await productRepository.ExistsBySkuAsync(skuResult.Value.Value, cancellationToken);
+        // Scans match on barcode or SKU, so a SKU may not equal another active variant's barcode either.
+        bool skuExists = await productRepository.ExistsBySkuAsync(skuResult.Value.Value, cancellationToken) ||
+            await productRepository.IsBarcodeTakenAsync(skuResult.Value.Value, cancellationToken: cancellationToken);
         if (skuExists)
         {
             return CatalogErrors.SkuAlreadyExists;

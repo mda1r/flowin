@@ -220,6 +220,39 @@ public sealed class VariantCommandHandlerTests
     }
 
     [Fact]
+    public async Task UpdateVariant_WithSkuMatchingAnotherBarcode_ReturnsConflict()
+    {
+        await CreateAsync("A1", "6281000000017");
+        ProductResponse product = await CreateAsync("B1");
+
+        ErrorOr<ProductVariantResponse> result = await UpdateVariantAsync(product.Id, product.Variants[0].Id, sku: "6281000000017");
+
+        result.FirstError.Code.Should().Be("Catalog.SkuAlreadyExists");
+        (await LoadVariantAsync(product.Variants[0].Id)).Sku.Value.Should().Be("B1");
+    }
+
+    [Fact]
+    public async Task CreateProduct_WithSkuMatchingAnotherBarcode_ReturnsConflict()
+    {
+        await CreateAsync("A1", "6281000000017");
+
+        ErrorOr<ProductResponse> result = await TryCreateAsync("6281000000017");
+
+        result.FirstError.Code.Should().Be("Catalog.SkuAlreadyExists");
+    }
+
+    [Fact]
+    public async Task AddVariant_WithSkuMatchingAnotherBarcode_ReturnsConflict()
+    {
+        ProductResponse first = await CreateAsync("A1");
+        await CreateAsync("B1", "999");
+
+        ErrorOr<ProductVariantResponse> result = await AddVariantAsync(first.Id, "999");
+
+        result.FirstError.Code.Should().Be("Catalog.SkuAlreadyExists");
+    }
+
+    [Fact]
     public async Task UpdateProduct_WithoutTaxClassOrImage_KeepsThem()
     {
         ProductResponse product = await CreateAsync("A1", taxClass: TaxClass.Exempt);
@@ -267,5 +300,21 @@ public sealed class VariantCommandHandlerTests
         ErrorOr<ProductVariantResponse> result = await SetActiveAsync(product.Id, added.Value.Id, true);
 
         result.FirstError.Code.Should().Be("Catalog.BarcodeAlreadyExists");
+    }
+
+    [Fact]
+    public async Task SetVariantActive_ReactivatingWithSkuNowAnotherBarcode_ReturnsConflict()
+    {
+        ProductResponse product = await CreateAsync("A1");
+        ErrorOr<ProductVariantResponse> added = await AddVariantAsync(product.Id, "6281000000024");
+        await SetActiveAsync(product.Id, added.Value.Id, false);
+
+        // While the variant is off its SKU is free as a barcode, so another product may take it.
+        await CreateAsync("B1", "6281000000024");
+
+        ErrorOr<ProductVariantResponse> result = await SetActiveAsync(product.Id, added.Value.Id, true);
+
+        result.FirstError.Code.Should().Be("Catalog.SkuAlreadyExists");
+        (await LoadVariantAsync(added.Value.Id)).IsActive.Should().BeFalse();
     }
 }
