@@ -292,6 +292,15 @@ export const en = {
     categoryName: 'Category Name',
     categoryCreated: 'Category created',
     categoryFailed: 'Failed to create category',
+    recipeCost: 'Recipe cost',
+    margin: 'Margin',
+    copyFromSize: 'Copy from another size',
+    copySource: 'Source size',
+    copyMultiplier: 'Quantity',
+    copyApply: 'Copy',
+    copyHint: 'Replaces the current ingredients. Review the quantities, then save.',
+    copied: 'Recipe copied. Review it, then save',
+    copySkippedArchived: 'Archived materials were skipped',
   },
 
   inventory: {

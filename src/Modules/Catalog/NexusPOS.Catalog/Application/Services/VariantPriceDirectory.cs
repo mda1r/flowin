@@ -23,4 +23,21 @@ internal sealed class VariantPriceDirectory(CatalogDbContext db) : IVariantPrice
             .ToListAsync(cancellationToken);
         return prices.ToDictionary(p => p.Id.Value, p => p.Amount);
     }
+
+    public async Task<IReadOnlyDictionary<Guid, decimal>> GetCostPricesAsync(
+        IReadOnlyCollection<Guid> variantIds, CancellationToken cancellationToken = default)
+    {
+        if (variantIds.Count == 0)
+        {
+            return new Dictionary<Guid, decimal>();
+        }
+
+        List<VariantId> ids = [.. variantIds.Distinct().Select(id => new VariantId(id))];
+        var costs = await db.ProductVariants
+            .AsNoTracking()
+            .Where(v => ids.Contains(v.Id))
+            .Select(v => new { v.Id, v.CostPrice.Amount })
+            .ToListAsync(cancellationToken);
+        return costs.ToDictionary(c => c.Id.Value, c => c.Amount);
+    }
 }

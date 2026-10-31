@@ -8,3 +8,9 @@ export function marginPercent(grossPrice: number, cost: number): number | null {
   const net = netOfVat(grossPrice)
   return net > 0 ? ((net - cost) / net) * 100 : null
 }
+
+// Margin colour shared by the recipe editor and the product list: a loss is danger, under 30% a warning.
+export function marginTone(margin: number | null): string {
+  if (margin === null) return 'text-muted'
+  return margin < 0 ? 'text-danger' : margin < 30 ? 'text-warning' : 'text-success'
+}

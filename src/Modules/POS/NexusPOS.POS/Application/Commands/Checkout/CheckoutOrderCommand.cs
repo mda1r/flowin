@@ -8,6 +8,7 @@ namespace NexusPOS.POS.Application.Commands.Checkout;
 // ByOwnerOrManager comes from the caller's role (Owner or Manager), never from the request body; UserId and UserName
 // are the caller too, for the review note an offline sale can leave.
 // Kitchen, when set, sends the sale to the kitchen screen as an already-paid ticket.
+// Line.CostPrice is still accepted so older till and offline payloads bind, but it is ignored: the server sets the cost.
 public sealed record CheckoutOrderCommand(
     Guid TenantId,
     Guid BranchId,

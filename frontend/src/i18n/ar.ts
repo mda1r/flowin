@@ -294,6 +294,15 @@ export const ar: Translations = {
     categoryName: 'اسم التصنيف',
     categoryCreated: 'تم إنشاء التصنيف',
     categoryFailed: 'فشل إنشاء التصنيف',
+    recipeCost: 'تكلفة الوصفة',
+    margin: 'هامش',
+    copyFromSize: 'نسخ من حجم آخر',
+    copySource: 'الحجم المصدر',
+    copyMultiplier: 'الكمية',
+    copyApply: 'نسخ',
+    copyHint: 'تحل محل المكوّنات الحالية. راجع الكميات ثم احفظ.',
+    copied: 'تم نسخ الوصفة. راجعها ثم احفظ',
+    copySkippedArchived: 'تم تجاهل مواد مؤرشفة',
   },
 
   inventory: {

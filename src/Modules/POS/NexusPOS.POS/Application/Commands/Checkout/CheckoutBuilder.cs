@@ -21,8 +21,15 @@ internal static class CheckoutBuilder
 
     // notBefore is the branch's latest shift boundary: a synced sale is never dated into a shift whose totals are closed.
     // offline: the sale already happened, so a payment that does not add up is kept (and logged by the handler) instead of refused.
+    // unitCosts is the server's net cost per unit (see UnitCosts); the cost a till sends is never used, and a variant
+    // left out costs nothing.
     public static ErrorOr<Order> Build(
-        CheckoutOrderCommand cmd, LoyaltyRules loyalty, long? number = null, DateTime? notBefore = null, bool offline = false)
+        CheckoutOrderCommand cmd,
+        LoyaltyRules loyalty,
+        long? number = null,
+        DateTime? notBefore = null,
+        bool offline = false,
+        IReadOnlyDictionary<Guid, decimal>? unitCosts = null)
     {
         DateTime? offlineAt = AsUtc(cmd.OfflineCreatedAt);
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
@@ -37,8 +44,8 @@ internal static class CheckoutBuilder
             }
 
             ErrorOr<OrderLine> added = order.AddLine(
-                line.VariantId, line.ProductName, line.VariantName, line.UnitPrice, line.CostPrice, line.Quantity, lineDiscount.Value,
-                line.Notes);
+                line.VariantId, line.ProductName, line.VariantName, line.UnitPrice, unitCosts?.GetValueOrDefault(line.VariantId) ?? 0m,
+                line.Quantity, lineDiscount.Value, line.Notes);
             if (added.IsError)
             {
                 return added.Errors;
@@ -80,6 +87,19 @@ internal static class CheckoutBuilder
         ErrorOr<Success> completed = order.Complete(
             cmd.PaymentMethod, tendered, cmd.CashAmount, cmd.CardAmount, SaleTime(offlineAt, DateTime.UtcNow, notBefore));
         return completed.IsError ? completed.Errors : order;
+    }
+
+    // The cost captured on each sold line: the drink's recipe cost when it has a recipe, otherwise the catalog cost.
+    internal static Dictionary<Guid, decimal> UnitCosts(
+        IReadOnlyDictionary<Guid, decimal> recipeCosts, IReadOnlyDictionary<Guid, decimal> catalogCosts)
+    {
+        Dictionary<Guid, decimal> costs = new(catalogCosts);
+        foreach ((Guid variantId, decimal cost) in recipeCosts)
+        {
+            costs[variantId] = cost;
+        }
+
+        return costs;
     }
 
     // Cash handed over short of the total, or a split whose parts do not add up to it. Online the sale is refused

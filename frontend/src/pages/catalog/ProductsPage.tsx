@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, FlaskConical, ScanBarcode, Power } from 'lucide-react'
 import { recipesApi } from '@/api/recipes'
-import { RecipeModal } from './RecipeModal'
+import { RecipeModal, type RecipeCopySource } from './RecipeModal'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,9 +16,9 @@ import { catalogApi } from '@/api/catalog'
 import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
-import { marginPercent } from '@/lib/pricing'
+import { marginPercent, marginTone } from '@/lib/pricing'
 import { apiErrorMessage } from '@/lib/apiError'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
 
@@ -62,7 +62,9 @@ export function ProductsPage() {
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const qc = useQueryClient()
   const { t } = useI18n()
-  const [recipeVariant, setRecipeVariant] = useState<{ id: string; name: string; salePrice: number; currency: string } | null>(null)
+  const [recipeVariant, setRecipeVariant] = useState<
+    { id: string; name: string; salePrice: number; currency: string; copySources: RecipeCopySource[] } | null
+  >(null)
   const { data: recipeSummaries } = useQuery({
     queryKey: ['recipe-summaries', tenantId],
     queryFn: () => recipesApi.listSummaries(tenantId!),
@@ -490,29 +492,46 @@ export function ProductsPage() {
                                 )}
                               </div>
                               <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                                <span className="text-xs text-muted">
-                                  {t.products.costPrice}: {formatCurrency(v.costPrice, v.currency)}
-                                </span>
-                                <span className="font-semibold text-info">
-                                  {formatCurrency(v.salePrice, v.currency)}
-                                </span>
-                                {recipeByVariant.get(v.id) && (
+                                {/* A sale is costed from the recipe when there is one, so the manual cost is not shown next to it. */}
+                                {recipeByVariant.get(v.id) ? (
                                   <span className="text-xs tabular-nums text-muted">
-                                    تكلفة الوصفة {recipeByVariant.get(v.id)!.totalCost.toFixed(2)} ر.س
+                                    {t.products.recipeCost}: {formatCurrency(recipeByVariant.get(v.id)!.totalCost, v.currency)}
                                     {v.salePrice > 0 && (
-                                      <span className="ms-1">
-                                        · هامش {marginPercent(v.salePrice, recipeByVariant.get(v.id)!.totalCost)!.toFixed(0)}%
+                                      <span
+                                        className={cn(
+                                          'ms-1 font-semibold',
+                                          marginTone(marginPercent(v.salePrice, recipeByVariant.get(v.id)!.totalCost)),
+                                        )}
+                                      >
+                                        · {t.products.margin} {marginPercent(v.salePrice, recipeByVariant.get(v.id)!.totalCost)!.toFixed(0)}%
                                       </span>
                                     )}
                                   </span>
+                                ) : (
+                                  <span className="text-xs text-muted">
+                                    {t.products.costPrice}: {formatCurrency(v.costPrice, v.currency)}
+                                  </span>
                                 )}
+                                <span className="font-semibold text-info">
+                                  {formatCurrency(v.salePrice, v.currency)}
+                                </span>
                                 <Badge variant={v.isActive ? 'green' : 'gray'} className="text-xs">
                                   {v.isActive ? t.products.active : t.products.inactive}
                                 </Badge>
                                 <Button
                                   size="sm"
                                   variant="secondary"
-                                  onClick={() => setRecipeVariant({ id: v.id, name: `${product.name} - ${v.name}`, salePrice: v.salePrice, currency: v.currency })}
+                                  onClick={() =>
+                                    setRecipeVariant({
+                                      id: v.id,
+                                      name: `${product.name} - ${v.name}`,
+                                      salePrice: v.salePrice,
+                                      currency: v.currency,
+                                      copySources: product.variants
+                                        .filter((o) => o.id !== v.id && recipeByVariant.has(o.id))
+                                        .map((o) => ({ id: o.id, name: o.name })),
+                                    })
+                                  }
                                   aria-label={`وصفة ${v.name}`}
                                 >
                                   <FlaskConical className="h-3.5 w-3.5" />
@@ -559,7 +578,9 @@ export function ProductsPage() {
         </Card>
       </div>
 
-      {recipeVariant && <RecipeModal variant={recipeVariant} onClose={() => setRecipeVariant(null)} />}
+      {recipeVariant && (
+        <RecipeModal variant={recipeVariant} copySources={recipeVariant.copySources} onClose={() => setRecipeVariant(null)} />
+      )}
 
       {/* Create modal */}
       <Modal

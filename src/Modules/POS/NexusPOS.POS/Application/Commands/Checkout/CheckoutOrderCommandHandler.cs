@@ -18,6 +18,7 @@ internal sealed class CheckoutOrderCommandHandler(
     ICustomerLoyaltyDirectory loyalty,
     IOrderNumberSequence numbers,
     IVariantPriceDirectory prices,
+    IRecipeCostDirectory recipeCosts,
     IPublisher publisher)
     : ICommandHandler<CheckoutOrderCommand, OrderResponse>
 {
@@ -59,6 +60,13 @@ internal sealed class CheckoutOrderCommandHandler(
             }
         }
 
+        // Gross profit uses what the drink costs the store now, worked out here; whatever cost the till sends is ignored.
+        // A sale synced from offline goes through the same rule, valued at the cost when it reaches the server.
+        List<Guid> variantIds = [.. request.Lines.Select(l => l.VariantId).Distinct()];
+        Dictionary<Guid, decimal> unitCosts = CheckoutBuilder.UnitCosts(
+            await recipeCosts.GetCostsAsync(request.TenantId, variantIds, cancellationToken),
+            await prices.GetCostPricesAsync(variantIds, cancellationToken));
+
         // A sale that synced after its shift closed is dated into the shift open now, so its cash is still counted.
         DateTime? shiftBoundary = request.OfflineCreatedAt is null
             ? null
@@ -67,7 +75,8 @@ internal sealed class CheckoutOrderCommandHandler(
                 .MaxAsync(s => (DateTime?)(s.ClosedAt ?? s.OpenedAt), cancellationToken);
 
         // Build once without a number first, so a rejected sale never uses up an invoice number.
-        ErrorOr<Order> draft = CheckoutBuilder.Build(request, rules.Value, notBefore: shiftBoundary, offline: offline);
+        ErrorOr<Order> draft = CheckoutBuilder.Build(
+            request, rules.Value, notBefore: shiftBoundary, offline: offline, unitCosts: unitCosts);
         if (draft.IsError)
         {
             return draft.Errors;
@@ -98,7 +107,7 @@ internal sealed class CheckoutOrderCommandHandler(
         // The number and the sale commit together: if the save fails, the counter rolls back with it.
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         long number = await numbers.NextAsync(request.TenantId, cancellationToken);
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, shiftBoundary, offline);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, shiftBoundary, offline, unitCosts);
         if (built.IsError)
         {
             return built.Errors;

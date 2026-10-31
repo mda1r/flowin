@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Inventory.Application.Common;
+using NexusPOS.Inventory.Domain.Services;
 using NexusPOS.Inventory.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 
@@ -22,9 +23,10 @@ internal sealed class GetRecipeQueryHandler(InventoryDbContext db) : IQueryHandl
         List<RecipeLineResponse> lines = rows
             .Select(x => new RecipeLineResponse(
                 x.Material.Id, x.Material.NameAr, x.Material.ComponentUnit, x.Line.Quantity,
-                x.Material.CostPerComponentUnit, Math.Round(x.Line.Quantity * x.Material.CostPerComponentUnit, 4)))
+                x.Material.CostPerComponentUnit,
+                RecipeCosting.LineCost(x.Line.Quantity, x.Material.CurrentCost, x.Material.ConversionFactor)))
             .ToList();
 
-        return new RecipeResponse(variantId, lines, lines.Sum(l => l.LineCost));
+        return new RecipeResponse(variantId, lines, RecipeCosting.Total(lines.Select(l => l.LineCost)));
     }
 }

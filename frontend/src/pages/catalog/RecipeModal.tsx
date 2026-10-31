@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, FlaskConical, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Copy, FlaskConical, Plus, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -11,14 +11,25 @@ import { stockMaterialApi } from '@/api/stockMaterial'
 import { useAuthStore } from '@/stores/authStore'
 import { useCanManageMaterials } from '@/hooks/useCanManageMaterials'
 import { apiErrorMessage } from '@/lib/apiError'
-import { marginPercent, netOfVat } from '@/lib/pricing'
+import { marginPercent, marginTone, netOfVat } from '@/lib/pricing'
 import { cn, formatCurrency } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import type { StockMaterialResponse } from '@/types/stockMaterial'
+
+// Another size of the same product that already has a recipe, offered as a starting point.
+export interface RecipeCopySource {
+  id: string
+  name: string
+}
 
 interface RecipeModalProps {
   variant: { id: string; name: string; salePrice: number; currency: string }
+  copySources?: RecipeCopySource[]
   onClose: () => void
 }
+
+// A medium is usually a small ×1.25 or a large ×0.75 and so on; the owner fine-tunes before saving.
+const COPY_MULTIPLIERS = [0.75, 1, 1.25, 1.5]
 
 interface DraftLine {
   key: number
@@ -28,13 +39,17 @@ interface DraftLine {
 
 let nextKey = 1
 
-export function RecipeModal({ variant, onClose }: RecipeModalProps) {
+export function RecipeModal({ variant, copySources = [], onClose }: RecipeModalProps) {
   const { tenantId } = useAuthStore()
+  const { t } = useI18n()
   // Cashiers can look up a recipe and its cost; saving is Owner/Manager only on the server too.
   const canEdit = useCanManageMaterials()
   const qc = useQueryClient()
   const [lines, setLines] = useState<DraftLine[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copyFrom, setCopyFrom] = useState(copySources[0]?.id ?? '')
+  const [copyMultiplier, setCopyMultiplier] = useState(1)
+  const [copying, setCopying] = useState(false)
 
   const recipeQuery = useQuery({
     queryKey: ['recipe', tenantId, variant.id],
@@ -77,6 +92,34 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
   const addLine = () => {
     const first = materials.find((m) => !used.has(m.id))
     setLines((ls) => [...(ls ?? []), { key: nextKey++, materialId: first?.id ?? '', quantity: '' }])
+  }
+
+  // Pre-fills the lines from the chosen size, scaled; nothing is saved until the owner presses save.
+  const copyRecipe = async () => {
+    if (!copyFrom || !tenantId) return
+    setCopying(true)
+    setError(null)
+    try {
+      const source = await qc.fetchQuery({
+        queryKey: ['recipe', tenantId, copyFrom],
+        queryFn: () => recipesApi.get(tenantId, copyFrom),
+      })
+      const sourceLines = source.data.lines
+      const usable = sourceLines.filter((l) => byId.has(l.materialId))
+      setLines(
+        usable.map((l) => ({
+          key: nextKey++,
+          materialId: l.materialId,
+          quantity: String(Math.round(l.quantity * copyMultiplier * 1000) / 1000),
+        })),
+      )
+      if (usable.length < sourceLines.length) toast.warning(t.products.copySkippedArchived)
+      else toast.success(t.products.copied)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setCopying(false)
+    }
   }
 
   const save = useMutation({
@@ -150,6 +193,45 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
             <div role="alert" className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2.5 text-sm text-danger">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {error}
+            </div>
+          )}
+
+          {canEdit && copySources.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-border bg-surface-2 p-3">
+              <p className="text-sm font-semibold text-fg">{t.products.copyFromSize}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="input min-w-0 flex-1"
+                  value={copyFrom}
+                  onChange={(e) => setCopyFrom(e.target.value)}
+                  aria-label={t.products.copySource}
+                  disabled={copying}
+                >
+                  {copySources.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="input w-28 shrink-0"
+                  value={copyMultiplier}
+                  onChange={(e) => setCopyMultiplier(Number(e.target.value))}
+                  aria-label={t.products.copyMultiplier}
+                  disabled={copying}
+                >
+                  {COPY_MULTIPLIERS.map((m) => (
+                    <option key={m} value={m}>
+                      ×{m}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="secondary" size="sm" onClick={() => void copyRecipe()} loading={copying} disabled={!copyFrom}>
+                  <Copy className="h-4 w-4" />
+                  {t.products.copyApply}
+                </Button>
+              </div>
+              <p className="text-xs text-muted">{t.products.copyHint}</p>
             </div>
           )}
 
@@ -248,10 +330,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
             <div>
               <dt className="text-xs text-muted">هامش الربح</dt>
               <dd
-                className={cn(
-                  'mt-1 font-semibold tabular-nums',
-                  margin === null ? 'text-muted' : margin < 0 ? 'text-danger' : margin < 30 ? 'text-warning' : 'text-success',
-                )}
+                className={cn('mt-1 font-semibold tabular-nums', marginTone(margin))}
               >
                 {margin === null ? '—' : `${margin.toFixed(0)}%`}
               </dd>

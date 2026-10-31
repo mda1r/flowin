@@ -1,6 +1,7 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Inventory.Application.Common;
+using NexusPOS.Inventory.Domain.Services;
 using NexusPOS.Inventory.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 
@@ -23,7 +24,7 @@ internal sealed class ListRecipeSummariesQueryHandler(InventoryDbContext db)
             .Select(g => new RecipeSummaryResponse(
                 g.Key,
                 g.Count(),
-                Math.Round(g.Sum(x => x.ConversionFactor > 0 ? x.Quantity * x.CurrentCost / x.ConversionFactor : 0m), 4)))
+                RecipeCosting.Total(g.Select(x => RecipeCosting.LineCost(x.Quantity, x.CurrentCost, x.ConversionFactor)))))
             .ToList();
     }
 }
