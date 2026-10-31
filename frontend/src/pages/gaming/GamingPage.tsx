@@ -850,8 +850,10 @@ function StationCard({
     (isWarning || (station.status === 'InUse' && !session)) &&
       'border-danger shadow-md shadow-danger/20 dark:border-danger/60',
     isExpired && 'border-danger animate-pulse',
-    station.status === 'Maintenance' && 'border-border opacity-70',
+    station.status === 'Maintenance' && 'border-border',
   )
+  // A station under maintenance fades its details but keeps the return-to-service button at full strength.
+  const dimmed = station.status === 'Maintenance' && 'opacity-70'
 
   // Status badge
   const statusBadge =
@@ -880,19 +882,19 @@ function StationCard({
         confirmVariant="danger"
       />
       {/* Header row */}
-      <div className="flex items-start justify-between mb-2">
+      <div className={cn('flex items-start justify-between mb-2', dimmed)}>
         <span className="text-2xl">{TYPE_ICON[station.type]}</span>
         {statusBadge}
       </div>
 
       {/* Station name */}
-      <p className="font-bold text-fg text-sm leading-tight">
+      <p className={cn('font-bold text-fg text-sm leading-tight', dimmed)}>
         {station.name}
       </p>
-      <p className="text-xs text-muted mb-1">{TYPE_LABEL[station.type]}</p>
+      <p className={cn('text-xs text-muted mb-1', dimmed)}>{TYPE_LABEL[station.type]}</p>
 
       {/* Rate */}
-      <p className="text-xs font-semibold text-info mb-3">
+      <p className={cn('text-xs font-semibold text-info mb-3', dimmed)}>
         {formatCurrency(station.hourlyRate, station.currency)} / {t.gaming.perHour}
       </p>
 
@@ -946,7 +948,7 @@ function StationCard({
 
       {/* ── Maintenance: spacer ────────────────────────────────────────────── */}
       {station.status === 'Maintenance' && (
-        <div className="flex-1 flex items-center">
+        <div className={cn('flex-1 flex items-center', dimmed)}>
           <p className="text-xs text-muted flex items-center gap-1">
             <Wrench className="h-3 w-3" /> قيد الصيانة
           </p>
