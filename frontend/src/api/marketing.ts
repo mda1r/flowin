@@ -35,6 +35,8 @@ export interface Campaign {
   sent: number
   failed: number
   recipients?: CampaignRecipient[] | null
+  // The page sending right now (its lease is still running), or null.
+  sendingRunnerId?: string | null
 }
 
 export interface WhatsAppSettings {
@@ -45,11 +47,23 @@ export interface WhatsAppSettings {
   languageCode: string
   hasImageHeader: boolean
   includeNameVariable: boolean
+  businessAccountId: string
+  // The approved template's body ({{1}}, {{2}}…) from the last connection check.
+  templateBody?: string | null
 }
 
-export interface WhatsAppSettingsUpdate extends Omit<WhatsAppSettings, 'configured' | 'tokenHint'> {
+export interface WhatsAppSettingsUpdate extends Omit<WhatsAppSettings, 'configured' | 'tokenHint' | 'templateBody'> {
   // Blank keeps the token already saved.
   accessToken?: string
+}
+
+export type WhatsAppCheckStatus = 'Ok' | 'Warning' | 'Failed'
+
+export interface WhatsAppCheck {
+  ok: boolean
+  displayPhoneNumber?: string | null
+  templateBody?: string | null
+  items: { label: string; status: WhatsAppCheckStatus; detail: string }[]
 }
 
 const base = (tenantId: string) => `/api/v1/tenants/${tenantId}/marketing`
@@ -69,8 +83,11 @@ export const marketingApi = {
     data: { message: string; imageId?: string; channel: CampaignChannel; customerIds: string[] },
   ) => apiClient.post<Campaign>(`${base(tenantId)}/campaigns`, data).then((r) => r.data),
 
-  sendBatch: (tenantId: string, id: string) =>
-    apiClient.post<Campaign>(`${base(tenantId)}/campaigns/${id}/send-batch`).then((r) => r.data),
+  sendBatch: (tenantId: string, id: string, runnerId: string) =>
+    apiClient.post<Campaign>(`${base(tenantId)}/campaigns/${id}/send-batch`, { runnerId }).then((r) => r.data),
+
+  releaseSending: (tenantId: string, id: string, runnerId: string) =>
+    apiClient.post<void>(`${base(tenantId)}/campaigns/${id}/release`, { runnerId }).then(() => undefined),
 
   retryFailed: (tenantId: string, id: string) =>
     apiClient.post<Campaign>(`${base(tenantId)}/campaigns/${id}/retry-failed`).then((r) => r.data),
@@ -82,6 +99,22 @@ export const marketingApi = {
 
   updateWhatsApp: (tenantId: string, data: WhatsAppSettingsUpdate) =>
     apiClient.put<WhatsAppSettings>(`${base(tenantId)}/whatsapp`, data).then((r) => r.data),
+
+  checkWhatsApp: (tenantId: string) =>
+    apiClient.post<WhatsAppCheck>(`${base(tenantId)}/whatsapp/check`).then((r) => r.data),
+
+  testWhatsApp: (tenantId: string, data: { phone: string; name?: string; message?: string; imageId?: string }) =>
+    apiClient.post<{ phone: string; messageId?: string | null }>(`${base(tenantId)}/whatsapp/test`, data).then((r) => r.data),
+}
+
+// The offer as it travels inside a template variable: one line, no runs of spaces (same rule as the server).
+export function templateText(text: string) {
+  return text.trim().replace(/\s*[\r\n\t]+\s*/g, ' · ').replace(/ {2,}/g, ' ')
+}
+
+// The template body with its {{n}} variables filled in, as the customer reads it.
+export function fillTemplate(body: string, values: string[]) {
+  return body.replace(/\{\{\s*(\d+)\s*\}\}/g, (match, n: string) => values[Number(n) - 1] ?? match)
 }
 
 // The message as one customer reads it in a chat opened from a link; the image travels as a link under the text.

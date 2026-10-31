@@ -274,6 +274,10 @@ internal static class DatabaseInitializerExtensions
         string[] patches =
         [
             "ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_runner_id UUID NULL",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_lease_until TIMESTAMPTZ NULL",
+            "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS business_account_id VARCHAR(64) NOT NULL DEFAULT ''",
+            "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS template_body VARCHAR(1100) NULL",
         ];
 
         foreach (string sql in patches)

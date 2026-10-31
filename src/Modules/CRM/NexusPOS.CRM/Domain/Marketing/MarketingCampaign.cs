@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using ErrorOr;
 
 namespace NexusPOS.CRM.Domain.Marketing;
@@ -20,6 +21,11 @@ public sealed class MarketingCampaign
 
     // The image uploaded once to WhatsApp for this campaign, reused for every recipient.
     public string? WhatsAppMediaId { get; private set; }
+
+    // Only one page sends a campaign at a time: it holds a short lease, renewed before every message, so two tabs
+    // or devices never pick the same recipients. A tab closed mid-send frees it once the lease runs out.
+    public Guid? SendingRunnerId { get; private set; }
+    public DateTime? SendingLeaseUntil { get; private set; }
 
     public IReadOnlyList<CampaignRecipient> Recipients => _recipients;
 
@@ -71,6 +77,15 @@ public sealed class MarketingCampaign
 
         return campaign;
     }
+
+    public static readonly TimeSpan SendingLease = TimeSpan.FromSeconds(90);
+
+    // The rule the database applies when a page asks to send: the lease is free, ran out, or already its own.
+    public static Expression<Func<MarketingCampaign, bool>> ClaimableBy(Guid runnerId, DateTime now) =>
+        c => c.SendingLeaseUntil == null || c.SendingLeaseUntil < now || c.SendingRunnerId == runnerId;
+
+    // The page currently sending, if its lease is still running.
+    public Guid? ActiveRunner(DateTime now) => SendingLeaseUntil > now ? SendingRunnerId : null;
 
     public void UseWhatsAppMedia(string mediaId) => WhatsAppMediaId = mediaId;
 

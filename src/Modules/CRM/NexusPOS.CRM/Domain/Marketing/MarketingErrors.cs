@@ -20,6 +20,14 @@ public static class MarketingErrors
         "Marketing.ApiNotConfigured", "أكمل إعدادات واتساب للأعمال أولاً (رقم الهاتف والتوكن والقالب).");
     public static readonly Error ImageRequiredByTemplate = Error.Validation(
         "Marketing.ImageRequiredByTemplate", "قالب واتساب المعتمد يتطلب صورة، أضف صورة للحملة.");
+    public static readonly Error SendingElsewhere = Error.Conflict(
+        "Marketing.SendingElsewhere", "الحملة تُرسل الآن من جهاز أو نافذة أخرى. إن أُغلقت فستتاح خلال دقيقة ونصف.");
+    public static readonly Error InvalidTestPhone = Error.Validation(
+        "Marketing.InvalidTestPhone", "اكتب رقم جوال صحيحاً للتجربة، مثل 05XXXXXXXX.");
     public static readonly Error WrongChannel = Error.Validation(
         "Marketing.WrongChannel", "هذا الإجراء لا يناسب طريقة إرسال الحملة.");
+
+    // Something every recipient would hit (token, template, payment, connection): sending stops, nobody is lost.
+    public static Error SendStopped(string? reason) =>
+        Error.Failure("Marketing.SendStopped", string.IsNullOrWhiteSpace(reason) ? "توقف الإرسال، حاول مرة أخرى." : reason);
 }

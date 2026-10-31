@@ -18,6 +18,8 @@ internal sealed class MarketingCampaignConfiguration : IEntityTypeConfiguration<
         builder.Property(c => c.CreatedByUserId).HasColumnName("created_by_user_id");
         builder.Property(c => c.CreatedAt).HasColumnName("created_at");
         builder.Property(c => c.WhatsAppMediaId).HasColumnName("whatsapp_media_id").HasMaxLength(128);
+        builder.Property(c => c.SendingRunnerId).HasColumnName("sending_runner_id");
+        builder.Property(c => c.SendingLeaseUntil).HasColumnName("sending_lease_until");
         builder.HasMany(c => c.Recipients).WithOne().HasForeignKey(r => r.CampaignId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(c => c.Recipients).HasField("_recipients").UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.HasIndex(c => new { c.TenantId, c.CreatedAt }).HasDatabaseName("ix_marketing_campaigns_tenant_created");
@@ -71,6 +73,8 @@ internal sealed class WhatsAppSettingsConfiguration : IEntityTypeConfiguration<W
         builder.Property(s => s.LanguageCode).HasColumnName("language_code").HasMaxLength(16);
         builder.Property(s => s.HasImageHeader).HasColumnName("has_image_header");
         builder.Property(s => s.IncludeNameVariable).HasColumnName("include_name_variable");
+        builder.Property(s => s.BusinessAccountId).HasColumnName("business_account_id").HasMaxLength(64);
+        builder.Property(s => s.TemplateBody).HasColumnName("template_body").HasMaxLength(1100);
         builder.Property(s => s.UpdatedAt).HasColumnName("updated_at");
         builder.Ignore(s => s.IsConfigured);
         builder.Ignore(s => s.TokenHint);
