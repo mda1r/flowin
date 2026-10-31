@@ -1,5 +1,4 @@
 using ErrorOr;
-using Microsoft.EntityFrameworkCore;
 using NexusPOS.POS.Application.Commands.OpenShift;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain;
@@ -24,44 +23,28 @@ internal sealed class CloseShiftCommandHandler(
         CashierShift? shift = await shiftRepository.FindByIdAsync(
             new CashierShiftId(request.ShiftId), cancellationToken);
 
-        if (shift is null || shift.BranchId != request.BranchId || shift.UserId != request.UserId)
+        if (shift is null || shift.BranchId != request.BranchId
+            || (!request.ClosedByManager && shift.UserId != request.UserId))
         {
             return PosErrors.ShiftNotFound;
         }
 
-        // Calculate totals from completed orders during this shift's time range
-        List<Order> orders = await dbContext.Orders
-            .Where(o => o.BranchId == request.BranchId
-                     && o.Status == OrderStatus.Completed
-                     && o.CompletedAt >= shift.OpenedAt)
-            .ToListAsync(cancellationToken);
+        if (shift.Status != ShiftStatus.Open)
+        {
+            return PosErrors.ShiftNotOpen;
+        }
 
-        decimal totalSales = orders.Sum(o => o.TotalAmount);
-        // Split payments count their cash and card portions; leaving them out understated expected cash.
-        decimal totalCashSales = orders.Sum(o => o.PaymentMethod switch
-        {
-            PaymentMethod.Cash => o.TotalAmount,
-            PaymentMethod.Split => o.SplitCash ?? 0m,
-            _ => 0m,
-        });
-        decimal totalCardSales = orders.Sum(o => o.PaymentMethod switch
-        {
-            PaymentMethod.Card => o.TotalAmount,
-            PaymentMethod.Split => o.SplitCard ?? 0m,
-            _ => 0m,
-        });
-        decimal totalTax = orders.Sum(o => o.TaxAmount);
-        int totalOrders = orders.Count;
+        ShiftTotals totals = await ShiftTotalsReader.ReadAsync(dbContext, shift, cancellationToken);
+
+        // A manager closing their own shift is an ordinary close; only someone else's is marked.
+        string? closedBy = request.ClosedByManager && shift.UserId != request.UserId ? request.ClosedByName : null;
 
         ErrorOr<Success> result = shift.Close(
             request.ClosingCash,
             request.ClosingCardCount,
-            totalSales,
-            totalCashSales,
-            totalCardSales,
-            totalTax,
-            totalOrders,
-            request.Notes);
+            totals,
+            request.Notes,
+            closedBy);
 
         if (result.IsError)
         {

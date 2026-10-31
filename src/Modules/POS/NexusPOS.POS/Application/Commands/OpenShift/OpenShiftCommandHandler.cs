@@ -3,6 +3,7 @@ using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Repositories;
+using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 
@@ -42,5 +43,19 @@ internal sealed class OpenShiftCommandHandler(
         s.OpeningCash, s.ClosingCash,
         s.TotalSales, s.TotalCashSales, s.TotalCardSales, s.TotalTax, s.TotalOrders,
         s.ExpectedCash, s.CashVariance, s.ClosingCardCount, s.CardVariance,
-        s.Notes, s.OpenedAt, s.ClosedAt);
+        s.Notes, s.OpenedAt, s.ClosedAt,
+        s.TotalDigitalSales, s.TotalCashRefunds, s.ClosedByName);
+
+    // An open shift's stored totals stay zero until it closes, so its live figures are passed in.
+    internal static ShiftResponse ToResponse(CashierShift s, ShiftTotals live) => ToResponse(s) with
+    {
+        TotalSales = live.TotalSales,
+        TotalCashSales = live.CashSales,
+        TotalCardSales = live.CardSales,
+        TotalDigitalSales = live.DigitalSales,
+        TotalCashRefunds = live.CashRefunds,
+        TotalTax = live.Tax,
+        TotalOrders = live.Orders,
+        ExpectedCash = s.ExpectedCashFor(live),
+    };
 }

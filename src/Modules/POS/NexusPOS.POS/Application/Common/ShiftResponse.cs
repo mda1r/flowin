@@ -21,4 +21,7 @@ public sealed record ShiftResponse(
     decimal? CardVariance,
     string? Notes,
     DateTime OpenedAt,
-    DateTime? ClosedAt);
+    DateTime? ClosedAt,
+    decimal TotalDigitalSales,
+    decimal TotalCashRefunds,
+    string? ClosedByName);

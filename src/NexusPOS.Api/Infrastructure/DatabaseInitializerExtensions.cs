@@ -242,6 +242,11 @@ internal static class DatabaseInitializerExtensions
         [
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS closing_card_count NUMERIC(18,4)",
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS card_variance NUMERIC(18,4)",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_digital_sales NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_cash_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS closed_by_name VARCHAR(200)",
+            // Shifts closed before the digital bucket existed kept digital sales only inside total_sales.
+            "UPDATE cashier_shifts SET total_digital_sales = total_sales - total_cash_sales - total_card_sales WHERE status = 2 AND total_digital_sales = 0 AND total_sales > total_cash_sales + total_card_sales",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cash_amount NUMERIC(18,4)",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_amount NUMERIC(18,4)",
             "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS cost_price NUMERIC(18,4) NOT NULL DEFAULT 0",

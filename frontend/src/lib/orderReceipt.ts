@@ -6,6 +6,7 @@ const r2 = (v: number) => Math.round(v * 100) / 100
 const PAYMENT_LABEL: Record<string, string> = {
   Cash: 'نقداً',
   Card: 'بطاقة',
+  Digital: 'دفع رقمي',
   Split: 'تقسيم (نقد + بطاقة)',
   BankTransfer: 'تحويل بنكي',
   Voucher: 'قسيمة',
