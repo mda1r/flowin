@@ -18,6 +18,10 @@ public sealed class CashierShift : Entity<CashierShiftId>
     public decimal TotalCardSales { get; private set; }
     public decimal TotalTax { get; private set; }
     public int TotalOrders { get; private set; }
+
+    // Money handed back on returns during the shift; cash refunds come out of the drawer's expected cash.
+    public decimal TotalRefunds { get; private set; }
+    public decimal CashRefunds { get; private set; }
     public decimal? ExpectedCash { get; private set; }
     public decimal? CashVariance { get; private set; }
     public decimal? ClosingCardCount { get; private set; }
@@ -50,7 +54,8 @@ public sealed class CashierShift : Entity<CashierShiftId>
         decimal totalCardSales,
         decimal totalTax,
         int totalOrders,
-        string? notes)
+        string? notes,
+        ShiftRefunds? refunds = null)
     {
         if (Status != ShiftStatus.Open)
         {
@@ -62,15 +67,26 @@ public sealed class CashierShift : Entity<CashierShiftId>
         TotalSales = totalSales;
         TotalCashSales = totalCashSales;
         TotalCardSales = totalCardSales;
-        TotalTax = totalTax;
         TotalOrders = totalOrders;
-        ExpectedCash = OpeningCash + totalCashSales;
+        ShiftRefunds r = refunds ?? ShiftRefunds.None;
+        TotalRefunds = r.Total;
+        CashRefunds = r.Cash;
+
+        // Sales stay gross; VAT is what remains due after refunds, and each refund leaves the till it was paid from.
+        TotalTax = totalTax - r.Tax;
+        ExpectedCash = OpeningCash + totalCashSales - r.Cash;
         CashVariance = closingCash - ExpectedCash;
         ClosingCardCount = closingCardCount;
-        CardVariance = closingCardCount - totalCardSales;
+        CardVariance = closingCardCount - (totalCardSales - r.Card);
         Notes = notes?.Trim();
         ClosedAt = DateTime.UtcNow;
 
         return Result.Success;
     }
+}
+
+// Returns refunded during a shift, split by how the money went back.
+public sealed record ShiftRefunds(decimal Total, decimal Cash, decimal Card, decimal Tax)
+{
+    public static readonly ShiftRefunds None = new(0m, 0m, 0m, 0m);
 }

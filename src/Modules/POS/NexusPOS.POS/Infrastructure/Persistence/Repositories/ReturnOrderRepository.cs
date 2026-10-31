@@ -28,5 +28,11 @@ internal sealed class ReturnOrderRepository(PosDbContext dbContext) : IReturnOrd
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
 
+    public async Task<ReturnOrder?> FindByClientReferenceAsync(
+        Guid clientReference, CancellationToken cancellationToken = default) =>
+        await dbContext.ReturnOrders
+            .Include(r => r.Lines)
+            .FirstOrDefaultAsync(r => r.ClientReference == clientReference, cancellationToken);
+
     public void Add(ReturnOrder returnOrder) => dbContext.ReturnOrders.Add(returnOrder);
 }

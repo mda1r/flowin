@@ -147,8 +147,13 @@ export function ShiftReportsPage() {
 }
 
 // An open shift's totals are only written when it closes, so while it runs they come from its invoices.
-function liveTotals(shift: ShiftResponse, orders: OrderResponse[]): ShiftResponse {
+function liveTotals(shift: ShiftResponse, orders: OrderResponse[], returns: ReturnOrderResponse[]): ShiftResponse {
   const cash = orders.reduce((a, o) => a + (o.paymentMethod === 'Cash' ? o.totalAmount : o.paymentMethod === 'Split' ? o.splitCash ?? 0 : 0), 0)
+  // Cash refunds leave the drawer, as the server counts them at close.
+  const opened = new Date(shift.openedAt).getTime()
+  const cashBack = returns
+    .filter((x) => x.refundMethod === 'Cash' && new Date(x.createdAt).getTime() >= opened)
+    .reduce((a, x) => a + x.refundAmount, 0)
   const card = orders.reduce((a, o) => a + (o.paymentMethod === 'Card' ? o.totalAmount : o.paymentMethod === 'Split' ? o.splitCard ?? 0 : 0), 0)
   return {
     ...shift,
@@ -157,7 +162,7 @@ function liveTotals(shift: ShiftResponse, orders: OrderResponse[]): ShiftRespons
     totalCashSales: cash,
     totalCardSales: card,
     totalTax: orders.reduce((a, o) => a + o.taxAmount, 0),
-    expectedCash: shift.openingCash + cash,
+    expectedCash: shift.openingCash + cash - cashBack,
   }
 }
 
@@ -176,7 +181,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
     refetchInterval: isCurrent ? 30_000 : false,
   })
 
-  const shift = isCurrent ? liveTotals(stored, orders) : stored
+  const shift = isCurrent ? liveTotals(stored, orders, returns) : stored
   const r = reconcile(shift)
   const avg = shift.totalOrders ? shift.totalSales / shift.totalOrders : 0
   const cashShare = shift.totalSales ? (shift.totalCashSales / shift.totalSales) * 100 : 0

@@ -259,6 +259,14 @@ internal static class DatabaseInitializerExtensions
             // Number the existing invoices once, in the order they were completed; skipped once any order has a number.
             "UPDATE orders o SET number = s.rn FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY COALESCE(completed_at, created_at), id) AS rn FROM orders WHERE status IN (2, 4)) s WHERE o.id = s.id AND NOT EXISTS (SELECT 1 FROM orders x WHERE x.number IS NOT NULL)",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_number ON orders (number) WHERE number IS NOT NULL",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS created_by_user_id UUID",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS created_by_name VARCHAR(200)",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS shift_id UUID",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS note VARCHAR(500)",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS client_reference UUID",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_return_orders_client_reference ON return_orders (client_reference) WHERE client_reference IS NOT NULL",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS cash_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
         ];
 
         foreach (string sql in patches)

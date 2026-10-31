@@ -19,6 +19,7 @@ using NexusPOS.POS.Application.Queries.ListReturns;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Presentation.Requests;
 using NexusPOS.SharedKernel.Application;
+using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
 
@@ -194,8 +195,9 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    /// <summary>Process a return for a completed order.</summary>
+    /// <summary>Process a return for a completed order; refunds are for owners and managers only.</summary>
     [HttpPost("{orderId:guid}/return")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ReturnOrderResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -209,8 +211,12 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             orderId,
             branchId,
             request.RefundMethod,
-            request.Lines.Select(l => new ReturnOrderLineInput(l.LineId, l.Quantity, l.Reason)).ToList(),
-            request.RestockItems);
+            [.. (request.Lines ?? []).Select(l => new ReturnOrderLineInput(l.LineId, l.Quantity, l.Reason))],
+            request.RestockItems,
+            Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId) ? userId : null,
+            CurrentUserName,
+            request.Note,
+            request.ClientReference);
 
         ErrorOr<ReturnOrderResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -246,6 +252,15 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
+    }
+
+    private string? CurrentUserName
+    {
+        get
+        {
+            string full = $"{User.FindFirstValue("given_name")} {User.FindFirstValue("family_name")}".Trim();
+            return string.IsNullOrEmpty(full) ? User.FindFirstValue(ClaimTypes.Email) : full;
+        }
     }
 
     private IActionResult MapErrorsToResult(List<Error> errors)

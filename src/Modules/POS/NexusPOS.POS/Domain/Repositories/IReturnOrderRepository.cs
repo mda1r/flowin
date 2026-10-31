@@ -8,5 +8,6 @@ public interface IReturnOrderRepository
     Task<ReturnOrder?> FindByIdAsync(ReturnOrderId id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ReturnOrder>> FindByOriginalOrderAsync(Guid originalOrderId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ReturnOrder>> FindByBranchAsync(Guid branchId, CancellationToken cancellationToken = default);
+    Task<ReturnOrder?> FindByClientReferenceAsync(Guid clientReference, CancellationToken cancellationToken = default);
     void Add(ReturnOrder returnOrder);
 }
