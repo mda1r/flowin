@@ -22,6 +22,18 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
     private Guid CurrentTenantId =>
         Guid.TryParse(User.FindFirstValue("tenant_id"), out Guid id) ? id : Guid.Empty;
 
+    /// <summary>ما يتاح للمستخدم الحالي: المساعد الذكي (للمالك والمدير فقط) وكاشير AI</summary>
+    [HttpGet("available")]
+    [ProducesResponseType(typeof(AiAvailabilityResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Available(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
+        bool canSeeFinances = User.IsInRole("Owner") || User.IsInRole("Manager");
+        return Ok(new AiAvailabilityResponse(
+            Assistant: canSeeFinances && features.Contains("ai"),
+            Cashier: features.Contains("ai_cashier")));
+    }
+
     /// <summary>التحقق من توفر كاشير AI للمستأجر الحالي</summary>
     [HttpGet("cashier/available")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -52,15 +64,17 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
 
         var command = new AiCashierCommand(
             branchId,
-            request.Messages.Select(m => new ClaudeMessage(m.Role, m.Content)).ToList());
+            (request.Messages ?? []).Select(m => new ClaudeMessage(m.Role, m.Content)).ToList(),
+            (request.Cart ?? []).Select(l => new AiCashierCartLine(l.VariantId, l.Name, l.Quantity, l.LineTotal)).ToList(),
+            request.CartTotal);
 
         ErrorOr<AiCashierResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 
-
     /// <summary>مساعد الذكاء الاصطناعي - محادثة</summary>
     [HttpPost("chat")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
     public async Task<IActionResult> Chat(
@@ -81,6 +95,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
 
     /// <summary>رؤى الذكاء الاصطناعي عن المبيعات</summary>
     [HttpGet("insights")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(AiInsightsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
     public async Task<IActionResult> GetInsights(
@@ -109,3 +124,5 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
     }
 }
+
+public sealed record AiAvailabilityResponse(bool Assistant, bool Cashier);

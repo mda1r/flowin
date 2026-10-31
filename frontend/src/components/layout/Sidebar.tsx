@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { aiCashierApi } from '@/api/aiCashier'
+import { aiApi } from '@/api/ai'
 import { Link, useRouterState, useRouter } from '@tanstack/react-router'
 import {
   LayoutDashboard,
@@ -177,12 +177,15 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const router = useRouter()
   const [aiOpen, setAiOpen] = useState(false)
 
+  // The assistant reads owner-level finances, so cashiers never get it (the server enforces this too).
+  const canUseAssistant = user?.role === 'Owner' || user?.role === 'Manager'
   const { data: aiFeature } = useQuery({
-    queryKey: ['ai-available', branchId],
-    queryFn: () => (branchId ? aiCashierApi.isAvailable(branchId) : Promise.resolve({ available: false })),
-    enabled: !!branchId,
+    queryKey: ['ai-assistant-available', branchId, user?.id],
+    queryFn: () => aiApi.available(branchId!),
+    enabled: !!branchId && canUseAssistant,
+    staleTime: 1000 * 60 * 10,
   })
-  const aiAvailable = aiFeature?.available ?? false
+  const aiAvailable = canUseAssistant && (aiFeature?.assistant ?? false)
 
   const navItems = getNavItems(user?.businessType, user?.role, user?.id, tenantId ?? undefined)
 

@@ -1,23 +1,45 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NexusPOS.SharedKernel.Application.Services;
 
 namespace NexusPOS.Sales.Infrastructure.Services;
 
-internal sealed class ClaudeApiService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+internal sealed class ClaudeApiService(
+    IHttpClientFactory httpClientFactory,
+    IConfiguration configuration,
+    ILogger<ClaudeApiService> logger)
     : IClaudeApiService
 {
     private const string AnthropicApiUrl = "https://api.anthropic.com/v1/messages";
     private const string ModelId = "claude-haiku-4-5-20251001";
 
-    public async Task<string> ChatAsync(string systemPrompt, string userMessage, CancellationToken ct = default)
+    // Short replies shown to the user; the real cause goes to the log only.
+    internal const string NotConfiguredReply = "المساعد الذكي غير مفعّل على الخادم بعد. تواصل مع الدعم لتفعيله.";
+    internal const string UnavailableReply = "تعذّر الوصول إلى المساعد الآن، حاول بعد قليل.";
+    internal const string EmptyReply = "لم يصل رد من المساعد، حاول مرة أخرى.";
+
+    public Task<string> ChatAsync(string systemPrompt, string userMessage, CancellationToken ct = default) =>
+        SendAsync(systemPrompt, [new ClaudeMessage("user", userMessage)], ct);
+
+    public Task<string> ChatWithHistoryAsync(
+        string systemPrompt,
+        IReadOnlyList<ClaudeMessage> messages,
+        CancellationToken ct = default) =>
+        SendAsync(systemPrompt, messages, ct);
+
+    private async Task<string> SendAsync(
+        string systemPrompt,
+        IReadOnlyList<ClaudeMessage> messages,
+        CancellationToken ct)
     {
         string apiKey = configuration["Anthropic:ApiKey"] ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            return "AI assistant is not configured. Please set the Anthropic:ApiKey in configuration.";
+            logger.LogWarning("Claude request skipped: Anthropic:ApiKey is not configured");
+            return NotConfiguredReply;
         }
 
         using HttpClient client = httpClientFactory.CreateClient();
@@ -29,67 +51,35 @@ internal sealed class ClaudeApiService(IHttpClientFactory httpClientFactory, ICo
             model = ModelId,
             max_tokens = 1024,
             system = systemPrompt,
-            messages = new[] { new { role = "user", content = userMessage } },
-        };
-
-        try
-        {
-            HttpResponseMessage response = await client.PostAsJsonAsync(AnthropicApiUrl, payload, ct);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                string errorBody = await response.Content.ReadAsStringAsync(ct);
-                return $"خطأ في الاتصال بالمساعد (كود {(int)response.StatusCode}). تفاصيل: {errorBody[..Math.Min(errorBody.Length, 200)]}";
-            }
-
-            AnthropicResponse? result = await response.Content.ReadFromJsonAsync<AnthropicResponse>(ct);
-            return result?.Content?[0]?.Text ?? "لم يتم استلام رد من المساعد.";
-        }
-        catch (Exception ex)
-        {
-            return $"خطأ في الاتصال: {ex.Message[..Math.Min(ex.Message.Length, 150)]}";
-        }
-    }
-
-    public async Task<string> ChatWithHistoryAsync(
-        string systemPrompt,
-        IReadOnlyList<ClaudeMessage> messages,
-        CancellationToken ct = default)
-    {
-        string apiKey = configuration["Anthropic:ApiKey"] ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            return """{"message":"AI غير مكوّن. يرجى الإعداد.","actions":[],"state":"error"}""";
-        }
-
-        using HttpClient client = httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Add("x-api-key", apiKey);
-        client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-
-        var payload = new
-        {
-            model = ModelId,
-            max_tokens = 512,
-            system = systemPrompt,
             messages = messages.Select(m => new { role = m.Role, content = m.Content }).ToArray(),
         };
 
         try
         {
-            HttpResponseMessage response = await client.PostAsJsonAsync(AnthropicApiUrl, payload, ct);
+            using HttpResponseMessage response = await client.PostAsJsonAsync(AnthropicApiUrl, payload, ct);
 
             if (!response.IsSuccessStatusCode)
             {
-                return """{"message":"عذراً، حدث خطأ في الاتصال. هل تودّ تكرار طلبك؟","actions":[],"state":"taking_order"}""";
+                string errorBody = await response.Content.ReadAsStringAsync(ct);
+                logger.LogError(
+                    "Claude API returned {StatusCode}: {ErrorBody}",
+                    (int)response.StatusCode,
+                    errorBody[..Math.Min(errorBody.Length, 1000)]);
+                return UnavailableReply;
             }
 
             AnthropicResponse? result = await response.Content.ReadFromJsonAsync<AnthropicResponse>(ct);
-            return result?.Content?[0]?.Text ?? """{"message":"لم يتم استلام رد.","actions":[],"state":"taking_order"}""";
+            string? text = result?.Content?.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Text))?.Text;
+            return string.IsNullOrWhiteSpace(text) ? EmptyReply : text;
         }
-        catch
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            return """{"message":"عذراً، حدث خطأ. هل تودّ تكرار طلبك؟","actions":[],"state":"taking_order"}""";
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Claude API call failed");
+            return UnavailableReply;
         }
     }
 

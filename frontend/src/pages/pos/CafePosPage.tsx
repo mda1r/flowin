@@ -15,8 +15,8 @@ import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { pushKitchenTicket } from '@/lib/cafeKitchen'
 import { restaurantApi } from '@/api/restaurant'
-import { aiCashierApi } from '@/api/aiCashier'
-import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
+import { aiCashierApi, type AiCashierCartSnapshot } from '@/api/aiCashier'
+import { AiCashierAgent, type AiCartResult } from '@/components/cafe/AiCashierAgent'
 import { gamingApi } from '@/api/gaming'
 import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
@@ -500,31 +500,60 @@ export function CafePosPage() {
     })
   }
 
-  const addVariantById = useCallback((variantId: string, qty: number, notes: string) => {
-    for (const product of allProducts) {
-      const variant = product.variants.find((v) => v.id === variantId)
-      if (variant) {
-        if (product.trackInventory) {
-          const available = stockMap[variantId]
-          if (available !== undefined) {
-            const inCart = cartQty(variantId)
-            if (inCart + qty > available) {
-              toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
-              return
-            }
-          }
-        }
-        setCart((prev) => {
-          const existing = prev.find((i) => i.variantId === variantId)
-          if (existing) {
-            return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + qty, notes: notes || i.notes } : i)
-          }
-          return [...prev, { variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: notes ?? '' }]
-        })
-        break
-      }
+  // ── AI cashier cart ops ─────────────────────────────────────────────────────
+  // One AI reply can carry several actions in the same tick, so these work on a ref
+  // that is updated immediately instead of waiting for the next render.
+  const aiCartRef = useRef<CafeCartItem[]>(cart)
+  aiCartRef.current = cart
+  const commitAiCart = (next: CafeCartItem[]) => {
+    aiCartRef.current = next
+    setCart(next)
+  }
+
+  const aiStockAllows = (variantId: string, trackInventory: boolean, qty: number): boolean => {
+    if (!trackInventory) return true
+    const available = stockMap[variantId]
+    if (available === undefined || qty <= available) return true
+    toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+    return false
+  }
+
+  const addVariantById = (variantId: string, qty: number, notes: string): AiCartResult => {
+    const product = allProducts.find((p) => p.variants.some((v) => v.id === variantId))
+    const variant = product?.variants.find((v) => v.id === variantId)
+    if (!product || !variant) return 'not_found'
+    const current = aiCartRef.current
+    const existing = current.find((i) => i.variantId === variantId)
+    if (!aiStockAllows(variantId, product.trackInventory, (existing?.quantity ?? 0) + qty)) return 'out_of_stock'
+    commitAiCart(existing
+      ? current.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + qty, notes: notes || i.notes } : i)
+      : [...current, { variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: notes ?? '' }])
+    return 'ok'
+  }
+
+  const setVariantQtyById = (variantId: string, qty: number): AiCartResult => {
+    const current = aiCartRef.current
+    if (!current.some((i) => i.variantId === variantId)) return 'not_in_cart'
+    if (qty <= 0) {
+      commitAiCart(current.filter((i) => i.variantId !== variantId))
+      return 'ok'
     }
-  }, [allProducts, stockMap, cartQty])
+    if (!aiStockAllows(variantId, trackMap[variantId] ?? false, qty)) return 'out_of_stock'
+    commitAiCart(current.map((i) => i.variantId === variantId ? { ...i, quantity: qty } : i))
+    return 'ok'
+  }
+
+  const removeVariantById = (variantId: string): AiCartResult => setVariantQtyById(variantId, 0)
+
+  const getAiCartSnapshot = (): AiCashierCartSnapshot => {
+    const lines = aiCartRef.current.map((i) => ({
+      variantId: i.variantId,
+      name: i.variantName && i.variantName !== i.productName ? `${i.productName} - ${i.variantName}` : i.productName,
+      quantity: i.quantity,
+      lineTotal: Math.round(i.unitPrice * i.quantity * 100) / 100,
+    }))
+    return { lines, total: Math.round(lines.reduce((s, l) => s + l.lineTotal, 0) * 100) / 100 }
+  }
 
   const updateQty = (variantId: string, delta: number) => {
     if (delta > 0 && !canAddMore(variantId)) {
@@ -713,7 +742,10 @@ export function CafePosPage() {
   const aiCheckout = useMutation({
     mutationFn: async (paymentMethod: 'Cash' | 'Card') => {
       if (!branchId || !tenantId) throw new Error('no-branch')
+      // The AI may add items and pay in the same reply, so read the cart the AI just wrote.
+      const cart = aiCartRef.current
       if (cart.length === 0) throw new Error('empty')
+      const cartTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
       const preTaxRate = 1 + SAUDI_VAT_RATE
       const orderRes = await ordersApi.createOrder(branchId, { tenantId, currency: 'SAR', taxRate: SAUDI_VAT_RATE })
       const orderId = orderRes.data.id
@@ -730,9 +762,9 @@ export function CafePosPage() {
         ),
       )
       await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: cartTotal })
-      return orderId
+      return { orderId, cart, cartTotal }
     },
-    onSuccess: (orderId) => {
+    onSuccess: ({ orderId, cart, cartTotal }) => {
       if (tenantId) {
         pushKitchenTicket(tenantId, {
           ticketNumber: ticketCounter,
@@ -1722,7 +1754,10 @@ export function CafePosPage() {
         <AiCashierAgent
           branchId={branchId}
           allProducts={allProducts}
+          getCart={getAiCartSnapshot}
           onAddVariant={addVariantById}
+          onSetQuantity={setVariantQtyById}
+          onRemoveVariant={removeVariantById}
           onCompleteOrder={handleAiCompleteOrder}
           onDeactivate={() => setAiCashierActive(false)}
         />

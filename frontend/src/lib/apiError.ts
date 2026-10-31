@@ -12,11 +12,13 @@ const CODE_MESSAGES: Record<string, string> = {
 export function apiErrorMessage(err: unknown, fallback = 'حدث خطأ، حاول مرة أخرى'): string {
   if (!isAxiosError(err)) return fallback
   if (!err.response) return 'تعذّر الاتصال بالخادم، تحقق من الإنترنت'
-  const data = err.response.data as { title?: string; detail?: string; errors?: Record<string, string[]> } | undefined
+  const data = err.response.data as { title?: string; detail?: string; message?: string; errors?: Record<string, string[]> } | undefined
   if (data?.title && CODE_MESSAGES[data.title]) return CODE_MESSAGES[data.title]
   const firstValidation = data?.errors ? Object.values(data.errors).flat()[0] : undefined
   if (firstValidation) return firstValidation
   if (data?.detail) return data.detail
+  // { code, message } bodies, e.g. 402 feature_not_available
+  if (data?.message) return data.message
   if (err.response.status === 403) return 'ليس لديك صلاحية لهذا الإجراء'
   if (err.response.status === 409) return 'السجل موجود مسبقاً'
   return data?.title ?? fallback

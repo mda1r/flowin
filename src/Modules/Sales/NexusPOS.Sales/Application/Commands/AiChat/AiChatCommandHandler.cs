@@ -34,6 +34,9 @@ internal sealed class AiChatCommandHandler(
         - إذا سُئلت عن شيء غير متوفر في البيانات، قل ذلك بجملة واحدة
         """;
 
+    internal const int MaxHistoryTurns = 8;
+    internal const int MaxTurnLength = 2000;
+
     public async Task<ErrorOr<string>> Handle(AiChatCommand request, CancellationToken cancellationToken)
     {
         string context;
@@ -46,10 +49,50 @@ internal sealed class AiChatCommandHandler(
             context = "لا توجد بيانات متاحة حالياً.";
         }
 
-        string fullMessage = $"{context}\n\nسؤال المستخدم: {request.Message}";
+        // The store data goes in the system prompt once, so follow-up questions
+        // ("and yesterday?") keep both the data and the earlier turns.
+        string systemPrompt = $"{SystemPrompt}\n\n{context}";
+        IReadOnlyList<ClaudeMessage> conversation = BuildConversation(request.History, request.Message);
 
-        string response = await claude.ChatAsync(SystemPrompt, fullMessage, cancellationToken);
+        string response = await claude.ChatWithHistoryAsync(systemPrompt, conversation, cancellationToken);
         return response;
+    }
+
+    // Turns the client history into alternating user/assistant turns ending with the new question.
+    // Only the last few turns are kept, each capped, and the conversation always starts with a user turn.
+    internal static IReadOnlyList<ClaudeMessage> BuildConversation(
+        IReadOnlyList<AiChatMessage>? history,
+        string question)
+    {
+        var turns = (history ?? [])
+            .Where(m => m is not null
+                     && !string.IsNullOrWhiteSpace(m.Content)
+                     && (m.Role is "user" or "assistant"))
+            .TakeLast(MaxHistoryTurns)
+            .Select(m => new ClaudeMessage(m.Role, Cap(m.Content)))
+            .Append(new ClaudeMessage("user", Cap(question)))
+            .SkipWhile(m => m.Role != "user");
+
+        var merged = new List<ClaudeMessage>();
+        foreach (ClaudeMessage turn in turns)
+        {
+            if (merged.Count > 0 && merged[^1].Role == turn.Role)
+            {
+                merged[^1] = merged[^1] with { Content = $"{merged[^1].Content}\n\n{turn.Content}" };
+            }
+            else
+            {
+                merged.Add(turn);
+            }
+        }
+
+        return merged;
+    }
+
+    private static string Cap(string text)
+    {
+        string trimmed = text.Trim();
+        return trimmed.Length <= MaxTurnLength ? trimmed : trimmed[..MaxTurnLength];
     }
 
     private async Task<string> BuildContextAsync(Guid branchId, CancellationToken ct)
