@@ -3,6 +3,8 @@ import { Mic, MicOff, X, Volume2, Loader2 } from 'lucide-react'
 import { aiCashierApi, type AiCashierMessage } from '@/api/aiCashier'
 import type { ProductResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
+import { OverlayDialog } from '@/components/ui/Modal'
+import { useI18n } from '@/i18n'
 
 interface AiCashierAgentProps {
   branchId: string
@@ -25,6 +27,7 @@ export function AiCashierAgent({
   onCompleteOrder,
   onDeactivate,
 }: AiCashierAgentProps) {
+  const { t } = useI18n()
   const [sessionStarted, setSessionStarted] = useState(false)
   const [messages, setMessages] = useState<AiCashierMessage[]>([])
   const [displayMessages, setDisplayMessages] = useState<DisplayMessage[]>([])
@@ -163,12 +166,14 @@ export function AiCashierAgent({
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onDeactivate} />
-
-      {/* Panel */}
-      <div className="relative flex h-[90dvh] w-full max-w-sm flex-col overflow-hidden rounded-3xl bg-bg shadow-2xl ring-1 ring-info/40">
+    <OverlayDialog
+      onClose={onDeactivate}
+      labelledBy="ai-cashier-title"
+      backdropClassName="bg-black/60 backdrop-blur-sm"
+      panelClassName="h-[90dvh] overflow-hidden rounded-3xl bg-bg shadow-2xl ring-1 ring-info/40"
+    >
+      {/* the agent talks Arabic only, so its panel stays right-to-left */}
+      <div className="flex h-full flex-col" dir="rtl">
         {/* Header */}
         <div className="flex items-center justify-between bg-gradient-to-l from-info/20 to-info/10 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -176,14 +181,16 @@ export function AiCashierAgent({
               س
             </div>
             <div>
-              <p className="text-sm font-bold text-info">سعد — كاشير AI</p>
+              <p id="ai-cashier-title" className="text-sm font-bold text-info">سعد — كاشير AI</p>
               <p className="text-xs text-muted">
                 {isListening ? 'يستمع...' : isSpeaking ? 'يتكلم...' : isLoading ? 'يفكر...' : 'جاهز'}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onDeactivate}
+            aria-label={t.common.close}
             className="rounded-full p-2 text-muted transition-colors hover:bg-white/10 hover:text-white"
           >
             <X className="h-5 w-5" />
@@ -276,6 +283,6 @@ export function AiCashierAgent({
           </div>
         )}
       </div>
-    </div>
+    </OverlayDialog>
   )
 }

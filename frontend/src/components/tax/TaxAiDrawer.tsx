@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { X, Send, Loader2, Sparkles, Bot, FileText, AlertTriangle, Calculator, RefreshCw } from 'lucide-react'
 import { taxApi } from '@/api/tax'
+import { OverlayDialog } from '@/components/ui/Modal'
+import { useI18n } from '@/i18n'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -44,6 +46,7 @@ interface TaxAiDrawerProps {
 }
 
 export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
+  const { t } = useI18n()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -90,14 +93,16 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-
-      <div
-        className="relative flex h-full w-full max-w-md flex-col border-l shadow-2xl"
-        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-        dir="rtl"
-      >
+    <OverlayDialog
+      onClose={onClose}
+      labelledBy="tax-ai-title"
+      className="justify-end p-0"
+      backdropClassName="bg-black/30"
+      panelClassName="h-full max-w-md overflow-hidden border-s shadow-2xl"
+      panelStyle={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+    >
+      {/* the advisor answers in Arabic only, so its panel stays right-to-left */}
+      <div className="flex h-full flex-col" dir="rtl">
         {/* Header */}
         <div
           className="flex shrink-0 items-center justify-between border-b px-4 py-3"
@@ -111,12 +116,14 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>ضريبي</p>
+              <p id="tax-ai-title" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>ضريبي</p>
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>المستشار الضريبي الذكي</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label={t.common.close}
             className="rounded-lg p-1.5 transition-colors hover:bg-black/10"
           >
             <X className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
@@ -217,6 +224,6 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
           </p>
         </div>
       </div>
-    </div>
+    </OverlayDialog>
   )
 }
