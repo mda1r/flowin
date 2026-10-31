@@ -14,7 +14,9 @@ internal static class PurchasingMapper
         supplier.IsActive,
         supplier.CreatedAt);
 
-    internal static PurchaseOrderResponse ToResponse(PurchaseOrder order) => new(
+    internal static PurchaseOrderResponse ToResponse(PurchaseOrder order) => ToResponse(order, null);
+
+    internal static PurchaseOrderResponse ToResponse(PurchaseOrder order, string? supplierName) => new(
         order.Id.Value,
         order.TenantId,
         order.BranchId,
@@ -34,5 +36,6 @@ internal static class PurchasingMapper
             l.ReceivedQuantity,
             l.LineTotal,
             l.IsFullyReceived,
-            l.StockMaterialId)).ToList());
+            l.StockMaterialId)).ToList(),
+        supplierName);
 }

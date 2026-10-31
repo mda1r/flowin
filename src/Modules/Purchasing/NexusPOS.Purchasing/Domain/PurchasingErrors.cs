@@ -37,6 +37,12 @@ public static class PurchasingErrors
     public static readonly Error PurchaseOrderNotReceived =
         Error.Validation("Purchasing.PurchaseOrderNotReceived", "Purchase order has not been received yet.");
 
+    public static readonly Error SupplierInactive =
+        Error.Validation("Purchasing.SupplierInactive", "This supplier is inactive. Reactivate it before placing new orders.");
+
+    public static readonly Error LineItemRequired =
+        Error.Validation("Purchasing.LineItemRequired", "Specify exactly one of VariantId or StockMaterialId.");
+
     public static readonly Error StockMaterialNotFound =
         Error.Validation("Purchasing.StockMaterialNotFound", "المادة الخام غير موجودة في متجرك.");
 }

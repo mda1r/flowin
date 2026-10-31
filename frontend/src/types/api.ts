@@ -327,6 +327,7 @@ export interface PurchaseOrderResponse {
   createdAt: string
   receivedAt?: string
   lines: PurchaseOrderLineResponse[]
+  supplierName?: string | null
 }
 
 // ── CRM ──────────────────────────────────────────────────────────────────────

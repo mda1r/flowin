@@ -34,9 +34,14 @@ internal sealed class AddPurchaseOrderLineCommandHandler(
             return PurchasingErrors.StockMaterialNotFound;
         }
 
-        ErrorOr<PurchaseOrderLine> lineResult = request.StockMaterialId is Guid materialId
-            ? order.AddMaterialLine(materialId, request.Description, request.UnitCost, request.Quantity)
-            : order.AddLine(request.VariantId!.Value, request.Description, request.UnitCost, request.Quantity);
+        // The validator requires exactly one item id; this guard keeps a bypassed pipeline from throwing.
+        Guid? requestedVariant = request.VariantId == Guid.Empty ? null : request.VariantId;
+        ErrorOr<PurchaseOrderLine> lineResult = (request.StockMaterialId, requestedVariant) switch
+        {
+            (Guid materialId, null) => order.AddMaterialLine(materialId, request.Description, request.UnitCost, request.Quantity),
+            (null, Guid variantId) => order.AddLine(variantId, request.Description, request.UnitCost, request.Quantity),
+            _ => PurchasingErrors.LineItemRequired,
+        };
 
         if (lineResult.IsError)
         {
