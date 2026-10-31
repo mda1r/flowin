@@ -31,7 +31,7 @@ internal sealed class UpdateVariantCommandHandler(
 
         if (variant is null)
         {
-            return Error.NotFound("Variant.NotFound", "النوع غير موجود");
+            return CatalogErrors.VariantNotFound;
         }
 
         ErrorOr<Money> costResult = Money.Create(request.CostPrice, request.Currency);

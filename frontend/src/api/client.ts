@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import { activeLang } from '@/lib/locale'
 
 export const apiClient = axios.create({
   baseURL: (() => { const u = import.meta.env.VITE_API_BASE_URL || ''; return u.charCodeAt(0) === 0xFEFF ? u.slice(1) : u; })(),
@@ -12,6 +13,8 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // Tells the server the UI language, so its messages can be localised.
+  config.headers['Accept-Language'] = activeLang()
   return config
 })
 
