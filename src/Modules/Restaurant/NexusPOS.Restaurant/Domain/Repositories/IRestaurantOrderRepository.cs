@@ -9,6 +9,18 @@ public interface IRestaurantOrderRepository
 
     Task<IReadOnlyList<RestaurantOrder>> FindActiveByBranchAsync(
         Guid branchId,
+        DateTime since,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RestaurantOrder>> FindKitchenByBranchAsync(
+        Guid branchId,
+        DateTime since,
+        CancellationToken cancellationToken = default);
+
+    // Open restaurant orders of one table, oldest first; cafe kitchen copies are not included.
+    Task<IReadOnlyList<RestaurantOrder>> FindOpenByTableAsync(
+        Guid branchId,
+        int tableNumber,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<RestaurantOrder>> FindByTableAsync(

@@ -15,10 +15,10 @@ internal sealed class SetRecipeCommandHandler(InventoryDbContext db)
     {
         List<Guid> materialIds = request.Lines.Select(l => l.MaterialId).ToList();
         int found = await db.StockMaterials
-            .CountAsync(m => materialIds.Contains(m.Id) && m.TenantId == request.TenantId, cancellationToken);
+            .CountAsync(m => materialIds.Contains(m.Id) && m.TenantId == request.TenantId && m.IsActive, cancellationToken);
         if (found != materialIds.Count)
         {
-            return Error.Validation("Inventory.RecipeMaterialNotFound", "One or more materials were not found.");
+            return Error.Validation("Inventory.RecipeMaterialNotFound", "بعض المواد غير موجودة");
         }
 
         List<RecipeLine> existing = await db.RecipeLines

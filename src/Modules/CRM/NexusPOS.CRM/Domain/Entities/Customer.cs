@@ -39,13 +39,13 @@ public sealed class Customer : AggregateRoot<CustomerId>
             Id = new CustomerId(Guid.NewGuid()),
             TenantId = tenantId,
             Name = name.Trim(),
-            Email = email?.Trim(),
-            Phone = phone?.Trim(),
-            Address = address?.Trim(),
+            Email = Clean(email),
+            Phone = Clean(phone),
+            Address = Clean(address),
             DateOfBirth = dateOfBirth,
             LoyaltyPoints = 0,
             MarketingOptIn = marketingOptIn,
-            Notes = notes?.Trim(),
+            Notes = Clean(notes),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -61,11 +61,11 @@ public sealed class Customer : AggregateRoot<CustomerId>
     {
         MarketingOptIn = marketingOptIn ?? MarketingOptIn;
         Name = name.Trim();
-        Email = email?.Trim();
-        Phone = phone?.Trim();
-        Address = address?.Trim();
+        Email = Clean(email);
+        Phone = Clean(phone);
+        Address = Clean(address);
         DateOfBirth = dateOfBirth;
-        Notes = notes?.Trim();
+        Notes = Clean(notes);
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -98,9 +98,26 @@ public sealed class Customer : AggregateRoot<CustomerId>
         return Result.Success;
     }
 
+    // Takes back points earned on a sale that was refunded, never below zero: points already spent stay spent.
+    // Returns how many were actually taken.
+    public int TakeBackLoyaltyPoints(int points)
+    {
+        int taken = Math.Clamp(points, 0, LoyaltyPoints);
+        if (taken > 0)
+        {
+            LoyaltyPoints -= taken;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        return taken;
+    }
+
     public void Deactivate()
     {
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    // A blank field is no value at all, so two customers without an email never collide on the unique email index.
+    internal static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

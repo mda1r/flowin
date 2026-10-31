@@ -7,6 +7,8 @@ using NexusPOS.Gaming.Application.Commands.EndSessionById;
 using NexusPOS.Gaming.Application.Commands.ExtendSession;
 using NexusPOS.Gaming.Application.Commands.PaySession;
 using NexusPOS.Gaming.Application.Commands.CreateStation;
+using NexusPOS.Gaming.Application.Commands.ReturnToService;
+using NexusPOS.Gaming.Application.Commands.SetMaintenance;
 using NexusPOS.Gaming.Application.Commands.StartSession;
 using NexusPOS.Gaming.Application.Common;
 using NexusPOS.Gaming.Application.Packages;
@@ -16,6 +18,7 @@ using NexusPOS.Gaming.Application.Queries.ListCompletedSessions;
 using NexusPOS.Gaming.Application.Queries.ListStations;
 using NexusPOS.Gaming.Domain.Enums;
 using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Gaming.Presentation;
 
@@ -37,12 +40,13 @@ public sealed class GamingController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        ListStationsQuery query = new(branchId, stationType, status, page, pageSize);
+        ListStationsQuery query = new(branchId, stationType, status, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<GameStationResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
     [HttpPost("stations")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(GameStationResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateStation(
@@ -51,7 +55,7 @@ public sealed class GamingController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken)
     {
         CreateStationCommand command = new(
-            request.TenantId, branchId, request.StationType, request.Name,
+            branchId, request.StationType, request.Name,
             request.HourlyRate, request.Currency);
 
         ErrorOr<GameStationResponse> result = await mediator.Send(command, cancellationToken);
@@ -85,9 +89,30 @@ public sealed class GamingController(ISender mediator) : ControllerBase
     {
         StartSessionCommand command = new(
             stationId, branchId,
-            request.PlayerName, request.DurationMinutes, request.RatePerHour, request.PackageId);
+            request.PlayerName, request.DurationMinutes, request.RatePerHour, request.PackageId,
+            CanOverrideRate: User.IsInRole("Owner") || User.IsInRole("Manager"));
 
         ErrorOr<GameStationResponse> result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpPost("stations/{stationId:guid}/maintenance")]
+    [ProducesResponseType(typeof(GameStationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetMaintenance(Guid branchId, Guid stationId, CancellationToken cancellationToken)
+    {
+        ErrorOr<GameStationResponse> result = await mediator.Send(new SetMaintenanceCommand(stationId, branchId), cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpPost("stations/{stationId:guid}/available")]
+    [ProducesResponseType(typeof(GameStationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReturnToService(Guid branchId, Guid stationId, CancellationToken cancellationToken)
+    {
+        ErrorOr<GameStationResponse> result = await mediator.Send(new ReturnToServiceCommand(stationId, branchId), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
@@ -113,6 +138,7 @@ public sealed class GamingController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("packages")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(GamingPackageResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> CreatePackage(Guid branchId, [FromBody] CreatePackageRequest request, CancellationToken cancellationToken)
     {
@@ -122,6 +148,7 @@ public sealed class GamingController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("packages/{packageId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeletePackage(Guid branchId, Guid packageId, CancellationToken cancellationToken)
     {
@@ -185,22 +212,10 @@ public sealed class GamingController(ISender mediator) : ControllerBase
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateGamingStationRequest(
-    Guid TenantId,
     StationType StationType,
     string Name,
     decimal HourlyRate,
@@ -209,7 +224,7 @@ public sealed record CreateGamingStationRequest(
 public sealed record StartSessionRequest(
     string PlayerName,
     int DurationMinutes,
-    decimal RatePerHour,
+    decimal? RatePerHour = null,
     Guid? PackageId = null);
 
 public sealed record CreatePackageRequest(string Name, int DurationMinutes, decimal Price, StationType? StationType = null);

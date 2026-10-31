@@ -16,8 +16,13 @@ public sealed class CashierShift : Entity<CashierShiftId>
     public decimal TotalSales { get; private set; }
     public decimal TotalCashSales { get; private set; }
     public decimal TotalCardSales { get; private set; }
+    public decimal TotalDigitalSales { get; private set; }
+    public decimal TotalCashRefunds { get; private set; }
     public decimal TotalTax { get; private set; }
     public int TotalOrders { get; private set; }
+
+    // Everything handed back on returns during the shift; the cash part is TotalCashRefunds.
+    public decimal TotalRefunds { get; private set; }
     public decimal? ExpectedCash { get; private set; }
     public decimal? CashVariance { get; private set; }
     public decimal? ClosingCardCount { get; private set; }
@@ -25,6 +30,8 @@ public sealed class CashierShift : Entity<CashierShiftId>
     public string? Notes { get; private set; }
     public DateTime OpenedAt { get; private set; }
     public DateTime? ClosedAt { get; private set; }
+    // Set when a manager closed the shift on the cashier's behalf; null when the cashier closed it.
+    public string? ClosedByName { get; private set; }
 
     private CashierShift() { }
 
@@ -42,15 +49,15 @@ public sealed class CashierShift : Entity<CashierShiftId>
         };
     }
 
+    /// <summary>Cash that should be in the drawer: the float plus cash taken, less cash handed back on returns.</summary>
+    public decimal ExpectedCashFor(ShiftTotals totals) => OpeningCash + totals.CashSales - totals.CashRefunds;
+
     public ErrorOr<Success> Close(
         decimal closingCash,
         decimal closingCardCount,
-        decimal totalSales,
-        decimal totalCashSales,
-        decimal totalCardSales,
-        decimal totalTax,
-        int totalOrders,
-        string? notes)
+        ShiftTotals totals,
+        string? notes,
+        string? closedByName = null)
     {
         if (Status != ShiftStatus.Open)
         {
@@ -59,16 +66,21 @@ public sealed class CashierShift : Entity<CashierShiftId>
 
         Status = ShiftStatus.Closed;
         ClosingCash = closingCash;
-        TotalSales = totalSales;
-        TotalCashSales = totalCashSales;
-        TotalCardSales = totalCardSales;
-        TotalTax = totalTax;
-        TotalOrders = totalOrders;
-        ExpectedCash = OpeningCash + totalCashSales;
+        TotalSales = totals.TotalSales;
+        TotalCashSales = totals.CashSales;
+        TotalCardSales = totals.CardSales;
+        TotalDigitalSales = totals.DigitalSales;
+        TotalCashRefunds = totals.CashRefunds;
+        TotalRefunds = totals.TotalRefunds;
+        // Sales stay gross; VAT is what remains due after refunds, and each refund leaves the till it was paid from.
+        TotalTax = totals.Tax - totals.RefundTax;
+        TotalOrders = totals.Orders;
+        ExpectedCash = ExpectedCashFor(totals);
         CashVariance = closingCash - ExpectedCash;
         ClosingCardCount = closingCardCount;
-        CardVariance = closingCardCount - totalCardSales;
-        Notes = notes?.Trim();
+        CardVariance = closingCardCount - (totals.CardSales - totals.CardRefunds);
+        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        ClosedByName = string.IsNullOrWhiteSpace(closedByName) ? null : closedByName.Trim();
         ClosedAt = DateTime.UtcNow;
 
         return Result.Success;

@@ -1,5 +1,6 @@
 using ErrorOr;
 using NexusPOS.Restaurant.Application.Common;
+using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Repositories;
 using NexusPOS.SharedKernel.Application.Messaging;
@@ -13,8 +14,8 @@ internal sealed class ListActiveOrdersQueryHandler(IRestaurantOrderRepository or
         ListActiveOrdersQuery request,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<RestaurantOrder> orders =
-            await orderRepository.FindActiveByBranchAsync(request.BranchId, cancellationToken);
+        IReadOnlyList<RestaurantOrder> orders = await orderRepository.FindActiveByBranchAsync(
+            request.BranchId, DateTime.UtcNow - RestaurantOrderQueries.LookBack, cancellationToken);
 
         return orders.Select(RestaurantOrderMapper.ToResponse).ToList();
     }

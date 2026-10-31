@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { cn, formatCurrency } from '@/lib/utils'
 import { pointsEarned, pointsValue } from '@/lib/loyalty'
 import type { CustomerResponse, LoyaltySettings } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 interface LoyaltyPanelProps {
   customer: CustomerResponse | null
@@ -75,7 +76,7 @@ export function LoyaltyPanel({
                       <span className="block truncate font-medium text-fg">{c.name}</span>
                       {c.phone && <span className="block text-xs text-muted" dir="ltr">{c.phone}</span>}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-brand-ink">{c.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
+                    <span className="shrink-0 text-xs tabular-nums text-brand-ink">{c.loyaltyPoints.toLocaleString(intlLocale())} نقطة</span>
                   </button>
                 </li>
               ))
@@ -93,7 +94,7 @@ export function LoyaltyPanel({
         <UserRound className="h-4 w-4 shrink-0 text-muted" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{customer.name}</span>
         {rules.enabled && (
-          <span className="shrink-0 text-xs tabular-nums text-brand-ink">{customer.loyaltyPoints.toLocaleString('ar-SA')} نقطة</span>
+          <span className="shrink-0 text-xs tabular-nums text-brand-ink">{customer.loyaltyPoints.toLocaleString(intlLocale())} نقطة</span>
         )}
         <button
           type="button"
@@ -120,7 +121,7 @@ export function LoyaltyPanel({
         >
           <span className="flex items-center gap-2">
             <Gift className="h-4 w-4" />
-            {using ? `استبدال ${redeemPoints.toLocaleString('ar-SA')} نقطة` : 'استبدال النقاط'}
+            {using ? `استبدال ${redeemPoints.toLocaleString(intlLocale())} نقطة` : 'استبدال النقاط'}
           </span>
           <span className="tabular-nums">−{formatCurrency(pointsValue(using ? redeemPoints : maxRedeemable, rules))}</span>
         </button>
@@ -128,13 +129,13 @@ export function LoyaltyPanel({
 
       {rules.enabled && maxRedeemable === 0 && customer.loyaltyPoints > 0 && customer.loyaltyPoints < rules.minRedeemPoints && (
         <p className="text-xs text-muted">
-          يبدأ الاستبدال من <span className="tabular-nums text-fg">{rules.minRedeemPoints.toLocaleString('ar-SA')}</span> نقطة
+          يبدأ الاستبدال من <span className="tabular-nums text-fg">{rules.minRedeemPoints.toLocaleString(intlLocale())}</span> نقطة
         </p>
       )}
 
       {rules.enabled && (
         <p className="text-xs text-muted">
-          سيكسب العميل <span className="tabular-nums text-fg">{pointsEarned(payable, rules).toLocaleString('ar-SA')}</span> نقطة من هذه الفاتورة
+          سيكسب العميل <span className="tabular-nums text-fg">{pointsEarned(payable, rules).toLocaleString(intlLocale())}</span> نقطة من هذه الفاتورة
         </p>
       )}
     </div>

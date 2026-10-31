@@ -6,12 +6,14 @@ using NexusPOS.Inventory.Domain.Repositories;
 using NexusPOS.Inventory.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.Inventory.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Inventory.Application.Commands.AdjustStock;
 
 internal sealed class AdjustStockCommandHandler(
     IStockItemRepository stockItemRepository,
-    InventoryDbContext dbContext)
+    InventoryDbContext dbContext,
+    ITenantContext tenantContext)
     : ICommandHandler<AdjustStockCommand, StockItemResponse>
 {
     public async Task<ErrorOr<StockItemResponse>> Handle(
@@ -28,14 +30,20 @@ internal sealed class AdjustStockCommandHandler(
 
         if (request.NewQuantity != stockItem.Quantity)
         {
-            ErrorOr<Success> result = stockItem.Adjust(request.NewQuantity, request.Reference, request.Notes);
+            ErrorOr<Success> result = stockItem.Adjust(
+                request.NewQuantity, request.Reference, request.Notes, tenantContext.UserId);
             if (result.IsError)
             {
                 return result.Errors;
             }
         }
 
-        if (request.ExpiryDate.HasValue)
+        // Clearing is explicit so that callers which leave the date out keep the current one.
+        if (request.ClearExpiry)
+        {
+            stockItem.SetExpiryDate(null);
+        }
+        else if (request.ExpiryDate.HasValue)
         {
             stockItem.SetExpiryDate(request.ExpiryDate);
         }
@@ -55,10 +63,6 @@ internal sealed class AdjustStockCommandHandler(
         stockItemRepository.Update(stockItem);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new StockItemResponse(
-            stockItem.Id.Value, stockItem.VariantId, stockItem.BranchId,
-            stockItem.Quantity, stockItem.ReorderPoint, stockItem.ReorderQuantity,
-            stockItem.Quantity <= stockItem.ReorderPoint && stockItem.ReorderPoint > 0,
-            stockItem.UpdatedAt, stockItem.ExpiryDate, stockItem.NotifyDaysBeforeExpiry);
+        return StockItemResponse.From(stockItem);
     }
 }

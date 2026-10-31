@@ -3,9 +3,11 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.Hotel.Application.Commands.CancelReservation;
 using NexusPOS.Hotel.Application.Commands.CheckIn;
 using NexusPOS.Hotel.Application.Commands.CheckOut;
 using NexusPOS.Hotel.Application.Commands.CreateRoom;
+using NexusPOS.Hotel.Application.Commands.ExtendReservation;
 using NexusPOS.Hotel.Application.Commands.MarkRoomClean;
 using NexusPOS.Hotel.Application.Commands.MarkRoomNeedsClean;
 using NexusPOS.Hotel.Application.Common;
@@ -13,6 +15,7 @@ using NexusPOS.Hotel.Application.Queries.GetCheckoutAlerts;
 using NexusPOS.Hotel.Application.Queries.ListHotelRooms;
 using NexusPOS.Hotel.Application.Queries.ListReservations;
 using NexusPOS.Hotel.Domain.Enums;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Hotel.Presentation;
 
@@ -36,6 +39,7 @@ public sealed class HotelController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("rooms")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -44,8 +48,13 @@ public sealed class HotelController(ISender mediator) : ControllerBase
         [FromBody] CreateHotelRoomRequest request,
         CancellationToken cancellationToken)
     {
+        if (!TryGetTenantId(out Guid tenantId))
+        {
+            return Forbid();
+        }
+
         CreateRoomCommand command = new(
-            request.TenantId, branchId, request.RoomType, request.RoomNumber,
+            tenantId, branchId, request.RoomType, request.RoomNumber,
             request.Floor, request.Capacity, request.NightlyRate, request.Currency,
             request.Description);
 
@@ -65,8 +74,13 @@ public sealed class HotelController(ISender mediator) : ControllerBase
         [FromBody] CheckInRequest request,
         CancellationToken cancellationToken)
     {
+        if (!TryGetTenantId(out Guid tenantId))
+        {
+            return Forbid();
+        }
+
         CheckInCommand command = new(
-            request.TenantId, branchId, roomId,
+            tenantId, branchId, roomId,
             request.GuestName, request.GuestNationalId, request.GuestPhone,
             request.CheckIn, request.CheckOut, request.RatePerNight, request.Notes);
 
@@ -138,26 +152,49 @@ public sealed class HotelController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
+    [HttpPost("reservations/{reservationId:guid}/cancel")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(ReservationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CancelReservation(
+        Guid branchId,
+        Guid reservationId,
+        CancellationToken cancellationToken)
+    {
+        CancelReservationCommand command = new(reservationId, branchId);
+        ErrorOr<ReservationResponse> result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpPatch("reservations/{reservationId:guid}/extend")]
+    [ProducesResponseType(typeof(ReservationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ExtendReservation(
+        Guid branchId,
+        Guid reservationId,
+        [FromBody] ExtendReservationRequest request,
+        CancellationToken cancellationToken)
+    {
+        ExtendReservationCommand command = new(reservationId, branchId, request.CheckOut);
+        ErrorOr<ReservationResponse> result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    // The tenant always comes from the caller's token, never from the request body.
+    private bool TryGetTenantId(out Guid tenantId) =>
+        Guid.TryParse(User.FindFirst("tenant_id")?.Value, out tenantId) && tenantId != Guid.Empty;
+
     // ── Error mapping ─────────────────────────────────────────────────────────
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 // ── Request DTOs ─────────────────────────────────────────────────────────────
 
 public sealed record CreateHotelRoomRequest(
-    Guid TenantId,
     RoomType RoomType,
     string RoomNumber,
     int Floor,
@@ -167,7 +204,6 @@ public sealed record CreateHotelRoomRequest(
     string? Description = null);
 
 public sealed record CheckInRequest(
-    Guid TenantId,
     string GuestName,
     string GuestNationalId,
     string GuestPhone,
@@ -175,3 +211,5 @@ public sealed record CheckInRequest(
     DateTime CheckOut,
     decimal RatePerNight,
     string? Notes = null);
+
+public sealed record ExtendReservationRequest(DateTime CheckOut);

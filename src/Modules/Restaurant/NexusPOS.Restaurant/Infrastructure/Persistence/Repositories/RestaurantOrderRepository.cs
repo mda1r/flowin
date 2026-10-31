@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Enums;
 using NexusPOS.Restaurant.Domain.Repositories;
@@ -27,11 +28,39 @@ internal sealed class RestaurantOrderRepository(RestaurantDbContext dbContext) :
 
     public async Task<IReadOnlyList<RestaurantOrder>> FindActiveByBranchAsync(
         Guid branchId,
+        DateTime since,
         CancellationToken cancellationToken = default)
     {
         return await dbContext.RestaurantOrders
             .Include(o => o.Items)
-            .Where(o => o.BranchId == branchId && _activeStatuses.Contains(o.Status))
+            .Where(RestaurantOrderQueries.Floor(branchId, since))
+            .OrderBy(o => o.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RestaurantOrder>> FindOpenByTableAsync(
+        Guid branchId,
+        int tableNumber,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.RestaurantOrders
+            .Include(o => o.Items)
+            .Where(o => o.BranchId == branchId
+                && o.TableNumber == tableNumber
+                && !o.KitchenOnly
+                && _activeStatuses.Contains(o.Status))
+            .OrderBy(o => o.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RestaurantOrder>> FindKitchenByBranchAsync(
+        Guid branchId,
+        DateTime since,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.RestaurantOrders
+            .Include(o => o.Items)
+            .Where(RestaurantOrderQueries.Kitchen(branchId, since))
             .OrderBy(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -46,6 +75,7 @@ internal sealed class RestaurantOrderRepository(RestaurantDbContext dbContext) :
             .Include(o => o.Items)
             .Where(o => o.BranchId == branchId
                 && o.TableNumber == tableNumber
+                && !o.KitchenOnly
                 && o.CreatedAt >= today)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);

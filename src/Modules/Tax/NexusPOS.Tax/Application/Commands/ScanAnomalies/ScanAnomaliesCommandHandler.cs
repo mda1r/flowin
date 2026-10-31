@@ -24,7 +24,7 @@ internal sealed class ScanAnomaliesCommandHandler(TaxConfigDbContext db)
 
         if (period is null)
         {
-            return Error.NotFound("TaxPeriod.NotFound", "Tax period not found.");
+            return Error.NotFound("TaxPeriod.NotFound", "الفترة الضريبية غير موجودة");
         }
 
         List<TaxLedgerEntry> entries = await db.TaxLedgerEntries

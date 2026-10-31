@@ -3,13 +3,16 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.Organization.Application.Commands.ActivateBranch;
 using NexusPOS.Organization.Application.Commands.CreateBranch;
 using NexusPOS.Organization.Application.Commands.DeactivateBranch;
+using NexusPOS.Organization.Application.Commands.SetMainBranch;
 using NexusPOS.Organization.Application.Commands.UpdateBranch;
 using NexusPOS.Organization.Application.Common;
 using NexusPOS.Organization.Application.Queries.GetBranchById;
 using NexusPOS.Organization.Application.Queries.ListBranches;
 using NexusPOS.Organization.Presentation.Requests;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Organization.Presentation;
 
@@ -49,6 +52,7 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
 
     /// <summary>Create a new branch for a tenant.</summary>
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(BranchResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -80,8 +84,10 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
 
     /// <summary>Update an existing branch.</summary>
     [HttpPut("{branchId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(BranchResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> UpdateBranch(
         Guid tenantId,
@@ -109,8 +115,10 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
 
     /// <summary>Deactivate a branch.</summary>
     [HttpDelete("{branchId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DeactivateBranch(
         Guid tenantId,
         Guid branchId,
@@ -122,30 +130,38 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
+    /// <summary>Reactivate a previously deactivated branch.</summary>
+    [HttpPost("{branchId:guid}/activate")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActivateBranch(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
     {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
+        ActivateBranchCommand command = new(branchId, tenantId);
+        ErrorOr<Success> result = await mediator.Send(command, cancellationToken);
 
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+        return result.Match(_ => NoContent(), MapErrorsToResult);
     }
+
+    /// <summary>Make this branch the tenant's main branch (used as the default branch at login).</summary>
+    [HttpPost("{branchId:guid}/set-main")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SetMainBranch(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        SetMainBranchCommand command = new(branchId, tenantId);
+        ErrorOr<Success> result = await mediator.Send(command, cancellationToken);
+
+        return result.Match(_ => NoContent(), MapErrorsToResult);
+    }
+
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

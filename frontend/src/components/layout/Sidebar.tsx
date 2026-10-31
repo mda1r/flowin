@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { aiCashierApi } from '@/api/aiCashier'
-import { Link, useRouterState, useRouter } from '@tanstack/react-router'
+import { aiApi } from '@/api/ai'
+import { Link, useRouterState } from '@tanstack/react-router'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -41,7 +41,9 @@ import {
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { BrandTagline, FlowinLockup, FlowinMark } from '@/components/brand/Brand'
 import { cn } from '@/lib/utils'
+import { useBelowLg } from '@/lib/useBelowLg'
 import { useAuthStore } from '@/stores/authStore'
+import { useSignOut } from '@/lib/session'
 import { useThemeStore } from '@/stores/themeStore'
 import { useI18n } from '@/i18n'
 import { getUserPermissions } from '@/lib/userPermissions'
@@ -108,7 +110,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-[18px] w-[18px]" /> },
   { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-[18px] w-[18px]" /> },
   { labelKey: 'taxes', to: '/taxes', icon: <Calculator className="h-[18px] w-[18px]" /> },
-  { labelKey: 'reports', to: '/reports', icon: <BarChart2 className="h-[18px] w-[18px]" /> },
+  { labelKey: 'reports', to: '/reports', icon: <BarChart2 className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager', 'Accountant'] },
   { labelKey: 'restaurant', to: '/restaurant', icon: <UtensilsCrossed className="h-[18px] w-[18px]" /> },
   { labelKey: 'hotel', to: '/hotel', icon: <Hotel className="h-[18px] w-[18px]" /> },
   { labelKey: 'hotelContracts', to: '/hotel/contracts', icon: <FileText className="h-[18px] w-[18px]" /> },
@@ -171,18 +173,36 @@ const THEME_LABEL = {
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const { pathname } = useRouterState({ select: (s) => s.location })
-  const { user, logout, tenantId, branchId } = useAuthStore()
+  const { user, tenantId, branchId } = useAuthStore()
   const { mode, cycle } = useThemeStore()
   const { t, lang, setLang } = useI18n()
-  const router = useRouter()
+  const signOut = useSignOut()
   const [aiOpen, setAiOpen] = useState(false)
+  const belowLg = useBelowLg()
+  const closeBtnRef = useRef<HTMLButtonElement>(null)
+  const onMobileCloseRef = useRef(onMobileClose)
+  onMobileCloseRef.current = onMobileClose
 
+  // open drawer: focus its close button and let Escape dismiss it
+  useEffect(() => {
+    if (!mobileOpen) return
+    closeBtnRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onMobileCloseRef.current()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
+
+  // The assistant reads owner-level finances, so cashiers never get it (the server enforces this too).
+  const canUseAssistant = user?.role === 'Owner' || user?.role === 'Manager'
   const { data: aiFeature } = useQuery({
-    queryKey: ['ai-available', branchId],
-    queryFn: () => (branchId ? aiCashierApi.isAvailable(branchId) : Promise.resolve({ available: false })),
-    enabled: !!branchId,
+    queryKey: ['ai-assistant-available', branchId, user?.id],
+    queryFn: () => aiApi.available(branchId!),
+    enabled: !!branchId && canUseAssistant,
+    staleTime: 1000 * 60 * 10,
   })
-  const aiAvailable = aiFeature?.available ?? false
+  const aiAvailable = canUseAssistant && (aiFeature?.assistant ?? false)
 
   const navItems = getNavItems(user?.businessType, user?.role, user?.id, tenantId ?? undefined)
 
@@ -192,6 +212,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const isRail = collapsed && !mobileOpen
   const ThemeIcon = THEME_ICON[mode]
   const themeLabel = THEME_LABEL[lang][mode]
+  // a closed off-canvas drawer stays out of the tab order and the accessibility tree (the AI chat lives inside it)
+  const hiddenDrawer = belowLg && !mobileOpen && !aiOpen
 
   return (
     <>
@@ -199,22 +221,25 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={onMobileClose} aria-hidden="true" />
       )}
       <aside
+        id="app-sidebar"
+        inert={hiddenDrawer}
         className={cn(
           'sidebar-3d z-40 flex h-[100dvh] flex-col transition-[width,transform] duration-200 ease-out print:hidden',
           'fixed inset-y-0 start-0 w-64 lg:static',
           mobileOpen ? 'translate-x-0 shadow-lg' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
           isRail ? 'lg:w-[72px]' : 'lg:w-60',
         )}
-        aria-label="القائمة الرئيسية"
+        aria-label={t.common.mainMenu}
       >
         <div className={cn('border-b border-border px-4', isRail ? 'flex h-16 items-center justify-center' : 'py-4')}>
           <div className={cn('flex items-center', isRail ? 'justify-center' : 'justify-between')}>
             {!isRail && <FlowinWordmark />}
             <button
+              ref={closeBtnRef}
               type="button"
               onClick={onMobileClose}
               className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg lg:hidden"
-              aria-label="إغلاق القائمة"
+              aria-label={t.common.closeMenu}
             >
               <X className="h-4 w-4" />
             </button>
@@ -222,7 +247,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               type="button"
               onClick={onToggle}
               className="hidden rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg lg:inline-flex"
-              aria-label={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
+              aria-label={collapsed ? t.common.expandMenu : t.common.collapseMenu}
             >
               {isRail ? <FlowinWordmark compact /> : <ChevronLeft className={cn('h-4 w-4 transition-transform ltr:rotate-180')} />}
             </button>
@@ -326,10 +351,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             </Link>
             <button
               type="button"
-              onClick={() => {
-                logout()
-                void router.navigate({ to: '/login' })
-              }}
+              onClick={signOut}
               className="nav-item !px-2 !py-2 text-sm hover:!text-danger"
               title={isRail ? t.nav.logout : undefined}
             >

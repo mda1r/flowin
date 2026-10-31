@@ -7,10 +7,18 @@ import { Input } from '@/components/ui/Input'
 import { zatcaApi } from '@/api/zatca'
 import { toast } from '@/components/ui/Toast'
 import { useI18n } from '@/i18n'
+import { useAuthStore } from '@/stores/authStore'
+import { apiErrorMessage } from '@/lib/apiError'
+
+// ZATCA VAT registration numbers: 15 digits that start and end with 3.
+const VAT_PATTERN = /^3\d{13}3$/
 
 export function ZatcaSettingsPage() {
   const qc = useQueryClient()
   const { t } = useI18n()
+  const role = useAuthStore((s) => s.user?.role)
+  // The legal name and VAT number print on every invoice and in its QR code, so only the owner or a manager edits them.
+  const canManage = role === 'Owner' || role === 'Manager'
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['zatca-settings'],
@@ -44,14 +52,14 @@ export function ZatcaSettingsPage() {
       qc.invalidateQueries({ queryKey: ['zatca-settings'] })
       toast.success(t.zatca.saved)
     },
-    onError: () => toast.error('فشل حفظ الإعدادات'),
+    onError: (err) => toast.error(apiErrorMessage(err, t.zatca.saveFailed)),
   })
 
   const isConfigured = !!settings
-  const vatValid = vatNumber.trim().length >= 15
+  const vatValid = VAT_PATTERN.test(vatNumber.trim())
 
   return (
-    <div className="flex flex-col gap-6 p-6" dir="rtl">
+    <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title={t.zatca.title}
         description={t.zatca.description}
@@ -106,6 +114,7 @@ export function ZatcaSettingsPage() {
                 onChange={e => setSellerName(e.target.value)}
                 placeholder="مثال: شركة النور للتجزئة"
                 dir="rtl"
+                disabled={!canManage}
               />
             </div>
 
@@ -118,6 +127,8 @@ export function ZatcaSettingsPage() {
                 onChange={e => setVatNumber(e.target.value)}
                 placeholder="300000000000003"
                 dir="ltr"
+                inputMode="numeric"
+                disabled={!canManage}
                 className={vatNumber && !vatValid ? 'border-danger/30' : ''}
               />
               {vatNumber && !vatValid && (
@@ -135,8 +146,11 @@ export function ZatcaSettingsPage() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={phase2}
                 onClick={() => setPhase2(v => !v)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                disabled={!canManage}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-60 ${
                   phase2 ? 'bg-success' : 'bg-border'
                 }`}
               >
@@ -146,15 +160,19 @@ export function ZatcaSettingsPage() {
               </button>
             </div>
 
-            <div className="flex justify-end border-t border-border pt-4">
-              <Button
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending || !sellerName.trim() || !vatValid}
-              >
-                <Save className="h-4 w-4" />
-                {saveMutation.isPending ? t.common.loading : t.zatca.save}
-              </Button>
-            </div>
+            {canManage ? (
+              <div className="flex justify-end border-t border-border pt-4">
+                <Button
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending || !sellerName.trim() || !vatValid}
+                >
+                  <Save className="h-4 w-4" />
+                  {saveMutation.isPending ? t.common.loading : t.zatca.save}
+                </Button>
+              </div>
+            ) : (
+              <p className="border-t border-border pt-4 text-xs text-muted">{t.zatca.readOnlyHint}</p>
+            )}
           </div>
         )}
       </div>

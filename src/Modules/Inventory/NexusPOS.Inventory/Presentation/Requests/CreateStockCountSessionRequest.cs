@@ -1,14 +1,8 @@
 namespace NexusPOS.Inventory.Presentation.Requests;
 
-public sealed record CreateStockCountSessionItemRequest(
-    Guid StockItemId,
-    Guid VariantId,
-    decimal SystemQuantity,
-    decimal UnitCost);
-
+// The server snapshots the branch's stock itself; any item list sent by an older client is ignored.
 public sealed record CreateStockCountSessionRequest(
     string Type,
     DateTime PeriodStart,
     DateTime PeriodEnd,
-    string? Notes,
-    IReadOnlyList<CreateStockCountSessionItemRequest> Items);
+    string? Notes);

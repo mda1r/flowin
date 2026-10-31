@@ -6,12 +6,14 @@ using NexusPOS.Inventory.Domain.Repositories;
 using NexusPOS.Inventory.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.Inventory.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Inventory.Application.Commands.ReceiveStock;
 
 internal sealed class ReceiveStockCommandHandler(
     IStockItemRepository stockItemRepository,
-    InventoryDbContext dbContext)
+    InventoryDbContext dbContext,
+    ITenantContext tenantContext)
     : ICommandHandler<ReceiveStockCommand, StockItemResponse>
 {
     public async Task<ErrorOr<StockItemResponse>> Handle(
@@ -26,7 +28,14 @@ internal sealed class ReceiveStockCommandHandler(
             return InventoryErrors.StockItemNotFound;
         }
 
-        ErrorOr<Success> result = stockItem.Receive(request.Quantity, request.Reference, request.Notes, request.ExpiryDate);
+        // Only the manager-only restore endpoint brings an archived item back.
+        if (stockItem.IsArchived)
+        {
+            return InventoryErrors.StockItemArchived;
+        }
+
+        ErrorOr<Success> result = stockItem.Receive(
+            request.Quantity, request.Reference, request.Notes, request.ExpiryDate, tenantContext.UserId);
         if (result.IsError)
         {
             return result.Errors;
@@ -35,10 +44,6 @@ internal sealed class ReceiveStockCommandHandler(
         stockItemRepository.Update(stockItem);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new StockItemResponse(
-            stockItem.Id.Value, stockItem.VariantId, stockItem.BranchId,
-            stockItem.Quantity, stockItem.ReorderPoint, stockItem.ReorderQuantity,
-            stockItem.Quantity <= stockItem.ReorderPoint && stockItem.ReorderPoint > 0,
-            stockItem.UpdatedAt, stockItem.ExpiryDate);
+        return StockItemResponse.From(stockItem);
     }
 }

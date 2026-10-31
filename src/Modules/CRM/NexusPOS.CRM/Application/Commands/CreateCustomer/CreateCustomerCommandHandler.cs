@@ -17,10 +17,12 @@ internal sealed class CreateCustomerCommandHandler(
         CreateCustomerCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.Email is not null)
+        // A blank email from the form means none; only a real one has to be unique.
+        string? email = Customer.Clean(request.Email);
+        if (email is not null)
         {
             bool emailTaken = await customerRepository.ExistsByEmailAsync(
-                request.TenantId, request.Email, cancellationToken);
+                request.TenantId, email, cancellationToken);
 
             if (emailTaken)
             {
@@ -29,7 +31,7 @@ internal sealed class CreateCustomerCommandHandler(
         }
 
         Customer customer = Customer.Create(
-            request.TenantId, request.Name, request.Email, request.Phone,
+            request.TenantId, request.Name, email, request.Phone,
             request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn ?? false);
 
         customerRepository.Add(customer);

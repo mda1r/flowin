@@ -4,19 +4,20 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  FileText, Plus, Pencil, Printer, Trash2, PenLine,
+  FileText, Plus, Pencil, Printer, Trash2, PenLine, PlayCircle, XCircle,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { rentalContractsApi } from '@/api/rentalContracts'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import type { RentalContractResponse, ContractStatus } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { hotelErrorMessage } from './stay'
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -204,9 +205,12 @@ export function ContractsPage() {
   const { t } = useI18n()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<RentalContractResponse | null>(null)
+  const [cancelling, setCancelling] = useState<RentalContractResponse | null>(null)
 
-  const { branchId } = useAuthStore()
+  const { branchId, user } = useAuthStore()
+  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: ['rental-contracts', branchId] })
 
   const { data, isLoading } = useQuery({
     queryKey: ['rental-contracts', branchId],
@@ -219,10 +223,29 @@ export function ContractsPage() {
   const sign = useMutation({
     mutationFn: (contractId: string) => rentalContractsApi.sign(branchId!, contractId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rental-contracts', branchId] })
-      toast.success('تم التوقيع', 'تم تسجيل العقد كموقّع')
+      refresh()
+      toast.success(t.contracts.signed)
     },
-    onError: () => toast.error('فشل التوقيع', 'يرجى المحاولة مرة أخرى'),
+    onError: (err) => toast.error('فشل التوقيع', hotelErrorMessage(err)),
+  })
+
+  const activate = useMutation({
+    mutationFn: (contractId: string) => rentalContractsApi.activate(branchId!, contractId),
+    onSuccess: () => {
+      refresh()
+      toast.success(t.contracts.activated)
+    },
+    onError: (err) => toast.error(t.contracts.activate, hotelErrorMessage(err)),
+  })
+
+  const cancel = useMutation({
+    mutationFn: (contractId: string) => rentalContractsApi.cancel(branchId!, contractId),
+    onSuccess: () => {
+      refresh()
+      setCancelling(null)
+      toast.success(t.contracts.contractCancelled)
+    },
+    onError: (err) => toast.error(t.contracts.cancelContract, hotelErrorMessage(err)),
   })
 
   function openCreate() {
@@ -236,7 +259,7 @@ export function ContractsPage() {
   }
 
   return (
-    <div dir="rtl">
+    <div>
       <PageHeader
         title={t.contracts.title}
         description="إنشاء عقود الإيجار وطباعتها وإدارتها"
@@ -271,6 +294,9 @@ export function ContractsPage() {
                 onPrint={() => printContract(c)}
                 onSign={() => sign.mutate(c.id)}
                 signPending={sign.isPending && sign.variables === c.id}
+                onActivate={() => activate.mutate(c.id)}
+                activatePending={activate.isPending && activate.variables === c.id}
+                onCancel={canManage ? () => setCancelling(c) : undefined}
               />
             ))}
           </div>
@@ -283,9 +309,20 @@ export function ContractsPage() {
         branchId={branchId!}
         editing={editing}
         onSuccess={() => {
-          qc.invalidateQueries({ queryKey: ['rental-contracts', branchId] })
+          refresh()
           setShowModal(false)
         }}
+      />
+
+      <ConfirmModal
+        open={!!cancelling}
+        onClose={() => setCancelling(null)}
+        onConfirm={() => cancelling && cancel.mutate(cancelling.id)}
+        title={t.contracts.cancelContract}
+        message={t.contracts.cancelConfirm.replace('{name}', cancelling?.tenantName ?? '')}
+        confirmLabel={t.contracts.cancelContract}
+        confirmVariant="danger"
+        loading={cancel.isPending}
       />
     </div>
   )
@@ -299,28 +336,34 @@ function ContractRow({
   onPrint,
   onSign,
   signPending,
+  onActivate,
+  activatePending,
+  onCancel,
 }: {
   contract: RentalContractResponse
   onEdit: () => void
   onPrint: () => void
   onSign: () => void
   signPending: boolean
+  onActivate: () => void
+  activatePending: boolean
+  onCancel?: () => void
 }) {
   const { t, lang } = useI18n()
   const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
-  const canEdit = contract.status === 'Draft' || contract.status === 'Active'
-  const canSign = contract.status === 'Active'
+  // Draft and active contracts are still open; signed and cancelled ones are final.
+  const isOpen = contract.status === 'Draft' || contract.status === 'Active'
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-5 py-4 sm:flex-row sm:items-center sm:gap-4">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-semibold text-fg">{contract.tenantName}</p>
           <Badge variant={STATUS_BADGE[contract.status]}>
             {contract.status === 'Draft' ? t.contracts.status.draft
               : contract.status === 'Active' ? t.contracts.status.active
-              : contract.status === 'Executed' ? t.contracts.status.expired
-              : t.contracts.status.terminated}
+              : contract.status === 'Executed' ? t.contracts.status.signed
+              : t.contracts.status.cancelled}
           </Badge>
         </div>
         <div className="mt-1 flex flex-wrap gap-3 text-sm text-muted">
@@ -345,19 +388,36 @@ function ContractRow({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
         <Button size="sm" variant="secondary" onClick={onPrint} title={t.contracts.printContract}>
           <Printer className="h-4 w-4" />
         </Button>
-        {canEdit && (
+        {isOpen && (
           <Button size="sm" variant="secondary" onClick={onEdit} title={t.contracts.editContract}>
             <Pencil className="h-4 w-4" />
           </Button>
         )}
-        {canSign && (
+        {isOpen && onCancel && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onCancel}
+            title={t.contracts.cancelContract}
+            aria-label={t.contracts.cancelContract}
+          >
+            <XCircle className="h-4 w-4" />
+          </Button>
+        )}
+        {contract.status === 'Draft' && (
+          <Button size="sm" variant="secondary" loading={activatePending} onClick={onActivate}>
+            <PlayCircle className="h-4 w-4" />
+            {t.contracts.activate}
+          </Button>
+        )}
+        {isOpen && (
           <Button size="sm" variant="primary" loading={signPending} onClick={onSign}>
             <PenLine className="h-4 w-4" />
-            توقيع
+            {t.contracts.sign}
           </Button>
         )}
       </div>
@@ -457,7 +517,7 @@ function ContractModal({
       reset()
       onSuccess()
     },
-    onError: () => toast.error('فشل الإنشاء', 'يرجى التحقق من البيانات'),
+    onError: (err) => toast.error('فشل الإنشاء', hotelErrorMessage(err, 'يرجى التحقق من البيانات')),
   })
 
   const update = useMutation({
@@ -471,7 +531,7 @@ function ContractModal({
       toast.success('تم التحديث', 'تم تحديث العقد بنجاح')
       onSuccess()
     },
-    onError: () => toast.error('فشل التحديث', 'يرجى التحقق من البيانات'),
+    onError: (err) => toast.error('فشل التحديث', hotelErrorMessage(err, 'يرجى التحقق من البيانات')),
   })
 
   function onSubmit(data: ContractFormData) {
@@ -499,7 +559,7 @@ function ContractModal({
         </>
       }
     >
-      <form className="max-h-[65vh] overflow-y-auto space-y-5 pr-1" dir="rtl">
+      <form className="max-h-[65vh] overflow-y-auto space-y-5 pr-1">
         {/* ── Parties ── */}
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">أطراف العقد</p>

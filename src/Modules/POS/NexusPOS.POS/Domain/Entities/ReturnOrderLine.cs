@@ -34,7 +34,8 @@ public sealed class ReturnOrderLine : Entity<ReturnOrderLineId>
             ProductName = productName,
             VariantName = variantName,
             Quantity = quantity,
-            UnitPrice = unitPrice,
+            // The unit price is the exact net paid per unit; round only what gets stored.
+            UnitPrice = Math.Round(unitPrice, 4),
             LineTotal = Math.Round(quantity * unitPrice, 4),
             Reason = reason,
         };

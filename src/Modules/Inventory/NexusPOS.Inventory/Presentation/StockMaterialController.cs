@@ -3,11 +3,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.Inventory.Application.Commands.AdjustStockMaterial;
 using NexusPOS.Inventory.Application.Commands.CreateStockMaterial;
 using NexusPOS.Inventory.Application.Commands.CreateStockMaterialCategory;
 using NexusPOS.Inventory.Application.Commands.DeleteStockMaterial;
 using NexusPOS.Inventory.Application.Commands.DeleteStockMaterialCategory;
 using NexusPOS.Inventory.Application.Commands.ReceiveStockMaterial;
+using NexusPOS.Inventory.Application.Commands.RestoreStockMaterial;
 using NexusPOS.Inventory.Application.Queries.ListStockMaterialMovements;
 using NexusPOS.Inventory.Application.Commands.UpdateStockMaterial;
 using NexusPOS.Inventory.Application.Commands.UpdateStockMaterialCategory;
@@ -17,6 +19,7 @@ using NexusPOS.Inventory.Application.Queries.GetStockMaterial;
 using NexusPOS.Inventory.Application.Queries.ListStockMaterialCategories;
 using NexusPOS.Inventory.Application.Queries.ListStockMaterials;
 using NexusPOS.Inventory.Presentation.Requests;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Inventory.Presentation;
 
@@ -38,6 +41,7 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("categories")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockMaterialCategoryResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateCategory(
         Guid tenantId,
@@ -50,6 +54,7 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
     }
 
     [HttpPut("categories/{categoryId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockMaterialCategoryResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateCategory(
         Guid tenantId, Guid categoryId,
@@ -62,6 +67,7 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("categories/{categoryId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteCategory(
         Guid tenantId, Guid categoryId, CancellationToken cancellationToken)
@@ -80,10 +86,11 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
         [FromQuery] Guid? categoryId = null,
         [FromQuery] bool lowStockOnly = false,
         [FromQuery] string? search = null,
+        [FromQuery] bool archived = false,
         CancellationToken cancellationToken = default)
     {
         ErrorOr<IReadOnlyList<StockMaterialResponse>> result =
-            await mediator.Send(new ListStockMaterialsQuery(tenantId, categoryId, lowStockOnly, search), cancellationToken);
+            await mediator.Send(new ListStockMaterialsQuery(tenantId, categoryId, lowStockOnly, search, archived), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
@@ -99,6 +106,7 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockMaterialResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CreateMaterial(
@@ -119,7 +127,9 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
+    // Editing a material can overwrite its quantity and cost, so it is limited like a stock adjustment.
     [HttpPut("{materialId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockMaterialResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateMaterial(
@@ -131,7 +141,7 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
             new UpdateStockMaterialCommand(
                 tenantId, materialId, request.Code, request.NameAr, request.NameEn, request.CategoryId,
                 request.StorageUnit, request.ComponentUnit, request.ConversionFactor,
-                request.CostMethod, request.ManualCost, request.ManualQuantity,
+                request.CostMethod, request.ManualCost,
                 request.MinLevel, request.MaxLevel, request.ReorderLevel),
             cancellationToken);
 
@@ -149,6 +159,34 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
         ErrorOr<StockMaterialResponse> result = await mediator.Send(
             new ReceiveStockMaterialCommand(tenantId, materialId, request.Quantity, request.UnitCost, request.Note),
             cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    // Sets the balance to a counted quantity; the reason is kept on the adjustment movement.
+    [HttpPost("{materialId:guid}/adjust")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(StockMaterialResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdjustMaterial(
+        Guid tenantId, Guid materialId,
+        [FromBody] AdjustStockMaterialRequest request,
+        CancellationToken cancellationToken)
+    {
+        ErrorOr<StockMaterialResponse> result = await mediator.Send(
+            new AdjustStockMaterialCommand(tenantId, materialId, request.NewQuantity, request.Reason),
+            cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    [HttpPost("{materialId:guid}/restore")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(StockMaterialResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RestoreMaterial(
+        Guid tenantId, Guid materialId, CancellationToken cancellationToken)
+    {
+        ErrorOr<StockMaterialResponse> result =
+            await mediator.Send(new RestoreStockMaterialCommand(tenantId, materialId), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
@@ -173,37 +211,16 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("{materialId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(DeleteStockMaterialResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteMaterial(
         Guid tenantId, Guid materialId, CancellationToken cancellationToken)
     {
-        ErrorOr<Success> result =
+        ErrorOr<DeleteStockMaterialResponse> result =
             await mediator.Send(new DeleteStockMaterialCommand(tenantId, materialId), cancellationToken);
-        return result.Match(_ => NoContent(), MapErrorsToResult);
+        return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

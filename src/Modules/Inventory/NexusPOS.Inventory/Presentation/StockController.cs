@@ -7,11 +7,16 @@ using NexusPOS.Inventory.Application.Commands.AdjustStock;
 using NexusPOS.Inventory.Application.Commands.DeleteStockItem;
 using NexusPOS.Inventory.Application.Commands.InitializeStock;
 using NexusPOS.Inventory.Application.Commands.ReceiveStock;
+using NexusPOS.Inventory.Application.Commands.SetStockItemArchived;
 using NexusPOS.Inventory.Application.Common;
 using NexusPOS.Inventory.Application.Queries.GetInventoryAlerts;
 using NexusPOS.Inventory.Application.Queries.GetStockItem;
 using NexusPOS.Inventory.Application.Queries.ListBranchStock;
+using NexusPOS.Inventory.Application.Queries.ListStockMovements;
+using NexusPOS.Inventory.Domain.Enums;
+using NexusPOS.Inventory.Domain.Services;
 using NexusPOS.Inventory.Presentation.Requests;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Inventory.Presentation;
 
@@ -27,9 +32,10 @@ public sealed class StockController(ISender mediator) : ControllerBase
     public async Task<IActionResult> ListStock(
         Guid branchId,
         [FromQuery] bool lowStockOnly = false,
+        [FromQuery] bool includeArchived = false,
         CancellationToken cancellationToken = default)
     {
-        ListBranchStockQuery query = new(branchId, lowStockOnly);
+        ListBranchStockQuery query = new(branchId, lowStockOnly, includeArchived);
         ErrorOr<IReadOnlyList<StockItemResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -69,6 +75,30 @@ public sealed class StockController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
+    /// <summary>The item's stock card: its movements, newest first, optionally filtered by type and Riyadh calendar days.</summary>
+    [HttpGet("{stockItemId:guid}/movements")]
+    [ProducesResponseType(typeof(StockMovementsPageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListMovements(
+        Guid branchId,
+        Guid stockItemId,
+        [FromQuery] MovementType? type = null,
+        [FromQuery] DateOnly? from = null,
+        [FromQuery] DateOnly? to = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        ListStockMovementsQuery query = new(
+            stockItemId, branchId, type,
+            from.HasValue ? StoreCalendar.StartOfDayUtc(from.Value) : null,
+            to.HasValue ? StoreCalendar.StartOfDayUtc(to.Value.AddDays(1)) : null,
+            page, pageSize);
+        ErrorOr<StockMovementsPageResponse> result = await mediator.Send(query, cancellationToken);
+
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
     /// <summary>Record stock receipt for a stock item.</summary>
     [HttpPost("{stockItemId:guid}/receive")]
     [ProducesResponseType(typeof(StockItemResponse), StatusCodes.Status200OK)]
@@ -88,6 +118,7 @@ public sealed class StockController(ISender mediator) : ControllerBase
 
     /// <summary>Adjust stock quantity to a specific value (e.g., after physical count).</summary>
     [HttpPost("{stockItemId:guid}/adjust")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -97,7 +128,7 @@ public sealed class StockController(ISender mediator) : ControllerBase
         [FromBody] AdjustStockRequest request,
         CancellationToken cancellationToken)
     {
-        AdjustStockCommand command = new(stockItemId, branchId, request.NewQuantity, request.Reference, request.Notes, request.ExpiryDate, request.ReorderPoint, request.ReorderQuantity, request.NotifyDaysBeforeExpiry);
+        AdjustStockCommand command = new(stockItemId, branchId, request.NewQuantity, request.Reference, request.Notes, request.ExpiryDate, request.ReorderPoint, request.ReorderQuantity, request.NotifyDaysBeforeExpiry, request.ClearExpiry);
         ErrorOr<StockItemResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -108,19 +139,22 @@ public sealed class StockController(ISender mediator) : ControllerBase
     [ProducesResponseType(typeof(InventoryAlertsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAlerts(
         Guid branchId,
-        [FromQuery] int daysAhead = 7,
+        [FromQuery] int? daysAhead = null,
         CancellationToken cancellationToken = default)
     {
-        GetInventoryAlertsQuery query = new(branchId, daysAhead);
+        // Without daysAhead each item uses its own NotifyDaysBeforeExpiry window.
+        GetInventoryAlertsQuery query = new(branchId, daysAhead is null ? null : Math.Clamp(daysAhead.Value, 0, 365));
         ErrorOr<InventoryAlertsResponse> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    /// <summary>Delete a stock item record.</summary>
+    /// <summary>Delete a stock item that has no quantity and no history; anything else must be archived.</summary>
     [HttpDelete("{stockItemId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DeleteStockItem(
         Guid branchId,
         Guid stockItemId,
@@ -132,28 +166,30 @@ public sealed class StockController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
+    /// <summary>Stop tracking a stock item while keeping its movement history.</summary>
+    [HttpPost("{stockItemId:guid}/archive")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(StockItemResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public Task<IActionResult> ArchiveStockItem(Guid branchId, Guid stockItemId, CancellationToken cancellationToken) =>
+        SetArchived(branchId, stockItemId, archived: true, cancellationToken);
+
+    /// <summary>Track an archived stock item again.</summary>
+    [HttpPost("{stockItemId:guid}/restore")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(StockItemResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public Task<IActionResult> RestoreStockItem(Guid branchId, Guid stockItemId, CancellationToken cancellationToken) =>
+        SetArchived(branchId, stockItemId, archived: false, cancellationToken);
+
+    private async Task<IActionResult> SetArchived(
+        Guid branchId, Guid stockItemId, bool archived, CancellationToken cancellationToken)
     {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
+        ErrorOr<StockItemResponse> result = await mediator.Send(
+            new SetStockItemArchivedCommand(stockItemId, branchId, archived), cancellationToken);
 
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+        return result.Match(Ok, MapErrorsToResult);
     }
+
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

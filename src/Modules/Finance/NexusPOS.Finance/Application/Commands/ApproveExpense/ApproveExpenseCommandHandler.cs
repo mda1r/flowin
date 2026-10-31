@@ -6,18 +6,26 @@ using NexusPOS.Finance.Domain.Repositories;
 using NexusPOS.Finance.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.Finance.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Finance.Application.Commands.ApproveExpense;
 
 internal sealed class ApproveExpenseCommandHandler(
     IExpenseRepository expenseRepository,
-    FinanceDbContext dbContext)
+    FinanceDbContext dbContext,
+    ITenantContext tenantContext)
     : ICommandHandler<ApproveExpenseCommand, ExpenseResponse>
 {
     public async Task<ErrorOr<ExpenseResponse>> Handle(
         ApproveExpenseCommand request,
         CancellationToken cancellationToken)
     {
+        // The approver is whoever is signed in; a body field would let anyone approve in someone else's name.
+        if (tenantContext.UserId is not Guid approverId)
+        {
+            return FinanceErrors.NoUser;
+        }
+
         Expense? expense = await expenseRepository.FindByIdAsync(
             new ExpenseId(request.ExpenseId), cancellationToken);
 
@@ -26,7 +34,7 @@ internal sealed class ApproveExpenseCommandHandler(
             return FinanceErrors.ExpenseNotFound;
         }
 
-        ErrorOr<Success> result = expense.Approve(request.ApprovedBy);
+        ErrorOr<Success> result = expense.Approve(approverId);
         if (result.IsError)
         {
             return result.Errors;

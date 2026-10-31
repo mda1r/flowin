@@ -43,8 +43,11 @@ internal sealed class TenantSchemaProvisioner(
         await DatabaseInitializerExtensions.EnsureCreatedAsync<FinanceDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+        await DatabaseInitializerExtensions.MigrateRestaurantColumnsAsync(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<HotelDbContext>(sp, logger);
+        await DatabaseInitializerExtensions.MigrateHotelColumnsAsync(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<GamingDbContext>(sp, logger);
+        await DatabaseInitializerExtensions.MigrateGamingColumnsAsync(sp, logger);
 
         logger.LogInformation(
             "Provisioned schema {Schema} for new tenant {TenantId}",

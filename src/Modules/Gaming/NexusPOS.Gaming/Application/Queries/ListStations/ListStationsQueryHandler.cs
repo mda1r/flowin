@@ -22,8 +22,11 @@ internal sealed class ListStationsQueryHandler(
         IReadOnlyList<GameSession> activeSessions = await gameSessionRepository.FindActiveByBranchAsync(
             request.BranchId, cancellationToken);
 
+        // The unique index keeps one active session per station; if older data has two, show the latest
+        // instead of failing the whole page.
         Dictionary<Guid, GameSession> sessionByStation = activeSessions
-            .ToDictionary(s => s.StationId);
+            .GroupBy(s => s.StationId)
+            .ToDictionary(g => g.Key, g => g.MaxBy(s => s.StartTime)!);
 
         return stations
             .Select(s => GamingMapper.ToResponse(s, sessionByStation.GetValueOrDefault(s.Id.Value)))

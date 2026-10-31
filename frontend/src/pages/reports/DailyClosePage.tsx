@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle, Banknote, ChevronLeft, ChevronRight, ClipboardCheck, CreditCard, Gamepad2, Printer,
-  Receipt, RotateCcw, TrendingUp, UtensilsCrossed,
+  Receipt, RotateCcw, Smartphone, TrendingUp, UtensilsCrossed,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -20,14 +20,20 @@ import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import type { CompletedSessionResponse } from '@/api/gaming'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
+// Payment and refund methods the server records; anything else falls back to its raw name.
 const PAYMENT_LABELS: Record<string, string> = {
-  Cash: 'نقداً', Card: 'بطاقة', BankTransfer: 'تحويل بنكي', Voucher: 'قسيمة', StoreCredit: 'رصيد متجر',
+  Cash: 'نقداً', Card: 'بطاقة', Digital: 'دفع رقمي', Split: 'تقسيم', StoreCredit: 'رصيد متجر',
+}
+const PAYMENT_ICONS: Record<string, React.ReactNode> = {
+  Cash: <Banknote className="h-3.5 w-3.5" />,
+  Digital: <Smartphone className="h-3.5 w-3.5" />,
 }
 
 const shiftDate = (iso: string | null) => (iso ? localYmd(new Date(iso)) : null)
 const timeOf = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'
+  iso ? new Date(iso).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' }) : '—'
 
 function addDays(ymd: string, days: number) {
   const d = new Date(`${ymd}T00:00:00`)
@@ -100,13 +106,19 @@ export function DailyClosePage() {
     enabled: !!branchId,
   })
   const returnsQ = useQuery({
-    queryKey: ['daily-close', 'returns', branchId],
-    queryFn: () => ordersApi.listReturns(branchId!),
+    queryKey: ['daily-close', 'returns', branchId, day],
+    queryFn: () => ordersApi.listReturns(branchId!, range),
     enabled: !!branchId,
   })
   const shiftsQ = useQuery({
     queryKey: ['daily-close', 'shifts', branchId],
     queryFn: () => shiftsApi.list(branchId!, 1, 100),
+    enabled: !!branchId,
+  })
+  // Open shifts' stored totals stay empty until they close; this gives their figures so far.
+  const openShiftsQ = useQuery({
+    queryKey: ['daily-close', 'shifts-open', branchId],
+    queryFn: () => shiftsApi.listOpen(branchId!),
     enabled: !!branchId,
   })
   const restaurantQ = useQuery({
@@ -133,7 +145,10 @@ export function DailyClosePage() {
       .filter((r) => localYmd(new Date(r.createdAt)) === day)
     const restaurant = hasRestaurant ? restaurantQ.data?.data ?? [] : []
     const sessions = hasGaming ? gamingQ.data?.data ?? [] : []
-    const shiftsRaw: ShiftResponse[] = Array.isArray(shiftsQ.data?.data) ? shiftsQ.data!.data : []
+    const liveOpen = new Map((Array.isArray(openShiftsQ.data?.data) ? openShiftsQ.data!.data : []).map((s) => [s.id, s]))
+    const shiftsRaw: ShiftResponse[] = (Array.isArray(shiftsQ.data?.data) ? shiftsQ.data!.data : [])
+      .map((s) => liveOpen.get(s.id) ?? s)
+    for (const s of liveOpen.values()) if (!shiftsRaw.some((x) => x.id === s.id)) shiftsRaw.push(s)
     const shifts = shiftsRaw.filter((s) =>
       shiftDate(s.openedAt) === day || shiftDate(s.closedAt) === day ||
       (s.status === 'Open' && (shiftDate(s.openedAt) ?? '') <= day && day <= today))
@@ -208,9 +223,9 @@ export function DailyClosePage() {
     // VAT from every invoice recorded that day (till, restaurant and paid gaming sessions).
     const vat = dayOrders.reduce((s, o) => s + o.taxAmount, 0)
     return { pos, payments, topProducts, refunds, rest, gaming, shifts, revenue, vat, net: revenue - refunds.total }
-  }, [ordersQ.data, returnsQ.data, restaurantQ.data, gamingQ.data, shiftsQ.data, day, today, hasGaming, hasRestaurant])
+  }, [ordersQ.data, returnsQ.data, restaurantQ.data, gamingQ.data, shiftsQ.data, openShiftsQ.data, day, today, hasGaming, hasRestaurant])
 
-  const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
   return (
     <div>
@@ -262,14 +277,14 @@ export function DailyClosePage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard label="إجمالي الإيرادات" value={formatCurrency(report.revenue)} icon={<TrendingUp />} hint="شامل الضريبة" />
               <StatCard label="المرتجعات" value={formatCurrency(report.refunds.total)} icon={<RotateCcw />} tone="danger"
-                hint={`${report.refunds.count.toLocaleString('ar-SA')} عملية`} />
+                hint={`${report.refunds.count.toLocaleString(intlLocale())} عملية`} />
               <StatCard label="الصافي" value={formatCurrency(report.net)} icon={<Receipt />} tone="success" />
               <StatCard label="ضريبة القيمة المضافة" value={formatCurrency(report.vat)} icon={<ClipboardCheck />} tone="info" hint="من الفواتير المسجّلة" />
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
               <Section title="مبيعات نقطة البيع" icon={<Receipt />}>
-                <Row label="عدد الطلبات" value={report.pos.count.toLocaleString('ar-SA')} />
+                <Row label="عدد الطلبات" value={report.pos.count.toLocaleString(intlLocale())} />
                 <Row label="الخصومات" value={formatCurrency(report.pos.discounts)} />
                 <Row label="الضريبة" value={formatCurrency(report.pos.vat)} />
                 <Row label="الإجمالي" value={formatCurrency(report.pos.gross)} strong />
@@ -278,7 +293,7 @@ export function DailyClosePage() {
                   {Object.keys(report.payments).length === 0 ? (
                     <p className="text-sm text-muted">لا توجد مبيعات</p>
                   ) : Object.entries(report.payments).map(([k, v]) => (
-                    <Row key={k} label={<span className="flex items-center gap-1.5">{k === 'Cash' ? <Banknote className="h-3.5 w-3.5" /> : <CreditCard className="h-3.5 w-3.5" />}{PAYMENT_LABELS[k] ?? k}</span>} value={formatCurrency(v)} />
+                    <Row key={k} label={<span className="flex items-center gap-1.5">{PAYMENT_ICONS[k] ?? <CreditCard className="h-3.5 w-3.5" />}{PAYMENT_LABELS[k] ?? k}</span>} value={formatCurrency(v)} />
                   ))}
                 </div>
               </Section>
@@ -291,14 +306,14 @@ export function DailyClosePage() {
                     {Object.entries(report.refunds.byMethod).map(([k, v]) => (
                       <Row key={k} label={PAYMENT_LABELS[k] ?? k} value={formatCurrency(v)} />
                     ))}
-                    <Row label={`الإجمالي (${report.refunds.count.toLocaleString('ar-SA')})`} value={formatCurrency(report.refunds.total)} strong tone="danger" />
+                    <Row label={`الإجمالي (${report.refunds.count.toLocaleString(intlLocale())})`} value={formatCurrency(report.refunds.total)} strong tone="danger" />
                   </>
                 )}
               </Section>
 
               {hasRestaurant && (
                 <Section title="طلبات المطعم المدفوعة" icon={<UtensilsCrossed />}>
-                  <Row label="عدد الطلبات" value={report.rest.count.toLocaleString('ar-SA')} />
+                  <Row label="عدد الطلبات" value={report.rest.count.toLocaleString(intlLocale())} />
                   {Object.entries(report.rest.byMethod).map(([k, v]) => (
                     <Row key={k} label={PAYMENT_LABELS[k] ?? k} value={formatCurrency(v)} />
                   ))}
@@ -309,16 +324,16 @@ export function DailyClosePage() {
 
               {hasGaming && (
                 <Section title="جلسات الألعاب" icon={<Gamepad2 />}>
-                  <Row label="عدد الجلسات" value={report.gaming.count.toLocaleString('ar-SA')} />
-                  <Row label="ساعات اللعب" value={(report.gaming.minutes / 60).toLocaleString('ar-SA', { maximumFractionDigits: 1 })} />
+                  <Row label="عدد الجلسات" value={report.gaming.count.toLocaleString(intlLocale())} />
+                  <Row label="ساعات اللعب" value={(report.gaming.minutes / 60).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })} />
                   {report.gaming.stations.map((s) => (
-                    <Row key={s.name} label={`${s.name} · ${s.sessions.toLocaleString('ar-SA')} جلسة`} value={formatCurrency(s.revenue)} />
+                    <Row key={s.name} label={`${s.name} · ${s.sessions.toLocaleString(intlLocale())} جلسة`} value={formatCurrency(s.revenue)} />
                   ))}
                   {Object.entries(report.gaming.byMethod).map(([k, v]) => (
                     <Row key={k} label={`محصّل ${PAYMENT_LABELS[k] ?? k}`} value={formatCurrency(v)} />
                   ))}
                   {report.gaming.unpaidCount > 0 && (
-                    <Row label={`غير محصّل (${report.gaming.unpaidCount.toLocaleString('ar-SA')} جلسة)`} value={formatCurrency(report.gaming.unpaidTotal)} tone="warning" />
+                    <Row label={`غير محصّل (${report.gaming.unpaidCount.toLocaleString(intlLocale())} جلسة)`} value={formatCurrency(report.gaming.unpaidTotal)} tone="warning" />
                   )}
                   <Row label="المحصّل" value={formatCurrency(report.gaming.total)} strong />
                 </Section>
@@ -341,7 +356,7 @@ export function DailyClosePage() {
                         {report.topProducts.map((p) => (
                           <tr key={p.name}>
                             <td className="py-2 text-fg">{p.name}</td>
-                            <td className="py-2 tabular-nums text-fg">{p.qty.toLocaleString('ar-SA')}</td>
+                            <td className="py-2 tabular-nums text-fg">{p.qty.toLocaleString(intlLocale())}</td>
                             <td className="py-2 text-end tabular-nums text-fg">{formatCurrency(p.revenue)}</td>
                           </tr>
                         ))}
@@ -396,7 +411,7 @@ export function DailyClosePage() {
             {report.gaming.unpaidCount > 0 && (
               <p className="flex items-start gap-2 rounded-xl bg-warning/10 px-4 py-3 text-xs text-warning">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                {report.gaming.unpaidCount.toLocaleString('ar-SA')} جلسة لعب انتهت دون تسجيل دفع بقيمة {formatCurrency(report.gaming.unpaidTotal)}.
+                {report.gaming.unpaidCount.toLocaleString(intlLocale())} جلسة لعب انتهت دون تسجيل دفع بقيمة {formatCurrency(report.gaming.unpaidTotal)}.
                 سجّل دفعها هنا لتدخل في الشفت الحالي وزاتكا.
               </p>
             )}

@@ -27,7 +27,7 @@ internal sealed class CheckOutCommandHandler(
             return HotelErrors.ReservationNotFound;
         }
 
-        ErrorOr<Success> completeResult = reservation.Complete();
+        ErrorOr<Success> completeResult = reservation.Complete(DateTime.UtcNow);
         if (completeResult.IsError)
         {
             return completeResult.Errors;

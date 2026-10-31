@@ -24,7 +24,7 @@ internal sealed class MoveTenantBetweenBrandsCommandHandler(
 
         if (!targetBrandExists)
         {
-            return Error.NotFound("Brand.NotFound", "Target brand not found");
+            return Error.NotFound("Brand.NotFound", "العلامة التجارية المستهدفة غير موجودة");
         }
 
         var tenant = await orgDb.Tenants
@@ -33,7 +33,7 @@ internal sealed class MoveTenantBetweenBrandsCommandHandler(
 
         if (tenant is null)
         {
-            return Error.NotFound("Tenant.NotFound", "Tenant not found");
+            return Error.NotFound("Tenant.NotFound", "المنشأة غير موجودة");
         }
 
         var currentMembership = await orgDb.TenantBrandMemberships
@@ -47,7 +47,7 @@ internal sealed class MoveTenantBetweenBrandsCommandHandler(
         {
             if (currentMembership.BrandId == request.TargetBrandId)
             {
-                return Error.Conflict("Brand.SameBrand", "Tenant is already in the target brand");
+                return Error.Conflict("Brand.SameBrand", "المنشأة ضمن هذه العلامة مسبقاً");
             }
 
             currentMembership.Unlink(request.ActorId);

@@ -53,6 +53,17 @@ public sealed class SupplierTests
     }
 
     [Fact]
+    public void Activate_AfterDeactivate_SetsIsActiveTrue()
+    {
+        Supplier supplier = Supplier.Create(_tenantId, "Acme Corp");
+        supplier.Deactivate();
+
+        supplier.Activate();
+
+        supplier.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
     public void Create_WithNullOptionalFields_CreatesSupplierSuccessfully()
     {
         Supplier supplier = Supplier.Create(_tenantId, "Minimal Supplier");

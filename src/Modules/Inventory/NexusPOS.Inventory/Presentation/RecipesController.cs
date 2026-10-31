@@ -7,6 +7,7 @@ using NexusPOS.Inventory.Application.Commands.SetRecipe;
 using NexusPOS.Inventory.Application.Common;
 using NexusPOS.Inventory.Application.Queries.GetRecipe;
 using NexusPOS.Inventory.Application.Queries.ListRecipeSummaries;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Inventory.Presentation;
 
@@ -39,6 +40,7 @@ public sealed class RecipesController(ISender mediator) : ControllerBase
     }
 
     [HttpPut("{variantId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RecipeResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Set(
         Guid tenantId, Guid variantId, [FromBody] SetRecipeRequest request, CancellationToken cancellationToken)
@@ -50,16 +52,5 @@ public sealed class RecipesController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrors);
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        Error first = errors[0];
-        int status = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: status);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }

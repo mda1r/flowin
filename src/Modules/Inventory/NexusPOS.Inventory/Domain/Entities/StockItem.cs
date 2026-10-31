@@ -15,6 +15,9 @@ public sealed class StockItem : AggregateRoot<StockItemId>
     public decimal ReorderQuantity { get; private set; }
     public DateTime? ExpiryDate { get; private set; }
     public int NotifyDaysBeforeExpiry { get; private set; } = 7;
+
+    // Archived items keep their movement history but are no longer tracked, listed or alerted on.
+    public bool IsArchived { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -49,7 +52,13 @@ public sealed class StockItem : AggregateRoot<StockItemId>
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public ErrorOr<Success> Receive(decimal quantity, string? reference = null, string? notes = null, DateTime? expiryDate = null)
+    public ErrorOr<Success> Receive(
+        decimal quantity,
+        string? reference = null,
+        string? notes = null,
+        DateTime? expiryDate = null,
+        Guid? userId = null,
+        MovementType type = MovementType.Receive)
     {
         if (quantity <= 0)
         {
@@ -64,13 +73,18 @@ public sealed class StockItem : AggregateRoot<StockItemId>
         }
         UpdatedAt = DateTime.UtcNow;
 
-        Movements.Add(StockMovement.Record(Id, MovementType.Receive, quantity, before, Quantity, reference, notes));
+        Movements.Add(StockMovement.Record(Id, type, quantity, before, Quantity, reference, notes, userId));
         RaiseDomainEvent(new StockLevelChangedDomainEvent(Id.Value, VariantId, BranchId, before, Quantity));
 
         return Result.Success;
     }
 
-    public ErrorOr<Success> Deduct(decimal quantity, MovementType type, string? reference = null, string? notes = null)
+    public ErrorOr<Success> Deduct(
+        decimal quantity,
+        MovementType type,
+        string? reference = null,
+        string? notes = null,
+        Guid? userId = null)
     {
         if (quantity <= 0)
         {
@@ -82,22 +96,51 @@ public sealed class StockItem : AggregateRoot<StockItemId>
             return InventoryErrors.InsufficientStock;
         }
 
+        RecordDeduction(quantity, Quantity - quantity, type, reference, notes, userId);
+        return Result.Success;
+    }
+
+    // A completed sale has already happened, so it is always recorded. When it needs more than the recorded
+    // quantity (stale till, two tills, an uncounted delivery) stock goes to zero and the shortfall is returned.
+    public ErrorOr<decimal> DeductForSale(
+        decimal quantity,
+        string? reference = null,
+        string? notes = null,
+        Guid? userId = null)
+    {
+        if (quantity <= 0)
+        {
+            return InventoryErrors.InvalidQuantity;
+        }
+
+        decimal shortfall = Math.Max(quantity - Math.Max(Quantity, 0m), 0m);
+        if (shortfall > 0)
+        {
+            string shortfallNote = $"نقص {shortfall:0.####} عن المخزون المسجّل";
+            notes = string.IsNullOrWhiteSpace(notes) ? shortfallNote : $"{notes} · {shortfallNote}";
+        }
+
+        RecordDeduction(quantity, Math.Max(Quantity - quantity, 0m), MovementType.Sale, reference, notes, userId);
+        return shortfall;
+    }
+
+    private void RecordDeduction(
+        decimal quantity, decimal newQuantity, MovementType type, string? reference, string? notes, Guid? userId)
+    {
         decimal before = Quantity;
-        Quantity -= quantity;
+        Quantity = newQuantity;
         UpdatedAt = DateTime.UtcNow;
 
-        Movements.Add(StockMovement.Record(Id, type, quantity, before, Quantity, reference, notes));
+        Movements.Add(StockMovement.Record(Id, type, quantity, before, Quantity, reference, notes, userId));
         RaiseDomainEvent(new StockLevelChangedDomainEvent(Id.Value, VariantId, BranchId, before, Quantity));
 
         if (Quantity <= ReorderPoint && ReorderPoint > 0)
         {
             RaiseDomainEvent(new LowStockAlertDomainEvent(Id.Value, VariantId, BranchId, Quantity, ReorderPoint));
         }
-
-        return Result.Success;
     }
 
-    public ErrorOr<Success> Adjust(decimal newQuantity, string? reference = null, string? notes = null)
+    public ErrorOr<Success> Adjust(decimal newQuantity, string? reference = null, string? notes = null, Guid? userId = null)
     {
         if (newQuantity < 0)
         {
@@ -108,10 +151,35 @@ public sealed class StockItem : AggregateRoot<StockItemId>
         Quantity = newQuantity;
         UpdatedAt = DateTime.UtcNow;
 
-        Movements.Add(StockMovement.Record(Id, MovementType.Adjustment, Math.Abs(newQuantity - before), before, Quantity, reference, notes));
+        Movements.Add(StockMovement.Record(Id, MovementType.Adjustment, Math.Abs(newQuantity - before), before, Quantity, reference, notes, userId));
         RaiseDomainEvent(new StockLevelChangedDomainEvent(Id.Value, VariantId, BranchId, before, Quantity));
 
         return Result.Success;
+    }
+
+    public void Archive()
+    {
+        IsArchived = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Restore()
+    {
+        IsArchived = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // Applies a stock count's surplus or shortage on top of the current level, so sales and
+    // receipts made while the count was open are kept. Stock never goes below zero.
+    public ErrorOr<Success> ApplyCountDifference(decimal difference, string? reference = null, string? notes = null)
+    {
+        decimal target = Math.Max(0, Quantity + difference);
+        if (target == Quantity)
+        {
+            return Result.Success;
+        }
+
+        return Adjust(target, reference, notes);
     }
 
     public void SetReorderThresholds(decimal reorderPoint, decimal reorderQuantity)

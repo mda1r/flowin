@@ -10,6 +10,7 @@ import { stockMaterialApi } from '@/api/stockMaterial'
 import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
+import { useI18n } from '@/i18n'
 import { apiErrorMessage } from '@/lib/apiError'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import { materialReorderQty, productReorderQty } from '@/lib/reorder'
@@ -37,12 +38,15 @@ interface ReorderModalProps {
   suppliers: SupplierResponse[]
   onClose: () => void
   onCreated: (orderId: string) => void
-  onAddSupplier: () => void
+  // Omitted for roles that cannot create suppliers.
+  onAddSupplier?: () => void
 }
 
 export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: ReorderModalProps) {
   const { tenantId, branchId, user } = useAuthStore()
   const qc = useQueryClient()
+  const { t, lang } = useI18n()
+  const fmtNum = (n: number) => n.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US')
   const routes = user?.businessType ? BUSINESS_TYPE_ROUTES[user.businessType] ?? [] : []
   const usesMaterials = routes.includes('/stock-materials')
   const usesProductStock = routes.includes('/inventory')
@@ -87,7 +91,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
       kind: 'material',
       id: m.id,
       name: m.nameAr,
-      stockLabel: `${m.currentQuantityInStorageUnits.toLocaleString('ar-SA')} ${m.storageUnit} · حد الطلب ${(m.reorderLevel ?? 0).toLocaleString('ar-SA')}`,
+      stockLabel: `${fmtNum(m.currentQuantityInStorageUnits)} ${m.storageUnit} · ${t.purchasing.reorderLevel.replace('{n}', fmtNum(m.reorderLevel ?? 0))}`,
       quantity: String(materialReorderQty(m)),
       unitCost: m.currentCost > 0 ? String(m.currentCost) : '',
       selected: true,
@@ -100,8 +104,8 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
           key: `p-${s.variantId}`,
           kind: 'product' as const,
           id: s.variantId,
-          name: info?.name ?? 'منتج',
-          stockLabel: `${s.quantity.toLocaleString('ar-SA')} · حد الطلب ${s.reorderPoint.toLocaleString('ar-SA')}`,
+          name: info?.name ?? t.purchasing.kindProduct,
+          stockLabel: `${fmtNum(s.quantity)} · ${t.purchasing.reorderLevel.replace('{n}', fmtNum(s.reorderPoint))}`,
           quantity: String(productReorderQty(s)),
           unitCost: info && info.cost > 0 ? String(info.cost) : '',
           selected: true,
@@ -123,7 +127,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
     mutationFn: async () => {
       const { data: order } = await purchasingApi.createPurchaseOrder(branchId!, {
         supplierId,
-        notes: 'أمر شراء من النواقص',
+        notes: t.purchasing.reorderNote,
       })
       let added = 0
       try {
@@ -143,16 +147,22 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
     },
     onSuccess: (orderId) => {
       void qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] })
-      toast.success('تم إنشاء أمر الشراء', `${chosen.length.toLocaleString('ar-SA')} صنف · راجعه ثم أرسله للمورد`)
+      toast.success(t.purchasing.created, t.purchasing.reorderCreatedHint.replace('{n}', fmtNum(chosen.length)))
       onCreated(orderId)
     },
     onError: (err: Error & { orderId?: string; added?: number }) => {
       if (err.orderId) {
         void qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] })
-        toast.error('أُنشئ الأمر لكن بعض الأصناف لم تُضف', `أُضيف ${err.added ?? 0} من ${chosen.length}: ${err.message}`)
+        toast.error(
+          t.purchasing.reorderPartial,
+          t.purchasing.reorderPartialDetail
+            .replace('{added}', fmtNum(err.added ?? 0))
+            .replace('{total}', fmtNum(chosen.length))
+            .replace('{error}', err.message),
+        )
         onCreated(err.orderId)
       } else {
-        toast.error('تعذّر إنشاء أمر الشراء', err.message)
+        toast.error(t.purchasing.createFailed, err.message)
       }
     },
   })
@@ -165,7 +175,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
         <h3 className="flex items-center gap-2 text-13 font-semibold text-muted">
           {icon}
           {title}
-          <span className="tabular-nums">({rows.length.toLocaleString('ar-SA')})</span>
+          <span className="tabular-nums">({fmtNum(rows.length)})</span>
         </h3>
         <ul className="space-y-2">
           {rows.map((l) => (
@@ -181,14 +191,14 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
                 className="h-4 w-4 shrink-0 accent-[rgb(var(--brand-ink))]"
                 checked={l.selected}
                 onChange={(e) => update(l.key, { selected: e.target.checked })}
-                aria-label={`تضمين ${l.name}`}
+                aria-label={t.purchasing.includeItem.replace('{name}', l.name)}
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-fg">{l.name}</p>
                 <p className="text-xs text-warning tabular-nums">{l.stockLabel}</p>
               </div>
               <label className="w-24 shrink-0">
-                <span className="sr-only">الكمية</span>
+                <span className="sr-only">{t.purchasing.quantity}</span>
                 <input
                   type="number"
                   className="input text-sm"
@@ -197,11 +207,11 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
                   value={l.quantity}
                   disabled={!l.selected}
                   onChange={(e) => update(l.key, { quantity: e.target.value })}
-                  placeholder="الكمية"
+                  placeholder={t.purchasing.quantity}
                 />
               </label>
               <label className="w-28 shrink-0">
-                <span className="sr-only">سعر الوحدة</span>
+                <span className="sr-only">{t.purchasing.unitPrice}</span>
                 <input
                   type="number"
                   className="input text-sm"
@@ -210,7 +220,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
                   value={l.unitCost}
                   disabled={!l.selected}
                   onChange={(e) => update(l.key, { unitCost: e.target.value })}
-                  placeholder="سعر الوحدة"
+                  placeholder={t.purchasing.unitPrice}
                 />
               </label>
             </li>
@@ -224,19 +234,19 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
     <Modal
       open
       onClose={onClose}
-      title="أمر شراء من النواقص"
+      title={t.purchasing.reorderTitle}
       size="2xl"
       footer={
         draft.length > 0 && suppliers.length > 0 ? (
           <>
             <span className="me-auto self-center text-sm tabular-nums text-muted">
-              الإجمالي التقديري <span className="font-semibold text-fg">{formatCurrency(total)}</span>
+              {t.purchasing.estimatedTotal} <span className="font-semibold text-fg">{formatCurrency(total)}</span>
             </span>
             <Button variant="secondary" onClick={onClose} disabled={create.isPending}>
-              إلغاء
+              {t.common.cancel}
             </Button>
             <Button onClick={() => create.mutate()} loading={create.isPending} disabled={!canCreate}>
-              إنشاء أمر الشراء ({chosen.length.toLocaleString('ar-SA')})
+              {t.purchasing.createOrderN.replace('{n}', fmtNum(chosen.length))}
             </Button>
           </>
         ) : undefined
@@ -251,24 +261,24 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
       ) : suppliers.length === 0 ? (
         <EmptyState
           icon={<PackageSearch />}
-          title="أضف مورداً أولاً"
-          description="أمر الشراء يحتاج مورداً. أضف مورداً ثم ارجع لإنشاء الطلب من النواقص."
-          action={<Button onClick={onAddSupplier}>إضافة مورد</Button>}
+          title={t.purchasing.addSupplierFirst}
+          description={t.purchasing.addSupplierFirstHint}
+          action={onAddSupplier ? <Button onClick={onAddSupplier}>{t.purchasing.addSupplier}</Button> : undefined}
         />
       ) : draft.length === 0 ? (
         <EmptyState
           icon={<PackageSearch />}
-          title="لا توجد نواقص"
-          description="كل المواد والمنتجات فوق حد الطلب. حدّد حد الطلب للمواد والمنتجات لتظهر هنا عند انخفاضها."
+          title={t.purchasing.noShortages}
+          description={t.purchasing.noShortagesHint}
         />
       ) : (
         <div className="space-y-5">
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-fg">
-              المورد <span className="text-danger">*</span>
+              {t.purchasing.supplier} <span className="text-danger">*</span>
             </span>
             <select className="input" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-              <option value="">اختر المورد</option>
+              <option value="">{t.purchasing.chooseSupplier}</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -277,17 +287,15 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
             </select>
           </label>
 
-          <p className="text-xs text-muted">
-            الكميات مقترحة لتعبئة المخزون حتى الحد الأقصى (أو ضعف حد الطلب). عدّلها أو ألغِ تحديد ما لا تريد طلبه. يُنشأ الأمر كمسودة لتراجعه قبل إرساله.
-          </p>
+          <p className="text-xs text-muted">{t.purchasing.reorderHint}</p>
 
-          {section('material', 'مواد خام', <FlaskConical className="h-4 w-4" />)}
-          {section('product', 'منتجات', <Package className="h-4 w-4" />)}
+          {section('material', t.purchasing.rawMaterials, <FlaskConical className="h-4 w-4" />)}
+          {section('product', t.purchasing.products, <Package className="h-4 w-4" />)}
 
           {chosen.some((l) => l.unitCost === '') && (
             <p className="flex items-center gap-2 text-xs text-warning">
               <AlertTriangle className="h-3.5 w-3.5" />
-              أدخل سعر الوحدة للأصناف التي ليس لها سعر شراء سابق.
+              {t.purchasing.missingCost}
             </p>
           )}
         </div>

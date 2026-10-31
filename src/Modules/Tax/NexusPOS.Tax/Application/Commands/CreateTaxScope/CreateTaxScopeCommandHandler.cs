@@ -20,7 +20,7 @@ internal sealed class CreateTaxScopeCommandHandler(TaxConfigDbContext taxDb)
         if (vatDuplicate)
         {
             return Error.Conflict("TaxScope.VatNumberTaken",
-                $"VAT registration number '{request.VatRegistrationNumber}' is already registered");
+                $"الرقم الضريبي '{request.VatRegistrationNumber}' مسجّل مسبقاً");
         }
 
         TaxRegistrationScope scope = TaxRegistrationScope.Create(

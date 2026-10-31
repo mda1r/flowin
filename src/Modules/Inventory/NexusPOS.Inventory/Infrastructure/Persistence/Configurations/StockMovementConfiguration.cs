@@ -48,6 +48,9 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
             .HasColumnName("notes")
             .HasMaxLength(512);
 
+        builder.Property(m => m.UserId)
+            .HasColumnName("user_id");
+
         builder.Property(m => m.OccurredAt)
             .HasColumnName("occurred_at");
     }

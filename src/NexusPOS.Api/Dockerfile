@@ -3,6 +3,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080
+# Arabic validation messages and Riyadh time need ICU and tzdata, which the Alpine image leaves out.
+RUN apk add --no-cache icu-libs icu-data-full tzdata
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 # ── Stage 2: Restore + Build + Publish ────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS publish

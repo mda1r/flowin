@@ -8,5 +8,6 @@ public sealed record StartSessionCommand(
     Guid BranchId,
     string PlayerName,
     int DurationMinutes,
-    decimal RatePerHour,
-    Guid? PackageId = null) : ICommand<GameStationResponse>;
+    decimal? RatePerHour = null,
+    Guid? PackageId = null,
+    bool CanOverrideRate = false) : ICommand<GameStationResponse>;

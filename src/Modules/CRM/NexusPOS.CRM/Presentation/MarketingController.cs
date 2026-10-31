@@ -4,8 +4,10 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NexusPOS.CRM.Application.Marketing;
 using NexusPOS.CRM.Domain.Marketing;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.CRM.Presentation;
 
@@ -43,8 +45,18 @@ public sealed class MarketingController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("campaigns/{campaignId:guid}/send-batch")]
-    public async Task<IActionResult> SendBatch(Guid tenantId, Guid campaignId, CancellationToken ct) =>
-        (await mediator.Send(new SendCampaignBatchCommand(tenantId, campaignId), ct)).Match(Ok, Problem);
+    public async Task<IActionResult> SendBatch(
+        Guid tenantId, Guid campaignId, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CampaignRunnerRequest? request, CancellationToken ct)
+    {
+        Guid? runnerId = request?.RunnerId is Guid id && id != Guid.Empty ? id : null;
+        return (await mediator.Send(new SendCampaignBatchCommand(tenantId, campaignId, runnerId), ct)).Match(Ok, Problem);
+    }
+
+    [HttpPost("campaigns/{campaignId:guid}/release")]
+    public async Task<IActionResult> ReleaseSending(Guid tenantId, Guid campaignId, [FromBody] CampaignRunnerRequest request, CancellationToken ct) =>
+        request.RunnerId is Guid runnerId
+            ? (await mediator.Send(new ReleaseCampaignSendingCommand(tenantId, campaignId, runnerId), ct)).Match(_ => NoContent(), Problem)
+            : NoContent();
 
     [HttpPost("campaigns/{campaignId:guid}/retry-failed")]
     public async Task<IActionResult> RetryFailed(Guid tenantId, Guid campaignId, CancellationToken ct) =>
@@ -63,22 +75,24 @@ public sealed class MarketingController(ISender mediator) : ControllerBase
     {
         UpdateWhatsAppSettingsCommand command = new(
             tenantId, request.PhoneNumberId, request.AccessToken, request.TemplateName, request.LanguageCode,
-            request.HasImageHeader, request.IncludeNameVariable);
+            request.HasImageHeader, request.IncludeNameVariable, request.BusinessAccountId);
         return (await mediator.Send(command, ct)).Match(Ok, Problem);
     }
 
-    private IActionResult Problem(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Failure => StatusCodes.Status502BadGateway,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    [HttpPost("whatsapp/check")]
+    public async Task<IActionResult> CheckWhatsApp(Guid tenantId, CancellationToken ct) =>
+        (await mediator.Send(new CheckWhatsAppCommand(tenantId), ct)).Match(Ok, Problem);
+
+    [HttpPost("whatsapp/test")]
+    public async Task<IActionResult> TestWhatsApp(Guid tenantId, [FromBody] WhatsAppTestRequest request, CancellationToken ct) =>
+        (await mediator.Send(new SendWhatsAppTestCommand(tenantId, request.Phone ?? string.Empty, request.Name, request.Message, request.ImageId), ct))
+            .Match(Ok, Problem);
+
+    // The WhatsApp provider failing is an upstream error, not ours; everything else uses the shared mapping.
+    private IActionResult Problem(List<Error> errors) =>
+        errors is [{ Type: ErrorType.Failure } first, ..]
+            ? Problem(title: first.Code, detail: first.Description, statusCode: StatusCodes.Status502BadGateway)
+            : this.ToProblem(errors);
 }
 
 public sealed record UploadMediaRequest(string ContentType, string Base64);
@@ -91,4 +105,9 @@ public sealed record UpdateWhatsAppSettingsRequest(
     string TemplateName,
     string LanguageCode,
     bool HasImageHeader,
-    bool IncludeNameVariable);
+    bool IncludeNameVariable,
+    string? BusinessAccountId = null);
+
+public sealed record CampaignRunnerRequest(Guid? RunnerId);
+
+public sealed record WhatsAppTestRequest(string? Phone, string? Name, string? Message, Guid? ImageId);

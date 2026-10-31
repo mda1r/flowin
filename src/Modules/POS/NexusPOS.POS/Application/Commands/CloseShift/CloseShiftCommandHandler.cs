@@ -24,44 +24,28 @@ internal sealed class CloseShiftCommandHandler(
         CashierShift? shift = await shiftRepository.FindByIdAsync(
             new CashierShiftId(request.ShiftId), cancellationToken);
 
-        if (shift is null || shift.BranchId != request.BranchId || shift.UserId != request.UserId)
+        if (shift is null || shift.BranchId != request.BranchId
+            || (!request.ClosedByManager && shift.UserId != request.UserId))
         {
             return PosErrors.ShiftNotFound;
         }
 
-        // Calculate totals from completed orders during this shift's time range
-        List<Order> orders = await dbContext.Orders
-            .Where(o => o.BranchId == request.BranchId
-                     && o.Status == OrderStatus.Completed
-                     && o.CompletedAt >= shift.OpenedAt)
-            .ToListAsync(cancellationToken);
+        if (shift.Status != ShiftStatus.Open)
+        {
+            return PosErrors.ShiftNotOpen;
+        }
 
-        decimal totalSales = orders.Sum(o => o.TotalAmount);
-        // Split payments count their cash and card portions; leaving them out understated expected cash.
-        decimal totalCashSales = orders.Sum(o => o.PaymentMethod switch
-        {
-            PaymentMethod.Cash => o.TotalAmount,
-            PaymentMethod.Split => o.SplitCash ?? 0m,
-            _ => 0m,
-        });
-        decimal totalCardSales = orders.Sum(o => o.PaymentMethod switch
-        {
-            PaymentMethod.Card => o.TotalAmount,
-            PaymentMethod.Split => o.SplitCard ?? 0m,
-            _ => 0m,
-        });
-        decimal totalTax = orders.Sum(o => o.TaxAmount);
-        int totalOrders = orders.Count;
+        ShiftTotals totals = await ShiftTotalsReader.ReadAsync(dbContext, shift, cancellationToken);
+
+        // A manager closing their own shift is an ordinary close; only someone else's is marked.
+        string? closedBy = request.ClosedByManager && shift.UserId != request.UserId ? request.ClosedByName : null;
 
         ErrorOr<Success> result = shift.Close(
             request.ClosingCash,
             request.ClosingCardCount,
-            totalSales,
-            totalCashSales,
-            totalCardSales,
-            totalTax,
-            totalOrders,
-            request.Notes);
+            totals,
+            request.Notes,
+            closedBy);
 
         if (result.IsError)
         {
@@ -69,8 +53,18 @@ internal sealed class CloseShiftCommandHandler(
         }
 
         shiftRepository.Update(shift);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Someone else closed it between our read and our save; their close stands.
+            return PosErrors.ShiftNotOpen;
+        }
 
         return OpenShiftCommandHandler.ToResponse(shift);
     }
+
+    // Returns given in the branch over the same window as the sales above, with the VAT each one handed back.
 }

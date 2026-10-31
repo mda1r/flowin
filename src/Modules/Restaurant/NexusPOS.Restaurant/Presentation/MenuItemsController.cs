@@ -10,6 +10,9 @@ using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Application.Queries.GetMenuItem;
 using NexusPOS.Restaurant.Application.Queries.ListMenuItems;
 using NexusPOS.Restaurant.Domain.Enums;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Restaurant.Presentation;
 
@@ -17,7 +20,7 @@ namespace NexusPOS.Restaurant.Presentation;
 [Route("api/v1/branches/{branchId:guid}/menu-items")]
 [Produces("application/json")]
 [Authorize]
-public sealed class MenuItemsController(ISender mediator) : ControllerBase
+public sealed class MenuItemsController(ISender mediator, ITenantContext tenantContext) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<MenuItemResponse>), StatusCodes.Status200OK)]
@@ -29,7 +32,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListMenuItemsQuery query = new(branchId, category, includeUnavailable, page, pageSize);
+        ListMenuItemsQuery query = new(branchId, category, includeUnavailable, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<MenuItemResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -45,6 +48,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(MenuItemResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateMenuItem(
@@ -52,8 +56,13 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
         [FromBody] CreateMenuItemRequest request,
         CancellationToken cancellationToken)
     {
+        if (tenantContext.TenantId is not Guid tenantId)
+        {
+            return Unauthorized();
+        }
+
         CreateMenuItemCommand command = new(
-            request.TenantId, branchId, request.Category, request.Name,
+            tenantId, branchId, request.Category, request.Name,
             request.Description, request.Price, request.Currency, request.SortOrder);
         ErrorOr<MenuItemResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
@@ -62,6 +71,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
     }
 
     [HttpPut("{menuItemId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(MenuItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -79,6 +89,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
     }
 
     [HttpPatch("{menuItemId:guid}/availability")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(MenuItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SetMenuItemAvailability(
@@ -92,22 +103,10 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateMenuItemRequest(
-    Guid TenantId,
     MenuCategory Category,
     string Name,
     string Description,

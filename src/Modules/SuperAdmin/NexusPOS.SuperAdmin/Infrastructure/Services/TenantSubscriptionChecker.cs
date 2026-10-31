@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.SharedKernel.Application.Services;
+using NexusPOS.SuperAdmin.Domain.Entities;
 using NexusPOS.SuperAdmin.Domain.Enums;
 using NexusPOS.SuperAdmin.Infrastructure.Persistence;
 
@@ -11,21 +12,14 @@ internal sealed class TenantSubscriptionChecker(SuperAdminDbContext db) : ITenan
 
     public async Task<int?> GetMaxUsersAsync(Guid tenantId, CancellationToken ct)
     {
-        var sub = await db.TenantSubscriptions
-            .AsNoTracking()
-            .Where(s => s.TenantId == tenantId && s.Status == SubscriptionStatus.Active)
-            .OrderByDescending(s => s.ExpiryDate)
-            .FirstOrDefaultAsync(ct);
+        var sub = await LiveSubscriptions(tenantId, DateTime.UtcNow).FirstOrDefaultAsync(ct);
 
         return sub?.MaxUsers ?? FreeUserLimit;
     }
 
     public async Task<IReadOnlyList<string>> GetFeaturesAsync(Guid tenantId, CancellationToken ct)
     {
-        List<string> planFeatures = await db.TenantSubscriptions
-            .AsNoTracking()
-            .Where(s => s.TenantId == tenantId && s.Status == SubscriptionStatus.Active)
-            .OrderByDescending(s => s.ExpiryDate)
+        List<string> planFeatures = await LiveSubscriptions(tenantId, DateTime.UtcNow)
             .Select(s => s.Plan!.Features)
             .FirstOrDefaultAsync(ct) ?? [];
 
@@ -36,7 +30,18 @@ internal sealed class TenantSubscriptionChecker(SuperAdminDbContext db) : ITenan
             .FirstOrDefaultAsync(ct);
 
         return aiEnabled
-            ? [.. planFeatures.Union(["ai", "ai_cashier"])]
-            : planFeatures;
+            ? PlanFeatures.Normalize(planFeatures.Append(PlanFeatures.Ai).Append(PlanFeatures.AiCashier))
+            : PlanFeatures.Normalize(planFeatures);
     }
+
+    // Same rule as TenantSubscription.IsLiveAt: not suspended/cancelled/expired and today within its dates.
+    // A pre-paid renewal (stored as Trial until it starts) takes over as soon as its start date arrives.
+    private IQueryable<TenantSubscription> LiveSubscriptions(Guid tenantId, DateTime now) =>
+        db.TenantSubscriptions
+            .AsNoTracking()
+            .Where(s => s.TenantId == tenantId
+                && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Trial)
+                && s.StartDate <= now
+                && s.ExpiryDate >= now)
+            .OrderByDescending(s => s.ExpiryDate);
 }

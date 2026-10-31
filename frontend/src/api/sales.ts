@@ -18,10 +18,18 @@ export const salesApi = {
   },
 
   // Every completed order in the local-day range, across pages.
-  listAllCompletedOrders: async (branchId: string, dateFrom: string, dateTo: string) => {
+  listAllCompletedOrders: (branchId: string, dateFrom: string, dateTo: string) => {
+    const { from, to } = localDaysToUtcRange(dateFrom, dateTo)
+    return salesApi.listAllCompletedOrdersBetween(branchId, from, to)
+  },
+
+  // Every completed order created between two UTC instants (to defaults to now), across pages.
+  listAllCompletedOrdersBetween: async (branchId: string, from: string, to?: string) => {
     const all: OrderResponse[] = []
     for (let page = 1; page <= 40; page++) {
-      const { data } = await salesApi.listCompletedOrders(branchId, { dateFrom, dateTo, page, pageSize: PAGE_SIZE })
+      const { data } = await apiClient.get<OrderResponse[]>(`/api/v1/branches/${branchId}/orders`, {
+        params: { status: 'Completed', from, to, page, pageSize: PAGE_SIZE },
+      })
       const rows: OrderResponse[] = Array.isArray(data) ? data : ((data as { items?: OrderResponse[] })?.items ?? [])
       all.push(...rows)
       if (rows.length < PAGE_SIZE) break
@@ -30,7 +38,7 @@ export const salesApi = {
   },
 
   getSummary: (branchId: string, dateFrom: string, dateTo: string) =>
-    apiClient.get<SalesSummaryResponse>(`/api/v1/branches/${branchId}/sales/summary/range`, {
+    apiClient.get<SalesSummaryResponse[]>(`/api/v1/branches/${branchId}/sales/summary/range`, {
       params: { dateFrom, dateTo },
     }),
 

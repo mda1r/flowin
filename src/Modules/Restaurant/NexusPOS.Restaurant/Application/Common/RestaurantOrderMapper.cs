@@ -33,7 +33,12 @@ internal static class RestaurantOrderMapper
                     LineTotal: i.LineTotal,
                     Notes: i.Notes,
                     Status: i.Status))
-                .ToList());
+                .ToList(),
+            KitchenOnly: order.KitchenOnly,
+            SourceOrderId: order.SourceOrderId,
+            TicketNumber: order.TicketNumber,
+            CancelReason: order.CancelReason,
+            CancelledAt: order.CancelledAt);
     }
 
     public static DiscountCodeResponse ToResponse(DiscountCode code)

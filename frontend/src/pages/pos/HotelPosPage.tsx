@@ -1,14 +1,18 @@
 import { useState } from 'react'
+import { OverlayDialog } from '@/components/ui/Modal'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BedDouble, LogIn, LogOut, X, Sparkles } from 'lucide-react'
+import { BedDouble, LogIn, LogOut, X, Sparkles, CalendarPlus, XCircle } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
+import { ConfirmModal } from '@/components/ui/Modal'
 import { useAuthStore } from '@/stores/authStore'
 import { hotelApi } from '@/api/hotel'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
-import type { RoomResponse, RoomType } from '@/types/api'
+import type { ReservationResponse, RoomResponse, RoomType } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { billableNights, hotelErrorMessage, stayTotals } from '@/pages/hotel/stay'
+import { ExtendStayModal } from '@/pages/hotel/ExtendStayModal'
 
 /* hotel accent scoped to this page */
 const HOTEL_ACCENT: React.CSSProperties = {
@@ -17,7 +21,8 @@ const HOTEL_ACCENT: React.CSSProperties = {
 } as React.CSSProperties
 
 export function HotelPosPage() {
-  const { branchId, tenantId } = useAuthStore()
+  const { branchId, user } = useAuthStore()
+  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const qc = useQueryClient()
   const { t } = useI18n()
   const roomTypeLabel = (type: RoomType): string => ({
@@ -30,6 +35,8 @@ export function HotelPosPage() {
   const [selectedRoom, setSelectedRoom] = useState<RoomResponse | null>(null)
   const [showCheckIn, setShowCheckIn] = useState(false)
   const [showCheckOut, setShowCheckOut] = useState(false)
+  const [extending, setExtending] = useState<ReservationResponse | null>(null)
+  const [cancelling, setCancelling] = useState<ReservationResponse | null>(null)
 
   const today = new Date().toISOString().slice(0, 10)
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
@@ -63,7 +70,6 @@ export function HotelPosPage() {
   const checkInMut = useMutation({
     mutationFn: () =>
       hotelApi.checkIn(branchId!, selectedRoom!.id, {
-        tenantId: tenantId!,
         guestName,
         guestNationalId,
         guestPhone,
@@ -77,7 +83,7 @@ export function HotelPosPage() {
       qc.invalidateQueries({ queryKey: ['hotel', 'rooms'] })
       closeCheckIn()
     },
-    onError: () => toast.error(t.pos.paymentFailed),
+    onError: (err) => toast.error(t.hotel.checkIn, hotelErrorMessage(err)),
   })
 
   const checkOutMut = useMutation({
@@ -88,8 +94,24 @@ export function HotelPosPage() {
       qc.invalidateQueries({ queryKey: ['hotel', 'rooms'] })
       closeCheckOut()
     },
-    onError: () => toast.error(t.pos.paymentFailed),
+    onError: (err) => toast.error(t.hotel.checkOut, hotelErrorMessage(err)),
   })
+
+  const cancelMut = useMutation({
+    mutationFn: (reservationId: string) => hotelApi.cancelReservation(branchId!, reservationId),
+    onSuccess: () => {
+      toast.success(t.hotel.reservationCancelled)
+      qc.invalidateQueries({ queryKey: ['hotel', 'rooms'] })
+      setCancelling(null)
+      closeCheckOut()
+    },
+    onError: (err) => toast.error(t.hotel.cancelReservation, hotelErrorMessage(err)),
+  })
+
+  const checkInTotals = stayTotals((selectedRoom?.nightlyRate ?? 0) * nights)
+  const stay = selectedRoom?.activeReservation
+  const stayNights = stay ? billableNights(stay) : 0
+  const checkOutTotals = stayTotals(stay ? stayNights * stay.ratePerNight : 0)
 
   const closeCheckIn = () => {
     setShowCheckIn(false)
@@ -118,7 +140,7 @@ export function HotelPosPage() {
   }
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={HOTEL_ACCENT}>
+    <div className="flex h-[calc(100vh-0px)] flex-col" style={HOTEL_ACCENT}>
       <PageHeader title="نقطة البيع — الفندق" />
 
       {/* Stats bar */}
@@ -263,15 +285,18 @@ export function HotelPosPage() {
 
       {/* Check-in modal — crystalline glass */}
       {showCheckIn && selectedRoom && (
-        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={HOTEL_ACCENT}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeCheckIn} />
-          <div
-            className="glass-panel relative mx-4 w-full max-w-md animate-float-up p-6"
-            style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
-          >
+        <OverlayDialog
+          onClose={closeCheckIn}
+          labelledBy="hotel-checkin-title"
+          className="scene-3d"
+          style={HOTEL_ACCENT}
+          backdropClassName="bg-black/60 backdrop-blur-sm"
+          panelClassName="glass-panel max-w-md animate-float-up p-6"
+          panelStyle={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
+        >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">{t.hotel.checkIn}</h2>
+                <h2 id="hotel-checkin-title" className="text-base font-semibold">{t.hotel.checkIn}</h2>
                 <p className="text-xs text-muted">
                   غرفة {selectedRoom.roomNumber} — {roomTypeLabel(selectedRoom.roomType)}
                 </p>
@@ -361,11 +386,21 @@ export function HotelPosPage() {
                   boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 14px var(--glow)',
                 }}
               >
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">{nights} {t.hotel.nights} × {formatCurrency(selectedRoom.nightlyRate)}</span>
-                  <span className="font-bold" style={{ color: 'var(--accent)' }}>
-                    {formatCurrency(selectedRoom.nightlyRate * nights)}
-                  </span>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between text-muted">
+                    <span>{nights} {t.hotel.nights} × {formatCurrency(selectedRoom.nightlyRate)}</span>
+                    <span className="tabular-nums">{formatCurrency(checkInTotals.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted">
+                    <span>{t.hotel.vat}</span>
+                    <span className="tabular-nums">{formatCurrency(checkInTotals.vat)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>{t.hotel.totalWithVat}</span>
+                    <span className="tabular-nums" style={{ color: 'var(--accent)' }}>
+                      {formatCurrency(checkInTotals.total)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -385,21 +420,23 @@ export function HotelPosPage() {
                 {t.hotel.checkIn}
               </Button>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       {/* Check-out modal — crystalline glass */}
       {showCheckOut && selectedRoom && selectedRoom.activeReservation && (
-        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={HOTEL_ACCENT}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeCheckOut} />
-          <div
-            className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6"
-            style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
-          >
+        <OverlayDialog
+          onClose={closeCheckOut}
+          labelledBy="hotel-checkout-title"
+          className="scene-3d"
+          style={HOTEL_ACCENT}
+          backdropClassName="bg-black/60 backdrop-blur-sm"
+          panelClassName="glass-panel animate-float-up p-6"
+          panelStyle={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
+        >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">{t.hotel.checkOut}</h2>
+                <h2 id="hotel-checkout-title" className="text-base font-semibold">{t.hotel.checkOut}</h2>
                 <p className="text-xs text-muted">غرفة {selectedRoom.roomNumber}</p>
               </div>
               <button onClick={closeCheckOut}>
@@ -426,8 +463,13 @@ export function HotelPosPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">{t.hotel.nights}</span>
-                <span>{selectedRoom.activeReservation.nights} {t.hotel.nights}</span>
+                <span>{stayNights} {t.hotel.nights}</span>
               </div>
+              {stayNights < selectedRoom.activeReservation.nights && (
+                <p className="rounded-lg bg-info/10 px-3 py-2 text-xs text-info">
+                  {t.hotel.earlyCheckout.replace('{n}', String(stayNights))}
+                </p>
+              )}
             </div>
 
             <div
@@ -437,10 +479,43 @@ export function HotelPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 18px var(--glow)',
               }}
             >
-              <p className="text-xs text-muted">{t.pos.total}</p>
+              <div className="mb-2 space-y-1 text-xs text-muted">
+                <div className="flex justify-between">
+                  <span>{t.hotel.subtotal}</span>
+                  <span className="tabular-nums">{formatCurrency(checkOutTotals.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{t.hotel.vat}</span>
+                  <span className="tabular-nums">{formatCurrency(checkOutTotals.vat)}</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted">{t.hotel.totalWithVat}</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>
-                {formatCurrency(selectedRoom.activeReservation.totalAmount)}
+                {formatCurrency(checkOutTotals.total)}
               </p>
+            </div>
+
+            <div className="mb-3 flex gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                onClick={() => { setExtending(selectedRoom.activeReservation!); setShowCheckOut(false) }}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                {t.hotel.extendStay}
+              </Button>
+              {canManage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 text-danger"
+                  onClick={() => setCancelling(selectedRoom.activeReservation!)}
+                >
+                  <XCircle className="h-4 w-4" />
+                  {t.hotel.cancelReservation}
+                </Button>
+              )}
             </div>
 
             <div className="flex gap-3">
@@ -457,9 +532,26 @@ export function HotelPosPage() {
                 {t.common.confirm}
               </Button>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
+
+      <ExtendStayModal
+        reservation={extending}
+        branchId={branchId!}
+        onClose={() => { setExtending(null); setSelectedRoom(null) }}
+        onSuccess={() => qc.invalidateQueries({ queryKey: ['hotel', 'rooms'] })}
+      />
+
+      <ConfirmModal
+        open={!!cancelling}
+        onClose={() => setCancelling(null)}
+        onConfirm={() => cancelling && cancelMut.mutate(cancelling.id)}
+        title={t.hotel.cancelReservation}
+        message={t.hotel.cancelReservationConfirm.replace('{name}', cancelling?.guestName ?? '')}
+        confirmLabel={t.hotel.cancelReservation}
+        confirmVariant="danger"
+        loading={cancelMut.isPending}
+      />
     </div>
   )
 }

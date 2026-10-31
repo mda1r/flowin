@@ -17,7 +17,8 @@ const isTyping = (target: EventTarget | null) => {
 
 const comboOf = (e: KeyboardEvent) => `${e.ctrlKey || e.metaKey ? 'Ctrl+' : ''}${e.key}`
 
-// Registers page-level shortcuts. They pause while any dialog is open so they never act behind it.
+// Registers page-level shortcuts. They pause while a dialog is open so they never act behind it,
+// unless that dialog opted in with data-page-shortcuts (OverlayDialog allowPageShortcuts).
 export function useShortcuts(shortcuts: Shortcut[]) {
   const ref = useRef(shortcuts)
   ref.current = shortcuts
@@ -25,7 +26,7 @@ export function useShortcuts(shortcuts: Shortcut[]) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.repeat || e.altKey) return
-      if (document.querySelector('[role="dialog"]')) return
+      if (document.querySelector('[role="dialog"]:not([data-page-shortcuts])')) return
       const combo = comboOf(e)
       const shortcut = ref.current.find((s) => s.enabled !== false && s.keys.includes(combo))
       if (!shortcut) return

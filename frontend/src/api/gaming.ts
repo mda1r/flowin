@@ -39,7 +39,6 @@ export const gamingApi = {
   createStation: (
     branchId: string,
     data: {
-      tenantId: string
       stationType: string
       name: string
       hourlyRate: number
@@ -50,7 +49,8 @@ export const gamingApi = {
   startSession: (
     branchId: string,
     stationId: string,
-    data: { playerName: string; durationMinutes: number; ratePerHour: number; packageId?: string },
+    // ratePerHour: leave out to bill the station's rate; only an owner or manager may send another one.
+    data: { playerName: string; durationMinutes: number; ratePerHour?: number; packageId?: string },
   ) =>
     apiClient.post<GameStationResponse>(
       `${BASE(branchId)}/stations/${stationId}/start`,
@@ -86,10 +86,14 @@ export const gamingApi = {
       `${BASE(branchId)}/sessions/${sessionId}/end`,
     ),
 
-  // ── Legacy (game-stations endpoint) ─────────────────────────────────────
-
+  // Only a free station can go to maintenance; "available" brings it back into service.
   setMaintenance: (branchId: string, stationId: string) =>
     apiClient.post<GameStationResponse>(
       `${BASE(branchId)}/stations/${stationId}/maintenance`,
+    ),
+
+  setAvailable: (branchId: string, stationId: string) =>
+    apiClient.post<GameStationResponse>(
+      `${BASE(branchId)}/stations/${stationId}/available`,
     ),
 }

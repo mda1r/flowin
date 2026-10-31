@@ -13,9 +13,9 @@ internal sealed class GameSessionRepository(GamingDbContext dbContext) : IGameSe
 
     public async Task<GameSession?> FindActiveByStationAsync(Guid stationId, CancellationToken cancellationToken = default)
         => await dbContext.GameSessions
-            .FirstOrDefaultAsync(
-                e => e.StationId == stationId && e.Status == GameSessionStatus.Active,
-                cancellationToken);
+            .Where(e => e.StationId == stationId && e.Status == GameSessionStatus.Active)
+            .OrderByDescending(e => e.StartTime)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<GameSession>> FindActiveByBranchAsync(Guid branchId, CancellationToken cancellationToken = default)
         => await dbContext.GameSessions

@@ -20,7 +20,8 @@ internal sealed class RoomRepository(HotelDbContext dbContext) : IRoomRepository
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        IQueryable<Room> query = dbContext.Rooms.Where(r => r.BranchId == branchId);
+        // Deactivated rooms are retired: they no longer show up in any room list.
+        IQueryable<Room> query = dbContext.Rooms.Where(r => r.BranchId == branchId && r.IsActive);
 
         if (roomType.HasValue)
         {

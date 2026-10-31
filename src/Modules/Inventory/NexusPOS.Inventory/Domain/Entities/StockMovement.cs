@@ -13,6 +13,7 @@ public sealed class StockMovement : Entity<StockMovementId>
     public decimal QuantityAfter { get; private set; }
     public string? Reference { get; private set; }
     public string? Notes { get; private set; }
+    public Guid? UserId { get; private set; }
     public DateTime OccurredAt { get; private set; }
 
     private StockMovement() { }
@@ -24,7 +25,8 @@ public sealed class StockMovement : Entity<StockMovementId>
         decimal quantityBefore,
         decimal quantityAfter,
         string? reference = null,
-        string? notes = null)
+        string? notes = null,
+        Guid? userId = null)
     {
         return new StockMovement
         {
@@ -36,6 +38,7 @@ public sealed class StockMovement : Entity<StockMovementId>
             QuantityAfter = quantityAfter,
             Reference = reference?.Trim(),
             Notes = notes?.Trim(),
+            UserId = userId,
             OccurredAt = DateTime.UtcNow,
         };
     }

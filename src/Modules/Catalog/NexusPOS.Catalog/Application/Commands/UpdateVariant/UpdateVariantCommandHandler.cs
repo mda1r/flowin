@@ -26,12 +26,42 @@ internal sealed class UpdateVariantCommandHandler(
             return CatalogErrors.ProductNotFound;
         }
 
-        ProductVariant? variant = product.Variants
-            .FirstOrDefault(v => v.Id == new VariantId(request.VariantId));
+        VariantId variantId = new(request.VariantId);
+        ProductVariant? variant = product.Variants.FirstOrDefault(v => v.Id == variantId);
 
         if (variant is null)
         {
-            return Error.NotFound("Variant.NotFound", "النوع غير موجود");
+            return CatalogErrors.VariantNotFound;
+        }
+
+        // A null SKU or barcode keeps the stored value; only a changed value is checked for clashes.
+        Sku? newSku = null;
+        if (request.Sku is not null)
+        {
+            ErrorOr<Sku> skuResult = Sku.Create(request.Sku);
+            if (skuResult.IsError)
+            {
+                return skuResult.Errors;
+            }
+
+            if (skuResult.Value.Value != variant.Sku.Value)
+            {
+                // Scans match on barcode or SKU, so a SKU may not equal another active variant's barcode either.
+                if (await productRepository.ExistsBySkuAsync(skuResult.Value.Value, variantId, cancellationToken) ||
+                    await productRepository.IsBarcodeTakenAsync(skuResult.Value.Value, variantId, cancellationToken))
+                {
+                    return CatalogErrors.SkuAlreadyExists;
+                }
+
+                newSku = skuResult.Value;
+            }
+        }
+
+        string? barcode = ProductVariant.NormalizeBarcode(request.Barcode);
+        if (barcode is not null && barcode != variant.Barcode &&
+            await productRepository.IsBarcodeTakenAsync(barcode, variantId, cancellationToken))
+        {
+            return CatalogErrors.BarcodeAlreadyExists;
         }
 
         ErrorOr<Money> costResult = Money.Create(request.CostPrice, request.Currency);
@@ -48,6 +78,10 @@ internal sealed class UpdateVariantCommandHandler(
 
         variant.UpdatePricing(costResult.Value, saleResult.Value);
         variant.UpdateDetails(request.Name, request.Barcode);
+        if (newSku is not null)
+        {
+            variant.ChangeSku(newSku);
+        }
 
         productRepository.Update(product);
         await dbContext.SaveChangesAsync(cancellationToken);

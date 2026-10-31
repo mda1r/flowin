@@ -2,15 +2,18 @@ using ErrorOr;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using NexusPOS.Inventory.Domain.Entities;
+using NexusPOS.Inventory.Domain.Enums;
 using NexusPOS.Inventory.Domain.Repositories;
 using NexusPOS.Inventory.Infrastructure.Persistence;
 using NexusPOS.POS.Domain.Events;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Inventory.Application.EventHandlers;
 
 internal sealed class OrderReturnedInventoryHandler(
     IStockItemRepository stockItemRepository,
     InventoryDbContext dbContext,
+    ITenantContext tenantContext,
     ILogger<OrderReturnedInventoryHandler> logger)
     : INotificationHandler<ReturnOrderCompletedDomainEvent>
 {
@@ -28,7 +31,7 @@ internal sealed class OrderReturnedInventoryHandler(
                 StockItem? stock = await stockItemRepository.FindByVariantAndBranchAsync(
                     line.VariantId, notification.BranchId, cancellationToken);
 
-                if (stock is null)
+                if (stock is null || stock.IsArchived)
                 {
                     continue;
                 }
@@ -36,7 +39,9 @@ internal sealed class OrderReturnedInventoryHandler(
                 ErrorOr<Success> result = stock.Receive(
                     line.Quantity,
                     reference: notification.ReturnOrderId.ToString(),
-                    notes: $"إرجاع طلب #{notification.OriginalOrderId.ToString()[..8]}");
+                    notes: $"إرجاع طلب #{notification.OriginalOrderId.ToString()[..8]}",
+                    userId: tenantContext.UserId,
+                    type: MovementType.Return);
 
                 if (!result.IsError)
                 {

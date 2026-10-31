@@ -67,7 +67,9 @@ internal static class DatabaseInitializerExtensions
             await MigrateCrmColumnsAsync(sp, logger);
             await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
             await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+            await MigrateRestaurantColumnsAsync(sp, logger);
             await EnsureCreatedAsync<HotelDbContext>(sp, logger);
+            await MigrateHotelColumnsAsync(sp, logger);
             await EnsureCreatedAsync<GamingDbContext>(sp, logger);
             await EnsureCreatedAsync<SuperAdminDbContext>(sp, logger);
             await EnsureCreatedAsync<TaxConfigDbContext>(sp, logger);
@@ -207,6 +209,7 @@ internal static class DatabaseInitializerExtensions
         IamDbContext iamDb2 = sp.GetRequiredService<IamDbContext>();
         OrganizationDbContext orgDb2 = sp.GetRequiredService<OrganizationDbContext>();
         SuperAdminDbContext superAdminDb2 = sp.GetRequiredService<SuperAdminDbContext>();
+        TaxConfigDbContext taxDb = sp.GetRequiredService<TaxConfigDbContext>();
 
         (DbContext ctx, string sql)[] patches =
         [
@@ -215,9 +218,12 @@ internal static class DatabaseInitializerExtensions
             (inventoryDb,   "ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS expiry_date TIMESTAMP WITHOUT TIME ZONE"),
             (orgDb2,        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS business_type INTEGER NOT NULL DEFAULT 0"),
             (orgDb2,        $"UPDATE tenants SET business_type = 1 WHERE id = '10000000-0000-0000-0000-000000000001' AND business_type = 0"),
+            (orgDb2,        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspension_reason VARCHAR(512)"),
             (iamDb2,        "ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID"),
             (iamDb2,        $"UPDATE users SET tenant_id = '10000000-0000-0000-0000-000000000001' WHERE email = 'admin@nexuspos.com' AND tenant_id IS NULL"),
             (superAdminDb2, "ALTER TABLE superadmin.subscription_plans ADD COLUMN IF NOT EXISTS business_type VARCHAR(50) NULL"),
+            // A sale or refund is imported into a period once; a second concurrent sync fails instead of doubling its VAT.
+            (taxDb,         "CREATE UNIQUE INDEX IF NOT EXISTS ux_tax_ledger_import ON tax_config.tax_ledger_entries (period_id, reference_type, reference_id) WHERE reference_type IN ('SaleRecord', 'ReturnOrder')"),
         ];
 
         foreach ((DbContext ctx, string sql) in patches)
@@ -242,6 +248,12 @@ internal static class DatabaseInitializerExtensions
         [
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS closing_card_count NUMERIC(18,4)",
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS card_variance NUMERIC(18,4)",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_digital_sales NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_cash_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS closed_by_name VARCHAR(200)",
+            // Shifts closed before the digital bucket existed kept digital sales only inside total_sales. They are
+            // summed from the orders, so split rounding leftovers do not show up as a few halalas of digital.
+            "UPDATE cashier_shifts s SET total_digital_sales = COALESCE((SELECT SUM(o.total_amount) FROM orders o WHERE o.branch_id = s.branch_id AND o.status = 2 AND (o.payment_method IS NULL OR o.payment_method NOT IN (1, 2, 4)) AND o.completed_at >= s.opened_at AND o.completed_at <= s.closed_at), 0) WHERE s.status = 2 AND s.total_digital_sales = 0 AND s.total_sales > s.total_cash_sales + s.total_card_sales",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cash_amount NUMERIC(18,4)",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_amount NUMERIC(18,4)",
             "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS cost_price NUMERIC(18,4) NOT NULL DEFAULT 0",
@@ -259,6 +271,14 @@ internal static class DatabaseInitializerExtensions
             // Number the existing invoices once, in the order they were completed; skipped once any order has a number.
             "UPDATE orders o SET number = s.rn FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY COALESCE(completed_at, created_at), id) AS rn FROM orders WHERE status IN (2, 4)) s WHERE o.id = s.id AND NOT EXISTS (SELECT 1 FROM orders x WHERE x.number IS NOT NULL)",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_number ON orders (number) WHERE number IS NOT NULL",
+            "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS notes VARCHAR(256)",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS created_by_user_id UUID",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS created_by_name VARCHAR(200)",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS shift_id UUID",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS note VARCHAR(500)",
+            "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS client_reference UUID",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_return_orders_client_reference ON return_orders (client_reference) WHERE client_reference IS NOT NULL",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
         ];
 
         foreach (string sql in patches)
@@ -268,12 +288,47 @@ internal static class DatabaseInitializerExtensions
         }
     }
 
+    internal static async Task MigrateRestaurantColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        RestaurantDbContext restaurantDb = sp.GetRequiredService<RestaurantDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS kitchen_only BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS source_order_id UUID",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS ticket_number BIGINT",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_restaurant_orders_source_order ON restaurant_orders (source_order_id) WHERE source_order_id IS NOT NULL",
+            // Unpaid copies the cafe cashier used to open for the kitchen hold no real menu item; mark them kitchen-only
+            // so they leave the open tables and can no longer be paid a second time.
+            "UPDATE restaurant_orders o SET kitchen_only = TRUE WHERE o.kitchen_only = FALSE AND o.status NOT IN ('Paid', 'Cancelled') AND NOT EXISTS (SELECT 1 FROM restaurant_order_items i JOIN menu_items m ON m.id = i.menu_item_id WHERE i.restaurant_order_id = o.id)",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancel_reason VARCHAR(256)",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_by UUID",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await restaurantDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (PostgresException ex) when (ex.SqlState == "42P01")
+            {
+                // undefined_table: this tenant never got the restaurant tables (provisioned before every tenant had them).
+            }
+            catch (Exception ex) { logger.LogWarning(ex, "Restaurant migration skipped: {Sql}", sql); }
+        }
+    }
+
     internal static async Task MigrateCrmColumnsAsync(IServiceProvider sp, ILogger logger)
     {
         CrmDbContext crmDb = sp.GetRequiredService<CrmDbContext>();
         string[] patches =
         [
             "ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
+            // Recorded once, the first time this runs: sales completed before it predate the points ledger.
+            "INSERT INTO loyalty_ledger_start (id, started_at) VALUES (1, now()) ON CONFLICT (id) DO NOTHING",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_runner_id UUID NULL",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_lease_until TIMESTAMPTZ NULL",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_batch_id UUID NULL",
+            "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS business_account_id VARCHAR(64) NOT NULL DEFAULT ''",
+            "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS template_body VARCHAR(1100) NULL",
         ];
 
         foreach (string sql in patches)
@@ -317,6 +372,9 @@ internal static class DatabaseInitializerExtensions
         string[] patches =
         [
             "ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS notify_days_before_expiry INT DEFAULT 7",
+            "ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS user_id UUID",
+            "CREATE INDEX IF NOT EXISTS ix_stock_movements_stock_item_occurred ON stock_movements (stock_item_id, occurred_at DESC)",
         ];
 
         foreach (string sql in patches)
@@ -369,7 +427,7 @@ internal static class DatabaseInitializerExtensions
             CREATE TABLE IF NOT EXISTS stock_material_movements (
                 id UUID PRIMARY KEY,
                 tenant_id UUID NOT NULL,
-                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE CASCADE,
+                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE RESTRICT,
                 type INT NOT NULL,
                 quantity_change NUMERIC(18,4) NOT NULL,
                 unit_cost NUMERIC(18,4),
@@ -381,6 +439,33 @@ internal static class DatabaseInitializerExtensions
             )
             """,
             "CREATE INDEX IF NOT EXISTS ix_stock_material_movements_material ON stock_material_movements (tenant_id, material_id, created_at)",
+            // Older schemas got ON DELETE CASCADE; movements are the audit trail, so swap any non-RESTRICT FK.
+            """
+            DO $$
+            DECLARE fk_name TEXT;
+            BEGIN
+                IF to_regclass('stock_material_movements') IS NULL OR to_regclass('stock_materials') IS NULL THEN
+                    RETURN;
+                END IF;
+                FOR fk_name IN
+                    SELECT conname FROM pg_constraint
+                    WHERE conrelid = to_regclass('stock_material_movements')
+                      AND confrelid = to_regclass('stock_materials')
+                      AND contype = 'f' AND confdeltype <> 'r'
+                LOOP
+                    EXECUTE format('ALTER TABLE stock_material_movements DROP CONSTRAINT %I', fk_name);
+                END LOOP;
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conrelid = to_regclass('stock_material_movements')
+                      AND confrelid = to_regclass('stock_materials')
+                      AND contype = 'f'
+                ) THEN
+                    ALTER TABLE stock_material_movements ADD CONSTRAINT fk_stock_material_movements_material
+                        FOREIGN KEY (material_id) REFERENCES stock_materials(id) ON DELETE RESTRICT;
+                END IF;
+            END $$
+            """,
             """
             CREATE TABLE IF NOT EXISTS recipe_lines (
                 id UUID PRIMARY KEY,
@@ -409,6 +494,29 @@ internal static class DatabaseInitializerExtensions
         }
     }
 
+    internal static async Task MigrateHotelColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        HotelDbContext hotelDb = sp.GetRequiredService<HotelDbContext>();
+        string[] patches =
+        [
+            // One active stay per room. Skipped (not failed) while legacy duplicates exist, so startup never breaks.
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM reservations WHERE status = 'Active' GROUP BY room_id HAVING COUNT(*) > 1) THEN
+                    CREATE UNIQUE INDEX IF NOT EXISTS ux_reservations_active_room ON reservations (room_id) WHERE status = 'Active';
+                END IF;
+            END $$
+            """,
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await hotelDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Hotel migration skipped: {Sql}", sql); }
+        }
+    }
+
     internal static async Task MigrateGamingColumnsAsync(IServiceProvider sp, ILogger logger)
     {
         GamingDbContext gamingDb = sp.GetRequiredService<GamingDbContext>();
@@ -434,11 +542,30 @@ internal static class DatabaseInitializerExtensions
             )
             """,
             "CREATE INDEX IF NOT EXISTS ix_gaming_packages_branch ON gaming_packages (branch_id, is_active)",
+            // Older duplicates of a station's running session were hidden behind the newest one and never billed;
+            // cancel them so the unique index below can be built.
+            """
+            UPDATE game_sessions g SET status = 'Cancelled', end_time = COALESCE(g.end_time, now())
+            WHERE g.status = 'Active' AND EXISTS (
+                SELECT 1 FROM game_sessions n
+                WHERE n.station_id = g.station_id AND n.status = 'Active'
+                  AND (n.start_time > g.start_time OR (n.start_time = g.start_time AND n.id > g.id)))
+            """,
+            // One running session per station, so two cashiers starting the same station at once cannot both win.
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_game_sessions_active_station ON game_sessions (station_id) WHERE status = 'Active'",
         ];
 
         foreach (string sql in patches)
         {
             try { await gamingDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) when (sql.Contains("ux_game_sessions_active_station", StringComparison.Ordinal))
+            {
+                // Without this index concurrent starts can double-book a station, so make the failure loud.
+                string schema = "?";
+                try { schema = await gamingDb.Database.SqlQueryRaw<string>("SELECT current_schema() AS \"Value\"").FirstOrDefaultAsync() ?? schema; }
+                catch (Exception) { }
+                logger.LogError(ex, "Gaming one-session-per-station index missing in schema {Schema}", schema);
+            }
             catch (Exception ex) { logger.LogWarning(ex, "Gaming migration skipped: {Sql}", sql); }
         }
     }
@@ -1116,9 +1243,12 @@ internal static class DatabaseInitializerExtensions
                     await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
                 }
 
+                await MigrateRestaurantColumnsAsync(sp, logger);
+
                 if (bizType == BusinessType.Hotel)
                 {
                     await EnsureCreatedAsync<HotelDbContext>(sp, logger);
+                    await MigrateHotelColumnsAsync(sp, logger);
                 }
 
                 if (bizType == BusinessType.Gaming)
@@ -1421,7 +1551,10 @@ internal static class DatabaseInitializerExtensions
         NexusPOS.Catalog.Domain.ValueObjects.Money priceVo =
             NexusPOS.Catalog.Domain.ValueObjects.Money.Create(salePrice, "SAR").Value;
 
-        product.AddVariant(skuVo, variantName, priceVo, priceVo, null);
+        // Cost and sale price are separate owned values; one shared instance cannot be tracked twice.
+        NexusPOS.Catalog.Domain.ValueObjects.Money costVo =
+            NexusPOS.Catalog.Domain.ValueObjects.Money.Create(salePrice, "SAR").Value;
+        product.AddVariant(skuVo, variantName, costVo, priceVo, null);
         product.ClearDomainEvents();
         db.Products.Add(product);
         return product;

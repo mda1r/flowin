@@ -8,7 +8,7 @@ internal sealed class AdjustStockCommandValidator : AbstractValidator<AdjustStoc
     {
         RuleFor(x => x.StockItemId).NotEmpty();
         RuleFor(x => x.BranchId).NotEmpty();
-        RuleFor(x => x.NewQuantity).GreaterThanOrEqualTo(0).WithMessage("New quantity must not be negative.");
+        RuleFor(x => x.NewQuantity).GreaterThanOrEqualTo(0).WithMessage("الكمية لا يمكن أن تكون سالبة");
         RuleFor(x => x.Reference).MaximumLength(128).When(x => x.Reference is not null);
         RuleFor(x => x.Notes).MaximumLength(512).When(x => x.Notes is not null);
     }

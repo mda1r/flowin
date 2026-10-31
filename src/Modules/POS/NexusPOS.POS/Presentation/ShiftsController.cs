@@ -7,8 +7,12 @@ using NexusPOS.POS.Application.Commands.CloseShift;
 using NexusPOS.POS.Application.Commands.OpenShift;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Application.Queries.GetCurrentShift;
+using NexusPOS.POS.Application.Queries.GetShiftSummary;
+using NexusPOS.POS.Application.Queries.ListOpenShifts;
 using NexusPOS.POS.Application.Queries.ListShifts;
 using NexusPOS.POS.Presentation.Requests;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
@@ -49,8 +53,11 @@ public sealed class ShiftsController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
-    /// <summary>List all shifts for this branch.</summary>
+    private bool IsOwnerOrManager => User.IsInRole("Owner") || User.IsInRole("Manager");
+
+    /// <summary>List all shifts for this branch. Cash variances are manager information.</summary>
     [HttpGet]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(IReadOnlyList<ShiftResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListShifts(
         Guid branchId,
@@ -58,8 +65,31 @@ public sealed class ShiftsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListShiftsQuery query = new(branchId, page, pageSize);
+        ListShiftsQuery query = new(branchId, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<ShiftResponse>> result = await mediator.Send(query, cancellationToken);
+
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>Every shift still open in this branch, whoever opened it, with live totals.</summary>
+    [HttpGet("open")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(IReadOnlyList<ShiftResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListOpenShifts(Guid branchId, CancellationToken cancellationToken = default)
+    {
+        ErrorOr<IReadOnlyList<ShiftResponse>> result = await mediator.Send(new ListOpenShiftsQuery(branchId), cancellationToken);
+
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>One shift with its totals so far, computed on the server. Cashiers may read only their own.</summary>
+    [HttpGet("{shiftId:guid}/summary")]
+    [ProducesResponseType(typeof(ShiftResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetShiftSummary(Guid branchId, Guid shiftId, CancellationToken cancellationToken = default)
+    {
+        GetShiftSummaryQuery query = new(branchId, shiftId, CurrentUserId, IsOwnerOrManager);
+        ErrorOr<ShiftResponse> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -98,17 +128,25 @@ public sealed class ShiftsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
+    /// <summary>Close another user's open shift (a cashier who left without closing). The closer's name is kept on the shift.</summary>
+    [HttpPost("{shiftId:guid}/force-close")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(ShiftResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ForceCloseShift(
+        Guid branchId,
+        Guid shiftId,
+        [FromBody] CloseShiftRequest request,
+        CancellationToken cancellationToken = default)
     {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
+        CloseShiftCommand command = new(
+            shiftId, branchId, CurrentUserId, request.ClosingCash, request.ClosingCardCount, request.Notes,
+            ClosedByManager: true, ClosedByName: CurrentCashierName);
+        ErrorOr<ShiftResponse> result = await mediator.Send(command, cancellationToken);
 
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+        return result.Match(Ok, MapErrorsToResult);
     }
+
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

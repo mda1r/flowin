@@ -10,6 +10,6 @@ internal sealed class StartSessionCommandValidator : AbstractValidator<StartSess
         RuleFor(x => x.BranchId).NotEmpty();
         RuleFor(x => x.PlayerName).NotEmpty().MaximumLength(128);
         RuleFor(x => x.DurationMinutes).GreaterThan(0);
-        RuleFor(x => x.RatePerHour).GreaterThan(0);
+        RuleFor(x => x.RatePerHour).GreaterThan(0).When(x => x.RatePerHour.HasValue);
     }
 }

@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.Hotel.Application.Commands.ActivateRentalContract;
+using NexusPOS.Hotel.Application.Commands.CancelRentalContract;
 using NexusPOS.Hotel.Application.Commands.CreateRentalContract;
 using NexusPOS.Hotel.Application.Commands.SignRentalContract;
 using NexusPOS.Hotel.Application.Commands.UpdateRentalContract;
@@ -10,6 +12,8 @@ using NexusPOS.Hotel.Application.Common;
 using NexusPOS.Hotel.Application.Queries.GetRentalContract;
 using NexusPOS.Hotel.Application.Queries.ListRentalContracts;
 using NexusPOS.Hotel.Presentation.Requests;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Hotel.Presentation;
 
@@ -27,7 +31,7 @@ public sealed class RentalContractsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new ListRentalContractsQuery(branchId, page, pageSize), ct);
+        var result = await mediator.Send(new ListRentalContractsQuery(branchId, Paging.Page(page), Paging.Size(pageSize)), ct);
         return result.Match(Ok, MapErrors);
     }
 
@@ -112,22 +116,32 @@ public sealed class RentalContractsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrors);
     }
 
+    [HttpPost("{contractId:guid}/activate")]
+    [ProducesResponseType(typeof(RentalContractResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Activate(Guid branchId, Guid contractId, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new ActivateRentalContractCommand(contractId, branchId), ct);
+        return result.Match(Ok, MapErrors);
+    }
+
+    [HttpPost("{contractId:guid}/cancel")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(RentalContractResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Cancel(Guid branchId, Guid contractId, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new CancelRentalContractCommand(contractId, branchId), ct);
+        return result.Match(Ok, MapErrors);
+    }
+
     private Guid GetTenantId()
     {
         string? claim = User.FindFirst("tenant_id")?.Value;
         return claim is not null && Guid.TryParse(claim, out var id) ? id : Guid.Empty;
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        var first = errors[0];
-        int status = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: status);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }

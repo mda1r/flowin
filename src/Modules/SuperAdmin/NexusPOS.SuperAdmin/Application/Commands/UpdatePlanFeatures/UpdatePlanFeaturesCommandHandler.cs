@@ -20,7 +20,7 @@ internal sealed class UpdatePlanFeaturesCommandHandler(
 
         if (plan is null)
         {
-            return Error.NotFound("Plan.NotFound", "Subscription plan not found.");
+            return Error.NotFound("Plan.NotFound", "الباقة غير موجودة");
         }
 
         plan.UpdateFeatures(request.Features);

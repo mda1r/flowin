@@ -19,7 +19,7 @@ internal sealed class UpdateStockMaterialCategoryCommandHandler(InventoryDbConte
 
         if (category is null)
         {
-            return Error.NotFound("Inventory.CategoryNotFound", "Stock material category was not found.");
+            return Error.NotFound("Inventory.CategoryNotFound", "التصنيف غير موجود");
         }
 
         category.Update(request.Name);

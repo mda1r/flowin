@@ -35,7 +35,7 @@ public sealed class PerformanceBehavior<TRequest, TResponse>
         {
             _logger.LogCritical(
                 "PERF_CRITICAL {Handler} took {Elapsed}ms — exceeds {Threshold}ms performance budget. Request: {@Request}",
-                handlerName, elapsed, CriticalThresholdMs, request);
+                handlerName, elapsed, CriticalThresholdMs, LogRedactor.Describe(request));
         }
         else if (elapsed > WarningThresholdMs)
         {
