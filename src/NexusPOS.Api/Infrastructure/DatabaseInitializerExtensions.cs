@@ -67,6 +67,7 @@ internal static class DatabaseInitializerExtensions
             await MigrateCrmColumnsAsync(sp, logger);
             await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
             await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+            await MigrateRestaurantColumnsAsync(sp, logger);
             await EnsureCreatedAsync<HotelDbContext>(sp, logger);
             await EnsureCreatedAsync<GamingDbContext>(sp, logger);
             await EnsureCreatedAsync<SuperAdminDbContext>(sp, logger);
@@ -440,6 +441,33 @@ internal static class DatabaseInitializerExtensions
         {
             try { await gamingDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "Gaming migration skipped: {Sql}", sql); }
+        }
+    }
+
+    internal static async Task MigrateRestaurantColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        RestaurantDbContext restaurantDb = sp.GetRequiredService<RestaurantDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS is_kitchen_copy BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancel_reason VARCHAR(256)",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_by UUID",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE",
+            // Open cafe kitchen copies made before the flag existed: none of their lines is a menu item.
+            """
+            UPDATE restaurant_orders o SET is_kitchen_copy = TRUE
+            WHERE NOT o.is_kitchen_copy
+              AND o.status NOT IN ('Paid', 'Cancelled')
+              AND NOT EXISTS (
+                  SELECT 1 FROM restaurant_order_items i JOIN menu_items m ON m.id = i.menu_item_id
+                  WHERE i.restaurant_order_id = o.id)
+            """,
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await restaurantDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Restaurant migration skipped: {Sql}", sql); }
         }
     }
 
@@ -1114,6 +1142,7 @@ internal static class DatabaseInitializerExtensions
                 if (bizType is BusinessType.Restaurant or BusinessType.Cafe)
                 {
                     await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+                    await MigrateRestaurantColumnsAsync(sp, logger);
                 }
 
                 if (bizType == BusinessType.Hotel)

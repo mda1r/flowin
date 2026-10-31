@@ -10,6 +10,7 @@ using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Application.Queries.GetMenuItem;
 using NexusPOS.Restaurant.Application.Queries.ListMenuItems;
 using NexusPOS.Restaurant.Domain.Enums;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Restaurant.Presentation;
 
@@ -17,7 +18,7 @@ namespace NexusPOS.Restaurant.Presentation;
 [Route("api/v1/branches/{branchId:guid}/menu-items")]
 [Produces("application/json")]
 [Authorize]
-public sealed class MenuItemsController(ISender mediator) : ControllerBase
+public sealed class MenuItemsController(ISender mediator, ITenantContext tenantContext) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<MenuItemResponse>), StatusCodes.Status200OK)]
@@ -45,6 +46,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(MenuItemResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateMenuItem(
@@ -52,8 +54,13 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
         [FromBody] CreateMenuItemRequest request,
         CancellationToken cancellationToken)
     {
+        if (tenantContext.TenantId is not Guid tenantId)
+        {
+            return Unauthorized();
+        }
+
         CreateMenuItemCommand command = new(
-            request.TenantId, branchId, request.Category, request.Name,
+            tenantId, branchId, request.Category, request.Name,
             request.Description, request.Price, request.Currency, request.SortOrder);
         ErrorOr<MenuItemResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
@@ -62,6 +69,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
     }
 
     [HttpPut("{menuItemId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(MenuItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -79,6 +87,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
     }
 
     [HttpPatch("{menuItemId:guid}/availability")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(MenuItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SetMenuItemAvailability(
@@ -107,7 +116,6 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
 }
 
 public sealed record CreateMenuItemRequest(
-    Guid TenantId,
     MenuCategory Category,
     string Name,
     string Description,

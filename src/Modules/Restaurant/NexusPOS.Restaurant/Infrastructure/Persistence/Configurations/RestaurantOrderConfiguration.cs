@@ -38,6 +38,10 @@ internal sealed class RestaurantOrderConfiguration : IEntityTypeConfiguration<Re
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at").IsRequired();
         builder.Property(o => o.ServedAt).HasColumnName("served_at");
         builder.Property(o => o.PaidAt).HasColumnName("paid_at");
+        builder.Property(o => o.IsKitchenCopy).HasColumnName("is_kitchen_copy").IsRequired();
+        builder.Property(o => o.CancelReason).HasColumnName("cancel_reason").HasMaxLength(256);
+        builder.Property(o => o.CancelledBy).HasColumnName("cancelled_by");
+        builder.Property(o => o.CancelledAt).HasColumnName("cancelled_at");
 
         builder.HasMany(o => o.Items)
             .WithOne()

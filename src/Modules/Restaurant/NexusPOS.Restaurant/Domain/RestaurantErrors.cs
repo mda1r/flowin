@@ -11,6 +11,9 @@ public static class RestaurantErrors
     public static readonly Error InvalidPrice =
         Error.Validation("MenuItem.InvalidPrice", "Price must be greater than zero.");
 
+    public static readonly Error MenuItemUnavailable =
+        Error.Conflict("MenuItem.Unavailable", "A menu item in this order is not available.");
+
     // ── Restaurant Orders ────────────────────────────────────────────────────
     public static readonly Error OrderNotFound =
         Error.NotFound("RestaurantOrder.NotFound", "Restaurant order not found.");
@@ -44,6 +47,21 @@ public static class RestaurantErrors
 
     public static readonly Error OrderItemNotFound =
         Error.NotFound("RestaurantOrderItem.NotFound", "Order item not found.");
+
+    public static readonly Error OrderItemAlreadyReady =
+        Error.Conflict("RestaurantOrderItem.AlreadyReady", "This item is already prepared and cannot be removed.");
+
+    public static readonly Error LastOrderItem =
+        Error.Conflict("RestaurantOrderItem.LastItem", "Cancel the order to remove its last item.");
+
+    public static readonly Error CancelReasonRequired =
+        Error.Validation("RestaurantOrder.CancelReasonRequired", "A reason is required to cancel an order.");
+
+    public static readonly Error TableChanged =
+        Error.Conflict("RestaurantOrder.TableChanged", "The table's open orders changed. Refresh and try again.");
+
+    public static readonly Error KitchenCopyHasMenuItems =
+        Error.Validation("RestaurantOrder.KitchenCopyHasMenuItems", "Menu items must be ordered as a restaurant order, not a kitchen copy.");
 
     // ── Discount Codes ───────────────────────────────────────────────────────
     public static readonly Error DiscountCodeNotFound =

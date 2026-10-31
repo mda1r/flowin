@@ -6,12 +6,15 @@ using NexusPOS.Restaurant.Domain.Repositories;
 using NexusPOS.Restaurant.Domain.ValueObjects;
 using NexusPOS.Restaurant.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Restaurant.Application.Commands.CancelRestaurantOrder;
 
 internal sealed class CancelRestaurantOrderCommandHandler(
     IRestaurantOrderRepository orderRepository,
-    RestaurantDbContext dbContext)
+    IDiscountCodeRepository discountCodeRepository,
+    RestaurantDbContext dbContext,
+    ITenantContext tenantContext)
     : ICommandHandler<CancelRestaurantOrderCommand, RestaurantOrderResponse>
 {
     public async Task<ErrorOr<RestaurantOrderResponse>> Handle(
@@ -26,10 +29,22 @@ internal sealed class CancelRestaurantOrderCommandHandler(
             return RestaurantErrors.OrderNotFound;
         }
 
-        ErrorOr<Success> result = order.Cancel();
+        ErrorOr<Success> result = order.Cancel(request.Reason, tenantContext.UserId);
         if (result.IsError)
         {
             return result.Errors;
+        }
+
+        // The order never went through, so its discount code gets the use back.
+        if (order.AppliedDiscountCode is not null)
+        {
+            DiscountCode? code = await discountCodeRepository.FindByCodeAsync(
+                order.TenantId, order.AppliedDiscountCode, cancellationToken);
+            if (code is not null)
+            {
+                code.DecrementUsage();
+                discountCodeRepository.Update(code);
+            }
         }
 
         orderRepository.Update(order);
