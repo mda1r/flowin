@@ -844,7 +844,9 @@ export const ar: Translations = {
     submitCsr: 'إرسال لزاتكا',
     supplierData: 'بيانات المُزوِّد',
     supplierDataHint: 'المعلومات التي ستظهر على الفواتير الإلكترونية',
-    vatLengthError: 'الرقم الضريبي يجب أن يكون 15 رقماً على الأقل',
+    vatLengthError: 'الرقم الضريبي 15 رقماً يبدأ بـ 3 وينتهي بـ 3',
+    readOnlyHint: 'يعدّل هذه البيانات المالك أو المدير فقط',
+    saveFailed: 'تعذّر حفظ الإعدادات',
     phase2Hint: 'ربط الفواتير مباشرةً بمنصة فاتورة — يتطلب شهادة رقمية من الهيئة',
     phase1Info: 'إنشاء فواتير XML وكود QR تلقائياً مع كل طلب مكتمل',
     phase2Info: 'إرسال الفواتير مباشرةً لمنصة فاتورة مع التوقيع الرقمي',
@@ -1149,6 +1151,15 @@ export const ar: Translations = {
       open: 'مفتوحة', preparing: 'قيد الإعداد', reviewRequired: 'تحتاج مراجعة',
       readyForReview: 'جاهزة للمراجعة', approved: 'معتمدة', closed: 'مغلقة',
     },
+    close: {
+      action: 'إغلاق الفترة', title: 'إغلاق الفترة الضريبية',
+      body: 'بعد الإغلاق تُثبَّت أرقام الإقرار ولا يمكن إضافة فواتير أو حذفها. أغلق الفترة بعد تقديم الإقرار لزاتكا.',
+      confirm: 'إغلاق نهائي', cancel: 'إلغاء', closing: 'جارٍ الإغلاق…',
+      done: 'تم إغلاق الفترة', failed: 'تعذّر إغلاق الفترة',
+      lockedNotice: 'الفترة مغلقة، والأرقام مثبّتة كما قُدِّمت',
+      closedError: 'الفترة مغلقة ولا يمكن تعديلها',
+      syncFailed: 'تعذّر جلب المبيعات الآن، حاول بعد قليل',
+    },
     tabs: {
       overview: 'نظرة عامة', vatReturn: 'إقرار الضريبة', sales: 'المبيعات',
       purchases: 'المشتريات والمصروفات', issues: 'المشكلات',
@@ -1286,6 +1297,9 @@ export const ar: Translations = {
       headers: {
         type: 'النوع', transaction: 'المعاملة', date: 'التاريخ',
         baseAmount: 'المبلغ الأساسي', taxAmount: 'مبلغ الضريبة', rate: 'النسبة',
+      },
+      transactionTypes: {
+        sale: 'بيع', sale_return: 'مرتجع', purchase_invoice: 'فاتورة شراء', manual_adjustment: 'تسوية',
       },
     },
     taxCategory: {

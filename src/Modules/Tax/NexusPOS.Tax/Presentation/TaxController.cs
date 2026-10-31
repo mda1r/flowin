@@ -43,6 +43,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
     }
 
     [HttpPost("periods")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(TaxPeriodResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreatePeriod(
         [FromBody] CreateTaxPeriodRequest request,
@@ -56,9 +57,18 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
     }
 
     [HttpPut("periods/{periodId:guid}/close")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(TaxPeriodResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ClosePeriod(Guid periodId, CancellationToken cancellationToken)
     {
+        // Pull in the last sales and refunds so the locked figures match what is filed.
+        // If they cannot be read, the period stays open rather than freezing incomplete VAT.
+        ErrorOr<int> refresh = await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
+        if (refresh.IsError)
+        {
+            return MapErrors(refresh.Errors);
+        }
+
         CloseTaxPeriodCommand command = new(periodId, TenantId);
         ErrorOr<TaxPeriodResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
@@ -72,13 +82,18 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
         [FromQuery] Guid periodId,
         CancellationToken cancellationToken)
     {
-        try
+        // Only roles allowed to sync the ledger trigger one here; everyone else reads it as it stands.
+        if (User.IsInRole("Owner") || User.IsInRole("Manager"))
         {
-            await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
-        }
-        catch
-        {
-            // Refresh is best-effort; a failure must not block the overview read.
+            try
+            {
+                // Closed periods answer with a conflict and stay as filed.
+                await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
+            }
+            catch
+            {
+                // Refresh is best-effort; a failure must not block the overview read.
+            }
         }
 
         ErrorOr<TaxOverviewResponse> result =
@@ -102,6 +117,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
     }
 
     [HttpPost("ledger/refresh")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     public async Task<IActionResult> RefreshLedger(
         [FromQuery] Guid periodId,
@@ -129,6 +145,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
     }
 
     [HttpPost("anomalies/scan")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     public async Task<IActionResult> ScanAnomalies(
         [FromQuery] Guid periodId,
@@ -166,6 +183,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
     }
 
     [HttpPost("expenses")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(TaxExpenseInvoiceResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> RecordExpense(
         [FromBody] RecordExpenseInvoiceRequest request,
@@ -182,6 +200,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
     }
 
     [HttpDelete("expenses/{invoiceId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteExpense(Guid invoiceId, CancellationToken cancellationToken)
     {
@@ -220,6 +239,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Unexpected => StatusCodes.Status503ServiceUnavailable,
             _ => StatusCodes.Status500InternalServerError,
         };
 
