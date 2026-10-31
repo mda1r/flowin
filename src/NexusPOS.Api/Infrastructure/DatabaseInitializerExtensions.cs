@@ -218,6 +218,7 @@ internal static class DatabaseInitializerExtensions
             (inventoryDb,   "ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS expiry_date TIMESTAMP WITHOUT TIME ZONE"),
             (orgDb2,        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS business_type INTEGER NOT NULL DEFAULT 0"),
             (orgDb2,        $"UPDATE tenants SET business_type = 1 WHERE id = '10000000-0000-0000-0000-000000000001' AND business_type = 0"),
+            (orgDb2,        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspension_reason VARCHAR(512)"),
             (iamDb2,        "ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID"),
             (iamDb2,        $"UPDATE users SET tenant_id = '10000000-0000-0000-0000-000000000001' WHERE email = 'admin@nexuspos.com' AND tenant_id IS NULL"),
             (superAdminDb2, "ALTER TABLE superadmin.subscription_plans ADD COLUMN IF NOT EXISTS business_type VARCHAR(50) NULL"),

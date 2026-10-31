@@ -16,11 +16,24 @@ import {
   XCircle,
   Star,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import type { SubscriptionStatus, BranchResponse } from '@/types/api'
 import { toast } from '@/components/ui/Toast'
 import { NewSubscriptionModal } from './NewSubscriptionModal'
+import { RenewSubscriptionModal } from './RenewSubscriptionModal'
+import { SuspendTenantModal } from './SuspendTenantModal'
+import { apiErrorMessage } from '@/lib/apiError'
+import { formatCurrency } from '@/lib/utils'
+import {
+  SHORTEST_MONTH_DAYS,
+  daysLabel,
+  monthsLabel,
+  periodTotalWithVat,
+  subscriptionDays,
+  subscriptionMonths,
+} from '@/lib/subscriptionBilling'
 import { useI18n } from '@/i18n'
 
 function StatusBadge({ status, isActive }: { status?: SubscriptionStatus; isActive: boolean }) {
@@ -34,9 +47,10 @@ function StatusBadge({ status, isActive }: { status?: SubscriptionStatus; isActi
     )
   const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
     Active:    { bg: 'bg-success/15 text-success', label: t.admin.tenantDetail.statuses.active },
-    Trial:     { bg: 'bg-info/15 text-info',       label: 'تجريبي' },
+    Trial:     { bg: 'bg-info/15 text-info',       label: 'يبدأ لاحقاً' },
     Expired:   { bg: 'bg-danger/15 text-danger',       label: t.admin.tenantDetail.statuses.expired },
     Suspended: { bg: 'bg-warning/15 text-warning',     label: t.admin.tenantDetail.statuses.suspended },
+    Cancelled: { bg: 'bg-border text-muted',           label: 'ملغى' },
   }
   if (!status)
     return (
@@ -54,6 +68,8 @@ export function TenantDetailPage() {
   const { t, lang } = useI18n()
   const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const [showSubscribeModal, setShowSubscribeModal] = useState(false)
+  const [showRenewModal, setShowRenewModal] = useState(false)
+  const [showSuspendModal, setShowSuspendModal] = useState(false)
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ['admin', 'tenant', id],
@@ -66,15 +82,6 @@ export function TenantDetailPage() {
     enabled: !!tenant,
   })
 
-  const suspendMut = useMutation({
-    mutationFn: () => superAdminApi.suspendTenant(id, 'تعليق من صفحة تفاصيل المستأجر'),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'tenant', id] })
-      qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
-      toast.success('تم تعليق الحساب', '')
-    },
-  })
-
   const activateMut = useMutation({
     mutationFn: () => superAdminApi.activateTenant(id),
     onSuccess: () => {
@@ -82,6 +89,7 @@ export function TenantDetailPage() {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
       toast.success('تم تفعيل الحساب', '')
     },
+    onError: (err) => toast.error('تعذّر تفعيل الحساب', apiErrorMessage(err)),
   })
 
   const aiToggleMut = useMutation({
@@ -134,8 +142,23 @@ export function TenantDetailPage() {
           <p className="mt-0.5 text-xs text-muted">
             عضو منذ {new Date(tenant.createdAt).toLocaleDateString(locale)}
           </p>
+          {!tenant.isActive && (
+            <p className="mt-2 rounded-lg bg-danger/15 px-3 py-2 text-sm text-danger">
+              معلّق{tenant.suspendedAt && ` منذ ${new Date(tenant.suspendedAt).toLocaleDateString(locale)}`}
+              {tenant.suspensionReason && ` — ${tenant.suspensionReason}`}
+            </p>
+          )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {sub && (
+            <button
+              onClick={() => setShowRenewModal(true)}
+              className="flex items-center gap-2 rounded-lg border border-brand px-4 py-2 text-sm font-semibold text-brand-ink hover:bg-brand/15 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+              تجديد
+            </button>
+          )}
           <button
             onClick={() => setShowSubscribeModal(true)}
             className="flex items-center gap-2 rounded-lg bg-info px-4 py-2 text-sm font-semibold text-white hover:bg-info transition-colors"
@@ -145,8 +168,7 @@ export function TenantDetailPage() {
           </button>
           {tenant.isActive ? (
             <button
-              onClick={() => suspendMut.mutate()}
-              disabled={suspendMut.isPending}
+              onClick={() => setShowSuspendModal(true)}
               className="flex items-center gap-2 rounded-lg border border-warning px-4 py-2 text-sm font-semibold text-warning hover:bg-warning/15 transition-colors"
             >
               <PauseCircle className="h-4 w-4" />
@@ -240,26 +262,40 @@ export function TenantDetailPage() {
           {tenant.subscriptionHistory.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted">{t.common.noData}</p>
           ) : (
-            tenant.subscriptionHistory.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-6 py-4">
-                <div>
-                  <p className="text-sm font-medium text-fg">{s.planName}</p>
-                  <p className="text-xs text-muted">
-                    {new Date(s.startDate).toLocaleDateString(locale)} ←{' '}
-                    {new Date(s.expiryDate).toLocaleDateString(locale)}
-                  </p>
-                  {s.notes && (
-                    <p className="mt-1 text-xs italic text-muted">{s.notes}</p>
-                  )}
+            tenant.subscriptionHistory.map((s) => {
+              // A cancelled one never ran, and one cut short under a month was not a month's charge:
+              // show the period only, not an amount that was never billed.
+              const days = subscriptionDays(s.startDate, s.expiryDate)
+              const months = subscriptionMonths(s.startDate, s.expiryDate)
+              const billable = s.status !== 'Cancelled' && days >= SHORTEST_MONTH_DAYS
+              return (
+                <div key={s.id} className="flex items-center justify-between px-6 py-4">
+                  <div>
+                    <p className="text-sm font-medium text-fg">{s.planName}</p>
+                    <p className="text-xs text-muted">
+                      {new Date(s.startDate).toLocaleDateString(locale)} ←{' '}
+                      {new Date(s.expiryDate).toLocaleDateString(locale)}
+                    </p>
+                    {s.notes && (
+                      <p className="mt-1 text-xs italic text-muted">{s.notes}</p>
+                    )}
+                  </div>
+                  <div className="text-end">
+                    {billable ? (
+                      <>
+                        <p className="text-sm font-semibold tabular-nums text-fg">
+                          {formatCurrency(periodTotalWithVat(s.planPrice, months), 'SAR', locale)}
+                        </p>
+                        <p className="text-xs text-muted">{monthsLabel(months)} · شامل الضريبة</p>
+                      </>
+                    ) : (
+                      s.status !== 'Cancelled' && <p className="text-xs text-muted">{daysLabel(days)}</p>
+                    )}
+                    <StatusBadgeMini status={s.status} />
+                  </div>
                 </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-fg">
-                    {s.planPrice.toLocaleString(locale)} ر.س
-                  </p>
-                  <StatusBadgeMini status={s.status} />
-                </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
@@ -302,7 +338,25 @@ export function TenantDetailPage() {
           tenantId={tenant.id}
           tenantName={tenant.name}
           tenantBusinessType={tenant.businessType}
+          currentSubscription={sub}
           onClose={() => setShowSubscribeModal(false)}
+        />
+      )}
+
+      {showRenewModal && sub && (
+        <RenewSubscriptionModal
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          subscription={tenant.renewableSubscription ?? sub}
+          onClose={() => setShowRenewModal(false)}
+        />
+      )}
+
+      {showSuspendModal && (
+        <SuspendTenantModal
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          onClose={() => setShowSuspendModal(false)}
         />
       )}
     </div>
@@ -331,9 +385,10 @@ function StatusBadgeMini({ status }: { status: SubscriptionStatus }) {
   const { t } = useI18n()
   const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
     Active:    { bg: 'text-success', label: t.admin.tenantDetail.statuses.active },
-    Trial:     { bg: 'text-info',    label: 'تجريبي' },
+    Trial:     { bg: 'text-info',    label: 'يبدأ لاحقاً' },
     Expired:   { bg: 'text-danger',    label: t.admin.tenantDetail.statuses.expired },
     Suspended: { bg: 'text-warning',   label: t.admin.tenantDetail.statuses.suspended },
+    Cancelled: { bg: 'text-muted',     label: 'ملغى' },
   }
   const { bg, label } = map[status]
   return <span className={`text-xs ${bg}`}>{label}</span>

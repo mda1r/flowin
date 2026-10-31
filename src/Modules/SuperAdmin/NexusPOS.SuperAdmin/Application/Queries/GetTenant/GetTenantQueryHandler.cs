@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using NexusPOS.Organization.Domain.ValueObjects;
 using NexusPOS.Organization.Infrastructure.Persistence;
 using NexusPOS.SuperAdmin.Application.Common;
-using NexusPOS.SuperAdmin.Domain.Enums;
 using NexusPOS.SuperAdmin.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 
@@ -34,10 +33,11 @@ internal sealed class GetTenantQueryHandler(
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var history = subscriptions.Select(MapSubscription).ToList();
+        DateTime now = DateTime.UtcNow;
+        var history = subscriptions.Select(s => s.ToResponse(now)).ToList();
 
-        Domain.Entities.TenantSubscription? activeSub = subscriptions.FirstOrDefault(s =>
-            s.Status is SubscriptionStatus.Active or SubscriptionStatus.Trial);
+        Domain.Entities.TenantSubscription? activeSub = Domain.Entities.TenantSubscription.PickCurrent(subscriptions, now);
+        Domain.Entities.TenantSubscription? renewableSub = Domain.Entities.TenantSubscription.PickRenewable(subscriptions);
 
         bool aiEnabled = await superAdminDb.TenantAiAccesses
             .AsNoTracking()
@@ -55,29 +55,11 @@ internal sealed class GetTenantQueryHandler(
             tenant.IsActive,
             tenant.CreatedAt,
             tenant.SuspendedAt,
-            activeSub is not null ? MapSubscription(activeSub) : null,
+            activeSub?.ToResponse(now),
             history,
             tenant.BusinessType.ToString(),
-            aiEnabled);
-    }
-
-    private static TenantSubscriptionResponse MapSubscription(Domain.Entities.TenantSubscription sub)
-    {
-        int daysRemaining = (int)(sub.ExpiryDate - DateTime.UtcNow).TotalDays;
-
-        return new TenantSubscriptionResponse(
-            sub.Id,
-            sub.TenantId,
-            sub.PlanId,
-            sub.Plan?.Name ?? string.Empty,
-            sub.Plan?.Price ?? 0,
-            sub.StartDate,
-            sub.ExpiryDate,
-            sub.Status,
-            sub.MaxBranches,
-            sub.MaxUsers,
-            sub.Notes,
-            sub.CreatedAt,
-            daysRemaining);
+            aiEnabled,
+            tenant.SuspensionReason,
+            renewableSub?.ToResponse(now));
     }
 }

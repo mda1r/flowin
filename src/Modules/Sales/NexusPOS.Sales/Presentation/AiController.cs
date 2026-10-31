@@ -28,7 +28,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
     public async Task<IActionResult> CashierAvailable(CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        return Ok(new { available = features.Contains("ai_cashier") });
+        return Ok(new { available = features.Contains(PlanFeatures.AiCashier) });
     }
 
     /// <summary>كاشير AI - محادثة صوتية</summary>
@@ -41,7 +41,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        if (!features.Contains("ai_cashier"))
+        if (!features.Contains(PlanFeatures.AiCashier))
         {
             return StatusCode(StatusCodes.Status402PaymentRequired, new
             {
@@ -69,7 +69,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        if (!features.Contains("ai"))
+        if (!features.Contains(PlanFeatures.Ai))
         {
             return StatusCode(StatusCodes.Status402PaymentRequired, new { code = "feature_not_available", message = "ميزة الذكاء الاصطناعي غير مفعّلة لهذا الحساب." });
         }
@@ -88,7 +88,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        if (!features.Contains("ai"))
+        if (!features.Contains(PlanFeatures.Ai))
         {
             return StatusCode(StatusCodes.Status402PaymentRequired, new { code = "feature_not_available", message = "ميزة الذكاء الاصطناعي غير مفعّلة لهذا الحساب." });
         }

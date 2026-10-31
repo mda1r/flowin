@@ -1,5 +1,6 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import axios, { isAxiosError, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import { toast } from '@/components/ui/Toast'
 
 const clientConfig = {
   baseURL: (() => { const u = import.meta.env.VITE_API_BASE_URL || ''; return u.charCodeAt(0) === 0xFEFF ? u.slice(1) : u; })(),
@@ -79,6 +80,14 @@ apiClient.interceptors.response.use(
       return apiClient(original)
     } catch (err) {
       processQueue(err, null)
+      // A suspended business loses its sessions mid-shift; say why instead of a bare logout.
+      if (isAxiosError(err) && (err.response?.data as { title?: string } | undefined)?.title === 'IAM.TenantSuspended') {
+        const ar = document.documentElement.lang !== 'en'
+        toast.error(
+          ar ? 'تم إيقاف الحساب' : 'Account suspended',
+          ar ? 'الحساب موقوف، تواصل مع الدعم' : 'This account is suspended. Please contact support.',
+        )
+      }
       // Only the server refusing the refresh token ends the session. A dropped connection, a 5xx or a 429
       // keeps it, so the till carries on (sales queue offline) and the next request simply tries again.
       const status = axios.isAxiosError(err) ? err.response?.status : undefined

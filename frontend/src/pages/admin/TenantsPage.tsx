@@ -9,6 +9,7 @@ import {
   Plus,
   UserPlus,
   Trash2,
+  RefreshCw,
 } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import type { TenantWithSubscriptionResponse, SubscriptionStatus, BusinessType } from '@/types/api'
@@ -17,6 +18,8 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { NewSubscriptionModal } from './NewSubscriptionModal'
 import { CreateTenantModal } from './CreateTenantModal'
+import { RenewSubscriptionModal } from './RenewSubscriptionModal'
+import { SuspendTenantModal } from './SuspendTenantModal'
 import { useI18n } from '@/i18n'
 import type { Translations } from '@/i18n/en'
 
@@ -39,9 +42,10 @@ function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean, 
   }
   const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
     Active:    { bg: 'bg-success/15 text-success', label: t.admin.tenants.statuses.active },
-    Trial:     { bg: 'bg-info/15 text-info',       label: 'تجريبي' },
+    Trial:     { bg: 'bg-info/15 text-info',       label: 'يبدأ لاحقاً' },
     Expired:   { bg: 'bg-danger/15 text-danger',       label: t.admin.tenants.statuses.expired },
     Suspended: { bg: 'bg-warning/15 text-warning',     label: t.admin.tenants.statuses.suspended },
+    Cancelled: { bg: 'bg-border text-muted',           label: 'ملغى' },
   }
   const { bg, label } = map[status]
   return (
@@ -88,6 +92,10 @@ export function TenantsPage() {
   const [showCreateTenant, setShowCreateTenant] = useState(false)
   const [subscribeTarget, setSubscribeTarget] = useState<TenantWithSubscriptionResponse | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  const [renewTarget, setRenewTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  // Renewal extends the end of the chain, which can be a pre-paid period after the live one.
+  const renewSub = renewTarget?.renewableSubscription ?? renewTarget?.activeSubscription
+  const [suspendTarget, setSuspendTarget] = useState<TenantWithSubscriptionResponse | null>(null)
 
   const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
     Retail:      t.admin.dashboard.business.retail,
@@ -101,16 +109,6 @@ export function TenantsPage() {
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ['admin', 'tenants'],
     queryFn: () => superAdminApi.listTenants().then((r) => r.data),
-  })
-
-  const suspendMut = useMutation({
-    mutationFn: (ten: TenantWithSubscriptionResponse) =>
-      superAdminApi.suspendTenant(ten.id, 'تعليق يدوي من لوحة المدير العام'),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
-      toast.success('تم تعليق الحساب', '')
-    },
-    onError: () => toast.error('فشلت العملية', ''),
   })
 
   const activateMut = useMutation({
@@ -242,6 +240,16 @@ export function TenantsPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
+                          {sub && (
+                            <button
+                              onClick={() => setRenewTarget(ten)}
+                              className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-brand-ink transition-colors"
+                              title="تجديد"
+                              aria-label={`تجديد اشتراك ${ten.name}`}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => setSubscribeTarget(ten)}
                             className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-info transition-colors"
@@ -251,7 +259,7 @@ export function TenantsPage() {
                           </button>
                           {ten.isActive ? (
                             <button
-                              onClick={() => suspendMut.mutate(ten)}
+                              onClick={() => setSuspendTarget(ten)}
                               className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-warning transition-colors"
                               title={t.admin.tenants.suspend}
                             >
@@ -291,7 +299,26 @@ export function TenantsPage() {
         <NewSubscriptionModal
           tenantId={subscribeTarget.id}
           tenantName={subscribeTarget.name}
+          tenantBusinessType={subscribeTarget.businessType}
+          currentSubscription={subscribeTarget.activeSubscription}
           onClose={() => setSubscribeTarget(null)}
+        />
+      )}
+
+      {renewTarget && renewSub && (
+        <RenewSubscriptionModal
+          tenantId={renewTarget.id}
+          tenantName={renewTarget.name}
+          subscription={renewSub}
+          onClose={() => setRenewTarget(null)}
+        />
+      )}
+
+      {suspendTarget && (
+        <SuspendTenantModal
+          tenantId={suspendTarget.id}
+          tenantName={suspendTarget.name}
+          onClose={() => setSuspendTarget(null)}
         />
       )}
 

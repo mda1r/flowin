@@ -2,6 +2,7 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Organization.Infrastructure.Persistence;
 using NexusPOS.SuperAdmin.Application.Common;
+using NexusPOS.SuperAdmin.Domain.Entities;
 using NexusPOS.SuperAdmin.Domain.Enums;
 using NexusPOS.SuperAdmin.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
@@ -27,20 +28,22 @@ internal sealed class ListTenantsQueryHandler(
         var subscriptions = await superAdminDb.TenantSubscriptions
             .AsNoTracking()
             .Include(s => s.Plan)
-            .Where(s => tenantIds.Contains(s.TenantId)
-                && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Trial))
+            .Where(s => tenantIds.Contains(s.TenantId) && s.Status != SubscriptionStatus.Cancelled)
             .ToListAsync(cancellationToken);
 
-        var subByTenant = subscriptions
+        DateTime now = DateTime.UtcNow;
+        Dictionary<Guid, List<TenantSubscription>> subsByTenant = subscriptions
             .GroupBy(s => s.TenantId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.ExpiryDate).First());
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var result = tenants.Select(t =>
         {
             TenantSubscriptionResponse? activeSub = null;
-            if (subByTenant.TryGetValue(t.Id.Value, out var sub))
+            TenantSubscriptionResponse? renewableSub = null;
+            if (subsByTenant.TryGetValue(t.Id.Value, out var subs))
             {
-                activeSub = MapSubscription(sub);
+                activeSub = TenantSubscription.PickCurrent(subs, now)?.ToResponse(now);
+                renewableSub = TenantSubscription.PickRenewable(subs)?.ToResponse(now);
             }
 
             return new TenantWithSubscriptionResponse(
@@ -54,29 +57,10 @@ internal sealed class ListTenantsQueryHandler(
                 t.CreatedAt,
                 t.SuspendedAt,
                 activeSub,
-                t.BusinessType.ToString());
+                t.BusinessType.ToString(),
+                RenewableSubscription: renewableSub);
         }).ToList();
 
         return result;
-    }
-
-    private static TenantSubscriptionResponse MapSubscription(Domain.Entities.TenantSubscription sub)
-    {
-        int daysRemaining = (int)(sub.ExpiryDate - DateTime.UtcNow).TotalDays;
-
-        return new TenantSubscriptionResponse(
-            sub.Id,
-            sub.TenantId,
-            sub.PlanId,
-            sub.Plan?.Name ?? string.Empty,
-            sub.Plan?.Price ?? 0,
-            sub.StartDate,
-            sub.ExpiryDate,
-            sub.Status,
-            sub.MaxBranches,
-            sub.MaxUsers,
-            sub.Notes,
-            sub.CreatedAt,
-            daysRemaining);
     }
 }

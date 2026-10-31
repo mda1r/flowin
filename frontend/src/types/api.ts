@@ -616,7 +616,8 @@ export interface RentalContractResponse {
 
 // ── SuperAdmin ────────────────────────────────────────────────────────────────
 
-export type SubscriptionStatus = 'Trial' | 'Active' | 'Expired' | 'Suspended'
+// Trial = starts in the future; Cancelled = replaced by a newer subscription before it began
+export type SubscriptionStatus = 'Trial' | 'Active' | 'Expired' | 'Suspended' | 'Cancelled'
 
 export interface SubscriptionPlanResponse {
   id: string
@@ -659,11 +660,14 @@ export interface TenantWithSubscriptionResponse {
   activeSubscription?: TenantSubscriptionResponse
   businessType: BusinessType
   defaultPassword?: string
+  // End of the subscription chain: what a renewal extends (a pre-paid period after the live one).
+  renewableSubscription?: TenantSubscriptionResponse
 }
 
 export interface TenantDetailResponse extends TenantWithSubscriptionResponse {
   subscriptionHistory: TenantSubscriptionResponse[]
   aiEnabled: boolean
+  suspensionReason?: string
 }
 
 export interface CreateSubscriptionRequest {

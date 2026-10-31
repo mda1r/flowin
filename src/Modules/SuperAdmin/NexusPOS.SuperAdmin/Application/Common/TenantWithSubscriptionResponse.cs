@@ -12,4 +12,5 @@ public sealed record TenantWithSubscriptionResponse(
     DateTime? SuspendedAt,
     TenantSubscriptionResponse? ActiveSubscription,
     string BusinessType = "Retail",
-    string? DefaultPassword = null);
+    string? DefaultPassword = null,
+    TenantSubscriptionResponse? RenewableSubscription = null);

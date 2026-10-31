@@ -67,6 +67,8 @@ export function LoginPage() {
       else if (res?.status === 429) toast.error(t.login.cannotSignIn, t.login.tooManyAttempts)
       else if (code === 'IAM.AccountLocked') toast.error(t.login.cannotSignIn, t.login.accountLocked)
       else if (code === 'IAM.UserInactive') toast.error(t.login.cannotSignIn, t.login.accountInactive)
+      // The platform admin suspended this business (e.g. unpaid subscription).
+      else if (code === 'IAM.TenantSuspended') toast.error(t.login.loginFailed, lang === 'ar' ? 'الحساب موقوف، تواصل مع الدعم' : 'This account is suspended. Please contact support.')
       else toast.error(t.login.loginFailed, t.login.invalidCredentials)
     } finally {
       setLoading(false)

@@ -219,7 +219,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
         CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(TenantId, cancellationToken);
-        if (!features.Contains("ai"))
+        if (!features.Contains(PlanFeatures.Ai))
         {
             return StatusCode(StatusCodes.Status402PaymentRequired, new { code = "feature_not_available", message = "ميزة الذكاء الاصطناعي غير مفعّلة لهذا الحساب." });
         }

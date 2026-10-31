@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Building2,
@@ -7,10 +8,12 @@ import {
   TrendingDown,
   PauseCircle,
   BarChart3,
+  RefreshCw,
 } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import type { TenantWithSubscriptionResponse, BusinessType } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { RenewSubscriptionModal } from './RenewSubscriptionModal'
 
 const BIZ_COLOR: Record<BusinessType, string> = {
   Retail:      'bg-muted/30',
@@ -46,6 +49,9 @@ function computeStats(tenants: TenantWithSubscriptionResponse[]) {
 export function AdminDashboard() {
   const { t, lang } = useI18n()
   const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const [renewTarget, setRenewTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  // Renewal extends the end of the chain, which can be a pre-paid period after the live one.
+  const renewSub = renewTarget?.renewableSubscription ?? renewTarget?.activeSubscription
 
   const BIZ_LABEL: Record<BusinessType, string> = {
     Retail:      t.admin.dashboard.business.retail,
@@ -134,7 +140,7 @@ export function AdminDashboard() {
             color="emerald"
           />
           <StatCard
-            label="تجريبي"
+            label="تبدأ لاحقاً"
             value={stats.trial}
             icon={<BarChart3 className="h-5 w-5 text-warning" />}
             color="amber"
@@ -201,15 +207,24 @@ export function AdminDashboard() {
                     <p className="text-sm font-medium text-fg">{ten.name}</p>
                     <p className="text-xs text-muted">{ten.adminEmail}</p>
                   </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      (ten.activeSubscription?.daysRemaining ?? 0) <= 3
-                        ? 'bg-danger/15 text-danger'
-                        : 'bg-warning/15 text-warning'
-                    }`}
-                  >
-                    {ten.activeSubscription?.daysRemaining} يوم
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        (ten.activeSubscription?.daysRemaining ?? 0) <= 3
+                          ? 'bg-danger/15 text-danger'
+                          : 'bg-warning/15 text-warning'
+                      }`}
+                    >
+                      {ten.activeSubscription?.daysRemaining} يوم
+                    </span>
+                    <button
+                      onClick={() => setRenewTarget(ten)}
+                      className="flex items-center gap-1 rounded-lg border border-brand px-2.5 py-1 text-xs font-semibold text-brand-ink hover:bg-brand/15 transition-colors"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      تجديد
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -226,6 +241,15 @@ export function AdminDashboard() {
           </p>
           <TrendingDown className="mr-auto h-4 w-4 flex-shrink-0 text-danger" />
         </div>
+      )}
+
+      {renewTarget && renewSub && (
+        <RenewSubscriptionModal
+          tenantId={renewTarget.id}
+          tenantName={renewTarget.name}
+          subscription={renewSub}
+          onClose={() => setRenewTarget(null)}
+        />
       )}
     </div>
   )

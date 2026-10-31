@@ -130,4 +130,25 @@ public sealed class TenantTests
 
         tenant.CreatedAt.Kind.Should().Be(DateTimeKind.Utc);
     }
+
+    [Fact]
+    public void Suspend_WithReason_StoresTrimmedReason()
+    {
+        Tenant tenant = Tenant.Create("Acme", "acme", "admin@acme.com");
+
+        tenant.Suspend("  عدم السداد  ");
+
+        tenant.SuspensionReason.Should().Be("عدم السداد");
+    }
+
+    [Fact]
+    public void Reinstate_ClearsSuspensionReason()
+    {
+        Tenant tenant = Tenant.Create("Acme", "acme", "admin@acme.com");
+        tenant.Suspend("عدم السداد");
+
+        tenant.Reinstate();
+
+        tenant.SuspensionReason.Should().BeNull();
+    }
 }

@@ -30,12 +30,13 @@ internal sealed class ActivateTenantCommandHandler(
         tenant.Reinstate();
         await orgDb.SaveChangesAsync(cancellationToken);
 
-        var suspendedSub = (await subscriptionRepository.GetByTenantIdAsync(request.TenantId, cancellationToken))
-            .FirstOrDefault(s => s.Status == SubscriptionStatus.Suspended);
+        var suspendedSubs = (await subscriptionRepository.GetByTenantIdAsync(request.TenantId, cancellationToken))
+            .Where(s => s.Status == SubscriptionStatus.Suspended)
+            .ToList();
 
-        if (suspendedSub is not null)
+        if (suspendedSubs.Count > 0)
         {
-            suspendedSub.Activate();
+            suspendedSubs.ForEach(s => s.Activate());
             await superAdminDb.SaveChangesAsync(cancellationToken);
         }
 
