@@ -19,6 +19,9 @@ public static class InventoryErrors
     public static readonly Error StockItemHasHistory =
         Error.Conflict("Inventory.StockItemHasHistory", "Stock item still has quantity or movement history; archive it instead.");
 
+    public static readonly Error StockItemArchived =
+        Error.Conflict("Inventory.StockItemArchived", "Stock item is archived; a manager must restore it first.");
+
     public static readonly Error StockCountNotFound =
         Error.NotFound("Inventory.StockCountNotFound", "Stock count session was not found.");
 

@@ -29,6 +29,16 @@ export const inventoryApi = {
       data,
     ),
 
+  receiveStock: (
+    branchId: string,
+    itemId: string,
+    data: { quantity: number; reference?: string; notes?: string; expiryDate?: string | null },
+  ) =>
+    apiClient.post<StockItemResponse>(
+      `/api/v1/branches/${branchId}/stock/${itemId}/receive`,
+      data,
+    ),
+
   initializeStock: (branchId: string, variantId: string) =>
     apiClient.post<StockItemResponse>(`/api/v1/branches/${branchId}/stock/initialize`, {
       variantId,

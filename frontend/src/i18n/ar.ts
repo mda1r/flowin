@@ -322,6 +322,8 @@ export const ar: Translations = {
     by: 'بواسطة',
     invoice: 'فاتورة #{n}',
     noMovements: 'لا توجد حركات في هذه الفترة',
+    movementsFailed: 'تعذّر تحميل الحركات',
+    retry: 'إعادة المحاولة',
     shortfall: 'نقص {n}',
     shortfallHint: 'بيعت كمية أكبر من المخزون المسجّل',
     prevPage: 'السابق',

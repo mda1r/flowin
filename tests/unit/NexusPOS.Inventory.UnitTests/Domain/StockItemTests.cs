@@ -276,14 +276,15 @@ public sealed class StockItemTests
     }
 
     [Fact]
-    public void Receive_OnArchivedItem_TracksItAgain()
+    public void Receive_OnArchivedItem_KeepsItArchived()
     {
         StockItem stock = StockItem.Create(_variantId, _branchId);
         stock.Archive();
 
         stock.Receive(5);
 
-        stock.IsArchived.Should().BeFalse();
+        stock.IsArchived.Should().BeTrue();
+        stock.Quantity.Should().Be(5);
     }
 
     [Fact]

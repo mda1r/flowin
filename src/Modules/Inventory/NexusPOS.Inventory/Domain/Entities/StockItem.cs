@@ -71,8 +71,6 @@ public sealed class StockItem : AggregateRoot<StockItemId>
         {
             ExpiryDate = expiryDate;
         }
-        // Receiving new stock means the item is tracked again.
-        IsArchived = false;
         UpdatedAt = DateTime.UtcNow;
 
         Movements.Add(StockMovement.Record(Id, type, quantity, before, Quantity, reference, notes, userId));

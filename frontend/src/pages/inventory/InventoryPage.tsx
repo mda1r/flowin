@@ -165,8 +165,7 @@ export function InventoryPage() {
         details: `${info?.productName ?? adjustItem?.variantId ?? ''} → كمية جديدة: ${formData.newQuantity}`,
         branchId: branchId ?? undefined,
       })
-      qc.invalidateQueries({ queryKey: ['stock', branchId] })
-      qc.invalidateQueries({ queryKey: ['inventory-alerts', branchId] })
+      refreshStock()
       setAdjustItem(null)
       reset()
       toast.success(t.inventory.adjusted)
@@ -177,6 +176,7 @@ export function InventoryPage() {
   const refreshStock = () => {
     qc.invalidateQueries({ queryKey: ['stock', branchId] })
     qc.invalidateQueries({ queryKey: ['inventory-alerts', branchId] })
+    qc.invalidateQueries({ queryKey: ['stock-movements', branchId] })
   }
 
   const deleteItem = useMutation({

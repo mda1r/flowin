@@ -47,6 +47,7 @@ internal sealed class PurchaseOrderReceivedInventoryHandler(
                 }
                 else
                 {
+                    // Delivered goods still count on an archived item, but it stays archived until a manager restores it.
                     stockItemRepository.Update(stock);
                 }
 

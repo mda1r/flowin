@@ -1,5 +1,6 @@
 ﻿using ErrorOr;
 using NexusPOS.Inventory.Application.Common;
+using NexusPOS.Inventory.Domain;
 using NexusPOS.Inventory.Domain.Entities;
 using NexusPOS.Inventory.Domain.Repositories;
 using NexusPOS.SharedKernel.Application.Messaging;
@@ -21,11 +22,10 @@ internal sealed class InitializeStockCommandHandler(
 
         if (existing is not null)
         {
-            // Turning tracking back on for an archived item brings it back with its history.
+            // Only the manager-only restore endpoint brings an archived item back.
             if (existing.IsArchived)
             {
-                existing.Restore();
-                await dbContext.SaveChangesAsync(cancellationToken);
+                return InventoryErrors.StockItemArchived;
             }
 
             return StockItemResponse.From(existing);

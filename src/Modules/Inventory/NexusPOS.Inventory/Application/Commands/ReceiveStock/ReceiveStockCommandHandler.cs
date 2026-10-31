@@ -28,6 +28,12 @@ internal sealed class ReceiveStockCommandHandler(
             return InventoryErrors.StockItemNotFound;
         }
 
+        // Only the manager-only restore endpoint brings an archived item back.
+        if (stockItem.IsArchived)
+        {
+            return InventoryErrors.StockItemArchived;
+        }
+
         ErrorOr<Success> result = stockItem.Receive(
             request.Quantity, request.Reference, request.Notes, request.ExpiryDate, tenantContext.UserId);
         if (result.IsError)

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { inventoryApi } from '@/api/inventory'
 import { usersApi } from '@/api/users'
 import { invoiceNo } from '@/lib/invoiceNumber'
+import { apiErrorMessage } from '@/lib/apiError'
 import { formatDateTime } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import type { MovementType, StockItemResponse, StockMovementResponse } from '@/types/api'
@@ -55,7 +56,7 @@ export function StockCardModal({
   const [page, setPage] = useState(1)
 
   const branchId = item?.branchId
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ['stock-movements', branchId, item?.id, type, from, to, page],
     queryFn: () =>
       inventoryApi
@@ -136,72 +137,81 @@ export function StockCardModal({
           </label>
         </div>
 
-        <div className="rounded-xl border border-border">
-          <Table
-            loading={isLoading}
-            data={rows}
-            keyExtractor={(m) => m.id}
-            emptyMessage={t.inventory.noMovements}
-            columns={[
-              {
-                key: 'date',
-                header: t.common.date,
-                render: (m) => <span className="whitespace-nowrap text-muted">{formatDateTime(m.occurredAt, locale)}</span>,
-              },
-              {
-                key: 'type',
-                header: t.common.type,
-                render: (m) => <Badge variant={TYPE_BADGE[m.type] ?? 'gray'}>{t.inventory.movementTypes[m.type] ?? m.type}</Badge>,
-              },
-              {
-                key: 'change',
-                header: t.inventory.change,
-                render: (m) => {
-                  const change = movementChange(m)
-                  const shortfall = m.type === 'Sale' ? m.quantity - (m.quantityBefore - m.quantityAfter) : 0
-                  return (
-                    <div className="flex items-center gap-2">
-                      <span dir="ltr" className={`font-medium tabular-nums ${change > 0 ? 'text-success' : change < 0 ? 'text-danger' : 'text-muted'}`}>
-                        {change > 0 ? '+' : ''}{formatQty(change)}
-                      </span>
-                      {shortfall > 0 && (
-                        <span title={t.inventory.shortfallHint}>
-                          <Badge variant="yellow">{t.inventory.shortfall.replace('{n}', formatQty(shortfall))}</Badge>
-                        </span>
-                      )}
-                    </div>
-                  )
+        {isError ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-border px-4 py-10 text-center">
+            <p className="text-sm text-danger">{apiErrorMessage(error, t.inventory.movementsFailed)}</p>
+            <Button size="sm" variant="secondary" loading={isFetching} onClick={() => refetch()}>
+              {t.inventory.retry}
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border">
+            <Table
+              loading={isLoading}
+              data={rows}
+              keyExtractor={(m) => m.id}
+              emptyMessage={t.inventory.noMovements}
+              columns={[
+                {
+                  key: 'date',
+                  header: t.common.date,
+                  render: (m) => <span className="whitespace-nowrap text-muted">{formatDateTime(m.occurredAt, locale)}</span>,
                 },
-              },
-              {
-                key: 'balance',
-                header: t.inventory.balance,
-                render: (m) => (
-                  <span className="whitespace-nowrap tabular-nums text-muted">
-                    {formatQty(m.quantityBefore)} {lang === 'ar' ? '←' : '→'} <strong className="text-fg">{formatQty(m.quantityAfter)}</strong>
-                  </span>
-                ),
-              },
-              {
-                key: 'reference',
-                header: t.common.reference,
-                render: (m) => <span className="whitespace-nowrap">{reference(m)}</span>,
-              },
-              {
-                key: 'notes',
-                header: t.common.notes,
-                render: (m) => <span className="text-muted">{m.notes || '—'}</span>,
-              },
-              {
-                key: 'by',
-                header: t.inventory.by,
-                render: (m) => <span className="whitespace-nowrap text-muted">{userName(m.userId)}</span>,
-              },
-            ]}
-          />
-        </div>
+                {
+                  key: 'type',
+                  header: t.common.type,
+                  render: (m) => <Badge variant={TYPE_BADGE[m.type] ?? 'gray'}>{t.inventory.movementTypes[m.type] ?? m.type}</Badge>,
+                },
+                {
+                  key: 'change',
+                  header: t.inventory.change,
+                  render: (m) => {
+                    const change = movementChange(m)
+                    const shortfall = m.type === 'Sale' ? m.quantity - (m.quantityBefore - m.quantityAfter) : 0
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span dir="ltr" className={`font-medium tabular-nums ${change > 0 ? 'text-success' : change < 0 ? 'text-danger' : 'text-muted'}`}>
+                          {change > 0 ? '+' : ''}{formatQty(change)}
+                        </span>
+                        {shortfall > 0 && (
+                          <span title={t.inventory.shortfallHint}>
+                            <Badge variant="yellow">{t.inventory.shortfall.replace('{n}', formatQty(shortfall))}</Badge>
+                          </span>
+                        )}
+                      </div>
+                    )
+                  },
+                },
+                {
+                  key: 'balance',
+                  header: t.inventory.balance,
+                  render: (m) => (
+                    <span className="whitespace-nowrap tabular-nums text-muted">
+                      {formatQty(m.quantityBefore)} {lang === 'ar' ? '←' : '→'} <strong className="text-fg">{formatQty(m.quantityAfter)}</strong>
+                    </span>
+                  ),
+                },
+                {
+                  key: 'reference',
+                  header: t.common.reference,
+                  render: (m) => <span className="whitespace-nowrap">{reference(m)}</span>,
+                },
+                {
+                  key: 'notes',
+                  header: t.common.notes,
+                  render: (m) => <span className="text-muted">{m.notes || '—'}</span>,
+                },
+                {
+                  key: 'by',
+                  header: t.inventory.by,
+                  render: (m) => <span className="whitespace-nowrap text-muted">{userName(m.userId)}</span>,
+                },
+              ]}
+            />
+          </div>
+        )}
 
-        {pages > 1 && (
+        {!isError && pages > 1 && (
           <div className="flex items-center justify-between text-sm text-muted">
             <span>{t.inventory.pageOf.replace('{page}', String(page)).replace('{pages}', String(pages))}</span>
             <div className="flex gap-2">

@@ -320,6 +320,8 @@ export const en = {
     by: 'By',
     invoice: 'Invoice #{n}',
     noMovements: 'No movements in this period',
+    movementsFailed: 'Could not load movements',
+    retry: 'Retry',
     shortfall: 'Short {n}',
     shortfallHint: 'Sold more than the recorded stock',
     prevPage: 'Previous',
