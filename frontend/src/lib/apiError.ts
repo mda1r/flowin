@@ -6,6 +6,9 @@ const CODE_MESSAGES: Record<string, string> = {
   'Inventory.CategoryNameExists': 'يوجد تصنيف بنفس الاسم',
   'Inventory.CategoryHasItems': 'لا يمكن حذف تصنيف يحتوي على مواد، انقل المواد أو احذفها أولاً',
   'Inventory.CategoryNotFound': 'التصنيف غير موجود',
+  'Organization.BranchAlreadyExists': 'يوجد فرع آخر بنفس الاسم',
+  'Organization.CannotDeactivateMainBranch': 'لا يمكن تعطيل الفرع الرئيسي، عيّن فرعاً آخر كرئيسي أولاً',
+  'Organization.MainBranchMustBeActive': 'فعّل الفرع أولاً قبل تعيينه كرئيسي',
 }
 
 // Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line.
