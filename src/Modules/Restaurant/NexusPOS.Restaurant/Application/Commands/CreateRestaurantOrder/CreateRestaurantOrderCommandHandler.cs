@@ -18,6 +18,20 @@ internal sealed class CreateRestaurantOrderCommandHandler(
         CreateRestaurantOrderCommand request,
         CancellationToken cancellationToken)
     {
+        // The cafe till resends a kitchen ticket it could not confirm; one that already arrived is returned as is.
+        if (!string.IsNullOrWhiteSpace(request.TicketNumber))
+        {
+            RestaurantOrder? existing = await orderRepository.FindByTicketAsync(
+                request.BranchId,
+                request.TicketNumber.Trim(),
+                DateTime.UtcNow - RestaurantOrderQueries.LookBack,
+                cancellationToken);
+            if (existing is not null)
+            {
+                return RestaurantOrderMapper.ToResponse(existing);
+            }
+        }
+
         decimal discountAmount = 0m;
         DiscountCode? discountCode = null;
 
@@ -52,7 +66,8 @@ internal sealed class CreateRestaurantOrderCommandHandler(
             itemsData,
             request.Notes,
             request.DiscountCode,
-            discountAmount);
+            discountAmount,
+            request.TicketNumber);
 
         if (orderResult.IsError)
         {

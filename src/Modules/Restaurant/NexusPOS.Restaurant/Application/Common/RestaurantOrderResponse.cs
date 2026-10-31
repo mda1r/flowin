@@ -19,4 +19,5 @@ public sealed record RestaurantOrderResponse(
     DateTime CreatedAt,
     DateTime? ServedAt,
     DateTime? PaidAt,
-    IReadOnlyList<RestaurantOrderItemResponse> Items);
+    IReadOnlyList<RestaurantOrderItemResponse> Items,
+    string? TicketNumber);

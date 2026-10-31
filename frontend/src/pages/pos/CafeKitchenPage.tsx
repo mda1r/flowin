@@ -7,6 +7,11 @@ import { useI18n } from '@/i18n'
 import { restaurantApi } from '@/api/restaurant'
 import type { RestaurantOrderResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
+import { TAKEAWAY_TABLE } from '@/lib/cafeKitchen'
+import { useKitchenSound, useNewOrderAlert, useNow } from '@/lib/kitchenSound'
+import { KitchenSoundToggle } from '@/components/kitchen/KitchenSoundToggle'
+import { toast } from '@/components/ui/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
 
 // Light cards on the graphite board, like the identity's kitchen screen: new waits in amber,
 // in-progress carries a mint edge, ready turns mint.
@@ -24,20 +29,22 @@ function mapStatus(s: RestaurantOrderResponse['status']): KitchenStatus {
   return 'ready'
 }
 
-function elapsed(ts: string, t: { kitchen: { seconds: string; minutes: string } }) {
-  const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000)
+function elapsed(ts: string, now: number, t: { kitchen: { seconds: string; minutes: string } }) {
+  const diff = Math.max(0, Math.floor((now - new Date(ts).getTime()) / 1000))
   if (diff < 60) return `${diff} ${t.kitchen.seconds}`
   return `${Math.floor(diff / 60)} ${t.kitchen.minutes}`
 }
 
 function TicketCard({
   order,
+  now,
   onPreparing,
   onReady,
   onReturn,
   onDismiss,
 }: {
   order: RestaurantOrderResponse
+  now: number
   onPreparing: (id: string) => void
   onReady: (id: string) => void
   onReturn: (id: string) => void
@@ -49,7 +56,9 @@ function TicketCard({
     ...STATUS_STYLE[status],
     label: status === 'pending' ? t.kitchen.statusNew : status === 'preparing' ? t.kitchen.preparing : t.kitchen.ready,
   }
-  const isTakeaway = order.tableNumber === 99
+  const isTakeaway = order.tableNumber === TAKEAWAY_TABLE
+  // The receipt number the customer holds; older orders sent before tickets were numbered fall back to a short id.
+  const ticketNo = order.ticketNumber ?? order.id.slice(-4).toUpperCase()
 
   return (
     <div className={cn('scheme-light relative flex flex-col rounded-2xl border-2 p-4 text-fg shadow-md', cfg.card, cfg.border)}>
@@ -59,14 +68,14 @@ function TicketCard({
           <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-bold', cfg.color)}>
             {cfg.label}
           </span>
-          <span className="text-sm font-black text-muted">
-            #{order.id.slice(-4).toUpperCase()}
+          <span className="text-3xl font-black tabular-nums leading-none text-fg" aria-label={`${t.kitchen.order} ${ticketNo}`}>
+            #{ticketNo}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 text-xs text-muted">
             <Clock className="h-3 w-3" />
-            {elapsed(order.createdAt, t)}
+            {elapsed(order.createdAt, now, t)}
           </span>
           {status === 'ready' && (
             <button
@@ -165,23 +174,29 @@ export function CafeKitchenPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
 
-  const { data: orders = [], isError } = useQuery({
+  const { data: orders = [], isError, isSuccess } = useQuery({
     queryKey: ['kitchen', 'orders', branchId],
     queryFn: () =>
       branchId
-        ? restaurantApi.listActiveOrders(branchId).then((r) => r.data)
+        ? restaurantApi.listKitchenOrders(branchId).then((r) => r.data)
         : Promise.resolve([]),
     enabled: !!branchId,
     refetchInterval: 5_000,
     refetchIntervalInBackground: true,
   })
 
-  const kitchenOrders = orders.filter(
-    (o) => o.status === 'Pending' || o.status === 'InKitchen' || o.status === 'Ready',
-  )
+  const now = useNow(5_000)
+  const sound = useKitchenSound()
+  // The barista faces the machine, not the screen: ring for every newly arrived ticket.
+  useNewOrderAlert(isSuccess ? orders.map((o) => o.id) : undefined, () => sound.play(3))
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ['kitchen', 'orders', branchId] })
+  // Another screen may have moved the ticket already: say why and show the board as it is now.
+  const failed = (err: unknown) => {
+    toast.error(apiErrorMessage(err))
+    void invalidate()
+  }
 
   const preparingMut = useMutation({
     mutationFn: (orderId: string) =>
@@ -193,23 +208,26 @@ export function CafeKitchenPage() {
     mutationFn: (orderId: string) =>
       branchId ? restaurantApi.markOrderReady(branchId, orderId) : Promise.reject(),
     onSuccess: invalidate,
+    onError: failed,
   })
 
   const returnMut = useMutation({
     mutationFn: (orderId: string) =>
       branchId ? restaurantApi.returnToKitchen(branchId, orderId) : Promise.reject(),
     onSuccess: invalidate,
+    onError: failed,
   })
 
   const dismissMut = useMutation({
     mutationFn: (orderId: string) =>
       branchId ? restaurantApi.serveOrder(branchId, orderId) : Promise.reject(),
     onSuccess: invalidate,
+    onError: failed,
   })
 
-  const pending   = kitchenOrders.filter((o) => o.status === 'Pending')
-  const preparing = kitchenOrders.filter((o) => o.status === 'InKitchen')
-  const ready     = kitchenOrders.filter((o) => o.status === 'Ready')
+  const pending   = orders.filter((o) => o.status === 'Pending')
+  const preparing = orders.filter((o) => o.status === 'InKitchen')
+  const ready     = orders.filter((o) => o.status === 'Ready')
 
   // Auto-advance Pending orders straight to InKitchen — no "new" column shown.
   useEffect(() => {
@@ -241,7 +259,7 @@ export function CafeKitchenPage() {
           <ChefHat className="h-6 w-6 text-warning" />
           <h1 className="text-lg font-black tracking-wide text-fg">{t.kitchen.title}</h1>
           <span className="rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-bold text-warning">
-            {kitchenOrders.filter((o) => o.status !== 'Ready').length} طلب نشط
+            {orders.filter((o) => o.status !== 'Ready').length} طلب نشط
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -251,6 +269,7 @@ export function CafeKitchenPage() {
               {t.kitchen.connectionError}
             </span>
           )}
+          <KitchenSoundToggle enabled={sound.enabled} muted={sound.muted} onToggle={sound.toggleMute} />
           <p className="text-xs text-muted">يتحدث كل 5 ثوانٍ</p>
         </div>
       </div>
@@ -287,6 +306,7 @@ export function CafeKitchenPage() {
                   <TicketCard
                     key={order.id}
                     order={order}
+                    now={now}
                     onPreparing={(id) => preparingMut.mutate(id)}
                     onReady={(id) => readyMut.mutate(id)}
                     onReturn={(id) => returnMut.mutate(id)}

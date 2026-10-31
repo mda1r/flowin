@@ -19,6 +19,7 @@ internal sealed class RestaurantOrderConfiguration : IEntityTypeConfiguration<Re
         builder.Property(o => o.TenantId).HasColumnName("tenant_id").IsRequired();
         builder.Property(o => o.BranchId).HasColumnName("branch_id").IsRequired();
         builder.Property(o => o.TableNumber).HasColumnName("table_number").IsRequired();
+        builder.Property(o => o.TicketNumber).HasColumnName("ticket_number").HasMaxLength(16);
 
         builder.Property(o => o.Status)
             .HasConversion<string>()

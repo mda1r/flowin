@@ -86,6 +86,12 @@ export const restaurantApi = {
       `/api/v1/branches/${branchId}/restaurant/orders`,
     ),
 
+  // Pending, in-kitchen and ready orders from the last day: what the kitchen screens show.
+  listKitchenOrders: (branchId: string) =>
+    apiClient.get<RestaurantOrderResponse[]>(
+      `/api/v1/branches/${branchId}/restaurant/orders/kitchen`,
+    ),
+
   listTableOrders: (branchId: string, tableNumber: number) =>
     apiClient.get<RestaurantOrderResponse[]>(
       `/api/v1/branches/${branchId}/restaurant/orders/by-table/${tableNumber}`,
@@ -99,6 +105,8 @@ export const restaurantApi = {
       items: OrderItemInput[]
       notes?: string
       discountCode?: string
+      // Set when the cafe till mirrors a paid sale; resending the same number returns the existing order.
+      ticketNumber?: string
     },
   ) =>
     apiClient.post<RestaurantOrderResponse>(

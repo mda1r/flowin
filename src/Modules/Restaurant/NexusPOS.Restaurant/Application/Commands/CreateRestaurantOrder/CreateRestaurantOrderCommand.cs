@@ -16,4 +16,5 @@ public sealed record CreateRestaurantOrderCommand(
     int TableNumber,
     IReadOnlyList<OrderItemInput> Items,
     string? Notes,
-    string? DiscountCode) : ICommand<RestaurantOrderResponse>;
+    string? DiscountCode,
+    string? TicketNumber = null) : ICommand<RestaurantOrderResponse>;

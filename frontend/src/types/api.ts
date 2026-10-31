@@ -447,6 +447,8 @@ export interface RestaurantOrderResponse {
   servedAt?: string
   paidAt?: string
   items: RestaurantOrderItemResponse[]
+  // The receipt number of a cafe sale mirrored to the kitchen; absent for table orders.
+  ticketNumber?: string | null
 }
 
 export interface DiscountCodeResponse {

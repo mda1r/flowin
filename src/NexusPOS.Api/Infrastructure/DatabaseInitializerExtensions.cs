@@ -67,6 +67,7 @@ internal static class DatabaseInitializerExtensions
             await MigrateCrmColumnsAsync(sp, logger);
             await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
             await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+            await MigrateRestaurantColumnsAsync(sp, logger);
             await EnsureCreatedAsync<HotelDbContext>(sp, logger);
             await EnsureCreatedAsync<GamingDbContext>(sp, logger);
             await EnsureCreatedAsync<SuperAdminDbContext>(sp, logger);
@@ -406,6 +407,26 @@ internal static class DatabaseInitializerExtensions
         {
             try { await invDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "Stock materials migration skipped"); }
+        }
+    }
+
+    internal static async Task MigrateRestaurantColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        RestaurantDbContext restaurantDb = sp.GetRequiredService<RestaurantDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS ticket_number VARCHAR(16)",
+            "CREATE INDEX IF NOT EXISTS ix_restaurant_orders_branch_ticket ON restaurant_orders (branch_id, ticket_number) WHERE ticket_number IS NOT NULL",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await restaurantDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (PostgresException ex) when (ex.SqlState == "42P01")
+            {
+                // undefined_table: this tenant never got the restaurant tables (provisioned before every tenant had them).
+            }
+            catch (Exception ex) { logger.LogWarning(ex, "Restaurant migration skipped: {Sql}", sql); }
         }
     }
 
@@ -1115,6 +1136,8 @@ internal static class DatabaseInitializerExtensions
                 {
                     await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
                 }
+
+                await MigrateRestaurantColumnsAsync(sp, logger);
 
                 if (bizType == BusinessType.Hotel)
                 {

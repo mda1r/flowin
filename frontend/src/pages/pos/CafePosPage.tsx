@@ -13,8 +13,8 @@ import { toast } from '@/components/ui/Toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
-import { pushKitchenTicket } from '@/lib/cafeKitchen'
-import { restaurantApi } from '@/api/restaurant'
+import { kitchenItems, sendKitchenTicket, TAKEAWAY_TABLE } from '@/lib/cafeKitchen'
+import { KitchenOutboxBanner } from '@/components/cafe/KitchenOutboxBanner'
 import { aiCashierApi } from '@/api/aiCashier'
 import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
 import { gamingApi } from '@/api/gaming'
@@ -375,7 +375,6 @@ export function CafePosPage() {
   // Kitchen ticket & customer receipt
   const [kitchenTicket, setKitchenTicket] = useState<KitchenTicketData | null>(null)
   const [customerReceipt, setCustomerReceipt] = useState<CustomerReceiptData | null>(null)
-  const [ticketCounter, setTicketCounter] = useState(1)
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
@@ -557,6 +556,24 @@ export function CafePosPage() {
 
   // ── Checkout ──────────────────────────────────────────────────────────────
 
+  const sendToKitchen = (
+    ticketNumber: string,
+    items: CafeCartItem[],
+    type: 'here' | 'takeaway',
+    table: number | null,
+  ) => {
+    if (!branchId || !tenantId) return
+    void sendKitchenTicket({
+      ticketNumber,
+      tenantId,
+      branchId,
+      tableNumber: type === 'takeaway' ? TAKEAWAY_TABLE : (table ?? 1),
+      items: kitchenItems(items),
+    }).then((sent) => {
+      if (!sent) toast.warning(`الطلب #${ticketNumber} لم يصل للمطبخ`, 'سيُعاد إرساله تلقائياً، أبلغ المحضّر به')
+    })
+  }
+
   const checkout = useMutation({
     mutationFn: async () => {
       if (!branchId || !tenantId) throw new Error('no-branch')
@@ -632,35 +649,8 @@ export function CafePosPage() {
         pointsEarned: loyaltyCustomer && loyaltyRules.enabled ? pointsEarned(grandTotal, loyaltyRules) : undefined,
       }
 
-      // Push to kitchen (fire and forget)
-      if (tenantId) {
-        pushKitchenTicket(tenantId, {
-          ticketNumber: ticketCounter,
-          tableNumber,
-          orderType,
-          items: cart.map((i) => ({
-            productName: i.productName,
-            variantName: i.variantName,
-            quantity: i.quantity,
-            notes: i.notes,
-          })),
-        })
-      }
-      if (branchId && tenantId && !offline) {
-        restaurantApi
-          .createOrder(branchId, {
-            tenantId,
-            tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
-            items: cart.map((i) => ({
-              menuItemId: i.variantId,
-              itemName: i.productName,
-              quantity: i.quantity,
-              unitPrice: i.unitPrice,
-              notes: i.notes || undefined,
-            })),
-          })
-          .catch(() => {})
-      }
+      // Mirror the sale to the kitchen screen under the receipt's number; it waits on this device when it cannot be sent.
+      sendToKitchen(invoiceNo({ id: orderId, number }), snapshot.items, orderType, tableNumber)
 
       // Show customer receipt
       setCustomerReceipt({
@@ -670,7 +660,6 @@ export function CafePosPage() {
         completedAt: new Date().toISOString(),
         offline,
       })
-      setTicketCounter((n) => n + 1)
       setCart([])
       setTableNumber(null)
       setSplitCash('')
@@ -729,27 +718,14 @@ export function CafePosPage() {
           }),
         ),
       )
-      await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: cartTotal })
-      return orderId
+      const { data: completed } = await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: cartTotal })
+      return { orderId, number: completed.number ?? null }
     },
-    onSuccess: (orderId) => {
-      if (tenantId) {
-        pushKitchenTicket(tenantId, {
-          ticketNumber: ticketCounter,
-          tableNumber,
-          orderType,
-          items: cart.map((i) => ({ productName: i.productName, variantName: i.variantName, quantity: i.quantity, notes: i.notes })),
-        })
-      }
-      if (branchId && tenantId) {
-        restaurantApi.createOrder(branchId, {
-          tenantId,
-          tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
-          items: cart.map((i) => ({ menuItemId: i.variantId, itemName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, notes: i.notes || undefined })),
-        }).catch(() => {})
-      }
+    onSuccess: ({ orderId, number }) => {
+      sendToKitchen(invoiceNo({ id: orderId, number }), [...cart], orderType, tableNumber)
       setCustomerReceipt({
         orderId,
+        number,
         items: [...cart],
         grandTotal: cartTotal,
         tax: vatOf(cartTotal),
@@ -759,7 +735,6 @@ export function CafePosPage() {
         orderType,
         completedAt: new Date().toISOString(),
       })
-      setTicketCounter((n) => n + 1)
       setCart([])
       setTableNumber(null)
       setAiCashierActive(false)
@@ -899,6 +874,7 @@ export function CafePosPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface-2" dir="rtl" style={CAFE_ACCENT}>
       <OfflineBanner />
+      <KitchenOutboxBanner />
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
       <ConfirmModal
         open={confirmClearCart}

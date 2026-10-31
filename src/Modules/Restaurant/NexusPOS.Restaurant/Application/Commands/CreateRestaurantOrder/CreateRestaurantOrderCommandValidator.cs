@@ -10,6 +10,7 @@ internal sealed class CreateRestaurantOrderCommandValidator : AbstractValidator<
         RuleFor(x => x.BranchId).NotEmpty();
         RuleFor(x => x.TableNumber).GreaterThan(0);
         RuleFor(x => x.Items).NotEmpty();
+        RuleFor(x => x.TicketNumber).MaximumLength(16);
         RuleForEach(x => x.Items).ChildRules(item =>
         {
             item.RuleFor(i => i.MenuItemId).NotEmpty();

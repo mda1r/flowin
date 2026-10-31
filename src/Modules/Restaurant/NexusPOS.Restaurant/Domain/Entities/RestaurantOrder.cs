@@ -12,6 +12,10 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public int TableNumber { get; private set; }
+
+    // The number on the customer's receipt when the cafe till mirrors a paid sale to the kitchen, so the barista
+    // can call it out. Null for table orders taken on the restaurant floor.
+    public string? TicketNumber { get; private set; }
     public RestaurantOrderStatus Status { get; private set; }
     public string? Notes { get; private set; }
     public string? AppliedDiscountCode { get; private set; }
@@ -39,7 +43,8 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         IEnumerable<(Guid MenuItemId, string ItemName, int Quantity, decimal UnitPrice, string? Notes)> itemsData,
         string? notes,
         string? discountCode,
-        decimal discountAmount)
+        decimal discountAmount,
+        string? ticketNumber = null)
     {
         var items = itemsData.ToList();
         if (items.Count == 0)
@@ -65,6 +70,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
             TenantId = tenantId,
             BranchId = branchId,
             TableNumber = tableNumber,
+            TicketNumber = string.IsNullOrWhiteSpace(ticketNumber) ? null : ticketNumber.Trim(),
             Status = RestaurantOrderStatus.Pending,
             Notes = notes?.Trim(),
             AppliedDiscountCode = discountCode?.Trim().ToUpperInvariant(),

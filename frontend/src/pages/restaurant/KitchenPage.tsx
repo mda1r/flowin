@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Clock, CheckCircle, ChefHat } from 'lucide-react'
 import { restaurantApi } from '@/api/restaurant'
@@ -6,11 +6,18 @@ import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import type { RestaurantOrderResponse, OrderItemStatus } from '@/types/api'
+import { TAKEAWAY_TABLE } from '@/lib/cafeKitchen'
+import { useKitchenSound, useNewOrderAlert, useNow } from '@/lib/kitchenSound'
+import { KitchenSoundToggle } from '@/components/kitchen/KitchenSoundToggle'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function minutesSince(isoDate: string): number {
-  return Math.floor((Date.now() - new Date(isoDate).getTime()) / 60000)
+// A pending order nobody has picked up for this long rings again, once a minute, until someone does.
+const REMIND_AFTER_MINUTES = 3
+const REMIND_EVERY_MS = 60_000
+
+function minutesSince(isoDate: string, now: number): number {
+  return Math.max(0, Math.floor((now - new Date(isoDate).getTime()) / 60000))
 }
 
 function timeColor(minutes: number): string {
@@ -31,37 +38,24 @@ function itemStatusLabel(status: OrderItemStatus, t: { kitchen: { ready: string;
   return 'انتظار'
 }
 
-// ── Sound alert ───────────────────────────────────────────────────────────────
-
-function beep(ctx: AudioContext) {
-  const osc = ctx.createOscillator()
-  const gain = ctx.createGain()
-  osc.connect(gain)
-  gain.connect(ctx.destination)
-  osc.type = 'square'
-  osc.frequency.setValueAtTime(880, ctx.currentTime)
-  gain.gain.setValueAtTime(0.3, ctx.currentTime)
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
-  osc.start(ctx.currentTime)
-  osc.stop(ctx.currentTime + 0.4)
-}
-
 // ── Order Card ────────────────────────────────────────────────────────────────
 
 function OrderCard({
   order,
+  now,
   onItemReady,
   onOrderReady,
   onSendToKitchen,
 }: {
   order: RestaurantOrderResponse
+  now: number
   branchId?: string
   onItemReady: (orderId: string, itemId: string) => void
   onOrderReady: (orderId: string) => void
   onSendToKitchen?: (orderId: string) => void
 }) {
   const { t } = useI18n()
-  const minutes = minutesSince(order.createdAt)
+  const minutes = minutesSince(order.createdAt, now)
   const allReady = order.items.every((i) => i.status === 'Ready')
 
   return (
@@ -73,10 +67,20 @@ function OrderCard({
     >
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
-        <div>
-          <span className="text-4xl font-black text-fg">#{order.tableNumber}</span>
-          <p className="text-xs text-muted">{t.kitchen.table}</p>
-        </div>
+        {order.ticketNumber ? (
+          // A cafe sale: the number on the customer's receipt is what staff call out.
+          <div>
+            <span className="text-4xl font-black tabular-nums text-fg">#{order.ticketNumber}</span>
+            <p className="text-xs text-muted">
+              {order.tableNumber === TAKEAWAY_TABLE ? t.kitchen.takeaway : `${t.kitchen.table} ${order.tableNumber}`}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <span className="text-4xl font-black text-fg">#{order.tableNumber}</span>
+            <p className="text-xs text-muted">{t.kitchen.table}</p>
+          </div>
+        )}
         <div className={cn('text-right', timeColor(minutes))}>
           <div className="flex items-center gap-1.5 justify-end">
             <Clock className="h-4 w-4" />
@@ -168,42 +172,34 @@ export function KitchenPage() {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
   const { t, lang } = useI18n()
-  const audioCtxRef = useRef<AudioContext | null>(null)
-  const prevOrderIdsRef = useRef<Set<string>>(new Set())
-  const [initialized, setInitialized] = useState(false)
-
-  // Initialize audio context on first user interaction
-  useEffect(() => {
-    const init = () => {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
-      }
-      setInitialized(true)
-      document.removeEventListener('click', init)
-    }
-    document.addEventListener('click', init)
-    return () => document.removeEventListener('click', init)
-  }, [])
+  const sound = useKitchenSound()
+  const now = useNow(15_000)
 
   const { data: ordersData } = useQuery({
     queryKey: ['restaurant-orders-kitchen', branchId],
-    queryFn: () => restaurantApi.listActiveOrders(branchId!),
+    queryFn: () => restaurantApi.listKitchenOrders(branchId!),
     enabled: !!branchId,
     refetchInterval: 10000,
+    // A kitchen tab left behind another window must keep polling, or new orders never ring.
+    refetchIntervalInBackground: true,
   })
 
   const orders = ordersData?.data ?? []
 
-  // Sound alert for new orders
+  // Ring for orders that were not on the last poll; the first load only records the board, even when it is empty.
+  useNewOrderAlert(ordersData ? orders.map((o) => o.id) : undefined, () => sound.play(3))
+
+  const overdue = orders.filter(
+    (o) => o.status === 'Pending' && minutesSince(o.createdAt, now) >= REMIND_AFTER_MINUTES,
+  )
+  const hasOverdue = overdue.length > 0
+
+  // Keep reminding while an order sits untouched in the pending column.
   useEffect(() => {
-    if (!ordersData) return
-    const currentIds = new Set(orders.map((o) => o.id))
-    const isNew = orders.some((o) => !prevOrderIdsRef.current.has(o.id))
-    if (isNew && prevOrderIdsRef.current.size > 0 && audioCtxRef.current) {
-      beep(audioCtxRef.current)
-    }
-    prevOrderIdsRef.current = currentIds
-  }, [orders, ordersData])
+    if (!hasOverdue) return
+    const id = window.setInterval(() => sound.play(2), REMIND_EVERY_MS)
+    return () => window.clearInterval(id)
+  }, [hasOverdue, sound.play])
 
   const markItemReadyMutation = useMutation({
     mutationFn: ({ orderId, itemId }: { orderId: string; itemId: string }) =>
@@ -234,14 +230,15 @@ export function KitchenPage() {
           <h1 className="text-xl font-bold">{t.kitchen.title}</h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-muted">
-            {new Date().toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+          <div className="text-sm tabular-nums text-muted">
+            {new Date(now).toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
           </div>
-          {!initialized && (
-            <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-muted">
-              انقر لتفعيل التنبيهات الصوتية
+          {hasOverdue && (
+            <span className="rounded-full bg-danger/15 px-3 py-1 text-xs font-bold text-danger">
+              {t.kitchen.waitingLong.replace('{n}', String(Math.max(...overdue.map((o) => minutesSince(o.createdAt, now)))))}
             </span>
           )}
+          <KitchenSoundToggle enabled={sound.enabled} muted={sound.muted} onToggle={sound.toggleMute} />
           <div className="flex gap-3 text-xs text-muted">
             <span>
               <span className="inline-block h-2 w-2 rounded-full bg-warning ml-1" />
@@ -272,6 +269,7 @@ export function KitchenPage() {
               <OrderCard
                 key={order.id}
                 order={order}
+                now={now}
                 branchId={branchId!}
                 onItemReady={(orderId, itemId) =>
                   markItemReadyMutation.mutate({ orderId, itemId })}
@@ -296,6 +294,7 @@ export function KitchenPage() {
               <OrderCard
                 key={order.id}
                 order={order}
+                now={now}
                 branchId={branchId!}
                 onItemReady={(orderId, itemId) =>
                   markItemReadyMutation.mutate({ orderId, itemId })}
@@ -319,6 +318,7 @@ export function KitchenPage() {
               <OrderCard
                 key={order.id}
                 order={order}
+                now={now}
                 branchId={branchId!}
                 onItemReady={(orderId, itemId) =>
                   markItemReadyMutation.mutate({ orderId, itemId })}

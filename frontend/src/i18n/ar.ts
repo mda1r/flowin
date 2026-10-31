@@ -771,6 +771,11 @@ export const ar: Translations = {
     minutes: 'د',
     seconds: 'ث',
     connectionError: 'خطأ في الاتصال — جاري إعادة المحاولة...',
+    enableSound: 'اضغط لتفعيل الصوت',
+    soundOn: 'الصوت يعمل',
+    soundOff: 'الصوت مكتوم',
+    order: 'طلب',
+    waitingLong: 'ينتظر منذ {n} د',
   },
 
   restaurant: {
