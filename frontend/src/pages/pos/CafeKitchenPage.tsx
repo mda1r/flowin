@@ -247,8 +247,8 @@ export function CafeKitchenPage() {
   return (
     <div className="scheme-dark flex h-screen flex-col overflow-hidden bg-bg text-fg" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-4 sm:px-6">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => navigate({ to: '/pos' })}
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
@@ -262,15 +262,15 @@ export function CafeKitchenPage() {
             {orders.filter((o) => o.status !== 'Ready').length} طلب نشط
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {isError && (
             <span className="flex items-center gap-1 text-xs text-danger">
               <WifiOff className="h-3.5 w-3.5" />
               {t.kitchen.connectionError}
             </span>
           )}
-          <KitchenSoundToggle enabled={sound.enabled} muted={sound.muted} onToggle={sound.toggleMute} />
-          <p className="text-xs text-muted">يتحدث كل 5 ثوانٍ</p>
+          <KitchenSoundToggle enabled={sound.enabled} muted={sound.muted} onToggle={sound.toggleMute} supported={sound.supported} />
+          <p className="hidden text-xs text-muted sm:block">يتحدث كل 5 ثوانٍ</p>
         </div>
       </div>
 

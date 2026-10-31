@@ -416,7 +416,9 @@ internal static class DatabaseInitializerExtensions
         string[] patches =
         [
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS ticket_number VARCHAR(16)",
-            "CREATE INDEX IF NOT EXISTS ix_restaurant_orders_branch_ticket ON restaurant_orders (branch_id, ticket_number) WHERE ticket_number IS NOT NULL",
+            // Unique so two tills resending the same ticket at once cannot both insert it; invoice numbers never repeat.
+            "DROP INDEX IF EXISTS ix_restaurant_orders_branch_ticket",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_restaurant_orders_branch_ticket ON restaurant_orders (branch_id, ticket_number) WHERE ticket_number IS NOT NULL",
         ];
 
         foreach (string sql in patches)

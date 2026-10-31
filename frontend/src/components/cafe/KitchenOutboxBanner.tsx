@@ -11,16 +11,17 @@ export function KitchenOutboxBanner() {
   if (pending.length === 0) return null
 
   const resend = async () => {
-    const { sent, failed } = await flushKitchenTickets(tenantId)
+    const { sent, failed, skipped } = await flushKitchenTickets(tenantId)
+    if (skipped) return
     if (sent) toast.success(`وصل ${sent.toLocaleString('ar-SA')} طلب للمطبخ`)
     else if (!failed) toast.warning('لم تصل الطلبات للمطبخ بعد', 'تحقق من الاتصال، أو أبلغ المحضّر بها')
   }
 
   return (
-    <div role="status" className="border-b border-warning/30 bg-warning/10 px-4 py-2 text-sm text-warning print:hidden">
+    <div className="border-b border-warning/30 bg-warning/10 px-4 py-2 text-sm text-warning print:hidden">
       <div className="flex flex-wrap items-center gap-3">
         <ChefHat className="h-4 w-4 shrink-0" />
-        <span className="flex-1">
+        <span role="status" className="flex-1">
           <span className="font-semibold tabular-nums">{pending.length.toLocaleString('ar-SA')}</span> طلب لم يصل لشاشة المطبخ:{' '}
           <span className="font-semibold tabular-nums">{pending.map((p) => `#${p.ticketNumber}`).join('، ')}</span>.
           يُعاد الإرسال تلقائياً، وأبلغ المحضّر بها إن تأخرت.
@@ -29,7 +30,8 @@ export function KitchenOutboxBanner() {
           type="button"
           onClick={() => void resend()}
           disabled={flushing}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-current/30 px-3 py-1 text-xs font-semibold disabled:opacity-60"
+          aria-busy={flushing}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-warning/30 px-3 py-1 text-xs font-semibold hover:bg-warning/15 disabled:opacity-60"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${flushing ? 'animate-spin motion-reduce:animate-none' : ''}`} />
           {flushing ? 'جارٍ الإرسال…' : 'إعادة الإرسال'}

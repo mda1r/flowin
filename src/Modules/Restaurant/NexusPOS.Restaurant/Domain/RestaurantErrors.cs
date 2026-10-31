@@ -42,6 +42,9 @@ public static class RestaurantErrors
     public static readonly Error InsufficientPayment =
         Error.Validation("RestaurantOrder.InsufficientPayment", "Payment amount is less than the order total.");
 
+    public static readonly Error TicketNumberTaken =
+        Error.Conflict("RestaurantOrder.TicketNumberTaken", "An older kitchen order already uses this ticket number.");
+
     public static readonly Error OrderItemNotFound =
         Error.NotFound("RestaurantOrderItem.NotFound", "Order item not found.");
 

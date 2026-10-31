@@ -8,16 +8,29 @@ export function KitchenSoundToggle({
   enabled,
   muted,
   onToggle,
+  supported = true,
 }: {
   enabled: boolean
   muted: boolean
   onToggle: () => void
+  supported?: boolean
 }) {
   const { t } = useI18n()
 
+  if (!supported) {
+    return (
+      <span className="flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-bold text-muted">
+        <VolumeX className="h-3.5 w-3.5" />
+        {t.kitchen.soundUnsupported}
+      </span>
+    )
+  }
+
+  // Distinct keys: the toggle is a new element, so the click ending the unlocking tap cannot land on it.
   if (!enabled) {
     return (
       <button
+        key="enable"
         type="button"
         className="flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1 text-xs font-bold text-warning motion-safe:animate-pulse"
       >
@@ -29,6 +42,7 @@ export function KitchenSoundToggle({
 
   return (
     <button
+      key="toggle"
       type="button"
       onClick={onToggle}
       aria-pressed={!muted}

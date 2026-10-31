@@ -90,10 +90,26 @@ export async function sendKitchenTicket(ticket: Omit<CafeKitchenTicket, 'queuedA
   return false
 }
 
-// Resends waiting tickets oldest first; stops at the first network failure.
-export async function flushKitchenTickets(tenantId: string | null | undefined): Promise<{ sent: number; failed: number }> {
-  if (flushing || !tenantId) return { sent: 0, failed: 0 }
+type FlushResult = { sent: number; failed: number; skipped?: boolean }
+
+// Resends waiting tickets oldest first; stops at the first network failure. `skipped` means another resend
+// was already running, so the caller should not report "nothing arrived".
+export async function flushKitchenTickets(tenantId: string | null | undefined): Promise<FlushResult> {
+  if (flushing || !tenantId) return { sent: 0, failed: 0, skipped: true }
+  // Other tabs of the till share this outbox; only one of them resends at a time.
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return navigator.locks.request(STORAGE_KEY, { ifAvailable: true }, (lock) =>
+      lock ? flushNow(tenantId) : { sent: 0, failed: 0, skipped: true })
+  }
+  return flushNow(tenantId)
+}
+
+async function flushNow(tenantId: string): Promise<FlushResult> {
+  if (flushing) return { sent: 0, failed: 0, skipped: true }
   flushing = true
+  // Another tab may have sent or queued tickets since this one last read the outbox.
+  cache = null
+  listeners.forEach((l) => l())
   let sent = 0
   let failed = 0
   try {

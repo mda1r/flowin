@@ -19,6 +19,12 @@ function audioContext(): AudioContext | null {
   return ctx
 }
 
+// Some kiosk browsers have no Web Audio at all; the screens then say so instead of asking for a tap.
+export function kitchenSoundSupported() {
+  return typeof window !== 'undefined'
+    && !!(window.AudioContext ?? (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext)
+}
+
 function tone(audio: AudioContext, at: number, frequency: number) {
   const osc = audio.createOscillator()
   const gain = audio.createGain()
@@ -55,6 +61,8 @@ export function useKitchenSound() {
   const [muted, setMuted] = useState(readMuted)
   const mutedRef = useRef(muted)
   mutedRef.current = muted
+  // The tap that unlocks audio must not also flip the mute switch that replaces the "enable" prompt.
+  const unlockedAtRef = useRef(0)
 
   // Any tap on the screen unlocks audio for the rest of the session.
   useEffect(() => {
@@ -62,6 +70,7 @@ export function useKitchenSound() {
     const unlock = () => {
       const audio = audioContext()
       if (!audio) return
+      unlockedAtRef.current = performance.now()
       void audio.resume().then(() => setEnabled(audio.state === 'running')).catch(() => {})
     }
     document.addEventListener('pointerdown', unlock)
@@ -73,6 +82,7 @@ export function useKitchenSound() {
   }, [enabled])
 
   const toggleMute = useCallback(() => {
+    if (performance.now() - unlockedAtRef.current < 1000) return
     const next = !mutedRef.current
     mutedRef.current = next
     setMuted(next)
@@ -85,7 +95,7 @@ export function useKitchenSound() {
     if (!mutedRef.current) void kitchenBeep(times)
   }, [])
 
-  return { enabled, muted, toggleMute, play }
+  return { enabled, muted, toggleMute, play, supported: kitchenSoundSupported() }
 }
 
 // Fires `onArrive` when an order id appears that was not on the previous poll. The first load only records

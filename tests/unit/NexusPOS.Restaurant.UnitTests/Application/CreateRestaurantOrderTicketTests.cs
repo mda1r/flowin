@@ -1,10 +1,12 @@
 using ErrorOr;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using NexusPOS.Restaurant.Application.Commands.CreateRestaurantOrder;
 using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Repositories;
+using Npgsql;
 
 namespace NexusPOS.Restaurant.UnitTests.Application;
 
@@ -35,6 +37,18 @@ public sealed class CreateRestaurantOrderTicketTests
         result.Value.Id.Should().Be(sent.Id.Value);
         result.Value.TicketNumber.Should().Be("23");
         orders.Verify(r => r.Add(It.IsAny<RestaurantOrder>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("23505", "ux_restaurant_orders_branch_ticket", true)]
+    [InlineData("23505", "pk_restaurant_orders", false)]
+    [InlineData("23503", "ux_restaurant_orders_branch_ticket", false)]
+    public void IsTicketClash_OnlyMatchesTheTicketUniqueIndex(string sqlState, string constraint, bool expected)
+    {
+        PostgresException pg = new("duplicate key", "ERROR", "ERROR", sqlState, constraintName: constraint);
+
+        CreateRestaurantOrderCommandHandler.IsTicketClash(new DbUpdateException("save failed", pg)).Should().Be(expected);
+        CreateRestaurantOrderCommandHandler.IsTicketClash(new DbUpdateException("save failed")).Should().BeFalse();
     }
 
     [Fact]

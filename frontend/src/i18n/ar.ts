@@ -774,6 +774,7 @@ export const ar: Translations = {
     enableSound: 'اضغط لتفعيل الصوت',
     soundOn: 'الصوت يعمل',
     soundOff: 'الصوت مكتوم',
+    soundUnsupported: 'الصوت غير مدعوم',
     order: 'طلب',
     waitingLong: 'ينتظر منذ {n} د',
   },

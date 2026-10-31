@@ -1,10 +1,12 @@
 using ErrorOr;
+using Microsoft.EntityFrameworkCore;
 using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Repositories;
 using NexusPOS.Restaurant.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
+using Npgsql;
 
 namespace NexusPOS.Restaurant.Application.Commands.CreateRestaurantOrder;
 
@@ -19,13 +21,10 @@ internal sealed class CreateRestaurantOrderCommandHandler(
         CancellationToken cancellationToken)
     {
         // The cafe till resends a kitchen ticket it could not confirm; one that already arrived is returned as is.
-        if (!string.IsNullOrWhiteSpace(request.TicketNumber))
+        string? ticketNumber = string.IsNullOrWhiteSpace(request.TicketNumber) ? null : request.TicketNumber.Trim();
+        if (ticketNumber is not null)
         {
-            RestaurantOrder? existing = await orderRepository.FindByTicketAsync(
-                request.BranchId,
-                request.TicketNumber.Trim(),
-                DateTime.UtcNow - RestaurantOrderQueries.LookBack,
-                cancellationToken);
+            RestaurantOrder? existing = await FindTicketAsync(request.BranchId, ticketNumber, cancellationToken);
             if (existing is not null)
             {
                 return RestaurantOrderMapper.ToResponse(existing);
@@ -83,8 +82,30 @@ internal sealed class CreateRestaurantOrderCommandHandler(
             discountCodeRepository.Update(discountCode);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ticketNumber is not null && IsTicketClash(ex))
+        {
+            // Another till (or tab) sent the same ticket between the lookup and this insert: it is already in.
+            dbContext.ChangeTracker.Clear();
+            RestaurantOrder? existing = await FindTicketAsync(request.BranchId, ticketNumber, cancellationToken);
+            return existing is null ? RestaurantErrors.TicketNumberTaken : RestaurantOrderMapper.ToResponse(existing);
+        }
 
         return RestaurantOrderMapper.ToResponse(order);
     }
+
+    // The unique patch index (DatabaseInitializerExtensions) is what stops a duplicate ticket per branch.
+    internal static bool IsTicketClash(DbUpdateException ex) =>
+        ex.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "ux_restaurant_orders_branch_ticket",
+        };
+
+    private Task<RestaurantOrder?> FindTicketAsync(Guid branchId, string ticketNumber, CancellationToken cancellationToken) =>
+        orderRepository.FindByTicketAsync(
+            branchId, ticketNumber, DateTime.UtcNow - RestaurantOrderQueries.LookBack, cancellationToken);
 }

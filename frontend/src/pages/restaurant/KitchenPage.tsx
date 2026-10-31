@@ -222,14 +222,14 @@ export function KitchenPage() {
   const readyOrders = orders.filter((o) => o.status === 'Ready')
 
   return (
-    <div className="scheme-dark min-h-screen bg-bg text-fg" dir="rtl">
+    <div className="scheme-dark flex h-screen flex-col bg-bg text-fg" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border px-4 py-4 sm:px-6">
         <div className="flex items-center gap-3">
           <ChefHat className="h-7 w-7 text-warning" />
           <h1 className="text-xl font-bold">{t.kitchen.title}</h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <div className="text-sm tabular-nums text-muted">
             {new Date(now).toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
           </div>
@@ -238,8 +238,8 @@ export function KitchenPage() {
               {t.kitchen.waitingLong.replace('{n}', String(Math.max(...overdue.map((o) => minutesSince(o.createdAt, now)))))}
             </span>
           )}
-          <KitchenSoundToggle enabled={sound.enabled} muted={sound.muted} onToggle={sound.toggleMute} />
-          <div className="flex gap-3 text-xs text-muted">
+          <KitchenSoundToggle enabled={sound.enabled} muted={sound.muted} onToggle={sound.toggleMute} supported={sound.supported} />
+          <div className="hidden gap-3 text-xs text-muted sm:flex">
             <span>
               <span className="inline-block h-2 w-2 rounded-full bg-warning ml-1" />
               قيد الانتظار: {pendingOrders.length}
@@ -257,7 +257,7 @@ export function KitchenPage() {
       </div>
 
       {/* Columns */}
-      <div className="grid h-[calc(100vh-73px)] grid-cols-3 divide-x divide-border" style={{ direction: 'rtl' }}>
+      <div className="grid min-h-0 flex-1 grid-cols-3 divide-x divide-border" style={{ direction: 'rtl' }}>
         {/* قيد الانتظار */}
         <div className="flex flex-col overflow-hidden">
           <div className="border-b border-border bg-warning/10 px-4 py-3">
