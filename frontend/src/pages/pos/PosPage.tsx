@@ -24,7 +24,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
-import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
+import { isTransientError, newClientReference, queueSale } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal } from '@/components/ui/Modal'
@@ -254,7 +254,7 @@ function RetailPosPage() {
         const { data } = await ordersApi.checkout(branchId!, payload)
         return { order: data, offline: false }
       } catch (err) {
-        if (isNetworkError(err)) return saveOffline()
+        if (isTransientError(err)) return saveOffline()
         throw err
       }
     },
@@ -274,9 +274,11 @@ function RetailPosPage() {
       toast.success(t.pos.paymentSuccess, t.pos.orderProcessed)
     },
     onError: (err: Error) =>
-      err.message === 'offline-loyalty'
-        ? toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
-        : toast.error(t.pos.paymentFailed, apiErrorMessage(err)),
+      err.message === 'offline-storage'
+        ? toast.error('لم تُحفظ العملية: ذاكرة الجهاز ممتلئة', 'دوّن العملية يدوياً، فهي غير مسجلة. السلة باقية كما هي')
+        : err.message === 'offline-loyalty'
+          ? toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
+          : toast.error(t.pos.paymentFailed, apiErrorMessage(err)),
   })
 
   const handleHold = () => {

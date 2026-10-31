@@ -3,6 +3,7 @@ using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
+using NexusPOS.SharedKernel.Domain.Events;
 using NexusPOS.SharedKernel.Domain.ValueObjects;
 
 namespace NexusPOS.POS.Domain.Entities;
@@ -49,9 +50,20 @@ public sealed class Order : AggregateRoot<OrderId>
 
     public void AssignNumber(long number)
     {
-        if (Number is null && Status == OrderStatus.Open)
+        if (Number is not null || Status == OrderStatus.Cancelled)
         {
-            Number = number;
+            return;
+        }
+
+        Number = number;
+
+        // A sale numbered after it completes (so one that fails a check never takes a number) still
+        // publishes its completion with the number on it.
+        List<IDomainEvent> pending = [.. DomainEvents];
+        ClearDomainEvents();
+        foreach (IDomainEvent domainEvent in pending)
+        {
+            RaiseDomainEvent(domainEvent is OrderCompletedDomainEvent completed ? completed with { Number = number } : domainEvent);
         }
     }
 
@@ -200,7 +212,9 @@ public sealed class Order : AggregateRoot<OrderId>
         return Result.Success;
     }
 
-    public ErrorOr<Success> Complete(Enums.PaymentMethod method, decimal amountTendered, decimal? cashAmount = null, decimal? cardAmount = null)
+    // completedAt is when the sale really happened (a till that was offline); defaults to now.
+    public ErrorOr<Success> Complete(
+        Enums.PaymentMethod method, decimal amountTendered, decimal? cashAmount = null, decimal? cardAmount = null, DateTime? completedAt = null)
     {
         if (Status != OrderStatus.Open)
         {
@@ -226,7 +240,11 @@ public sealed class Order : AggregateRoot<OrderId>
             SplitCash = cashAmount;
             SplitCard = cardAmount;
         }
-        CompletedAt = DateTime.UtcNow;
+        CompletedAt = completedAt ?? DateTime.UtcNow;
+        if (CompletedAt < CreatedAt)
+        {
+            CreatedAt = CompletedAt.Value;
+        }
         UpdatedAt = DateTime.UtcNow;
 
         var lineItems = Lines
@@ -235,7 +253,7 @@ public sealed class Order : AggregateRoot<OrderId>
         RaiseDomainEvent(new OrderCompletedDomainEvent(
             Id.Value, TenantId, BranchId,
             SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method, lineItems,
-            CustomerId, LoyaltyPointsRedeemed, Source, Number));
+            CustomerId, LoyaltyPointsRedeemed, Source, Number, CompletedAt));
         return Result.Success;
     }
 

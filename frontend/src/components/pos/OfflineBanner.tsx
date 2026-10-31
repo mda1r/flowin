@@ -15,9 +15,10 @@ export function OfflineBanner() {
   if (online && pending.length === 0) return null
 
   const syncNow = async () => {
-    const { synced, failed } = await syncOfflineSales(tenantId)
+    const { synced, failed, stalled } = await syncOfflineSales(tenantId)
     if (synced) toast.success(`تمت مزامنة ${synced.toLocaleString('ar-SA')} عملية`)
     if (failed) toast.error(`رفض الخادم ${failed.toLocaleString('ar-SA')} عملية`, 'راجعها في الشريط أعلى الشاشة')
+    if (stalled && !synced) toast.warning('الخادم لا يستجيب الآن', 'العمليات محفوظة على الجهاز وستُرسل تلقائياً')
   }
 
   return (

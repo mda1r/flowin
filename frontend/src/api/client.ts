@@ -70,6 +70,8 @@ apiClient.interceptors.response.use(
       original.headers.Authorization = `Bearer ${data.accessToken}`
       return apiClient(original)
     } catch (err) {
+      // Marked so offline sync treats a lapsed session as "try again after sign-in", not as the server refusing the sale.
+      if (err && typeof err === 'object') Object.assign(err, { refreshFailed: true })
       processQueue(err, null)
       logout()
       return Promise.reject(err)

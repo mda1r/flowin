@@ -40,6 +40,7 @@ internal static class OrderMapper
             order.LoyaltyPointsRedeemed,
             order.LoyaltyDiscountAmount,
             order.Source,
-            order.Number);
+            order.Number,
+            order.OfflineCreatedAt);
     }
 }

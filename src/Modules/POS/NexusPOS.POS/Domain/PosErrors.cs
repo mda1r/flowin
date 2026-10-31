@@ -31,6 +31,9 @@ public static class PosErrors
     public static readonly Error DuplicateVariant =
         Error.Conflict("POS.DuplicateVariant", "This variant is already on the order.");
 
+    public static readonly Error ClientReferenceInUse =
+        Error.Conflict("POS.ClientReferenceInUse", "رقم العملية مسجّل لفرع آخر.");
+
     public static readonly Error ShiftNotFound =
         Error.NotFound("POS.ShiftNotFound", "Shift was not found.");
 
