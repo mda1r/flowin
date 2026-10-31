@@ -101,18 +101,16 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
 
   const computed = useMemo(() => {
     const orders = shiftOrders ?? []
-    const cashSales = orders.filter((o) => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0)
     const cardSales = orders.filter((o) => o.paymentMethod === 'Card').reduce((s, o) => s + o.totalAmount, 0)
-    const splitCash = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + (o.splitCash ?? 0), 0)
     const splitCard = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + (o.splitCard ?? 0), 0)
-    const totalCash = cashSales + splitCash
+    const totalCash = shiftCashTakings(orders)
     const totalCard = cardSales + splitCard
     return { cashSales: totalCash, cardSales: totalCard, totalSales: totalCash + totalCard, totalOrders: orders.length }
   }, [shiftOrders])
 
   const cashAmount = parseFloat(closingCash) || 0
   const cardAmount = parseFloat(closingCard) || 0
-  const expectedCash = shift.openingCash + computed.cashSales
+  const expectedCash = shiftExpectedCash(shift, shiftOrders ?? [])
   const cashVariance = Math.round((cashAmount - expectedCash) * 100) / 100
   const cardVariance = Math.round((cardAmount - computed.cardSales) * 100) / 100
 
@@ -395,6 +393,21 @@ export function ShiftBadge({ shift, onCloseShift }: { shift: ShiftResponse; onCl
       </Button>
     </div>
   )
+}
+
+// ── Expected drawer cash ──────────────────────────────────────────────────────
+
+/** Cash taken by the given (in-shift) orders: Cash orders plus the cash part of Split orders. */
+export function shiftCashTakings(orders: OrderResponse[]): number {
+  return orders.reduce(
+    (s, o) => s + (o.paymentMethod === 'Cash' ? o.totalAmount : o.paymentMethod === 'Split' ? (o.splitCash ?? 0) : 0),
+    0,
+  )
+}
+
+/** What the drawer should hold: opening cash + cash takings. Shared by CloseShiftModal and the dashboard. */
+export function shiftExpectedCash(shift: ShiftResponse, orders: OrderResponse[]): number {
+  return shift.openingCash + shiftCashTakings(orders)
 }
 
 // ── Main ShiftGate Export ─────────────────────────────────────────────────────

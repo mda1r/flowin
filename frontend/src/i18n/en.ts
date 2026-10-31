@@ -165,7 +165,8 @@ export const en = {
     shiftOpenedBy: 'by {name}',
     noOpenShift: 'No open shift',
     expectedDrawer: 'Expected in drawer',
-    expectedDrawerHint: 'Opening cash + cash sales − cash refunds',
+    expectedDrawerHint: 'Opening cash + cash sales',
+    expectedDrawerError: "Couldn't load · retry",
   },
 
   pos: {

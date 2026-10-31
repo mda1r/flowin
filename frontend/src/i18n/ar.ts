@@ -167,7 +167,8 @@ export const ar: Translations = {
     shiftOpenedBy: 'بواسطة {name}',
     noOpenShift: 'لا يوجد شفت مفتوح',
     expectedDrawer: 'المتوقع في الدرج',
-    expectedDrawerHint: 'رصيد الفتح + المبيعات النقدية − المرتجعات النقدية',
+    expectedDrawerHint: 'رصيد الفتح + المبيعات النقدية',
+    expectedDrawerError: 'تعذّر الحساب · أعد المحاولة',
   },
 
   pos: {

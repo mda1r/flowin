@@ -45,7 +45,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { useAuthStore } from '@/stores/authStore'
 import { ordersApi } from '@/api/orders'
-import { useShift, OpenShiftModal, CloseShiftModal } from '@/pages/pos/ShiftGate'
+import { useShift, OpenShiftModal, CloseShiftModal, shiftExpectedCash } from '@/pages/pos/ShiftGate'
 import type { OrderResponse, BusinessType, PaymentMethod, ReturnOrderResponse } from '@/types/api'
 import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
@@ -689,8 +689,9 @@ function HourlySalesCard({ buckets, loading }: { buckets: HourBucket[]; loading:
               {buckets.map((b, i) => (
                 <div
                   key={b.hour}
+                  role="img"
                   tabIndex={0}
-                  aria-label={`${formatHour(b.hour, lang)}: ${formatCurrency(b.sales)}`}
+                  aria-label={`${formatHour(b.hour, lang)}: ${formatCurrency(b.sales)} · ${t.dashboard.ordersCount.replace('{n}', String(b.orders))}`}
                   className="group relative flex h-full min-w-0 flex-1 items-end justify-center outline-none"
                 >
                   <div
@@ -750,13 +751,6 @@ function paymentTotals(orders: OrderResponse[]): Record<PaymentMethod, number> {
   return totals
 }
 
-function cashTakings(orders: OrderResponse[]): number {
-  return orders.reduce(
-    (s, o) => s + (o.paymentMethod === 'Cash' ? o.totalAmount : o.paymentMethod === 'Split' ? (o.splitCash ?? 0) : 0),
-    0,
-  )
-}
-
 function TodayMoneyCard({ orders, returns, loading }: { orders: OrderResponse[]; returns: ReturnOrderResponse[]; loading: boolean }) {
   const { t, lang } = useI18n()
   const { branchId } = useAuthStore()
@@ -775,26 +769,18 @@ function TodayMoneyCard({ orders, returns, loading }: { orders: OrderResponse[];
     { method: 'Split', label: t.dashboard.split },
   ]
 
-  // Drawer cash for the open shift: everything taken in cash since it opened, less cash refunds.
+  // Drawer cash for the open shift, computed exactly as the close-shift screen does.
   const drawerQuery = useQuery({
     queryKey: ['dashboard-shift-drawer', branchId, shift?.id],
     queryFn: async () => {
-      const openedAt = shift!.openedAt
-      const opened = new Date(openedAt)
-      const [shiftOrders, shiftReturns] = await Promise.all([
-        salesApi.listAllCompletedOrdersBetween(branchId!, openedAt),
-        ordersApi.listReturns(branchId!, { from: openedAt }).then((r) => asList<ReturnOrderResponse>(r.data)),
-      ])
-      const cashIn = cashTakings(shiftOrders.filter((o) => orderTime(o) >= opened))
-      const cashOut = shiftReturns.filter((r) => r.refundMethod === 'Cash').reduce((s, r) => s + r.refundAmount, 0)
-      return { cashIn, cashOut }
+      const opened = new Date(shift!.openedAt)
+      const shiftOrders = await salesApi.listAllCompletedOrdersBetween(branchId!, shift!.openedAt)
+      return shiftExpectedCash(shift!, shiftOrders.filter((o) => orderTime(o) >= opened))
     },
     enabled: !!branchId && !!shift,
     refetchInterval: 60_000,
   })
-  const expectedCash = shift && drawerQuery.data
-    ? shift.openingCash + drawerQuery.data.cashIn - drawerQuery.data.cashOut
-    : undefined
+  const expectedCash = shift ? drawerQuery.data : undefined
 
   const openedTime = shift
     ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(shift.openedAt))
@@ -863,7 +849,15 @@ function TodayMoneyCard({ orders, returns, loading }: { orders: OrderResponse[];
             </div>
             <div className="rounded-xl bg-surface-2 px-4 py-3" title={t.dashboard.expectedDrawerHint}>
               <p className="text-xs text-muted">{t.dashboard.expectedDrawer}</p>
-              {expectedCash === undefined ? (
+              {drawerQuery.isError ? (
+                <button
+                  type="button"
+                  className="mt-0.5 text-sm text-muted underline-offset-2 hover:underline"
+                  onClick={() => void drawerQuery.refetch()}
+                >
+                  — · {t.dashboard.expectedDrawerError}
+                </button>
+              ) : expectedCash === undefined ? (
                 <span className="mt-1.5 inline-block h-5 w-24 animate-pulse rounded-md bg-border" />
               ) : (
                 <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{formatCurrency(expectedCash)}</p>
