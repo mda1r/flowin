@@ -273,6 +273,8 @@ export interface OrderResponse {
   notes?: string
   createdAt: string
   completedAt?: string
+  // Set when the till rang the sale up offline; completedAt is then that time, not the sync time.
+  offlineCreatedAt?: string | null
   lines: OrderLineResponse[]
   // Points spent on this sale and their pre-tax value; already part of discountAmount.
   loyaltyPointsRedeemed?: number

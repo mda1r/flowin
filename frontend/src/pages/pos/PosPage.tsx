@@ -27,7 +27,7 @@ import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
 import { DiscountModal, DiscountRulesPanel } from '@/components/pos/DiscountModal'
-import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
+import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
@@ -235,7 +235,7 @@ function RetailPosPage() {
         toast.success('تمت الإضافة', `${hit.product.name} — ${formatCurrency(hit.variant.salePrice)}`)
       }
     } catch (err) {
-      toast.error('خطأ في البحث', isNetworkError(err) ? 'لا يوجد اتصال، والصنف غير ظاهر في الشاشة' : 'تعذّر البحث عن الباركود')
+      toast.error('خطأ في البحث', isTransientError(err) ? 'لا يوجد اتصال، والصنف غير ظاهر في الشاشة' : 'تعذّر البحث عن الباركود')
     }
     setTimeout(() => setLastScanned(null), 1500)
   }
@@ -326,7 +326,7 @@ function RetailPosPage() {
         const { data } = await ordersApi.checkout(branchId!, needsPin ? { ...payload, approvalPin: approvalPin.trim() } : payload)
         return { order: data, offline: false }
       } catch (err) {
-        if (isNetworkError(err)) {
+        if (isTransientError(err)) {
           if (offlineOverCap) throw new Error('offline-discount')
           return saveOffline()
         }
@@ -335,7 +335,7 @@ function RetailPosPage() {
     },
     onSuccess: ({ order, offline }) => {
       setCompletedOffline(offline)
-      if (offline) toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
+      if (offline) toast.warning(...savedOnDeviceMessage())
       setCompletedOrder(order)
       setCompletedPhone(loyaltyCustomer?.phone ?? undefined)
       clear()
@@ -350,6 +350,10 @@ function RetailPosPage() {
       toast.success(t.pos.paymentSuccess, t.pos.orderProcessed)
     },
     onError: (err: Error) => {
+      if (err.message === 'offline-storage') {
+        toast.error('لم تُحفظ العملية: ذاكرة الجهاز ممتلئة', 'دوّن العملية يدوياً، فهي غير مسجلة. السلة باقية كما هي')
+        return
+      }
       if (err.message === 'offline-loyalty') {
         toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
         return

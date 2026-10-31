@@ -34,7 +34,7 @@ import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
-import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
+import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage } from '@/lib/offlineSales'
 import { isAxiosError } from 'axios'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
@@ -757,7 +757,7 @@ export function CafePosPage() {
         const { data } = await ordersApi.checkout(branchId, payload)
         return { orderId: data.id, number: data.number ?? null, offline: false }
       } catch (err) {
-        if (isNetworkError(err)) return saveOffline()
+        if (isTransientError(err)) return saveOffline()
         throw err
       }
     },
@@ -813,7 +813,7 @@ export function CafePosPage() {
       setRedeemPoints(0)
       if (viaAi) setAiCashierActive(false)
       if (offline) {
-        toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
+        toast.warning(...savedOnDeviceMessage())
       } else {
         toast.success(
           viaAi ? 'تم إتمام الطلب عبر كاشير AI' : t.pos.orderProcessed,
@@ -823,6 +823,7 @@ export function CafePosPage() {
     },
     onError: (e: Error) => {
       if (e.message === 'empty') toast.error('السلة فارغة')
+      else if (e.message === 'offline-storage') toast.error('لم تُحفظ العملية: ذاكرة الجهاز ممتلئة', 'دوّن العملية يدوياً، فهي غير مسجلة. السلة باقية كما هي')
       else if (e.message === 'offline-loyalty') toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
       else if (e.message === 'discount-cap') toast.error(`أقصى خصم للكاشير ${discountCap}٪`, 'اطلب من المدير إتمام البيع')
       else if (isAxiosError(e) && ['POS.PriceBelowCatalog', 'POS.UnknownProduct'].some((code) => (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.[code])) {

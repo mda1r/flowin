@@ -24,11 +24,11 @@ internal sealed class OrderCompletedEventHandler(
             notification.TaxAmount,
             notification.SubtotalAmount,
             notification.PaymentMethod,
-            notification.OccurredAt);
+            notification.CompletedAt ?? notification.OccurredAt);
 
         saleRecordRepository.Add(record);
 
-        DateOnly saleDate = DateOnly.FromDateTime(notification.OccurredAt);
+        DateOnly saleDate = DateOnly.FromDateTime(notification.CompletedAt ?? notification.OccurredAt);
         SalesSummary? summary = await salesSummaryRepository.FindByBranchAndDateAsync(
             notification.BranchId, saleDate, cancellationToken);
 

@@ -50,8 +50,9 @@ export const posSettingsApi = {
 
 export const ordersApi = {
   // Whole sale in one request; resending the same clientReference returns the same order.
+  // A short timeout so a weak connection falls back to offline selling quickly instead of holding the queue.
   checkout: (branchId: string, payload: CheckoutPayload) =>
-    apiClient.post<OrderResponse>(`/api/v1/branches/${branchId}/orders/checkout`, payload),
+    apiClient.post<OrderResponse>(`/api/v1/branches/${branchId}/orders/checkout`, payload, { timeout: 10_000 }),
 
   listOrders: (
     branchId: string,

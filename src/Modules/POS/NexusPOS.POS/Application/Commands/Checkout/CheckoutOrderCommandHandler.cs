@@ -1,6 +1,7 @@
 using ErrorOr;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
@@ -22,10 +23,10 @@ internal sealed class CheckoutOrderCommandHandler(
 {
     public async Task<ErrorOr<OrderResponse>> Handle(CheckoutOrderCommand request, CancellationToken cancellationToken)
     {
-        Order? existing = await FindByReference(request, cancellationToken);
+        Order? existing = await FindByReference(request.ClientReference, cancellationToken);
         if (existing is not null)
         {
-            return await Done(request, existing, cancellationToken);
+            return await Replay(request, existing, cancellationToken);
         }
 
         ErrorOr<LoyaltyRules> rules = await LoyaltyRedemption.CheckAsync(
@@ -58,8 +59,15 @@ internal sealed class CheckoutOrderCommandHandler(
             }
         }
 
+        // A sale that synced after its shift closed is dated into the shift open now, so its cash is still counted.
+        DateTime? shiftBoundary = request.OfflineCreatedAt is null
+            ? null
+            : await db.CashierShifts
+                .Where(s => s.BranchId == request.BranchId)
+                .MaxAsync(s => (DateTime?)(s.ClosedAt ?? s.OpenedAt), cancellationToken);
+
         // Build once without a number first, so a rejected sale never uses up an invoice number.
-        ErrorOr<Order> draft = CheckoutBuilder.Build(request, rules.Value);
+        ErrorOr<Order> draft = CheckoutBuilder.Build(request, rules.Value, notBefore: shiftBoundary);
         if (draft.IsError)
         {
             return draft.Errors;
@@ -82,14 +90,19 @@ internal sealed class CheckoutOrderCommandHandler(
             }
         }
 
+        // The number and the sale commit together: if the save fails, the counter rolls back with it.
+        await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         long number = await numbers.NextAsync(request.TenantId, cancellationToken);
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, shiftBoundary);
         if (built.IsError)
         {
             return built.Errors;
         }
 
-        db.Orders.Add(built.Value);
+        Order order = built.Value;
+        List<IDomainEvent> events = [.. order.DomainEvents];
+        order.ClearDomainEvents();
+        db.Orders.Add(order);
         if (review.Count > 0)
         {
             db.ActivityLogs.Add(ActivityLog.Create(
@@ -100,22 +113,34 @@ internal sealed class CheckoutOrderCommandHandler(
         try
         {
             await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException)
         {
             // The same sale arrived twice at once and the other request saved it first.
+            await transaction.RollbackAsync(cancellationToken);
             db.ChangeTracker.Clear();
-            existing = await FindByReference(request, cancellationToken);
+            existing = await FindByReference(request.ClientReference, cancellationToken);
             if (existing is null)
             {
                 throw;
             }
 
-            return await Done(request, existing, cancellationToken);
+            return await Replay(request, existing, cancellationToken);
         }
 
-        return await Done(request, built.Value, cancellationToken);
+        // Published once committed, as SaveChanges does, so other modules never act on a sale that rolled back.
+        foreach (IDomainEvent domainEvent in events)
+        {
+            await publisher.Publish(domainEvent, cancellationToken);
+        }
+
+        return await Done(request, order, cancellationToken);
     }
+
+    // The reference is unique across the store, so one already used by another branch is a clean conflict, not a crash.
+    private async Task<ErrorOr<OrderResponse>> Replay(CheckoutOrderCommand request, Order existing, CancellationToken ct) =>
+        existing.BranchId == request.BranchId ? await Done(request, existing, ct) : PosErrors.ClientReferenceInUse;
 
     // A resent sale asks for its kitchen ticket again; the kitchen keeps one ticket per order, so a ticket that
     // failed the first time is made now and one that already exists is left alone.
@@ -206,8 +231,8 @@ internal sealed class CheckoutOrderCommandHandler(
     private Task<PosBranchSettings?> LoadSettingsAsync(Guid branchId, CancellationToken ct) =>
         db.PosBranchSettings.AsNoTracking().FirstOrDefaultAsync(s => s.BranchId == branchId, ct);
 
-    private Task<Order?> FindByReference(CheckoutOrderCommand request, CancellationToken ct) =>
+    private Task<Order?> FindByReference(Guid clientReference, CancellationToken ct) =>
         db.Orders
             .Include(o => o.Lines)
-            .FirstOrDefaultAsync(o => o.ClientReference == request.ClientReference && o.BranchId == request.BranchId, ct);
+            .FirstOrDefaultAsync(o => o.ClientReference == clientReference, ct);
 }
