@@ -38,7 +38,8 @@ export function WhatsAppTestSend({ message, imageId, name, disabled }: Props) {
       } catch {
         /* storage unavailable */
       }
-      toast.success('أُرسلت الرسالة التجريبية', `افتح واتساب على +${result.phone}`)
+      // The number is isolated left-to-right so its + stays in front of it inside the Arabic sentence.
+      toast.success('أُرسلت الرسالة التجريبية', `افتح واتساب على ⁦+${result.phone}⁩`)
     },
     onError: (err) => toast.error('لم تُرسل التجربة', apiErrorMessage(err)),
   })

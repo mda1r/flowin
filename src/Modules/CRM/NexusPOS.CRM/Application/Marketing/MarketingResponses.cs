@@ -25,7 +25,8 @@ public sealed record CampaignResponse(
     int Sent,
     int Failed,
     IReadOnlyList<CampaignRecipientResponse>? Recipients,
-    Guid? SendingRunnerId);
+    Guid? SendingRunnerId,
+    bool BatchInProgress);
 
 public sealed record WhatsAppSettingsResponse(
     bool Configured,
@@ -61,7 +62,8 @@ internal static class MarketingMapper
             ? [.. c.Recipients.OrderBy(r => r.Name).Select(r =>
                 new CampaignRecipientResponse(r.Id, r.CustomerId, r.Name, r.Phone, r.Status, r.Error, r.SentAt))]
             : null,
-        c.ActiveRunner(DateTime.UtcNow));
+        c.ActiveRunner(DateTime.UtcNow),
+        c.BatchInProgress(DateTime.UtcNow));
 
     public static WhatsAppSettingsResponse ToResponse(WhatsAppSettings? s) => s is null
         ? new(false, string.Empty, null, string.Empty, "ar", false, false, string.Empty, null)

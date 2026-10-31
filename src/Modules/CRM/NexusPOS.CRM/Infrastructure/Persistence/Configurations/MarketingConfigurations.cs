@@ -20,6 +20,7 @@ internal sealed class MarketingCampaignConfiguration : IEntityTypeConfiguration<
         builder.Property(c => c.WhatsAppMediaId).HasColumnName("whatsapp_media_id").HasMaxLength(128);
         builder.Property(c => c.SendingRunnerId).HasColumnName("sending_runner_id");
         builder.Property(c => c.SendingLeaseUntil).HasColumnName("sending_lease_until");
+        builder.Property(c => c.SendingBatchId).HasColumnName("sending_batch_id");
         builder.HasMany(c => c.Recipients).WithOne().HasForeignKey(r => r.CampaignId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(c => c.Recipients).HasField("_recipients").UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.HasIndex(c => new { c.TenantId, c.CreatedAt }).HasDatabaseName("ix_marketing_campaigns_tenant_created");

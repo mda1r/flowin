@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { isAxiosError } from 'axios'
 import { AlertTriangle, CheckCircle2, ImagePlus, Info, Megaphone, MessageCircle, RefreshCw, Search, Send, Settings2, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -88,6 +89,8 @@ export function CampaignsPage() {
   // The approved template already greets the customer by name ({{1}}), so {الاسم} in the offer would repeat it.
   const nameInTemplate = channel === 'Api' && !!whatsApp?.includeNameVariable
   const nameTwice = nameInTemplate && message.includes(NAME)
+  // The offer fills a template variable that Meta will not take empty, so an image alone is not enough here.
+  const needsText = channel === 'Api' && !message.trim()
 
   const chooseChannel = (next: CampaignChannel) => {
     setChannel(next)
@@ -152,7 +155,7 @@ export function CampaignsPage() {
     else create.mutate()
   }
 
-  const canCreate = (message.trim().length > 0 || !!image) && selected.size > 0 && !needsImage && (channel === 'Links' || apiReady)
+  const canCreate = (message.trim().length > 0 || !!image) && selected.size > 0 && !needsImage && !needsText && (channel === 'Links' || apiReady)
   const sample = reachable[0]?.name ?? 'محمد'
   // In API mode the customer reads the approved template with the variables filled in.
   const apiOffer = templateText(message.split(NAME).join(sample))
@@ -242,6 +245,7 @@ export function CampaignsPage() {
                 <p className="mt-2 text-xs text-muted">في الإرسال التلقائي تتحول أسطر النص إلى سطر واحد مفصول بـ « · »، لأن قوالب واتساب لا تقبل أسطراً جديدة في المتغيرات.</p>
               )}
               {needsImage && <p className="mt-2 text-xs text-warning">قالبك المعتمد فيه صورة، أضف صورة للحملة.</p>}
+              {needsText && <p className="mt-2 text-xs text-warning">اكتب نص العرض، فقالب واتساب لا يُرسَل بدونه.</p>}
               {nameTwice && (
                 <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-warning">
                   {`قالبك يذكر اسم العميل بنفسه، فوجود ${NAME} في النص يكرر الاسم.`}
@@ -329,7 +333,7 @@ export function CampaignsPage() {
             <details className="rounded-xl border border-border px-3 py-2">
               <summary className="cursor-pointer text-sm font-medium text-fg">جرّب العرض على رقمك أولاً</summary>
               <div className="mt-2 space-y-1.5">
-                <WhatsAppTestSend message={message} imageId={image?.id} name={sample} disabled={needsImage || (!message.trim() && !image)} />
+                <WhatsAppTestSend message={message} imageId={image?.id} name={sample} disabled={needsImage || needsText} />
                 <p className="text-xs text-muted">تصلك الرسالة كما ستصل لعملائك، ولا تُنشأ حملة.</p>
               </div>
             </details>
@@ -428,10 +432,17 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
     enabled: !!tenantId,
     // Always fresh on open: progress or another device's lease may have changed since it was last shown.
     staleTime: 0,
-    // While another tab or device is sending, look again every few seconds so the button frees up when it stops.
-    refetchInterval: (q) => (q.state.data?.sendingRunnerId && q.state.data.sendingRunnerId !== TAB_RUNNER_ID ? 5_000 : false),
+    // While another tab or device is sending, or a batch this tab lost track of is still running, look again every
+    // few seconds so the button frees up when it stops.
+    refetchInterval: (q) => {
+      const c = q.state.data
+      return c?.sendingRunnerId && (c.sendingRunnerId !== TAB_RUNNER_ID || c.batchInProgress) ? 5_000 : false
+    },
   })
   const busyElsewhere = !running && !!campaign?.sendingRunnerId && campaign.sendingRunnerId !== TAB_RUNNER_ID
+  // This tab's request timed out or the connection dropped, but the server is still sending that batch.
+  const busyHere = !running && !busyElsewhere && !!campaign?.batchInProgress
+  const busy = busyElsewhere || busyHere
 
   const update = (c: Campaign) => {
     qc.setQueryData(key, c)
@@ -443,6 +454,7 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
     stopRef.current = false
     setStopReason(null)
     setRunning(true)
+    let lostTrack = false
     try {
       let current = campaign
       while (!stopRef.current && current.recipients?.some((r) => r.status === 'Pending')) {
@@ -451,15 +463,24 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
       }
       if (!stopRef.current) toast.success('انتهى الإرسال', `${current.sent.toLocaleString('ar-SA')} أُرسلت · ${current.failed.toLocaleString('ar-SA')} فشلت`)
     } catch (err) {
-      // Token, template, payment or connection: the rest stay waiting and the reason stays on screen.
-      const reason = apiErrorMessage(err)
-      setStopReason(reason)
-      toast.error('توقف الإرسال', reason)
+      if (isAxiosError(err) && !err.response) {
+        // No answer: the server may still be sending this batch, so it keeps the lease until the batch ends.
+        lostTrack = true
+        toast.warning('انقطع الاتصال أثناء الإرسال', 'ننتظر انتهاء الدفعة الحالية، ثم يمكنك المتابعة.')
+      } else if (isAxiosError(err) && err.response?.status === 409) {
+        // Another tab or device holds the lease; the banner below says so, nothing needs fixing.
+        toast.info('الإرسال جارٍ الآن', apiErrorMessage(err))
+      } else {
+        // Token, template, payment or connection: the rest stay waiting and the reason stays on screen.
+        const reason = apiErrorMessage(err)
+        setStopReason(reason)
+        toast.error('توقف الإرسال', reason)
+      }
       void qc.invalidateQueries({ queryKey: key })
     } finally {
       setRunning(false)
       // Paused or closed: another device can carry on straight away instead of waiting for the lease to run out.
-      void marketingApi.releaseSending(tenantId!, campaignId, TAB_RUNNER_ID).catch(() => undefined)
+      if (!lostTrack) void marketingApi.releaseSending(tenantId!, campaignId, TAB_RUNNER_ID).catch(() => undefined)
     }
   }
 
@@ -498,7 +519,7 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
         campaign?.channel === 'Api' ? (
           <>
             {campaign.failed > 0 && !running && (
-              <Button variant="secondary" loading={retry.isPending} disabled={busyElsewhere} onClick={() => retry.mutate()}>
+              <Button variant="secondary" loading={retry.isPending} disabled={busy} onClick={() => retry.mutate()}>
                 <RefreshCw className="h-4 w-4" />
                 إعادة محاولة الفاشلة
               </Button>
@@ -506,7 +527,7 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
             {running ? (
               <Button variant="secondary" onClick={() => (stopRef.current = true)}>إيقاف مؤقت</Button>
             ) : (
-              <Button disabled={pending === 0 || busyElsewhere} onClick={() => void runApi()}>
+              <Button disabled={pending === 0 || busy} onClick={() => void runApi()}>
                 <Send className="h-4 w-4" />
                 {campaign.sent + campaign.failed > 0 ? 'متابعة الإرسال' : 'بدء الإرسال'}
               </Button>
@@ -547,7 +568,14 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
             </p>
           )}
 
-          {campaign.channel === 'Api' && stopReason && !running && (
+          {campaign.channel === 'Api' && busyHere && (
+            <p className="flex gap-2 rounded-lg bg-info/10 px-3 py-2 text-xs leading-5 text-info" role="status">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              الدفعة السابقة ما زالت تُرسل، يتاح «متابعة الإرسال» حين تنتهي.
+            </p>
+          )}
+
+          {campaign.channel === 'Api' && stopReason && !running && !busy && (
             <div className="flex gap-2 rounded-lg bg-danger/10 px-3 py-2 text-xs leading-5 text-danger" role="alert">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>

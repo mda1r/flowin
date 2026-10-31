@@ -23,6 +23,11 @@ internal sealed class CreateCampaignCommandValidator : AbstractValidator<CreateC
         RuleFor(x => x.TenantId).NotEmpty();
         RuleFor(x => x.Channel).IsInEnum();
         RuleFor(x => x.Message).NotNull();
+        // The offer fills a template variable, and Meta refuses an empty one for every recipient.
+        RuleFor(x => x.Message)
+            .Must(m => !string.IsNullOrWhiteSpace(m))
+            .When(x => x.Channel == CampaignChannel.Api)
+            .WithMessage("الإرسال التلقائي يحتاج نص العرض، فقالب واتساب لا يقبل متغيراً فارغاً.");
         RuleFor(x => x.CustomerIds).NotNull();
     }
 }

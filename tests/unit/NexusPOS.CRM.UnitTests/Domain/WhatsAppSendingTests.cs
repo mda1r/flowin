@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text.Json;
 using FluentAssertions;
+using NexusPOS.CRM.Application.Marketing;
 using NexusPOS.CRM.Domain.Marketing;
 using NexusPOS.CRM.Infrastructure.WhatsApp;
 
@@ -12,6 +13,9 @@ public sealed class WhatsAppSendingTests
 
     private static MarketingCampaign Campaign() =>
         MarketingCampaign.Create(_tenant, "عرض", null, CampaignChannel.Api, null, [(Guid.NewGuid(), "سارة", "966551234567")]).Value;
+
+    private static CreateCampaignCommand Command(string message, CampaignChannel channel) =>
+        new(_tenant, null, message, Guid.NewGuid(), channel, [Guid.NewGuid()]);
 
     private static WhatsAppSettings Settings(bool image = true, bool name = true)
     {
@@ -41,6 +45,41 @@ public sealed class WhatsAppSendingTests
         DateTime later = now + MarketingCampaign.SendingLease + TimeSpan.FromSeconds(1);
         MarketingCampaign.ClaimableBy(second, later).Compile()(campaign).Should().BeTrue("a closed tab frees it in time");
         campaign.ActiveRunner(later).Should().BeNull();
+    }
+
+    [Fact]
+    public void Lease_TurnsAwayASecondCall_FromTheSamePage_WhileItsBatchIsStillSending()
+    {
+        MarketingCampaign campaign = Campaign();
+        Guid page = Guid.NewGuid();
+        Guid batch = Guid.NewGuid();
+        DateTime now = DateTime.UtcNow;
+
+        // The page's first call claimed the lease and is still sending (its request may have timed out).
+        typeof(MarketingCampaign).GetProperty(nameof(MarketingCampaign.SendingRunnerId))!.SetValue(campaign, page);
+        typeof(MarketingCampaign).GetProperty(nameof(MarketingCampaign.SendingBatchId))!.SetValue(campaign, batch);
+        typeof(MarketingCampaign).GetProperty(nameof(MarketingCampaign.SendingLeaseUntil))!.SetValue(campaign, now + MarketingCampaign.SendingLease);
+
+        MarketingCampaign.ClaimableBy(page, now).Compile()(campaign).Should().BeFalse("its earlier batch has not ended");
+        MarketingCampaign.HeldBy(batch).Compile()(campaign).Should().BeTrue("the running batch keeps renewing");
+        MarketingCampaign.HeldBy(Guid.NewGuid()).Compile()(campaign).Should().BeFalse();
+        campaign.BatchInProgress(now).Should().BeTrue();
+
+        // The batch ended and kept the lease for the page's next call.
+        typeof(MarketingCampaign).GetProperty(nameof(MarketingCampaign.SendingBatchId))!.SetValue(campaign, null);
+        MarketingCampaign.ClaimableBy(page, now).Compile()(campaign).Should().BeTrue();
+        MarketingCampaign.ClaimableBy(Guid.NewGuid(), now).Compile()(campaign).Should().BeFalse();
+        campaign.BatchInProgress(now).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ApiCampaign_NeedsOfferText_EvenWithAnImage()
+    {
+        CreateCampaignCommandValidator validator = new();
+
+        validator.Validate(Command("  ", CampaignChannel.Api)).IsValid.Should().BeFalse("Meta refuses an empty template variable");
+        validator.Validate(Command("خصم 20%", CampaignChannel.Api)).IsValid.Should().BeTrue();
+        validator.Validate(Command("", CampaignChannel.Links)).IsValid.Should().BeTrue("a link can carry the image alone");
     }
 
     [Theory]

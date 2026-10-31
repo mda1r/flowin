@@ -37,6 +37,8 @@ export interface Campaign {
   recipients?: CampaignRecipient[] | null
   // The page sending right now (its lease is still running), or null.
   sendingRunnerId?: string | null
+  // A send-batch call is still running on the server, even one its page stopped waiting for.
+  batchInProgress?: boolean
 }
 
 export interface WhatsAppSettings {
@@ -83,8 +85,9 @@ export const marketingApi = {
     data: { message: string; imageId?: string; channel: CampaignChannel; customerIds: string[] },
   ) => apiClient.post<Campaign>(`${base(tenantId)}/campaigns`, data).then((r) => r.data),
 
+  // One batch is up to 10 messages of up to 30s each on the server, so the page waits longer than the usual 30s.
   sendBatch: (tenantId: string, id: string, runnerId: string) =>
-    apiClient.post<Campaign>(`${base(tenantId)}/campaigns/${id}/send-batch`, { runnerId }).then((r) => r.data),
+    apiClient.post<Campaign>(`${base(tenantId)}/campaigns/${id}/send-batch`, { runnerId }, { timeout: 6 * 60_000 }).then((r) => r.data),
 
   releaseSending: (tenantId: string, id: string, runnerId: string) =>
     apiClient.post<void>(`${base(tenantId)}/campaigns/${id}/release`, { runnerId }).then(() => undefined),

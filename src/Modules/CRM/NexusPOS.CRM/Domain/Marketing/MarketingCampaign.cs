@@ -27,6 +27,10 @@ public sealed class MarketingCampaign
     public Guid? SendingRunnerId { get; private set; }
     public DateTime? SendingLeaseUntil { get; private set; }
 
+    // The send-batch call running right now under that lease. A second call, even from the same page, waits for it,
+    // so a request the page gave up on (timeout, dropped connection) never overlaps the next one.
+    public Guid? SendingBatchId { get; private set; }
+
     public IReadOnlyList<CampaignRecipient> Recipients => _recipients;
 
     private MarketingCampaign() { }
@@ -80,12 +84,19 @@ public sealed class MarketingCampaign
 
     public static readonly TimeSpan SendingLease = TimeSpan.FromSeconds(90);
 
-    // The rule the database applies when a page asks to send: the lease is free, ran out, or already its own.
+    // The rule the database applies when a page asks to send: the lease is free, ran out, or already its own
+    // with none of its batches still running.
     public static Expression<Func<MarketingCampaign, bool>> ClaimableBy(Guid runnerId, DateTime now) =>
-        c => c.SendingLeaseUntil == null || c.SendingLeaseUntil < now || c.SendingRunnerId == runnerId;
+        c => c.SendingLeaseUntil == null || c.SendingLeaseUntil < now || (c.SendingRunnerId == runnerId && c.SendingBatchId == null);
+
+    // The renewal before every message: only the batch that holds the lease keeps it.
+    public static Expression<Func<MarketingCampaign, bool>> HeldBy(Guid batchId) => c => c.SendingBatchId == batchId;
 
     // The page currently sending, if its lease is still running.
     public Guid? ActiveRunner(DateTime now) => SendingLeaseUntil > now ? SendingRunnerId : null;
+
+    // Whether a batch is still sending on the server, even one its page stopped waiting for.
+    public bool BatchInProgress(DateTime now) => SendingLeaseUntil > now && SendingBatchId is not null;
 
     public void UseWhatsAppMedia(string mediaId) => WhatsAppMediaId = mediaId;
 
