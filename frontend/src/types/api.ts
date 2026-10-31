@@ -447,6 +447,10 @@ export interface RestaurantOrderResponse {
   servedAt?: string
   paidAt?: string
   items: RestaurantOrderItemResponse[]
+  /** A cafe till sale copied for the kitchen; it was paid at the cafe, not on a table. */
+  isKitchenCopy?: boolean
+  cancelReason?: string
+  cancelledAt?: string
 }
 
 export interface DiscountCodeResponse {

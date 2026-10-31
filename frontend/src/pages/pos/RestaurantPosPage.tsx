@@ -7,20 +7,17 @@ import { useAuthStore } from '@/stores/authStore'
 import { restaurantApi } from '@/api/restaurant'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
-import type { MenuCategory, MenuItemResponse } from '@/types/api'
+import type { MenuCategory, MenuItemResponse, RestaurantOrderResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { CashTender } from '@/components/pos/CashTender'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
+import { restaurantErrorMessage } from '@/lib/restaurantErrors'
+import { RestaurantReceiptModal } from '@/components/restaurant/RestaurantReceiptModal'
 
+// The page's accent (var(--accent)) is the brand ink from the design tokens, as on every till.
 const VAT = 0.15
-
-/* warm restaurant accent scoped to this page */
-const RESTAURANT_ACCENT: React.CSSProperties = {
-  '--accent-l': '#C2410C',
-  '--accent-d': '#FB923C',
-} as React.CSSProperties
 
 const CATEGORIES: { key: MenuCategory | 'All'; label: string }[] = [
   { key: 'All', label: 'الكل' },
@@ -40,7 +37,7 @@ interface OrderLine {
 }
 
 export function RestaurantPosPage() {
-  const { branchId, tenantId } = useAuthStore()
+  const { branchId } = useAuthStore()
   const qc = useQueryClient()
   const { t } = useI18n()
   const [category, setCategory] = useState<MenuCategory | 'All'>('All')
@@ -52,10 +49,12 @@ export function RestaurantPosPage() {
   const [amountTendered, setAmountTendered] = useState('')
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [confirmClearCart, setConfirmClearCart] = useState(false)
+  const [receipt, setReceipt] = useState<{ order: RestaurantOrderResponse; label: string } | null>(null)
 
+  // The server refuses dishes that are switched off, so they are not offered here.
   const { data: menuItems = [] } = useQuery({
     queryKey: ['restaurant', 'menu', branchId],
-    queryFn: () => restaurantApi.listMenuItems(branchId!, { isAvailable: true }).then(r => r.data),
+    queryFn: () => restaurantApi.listMenuItems(branchId!).then(r => r.data.filter(i => i.isAvailable)),
     enabled: !!branchId,
   })
 
@@ -78,27 +77,30 @@ export function RestaurantPosPage() {
   const subtotal = total
   const vat = Math.round((total * VAT / (1 + VAT)) * 100) / 100
 
+  // Opened, sent to the kitchen and paid in one call: a failure leaves nothing behind, so trying again is safe.
   const createOrder = useMutation({
     mutationFn: async () => {
+      const due = Math.ceil(total * 100) / 100
+      const tendered = payMethod === 'Cash' ? Math.max(parseFloat(amountTendered) || 0, due) : due
       const { data: order } = await restaurantApi.createOrder(branchId!, {
-        tenantId: tenantId!,
         // The server requires a positive table number; 99 marks takeaway, as in the cafe cashier.
         tableNumber: isTakeaway ? 99 : tableNumber,
-        items: lines.map(l => ({ menuItemId: l.menuItemId, itemName: l.name, quantity: l.quantity, unitPrice: l.price })),
+        items: lines.map(l => ({ menuItemId: l.menuItemId, quantity: l.quantity })),
+        sendToKitchen: true,
+        payment: { paymentMethod: payMethod, amountTendered: tendered },
       })
-      await restaurantApi.sendToKitchen(branchId!, order.id)
-      const due = Math.ceil(order.total * 100) / 100
-      const tendered = payMethod === 'Cash' ? Math.max(parseFloat(amountTendered) || 0, due) : due
-      await restaurantApi.payOrder(branchId!, order.id, { paymentMethod: payMethod, amountTendered: tendered })
+      return order
     },
-    onSuccess: () => {
-      toast.success(t.pos.paymentSuccess, isTakeaway ? t.restaurant.takeaway : `${t.restaurant.table} ${tableNumber}`)
+    onSuccess: (order) => {
+      const label = isTakeaway ? t.restaurant.takeaway : `${t.restaurant.table} ${tableNumber}`
+      toast.success(t.pos.paymentSuccess, label)
+      setReceipt({ order, label })
       setLines([])
       setShowPayment(false)
       setAmountTendered('')
       qc.invalidateQueries({ queryKey: ['restaurant'] })
     },
-    onError: () => toast.error(t.pos.paymentFailed),
+    onError: (e) => toast.error(t.pos.paymentFailed, restaurantErrorMessage(e)),
   })
 
 
@@ -138,8 +140,11 @@ export function RestaurantPosPage() {
   ])
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RESTAURANT_ACCENT}>
+    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col">
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
+      {receipt && (
+        <RestaurantReceiptModal orders={[receipt.order]} label={receipt.label} onClose={() => setReceipt(null)} />
+      )}
       <ConfirmModal
         open={confirmClearCart}
         onClose={() => setConfirmClearCart(false)}
@@ -354,7 +359,7 @@ export function RestaurantPosPage() {
 
       {/* Payment modal */}
       {showPayment && (
-        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RESTAURANT_ACCENT}>
+        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPayment(false)} />
           <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
             <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
