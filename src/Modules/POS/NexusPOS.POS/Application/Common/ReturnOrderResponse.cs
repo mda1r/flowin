@@ -22,4 +22,8 @@ public sealed record ReturnOrderResponse(
     decimal RefundAmount,
     RefundMethod RefundMethod,
     DateTime CreatedAt,
-    IReadOnlyList<ReturnOrderLineResponse> Lines);
+    IReadOnlyList<ReturnOrderLineResponse> Lines,
+    Guid? CreatedByUserId = null,
+    string? CreatedByName = null,
+    Guid? ShiftId = null,
+    string? Note = null);

@@ -113,7 +113,7 @@ public sealed class OrderReturnedLoyaltyHandlerTests
         OrderReturnedLoyaltyHandler handler = new(db, NullLogger<OrderReturnedLoyaltyHandler>.Instance);
         ReturnOrderCompletedDomainEvent notification = new(
             Guid.NewGuid(), orderId, _tenantId, Guid.NewGuid(), refunded, "SAR", [], true,
-            new ReturnOrderCompletedDomainEvent.CustomerLoyalty(
+            Loyalty: new ReturnOrderCompletedDomainEvent.CustomerLoyalty(
                 customer.Id.Value, total, pointsRedeemed, pointsRedeemed * 0.05m, share, refunded, completedAt));
         return handler.Handle(notification, CancellationToken.None);
     }

@@ -136,6 +136,8 @@ export interface ShiftResponse {
   notes: string | null
   openedAt: string
   closedAt: string | null
+  totalRefunds?: number
+  cashRefunds?: number
 }
 
 export interface StockItemResponse {
@@ -239,6 +241,8 @@ export interface OrderLineResponse {
   lineTotal: number
   // What the customer asked for on this item ("no sugar"), shown on the invoice and the kitchen ticket.
   notes?: string | null
+  // What one unit gives back on a return, VAT included, after every discount on the sale.
+  refundUnitPrice?: number
 }
 
 export interface OrderResponse {
@@ -294,6 +298,10 @@ export interface ReturnOrderResponse {
   refundMethod: RefundMethod
   createdAt: string
   lines: ReturnOrderLineResponse[]
+  createdByUserId?: string | null
+  createdByName?: string | null
+  shiftId?: string | null
+  note?: string | null
 }
 
 // ── Sales ────────────────────────────────────────────────────────────────────

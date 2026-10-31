@@ -11,6 +11,7 @@ public sealed record ReturnOrderCompletedDomainEvent(
     string Currency,
     IReadOnlyList<ReturnOrderCompletedDomainEvent.LineItem> Lines,
     bool RestockItems,
+    decimal TaxAmount = 0m,
     ReturnOrderCompletedDomainEvent.CustomerLoyalty? Loyalty = null) : DomainEvent
 {
     public sealed record LineItem(Guid VariantId, decimal Quantity);

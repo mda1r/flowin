@@ -257,6 +257,22 @@ public sealed class Order : AggregateRoot<OrderId>
         return Result.Success;
     }
 
+    // What one unit of a line actually cost before VAT: its share of the line total (after the line discount),
+    // less its pro-rata slice of the order and loyalty discounts. Refunds use this, never the list price.
+    public decimal NetUnitPaid(OrderLine line)
+    {
+        if (line.Quantity <= 0 || SubtotalAmount <= 0)
+        {
+            return 0m;
+        }
+
+        decimal paidShare = Math.Max(SubtotalAmount - DiscountAmount, 0m) / SubtotalAmount;
+        return line.LineTotal / line.Quantity * paidShare;
+    }
+
+    // The same unit with VAT, as the customer paid it and as the till shows it on a return.
+    public decimal GrossUnitPaid(OrderLine line) => Math.Round(NetUnitPaid(line) * (1 + TaxRate), 4);
+
     private void RecalculateTotals()
     {
         SubtotalAmount = Lines.Sum(l => l.LineTotal);

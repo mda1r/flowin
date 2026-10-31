@@ -118,6 +118,9 @@ export const ordersApi = {
       refundMethod: RefundMethod
       lines: { lineId: string; quantity: number; reason: ReturnReason }[]
       restockItems?: boolean
+      note?: string
+      // Resending the same reference returns the same return instead of refunding twice.
+      clientReference?: string
     },
   ) =>
     apiClient.post<ReturnOrderResponse>(
