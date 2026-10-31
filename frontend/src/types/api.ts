@@ -221,6 +221,8 @@ export interface OrderLineResponse {
   unitPrice: number
   costPrice: number
   lineTotal: number
+  // What the customer asked for on this item ("no sugar"), shown on the invoice and the kitchen ticket.
+  notes?: string | null
 }
 
 export interface OrderResponse {
@@ -447,6 +449,10 @@ export interface RestaurantOrderResponse {
   servedAt?: string
   paidAt?: string
   items: RestaurantOrderItemResponse[]
+  // A ticket for a sale already paid at the cafe till: the kitchen makes it, nobody settles it here.
+  kitchenOnly?: boolean
+  sourceOrderId?: string | null
+  ticketNumber?: number | null
 }
 
 export interface DiscountCodeResponse {

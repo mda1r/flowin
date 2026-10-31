@@ -10,4 +10,5 @@ public sealed record OrderLineResponse(
     decimal Quantity,
     decimal LineSubtotal,
     decimal LineDiscountAmount,
-    decimal LineTotal);
+    decimal LineTotal,
+    string? Notes = null);

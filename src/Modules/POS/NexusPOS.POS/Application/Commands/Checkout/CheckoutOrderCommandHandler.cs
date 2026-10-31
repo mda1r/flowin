@@ -1,4 +1,5 @@
 using ErrorOr;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain.Entities;
@@ -6,10 +7,16 @@ using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Domain;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
 
-internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoyaltyDirectory loyalty, IOrderNumberSequence numbers)
+internal sealed class CheckoutOrderCommandHandler(
+    PosDbContext db,
+    ICustomerLoyaltyDirectory loyalty,
+    IOrderNumberSequence numbers,
+    IVariantPriceDirectory prices,
+    IPublisher publisher)
     : ICommandHandler<CheckoutOrderCommand, OrderResponse>
 {
     public async Task<ErrorOr<OrderResponse>> Handle(CheckoutOrderCommand request, CancellationToken cancellationToken)
@@ -17,7 +24,7 @@ internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoya
         Order? existing = await FindByReference(request, cancellationToken);
         if (existing is not null)
         {
-            return OrderMapper.ToResponse(existing);
+            return await Done(request, existing, cancellationToken);
         }
 
         ErrorOr<LoyaltyRules> rules = await LoyaltyRedemption.CheckAsync(
@@ -27,8 +34,19 @@ internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoya
             return rules.Errors;
         }
 
+        IReadOnlyDictionary<Guid, decimal>? catalogPrices = request.IsManager || request.OfflineCreatedAt is not null
+            ? null
+            : await prices.GetSalePricesAsync([.. request.Lines.Select(l => l.VariantId)], cancellationToken);
+
+        // Check the sale before taking an invoice number, so a refused sale never leaves a gap in the sequence.
+        ErrorOr<Order> dryRun = CheckoutBuilder.Build(request, rules.Value, null, catalogPrices);
+        if (dryRun.IsError)
+        {
+            return dryRun.Errors;
+        }
+
         long number = await numbers.NextAsync(request.TenantId, cancellationToken);
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, catalogPrices);
         if (built.IsError)
         {
             return built.Errors;
@@ -49,10 +67,30 @@ internal sealed class CheckoutOrderCommandHandler(PosDbContext db, ICustomerLoya
                 throw;
             }
 
-            return OrderMapper.ToResponse(existing);
+            return await Done(request, existing, cancellationToken);
         }
 
-        return OrderMapper.ToResponse(built.Value);
+        return await Done(request, built.Value, cancellationToken);
+    }
+
+    // A resent sale asks for its kitchen ticket again; the kitchen keeps one ticket per order, so a ticket that
+    // failed the first time is made now and one that already exists is left alone.
+    private async Task<ErrorOr<OrderResponse>> Done(CheckoutOrderCommand request, Order order, CancellationToken ct)
+    {
+        if (request.Kitchen is { } kitchen)
+        {
+            await publisher.Publish(new KitchenTicketRequestedDomainEvent(
+                order.TenantId,
+                order.BranchId,
+                order.Id.Value,
+                order.Number,
+                kitchen.Takeaway ? null : kitchen.TableNumber,
+                kitchen.Takeaway,
+                [.. order.Lines.Select(l => new KitchenTicketRequestedDomainEvent.Line(
+                    l.VariantId, l.ProductName, l.VariantName, l.Quantity, l.Notes))]), ct);
+        }
+
+        return OrderMapper.ToResponse(order);
     }
 
     private Task<Order?> FindByReference(CheckoutOrderCommand request, CancellationToken ct) =>

@@ -36,6 +36,9 @@ public static class RestaurantErrors
     public static readonly Error OrderAlreadyPaid =
         Error.Conflict("RestaurantOrder.AlreadyPaid", "Order has already been paid.");
 
+    public static readonly Error KitchenTicketNotPayable =
+        Error.Conflict("RestaurantOrder.KitchenTicketNotPayable", "هذه تذكرة مطبخ لطلب مدفوع من الكاشير، لا تُدفع مرة أخرى.");
+
     public static readonly Error OrderAlreadyCancelled =
         Error.Conflict("RestaurantOrder.AlreadyCancelled", "Order has already been cancelled.");
 

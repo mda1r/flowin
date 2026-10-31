@@ -26,9 +26,20 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public DateTime? ServedAt { get; private set; }
     public DateTime? PaidAt { get; private set; }
 
+    // A ticket mirrored from a cafe sale that was already paid at the cafe till: the kitchen prepares it,
+    // but it can never be paid here, so it never counts as revenue twice.
+    public bool KitchenOnly { get; private set; }
+
+    // The POS order the ticket came from (one ticket per order) and its invoice number, shown as the ticket number.
+    public Guid? SourceOrderId { get; private set; }
+    public long? TicketNumber { get; private set; }
+
     public List<RestaurantOrderItem> Items { get; private set; } = [];
 
     public const decimal VatRate = 0.15m;
+
+    // Table number kept by takeaway orders, as at the restaurant till; 0 on a kitchen ticket means no table.
+    public const int TakeawayTable = 99;
 
     private RestaurantOrder() { }
 
@@ -81,6 +92,47 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         order.RaiseDomainEvent(new RestaurantOrderCreatedDomainEvent(
             order.Id.Value, tenantId, branchId, tableNumber));
 
+        return order;
+    }
+
+    // Items carry no prices: the sale and its money live in POS, the kitchen only needs what to make.
+    public static ErrorOr<RestaurantOrder> CreateKitchenTicket(
+        Guid tenantId,
+        Guid branchId,
+        Guid sourceOrderId,
+        long? ticketNumber,
+        int? tableNumber,
+        bool takeaway,
+        IEnumerable<(Guid ItemId, string ItemName, int Quantity, string? Notes)> itemsData)
+    {
+        var items = itemsData.Where(i => i.Quantity > 0).ToList();
+        if (items.Count == 0)
+        {
+            return RestaurantErrors.EmptyOrder;
+        }
+
+        int table = takeaway ? TakeawayTable : tableNumber ?? 0;
+        if (table is < 0 or > TakeawayTable)
+        {
+            return RestaurantErrors.InvalidTableNumber;
+        }
+
+        RestaurantOrder order = new()
+        {
+            Id = new RestaurantOrderId(Guid.NewGuid()),
+            TenantId = tenantId,
+            BranchId = branchId,
+            TableNumber = table,
+            Status = RestaurantOrderStatus.Pending,
+            KitchenOnly = true,
+            SourceOrderId = sourceOrderId,
+            TicketNumber = ticketNumber,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Items = [.. items.Select(i => RestaurantOrderItem.Create(i.ItemId, i.ItemName, i.Quantity, 0m, i.Notes))],
+        };
+
+        order.RaiseDomainEvent(new RestaurantOrderCreatedDomainEvent(order.Id.Value, tenantId, branchId, table));
         return order;
     }
 
@@ -159,6 +211,11 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     // reuse catalog ids that the POS sale already deducted, so only genuine menu items count as recipe sales.
     public ErrorOr<Success> Pay(string paymentMethod, decimal amountTendered, IReadOnlySet<Guid> menuItemIds)
     {
+        if (KitchenOnly)
+        {
+            return RestaurantErrors.KitchenTicketNotPayable;
+        }
+
         if (Status == RestaurantOrderStatus.Paid)
         {
             return RestaurantErrors.OrderAlreadyPaid;

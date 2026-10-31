@@ -20,6 +20,7 @@ export function orderReceiptFigures(order: OrderResponse) {
   const lines: ReceiptLine[] = order.lines.map((l) => ({
     key: l.id,
     name: l.variantName && !['Standard', 'افتراضي', l.productName].includes(l.variantName) ? `${l.productName} - ${l.variantName}` : l.productName,
+    detail: l.notes ? `ملاحظة: ${l.notes}` : undefined,
     quantity: l.quantity,
     total: r2(l.lineTotal * gross),
   }))

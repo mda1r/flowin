@@ -156,7 +156,8 @@ function CashierView({ branchId }: { branchId: string }) {
   })
 
   const menuItems = menuData?.data ?? []
-  const orders = ordersData?.data ?? []
+  // Cafe kitchen tickets were paid at the cafe till; they belong on the kitchen screen, not the open tables.
+  const orders = (ordersData?.data ?? []).filter((o) => !o.kitchenOnly)
 
   const filteredItems = selectedCategory
     ? menuItems.filter((i) => i.category === selectedCategory && i.isAvailable)
@@ -897,7 +898,8 @@ function ManagerView({ branchId }: { branchId: string }) {
   })
 
   const discounts = discountsData?.data ?? []
-  const orders = ordersData?.data ?? []
+  // Cafe kitchen tickets were paid at the cafe till; they belong on the kitchen screen, not the open tables.
+  const orders = (ordersData?.data ?? []).filter((o) => !o.kitchenOnly)
   const menuItems = menuData?.data ?? []
 
   const todayRevenue = orders

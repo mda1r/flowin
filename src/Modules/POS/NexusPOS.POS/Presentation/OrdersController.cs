@@ -170,9 +170,12 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         CheckoutOrderCommand command = new(
             tenantId, branchId, request.ClientReference, request.Currency, request.TaxRate, request.CustomerId,
             [.. (request.Lines ?? []).Select(l => new CheckoutOrderCommand.Line(
-                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity))],
+                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity, l.Notes))],
             request.LoyaltyPoints, request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount,
-            UtcDates.AsUtc(request.OfflineCreatedAt));
+            UtcDates.AsUtc(request.OfflineCreatedAt),
+            request.DiscountType, request.DiscountValue,
+            IsManager: User.IsInRole("Owner") || User.IsInRole("Manager"),
+            Kitchen: request.Kitchen is { } k ? new CheckoutOrderCommand.KitchenTicket(k.TableNumber, k.Takeaway) : null);
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

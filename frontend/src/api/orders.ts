@@ -6,7 +6,12 @@ export interface CheckoutPayload {
   currency: string
   taxRate: number
   customerId?: string
-  lines: { variantId: string; productName: string; variantName: string; unitPrice: number; costPrice: number; quantity: number }[]
+  lines: { variantId: string; productName: string; variantName: string; unitPrice: number; costPrice: number; quantity: number; notes?: string }[]
+  // Order discount: a percentage, or a fixed amount in riyals before VAT. Applied before loyalty points.
+  discountType?: 'Percentage' | 'Fixed'
+  discountValue?: number
+  // Sends the paid sale to the kitchen screen; no table number means takeaway or no table.
+  kitchen?: { tableNumber: number | null; takeaway: boolean }
   loyaltyPoints: number
   paymentMethod: PaymentMethod
   amountTendered: number
