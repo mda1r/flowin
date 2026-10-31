@@ -629,7 +629,8 @@ export function DashboardPage() {
 
   // The branch's open shift, flagged when it was left open from a previous day or for most of a day.
   const { shift: openShift } = useShift()
-  const staleShift = openShift ? staleShiftReason(openShift.openedAt) : null
+  const usesShifts = !!businessType && (BUSINESS_TYPE_ROUTES[businessType] ?? []).includes('/shifts')
+  const staleShift = usesShifts && openShift ? staleShiftReason(openShift.openedAt) : null
 
   const { data: productsData } = useQuery({
     queryKey: ['products-map', tenantId],
