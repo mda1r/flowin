@@ -16,6 +16,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { cn, formatCurrency } from '@/lib/utils'
+import { lineDisplayName } from '@/lib/variantName'
 import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import type { CompletedSessionResponse } from '@/api/gaming'
@@ -171,7 +172,7 @@ export function DailyClosePage() {
     const products = new Map<string, { name: string; qty: number; revenue: number }>()
     for (const o of orders) {
       for (const l of o.lines) {
-        const name = l.variantName && l.variantName !== 'Standard' ? `${l.productName} - ${l.variantName}` : l.productName
+        const name = lineDisplayName(l.productName, l.variantName)
         const p = products.get(l.variantId) ?? { name, qty: 0, revenue: 0 }
         p.qty += l.quantity
         p.revenue += l.lineTotal

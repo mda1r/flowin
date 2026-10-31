@@ -11,7 +11,8 @@ import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, cn, normalizeArabic } from '@/lib/utils'
+import { isPlainVariant, lineDisplayName } from '@/lib/variantName'
 import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { aiCashierApi, type AiCashierCartSnapshot } from '@/api/aiCashier'
@@ -23,7 +24,7 @@ import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
-import { ConfirmModal, OverlayDialog } from '@/components/ui/Modal'
+import { ConfirmModal, Modal, OverlayDialog } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
@@ -121,6 +122,48 @@ function mergeCartLines(lines: CafeCartItem[]): CafeCartItem[] {
   return out
 }
 
+// Search rank of a product, lower first, or null when it does not match. Every side is folded with
+// normalizeArabic, so "اسبريسو" finds "إسبريسو". An exact barcode or SKU comes first, then a name that
+// starts with the term, a word in the name that does, a name that only contains it, then sizes and SKUs.
+function searchRank(product: ProductResponse, term: string): number | null {
+  const sizes = product.variants.filter((v) => v.isActive)
+  if (sizes.length === 0) return null
+  if (exactCodeVariant(product, term)) return 0
+  const name = normalizeArabic(product.name)
+  if (name.startsWith(term)) return 1
+  if (name.split(/\s+/).some((w) => w.startsWith(term))) return 2
+  if (name.includes(term)) return 3
+  if (sizes.some((v) => normalizeArabic(v.name).includes(term) || normalizeArabic(v.sku ?? '').includes(term))) return 4
+  return null
+}
+
+// The active variant whose barcode or SKU is exactly the (normalised) term, if any.
+const exactCodeVariant = (product: ProductResponse, term: string) =>
+  product.variants.find((v) =>
+    v.isActive && ((!!v.barcode && normalizeArabic(v.barcode) === term) || (!!v.sku && normalizeArabic(v.sku) === term)))
+
+// The size this device sold last for each drink, so the size picker opens on it. Per device, best effort.
+const LAST_SIZE_KEY = 'cafe-last-size'
+
+function readLastSize(productId: string): string | null {
+  try {
+    const map = JSON.parse(localStorage.getItem(LAST_SIZE_KEY) ?? '{}') as Record<string, string>
+    return typeof map[productId] === 'string' ? map[productId] : null
+  } catch {
+    return null
+  }
+}
+
+function rememberLastSize(productId: string, variantId: string) {
+  try {
+    const map = JSON.parse(localStorage.getItem(LAST_SIZE_KEY) ?? '{}') as Record<string, string>
+    map[productId] = variantId
+    localStorage.setItem(LAST_SIZE_KEY, JSON.stringify(map))
+  } catch {
+    // Storage blocked or full: the picker just opens on the first size next time.
+  }
+}
+
 const CAFE_ACCENT: React.CSSProperties = {
   '--accent-l': '#0B7A65',
   '--accent-d': '#3FD3B0',
@@ -200,10 +243,7 @@ function KitchenTicketModal({
               <div key={item.lineKey} className="border-b border-border pb-3 last:border-0 last:pb-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-fg">{item.productName}</p>
-                    {item.variantName && item.variantName !== 'افتراضي' && item.variantName !== item.productName && (
-                      <p className="text-xs text-muted">{item.variantName}</p>
-                    )}
+                    <p className="font-bold text-fg">{lineDisplayName(item.productName, item.variantName)}</p>
                     {item.notes && (
                       <p className="mt-0.5 text-xs font-medium text-brand-ink">
                         📝 {item.notes}
@@ -279,7 +319,7 @@ function CustomerReceiptModal({
             issuedAt={receipt.completedAt}
             lines={receipt.items.map((item) => ({
               key: item.lineKey,
-              name: item.productName,
+              name: lineDisplayName(item.productName, item.variantName),
               quantity: item.quantity,
               total: item.unitPrice * item.quantity,
               detail: item.notes ? `ملاحظة: ${item.notes}` : undefined,
@@ -314,7 +354,7 @@ function CustomerReceiptModal({
               invoiceNo: invoiceNo({ id: receipt.orderId, number: receipt.number }),
               date: new Date(receipt.completedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: receipt.items.map((i) => ({
-                name: i.variantName && i.variantName !== 'Standard' ? `${i.productName} - ${i.variantName}` : i.productName,
+                name: lineDisplayName(i.productName, i.variantName),
                 quantity: i.quantity,
                 total: i.unitPrice * i.quantity,
               })),
@@ -388,6 +428,8 @@ export function CafePosPage() {
   const [confirmClearCart, setConfirmClearCart] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastLineRef = useRef<string | null>(null)
+  // A drink with several sizes opens this picker; fromSearch clears the search once a size is added.
+  const [sizePicker, setSizePicker] = useState<{ product: ProductResponse; selectedId: string; fromSearch: boolean } | null>(null)
 
   // Cart
   const [cart, setCart] = useState<CafeCartItem[]>([])
@@ -484,13 +526,16 @@ export function CafePosPage() {
   const categoryProducts: ProductResponse[] = Array.isArray(_rawProds) ? _rawProds : ((_rawProds as any)?.items ?? [])
   const _rawAll = allProductsData?.data
   const allProducts: ProductResponse[] = Array.isArray(_rawAll) ? _rawAll : ((_rawAll as any)?.items ?? [])
-  // A search looks across every category; otherwise the grid shows the selected category.
-  const searchTerm = productSearch.trim().toLowerCase()
+  // A search looks across every category, best match first; otherwise the grid shows the selected category.
+  // Either way the grid has one tile per drink that has a size on sale.
+  const searchTerm = normalizeArabic(productSearch)
   const products: ProductResponse[] = searchTerm
-    ? allProducts.filter((p) =>
-        p.name.toLowerCase().includes(searchTerm) ||
-        p.variants.some((v) => v.name.toLowerCase().includes(searchTerm) || v.sku?.toLowerCase().includes(searchTerm)))
-    : categoryProducts
+    ? allProducts
+        .map((p, i) => ({ p, i, rank: searchRank(p, searchTerm) }))
+        .filter((x): x is { p: ProductResponse; i: number; rank: number } => x.rank !== null)
+        .sort((a, b) => a.rank - b.rank || a.i - b.i)
+        .map((x) => x.p)
+    : categoryProducts.filter((p) => p.variants.some((v) => v.isActive))
 
   // Stock map: variantId → quantity on hand
   const stockMap = (() => {
@@ -539,10 +584,10 @@ export function CafePosPage() {
     variantName: string,
     unitPrice: number,
     costPrice: number,
-  ) => {
+  ): boolean => {
     if (!canAddMore(variantId)) {
       toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
-      return
+      return false
     }
     setCart((prev) => {
       // A tap adds to the plain line; a line with notes is a different order and stays as it is.
@@ -555,6 +600,32 @@ export function CafePosPage() {
       lastLineRef.current = lineKey
       return [...prev, { lineKey, variantId, productName, variantName, unitPrice, costPrice, quantity: 1, notes: '' }]
     })
+    return true
+  }
+
+  // A tile tap: a drink with one size goes straight in; with several, the size picker opens on the last one sold here.
+  const openProduct = (product: ProductResponse, fromSearch = false) => {
+    const sizes = product.variants.filter((v) => v.isActive)
+    if (sizes.length === 0) return
+    if (sizes.length === 1) {
+      const [only] = sizes
+      if (addToCart(only.id, product.name, only.name, only.salePrice, only.costPrice) && fromSearch) setProductSearch('')
+      return
+    }
+    const last = readLastSize(product.id)
+    setSizePicker({ product, selectedId: sizes.some((v) => v.id === last) ? last! : sizes[0].id, fromSearch })
+  }
+
+  const pickSize = (variantId: string) => {
+    if (!sizePicker) return
+    const { product, fromSearch } = sizePicker
+    const variant = product.variants.find((v) => v.id === variantId)
+    if (!variant) return
+    // Out of stock keeps the picker open so another size can be chosen.
+    if (!addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)) return
+    rememberLastSize(product.id, variant.id)
+    if (fromSearch) setProductSearch('')
+    setSizePicker(null)
   }
 
   // ── AI cashier cart ops ─────────────────────────────────────────────────────
@@ -613,7 +684,7 @@ export function CafePosPage() {
   const getAiCartSnapshot = (): AiCashierCartSnapshot => {
     const lines = aiCartRef.current.map((i) => ({
       variantId: i.variantId,
-      name: (i.variantName && i.variantName !== i.productName ? `${i.productName} - ${i.variantName}` : i.productName) + (i.notes ? ` (${i.notes})` : ''),
+      name: lineDisplayName(i.productName, i.variantName) + (i.notes ? ` (${i.notes})` : ''),
       quantity: i.quantity,
       lineTotal: Math.round(i.unitPrice * i.quantity * 100) / 100,
     }))
@@ -926,14 +997,22 @@ export function CafePosPage() {
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────
 
+  // Enter in the search: a scanned or typed barcode/SKU adds that exact size; otherwise the best match is
+  // tapped, which adds a single-size drink or opens its size picker.
   const addFirstMatch = () => {
-    for (const product of products) {
-      const variant = product.variants.find((v) => v.isActive)
-      if (variant) {
-        addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)
-        setProductSearch('')
-        return
+    if (searchTerm) {
+      for (const product of products) {
+        const variant = exactCodeVariant(product, searchTerm)
+        if (variant) {
+          if (addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)) setProductSearch('')
+          return
+        }
       }
+    }
+    const top = products[0]
+    if (top) {
+      openProduct(top, true)
+      return
     }
     if (searchTerm) toast.error('لا يوجد منتج مطابق', productSearch)
   }
@@ -1128,7 +1207,7 @@ export function CafePosPage() {
                         <p className="truncate text-sm font-semibold text-fg">
                           {item.productName}
                         </p>
-                        {item.variantName && item.variantName !== 'افتراضي' && item.variantName !== item.productName && (
+                        {!isPlainVariant(item.variantName, item.productName) && (
                           <p className="text-xs text-muted">{item.variantName}</p>
                         )}
                         <p className="text-xs font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
@@ -1628,37 +1707,41 @@ export function CafePosPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                  {products.flatMap((product) =>
-                    product.variants
-                      .filter((v) => v.isActive)
-                      .map((variant) => (
-                        <button
-                          key={variant.id}
-                          onClick={() =>
-                            addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)
-                          }
-                          className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-2.5 text-start transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md active:translate-y-0 active:scale-[0.98]"
-                        >
-                          {/* product art: the photo when there is one, otherwise its initial on a mint tile */}
-                          <span className="mb-2.5 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl bg-brand-soft font-display text-3xl font-semibold text-brand-ink transition-colors duration-200 group-hover:bg-brand group-hover:text-brand-fg">
-                            {product.imageUrl ? (
-                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                            ) : (
-                              product.name.trim().charAt(0)
-                            )}
-                          </span>
-                          <p className="px-0.5 text-sm font-semibold leading-snug text-fg">
-                            {product.name}
-                          </p>
-                          {variant.name && variant.name !== 'افتراضي' && variant.name !== 'Standard' && variant.name !== product.name && (
-                            <p className="px-0.5 text-xs text-muted">{variant.name}</p>
+                  {products.map((product) => {
+                    // One tile per drink: a single size shows its price, several show the lowest as "from".
+                    const sizes = product.variants.filter((v) => v.isActive)
+                    const only = sizes.length === 1 ? sizes[0] : null
+                    const lowest = Math.min(...sizes.map((v) => v.salePrice))
+                    return (
+                      <button
+                        key={product.id}
+                        onClick={() => openProduct(product)}
+                        className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-2.5 text-start transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md active:translate-y-0 active:scale-[0.98]"
+                      >
+                        {/* product art: the photo when there is one, otherwise its initial on a mint tile */}
+                        <span className="mb-2.5 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl bg-brand-soft font-display text-3xl font-semibold text-brand-ink transition-colors duration-200 group-hover:bg-brand group-hover:text-brand-fg">
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            product.name.trim().charAt(0)
                           )}
-                          <p className="mt-auto px-0.5 pt-2 font-display text-sm font-semibold tabular-nums text-brand-ink">
-                            {formatCurrency(variant.salePrice)}
-                          </p>
-                        </button>
-                      )),
-                  )}
+                        </span>
+                        <p className="px-0.5 text-sm font-semibold leading-snug text-fg">
+                          {product.name}
+                        </p>
+                        {only ? (
+                          !isPlainVariant(only.name, product.name) && (
+                            <p className="px-0.5 text-xs text-muted">{only.name}</p>
+                          )
+                        ) : (
+                          <p className="px-0.5 text-xs text-muted">{t.pos.sizesCount.replace('{n}', String(sizes.length))}</p>
+                        )}
+                        <p className="mt-auto px-0.5 pt-2 font-display text-sm font-semibold tabular-nums text-brand-ink">
+                          {only ? formatCurrency(only.salePrice) : t.pos.fromPrice.replace('{price}', formatCurrency(lowest))}
+                        </p>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -1666,6 +1749,59 @@ export function CafePosPage() {
           </main>
         </div>
       </ShiftGate>
+
+      {/* ── Size Picker Modal: the last size sold here is focused, so Enter or one tap adds it ── */}
+      <Modal
+        open={!!sizePicker}
+        onClose={() => setSizePicker(null)}
+        title={sizePicker ? `${t.pos.pickSize} · ${sizePicker.product.name}` : t.pos.pickSize}
+        size="md"
+      >
+        {sizePicker && (
+          <div
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+            onKeyDown={(e) => {
+              // Arrow keys walk the sizes; Enter presses the focused one.
+              if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+              const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button'))
+              const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
+              if (at === -1 || buttons.length === 0) return
+              e.preventDefault()
+              const rtl = getComputedStyle(e.currentTarget).direction === 'rtl'
+              const forward = e.key === 'ArrowDown' || e.key === (rtl ? 'ArrowLeft' : 'ArrowRight')
+              buttons[(at + (forward ? 1 : buttons.length - 1)) % buttons.length].focus()
+            }}
+          >
+            {sizePicker.product.variants
+              .filter((v) => v.isActive)
+              .map((v) => {
+                const selected = v.id === sizePicker.selectedId
+                const out = !canAddMore(v.id)
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    data-autofocus={selected || undefined}
+                    onClick={() => pickSize(v.id)}
+                    className={cn(
+                      'flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-4 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+                      selected ? 'border-brand bg-brand-soft' : 'border-border bg-surface hover:border-brand',
+                      out && 'opacity-50',
+                    )}
+                  >
+                    <span className="text-lg font-bold leading-snug text-fg">
+                      {isPlainVariant(v.name, sizePicker.product.name) ? sizePicker.product.name : v.name}
+                    </span>
+                    <span className="font-display text-base font-semibold tabular-nums text-brand-ink">
+                      {formatCurrency(v.salePrice)}
+                    </span>
+                    {out && <span className="text-xs font-medium text-danger">{t.pos.sizeOutOfStock}</span>}
+                  </button>
+                )
+              })}
+          </div>
+        )}
+      </Modal>
 
       {/* ── Table Picker Modal ── */}
       {showTablePicker && (

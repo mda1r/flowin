@@ -56,8 +56,10 @@ internal sealed class KitchenTicketRequestedRestaurantHandler(
         }
     }
 
-    // "Latte - Large" when the size matters; the default variant adds nothing.
-    private static string ItemName(KitchenTicketRequestedDomainEvent.Line line)
+    // "Latte - Large" when the size matters; the default variant adds nothing. The plain-variant list
+    // (empty, افتراضي, Standard, Default, the product's own name) mirrors isPlainVariant in
+    // frontend/src/lib/variantName.ts, so the ticket and the till name a size the same way: change both together.
+    internal static string ItemName(KitchenTicketRequestedDomainEvent.Line line)
     {
         string variant = line.VariantName.Trim();
         bool plain = variant.Length == 0 || variant is "افتراضي" or "Standard" or "Default" || variant == line.Name.Trim();

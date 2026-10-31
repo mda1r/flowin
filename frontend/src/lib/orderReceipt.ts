@@ -1,5 +1,6 @@
 import type { OrderResponse, RefundMethod, ReturnOrderResponse, ReturnReason } from '@/types/api'
 import type { ReceiptLine } from '@/components/pos/ReceiptDocument'
+import { lineDisplayName } from '@/lib/variantName'
 
 const r2 = (v: number) => Math.round(v * 100) / 100
 
@@ -29,8 +30,7 @@ const REASON_LABEL: Record<ReturnReason, string> = {
   Other: 'سبب آخر',
 }
 
-const lineName = (l: { productName: string; variantName: string }) =>
-  l.variantName && !['Standard', 'افتراضي', l.productName].includes(l.variantName) ? `${l.productName} - ${l.variantName}` : l.productName
+const lineName = (l: { productName: string; variantName: string }) => lineDisplayName(l.productName, l.variantName)
 
 /* A saved order shown as a customer receipt. The server keeps net prices; the receipt shows lines and the
    discounts with VAT included (what the customer saw), then the net subtotal, the VAT and the total.

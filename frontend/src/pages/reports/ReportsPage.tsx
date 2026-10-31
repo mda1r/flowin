@@ -27,6 +27,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { toast } from '@/components/ui/Toast'
 import { localDaysToUtcRange } from '@/lib/dates'
 import { cn, formatCurrency } from '@/lib/utils'
+import { isPlainVariant } from '@/lib/variantName'
 import { downloadCsv } from '@/lib/csv'
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { printElement } from '@/lib/print'
@@ -580,7 +581,7 @@ function ReportsContent() {
                             </span>
                             <div className="flex-1 min-w-0">
                               <p className="truncate text-sm font-medium text-fg">{p.productName}</p>
-                              {p.variantName && p.variantName !== p.productName && (
+                              {!isPlainVariant(p.variantName, p.productName) && (
                                 <p className="text-xs text-muted">{p.variantName}</p>
                               )}
                               <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2">
