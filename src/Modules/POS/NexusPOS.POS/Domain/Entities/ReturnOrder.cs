@@ -18,6 +18,11 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
 
     public List<ReturnOrderLine> Lines { get; private set; } = [];
 
+    // The refund split for the books: the pre-tax value of the returned lines, and the VAT given back
+    // on top of it. Reports take both off sales and output VAT (a credit note reverses the original tax).
+    public decimal NetAmount => Math.Round(Lines.Sum(l => l.LineTotal), 4);
+    public decimal TaxAmount => RefundAmount - NetAmount;
+
     private ReturnOrder() { }
 
     public static ErrorOr<ReturnOrder> Create(

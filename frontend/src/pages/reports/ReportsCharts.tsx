@@ -3,6 +3,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, RefOb
 import { Card } from '@/components/ui/Card'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { OrderResponse } from '@/types/api'
+import { orderCost, orderNet, type ReportSummary } from './reportMath'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    flowin analytics — pure SVG + CSS charts
@@ -28,8 +29,7 @@ const TEAL_INK = `color-mix(in srgb, ${TEAL} 72%, var(--color-text, #111))`
 
 interface Props {
   orders: OrderResponse[]
-  stats: { totalSubtotal: number; totalTax: number; totalCogs: number }
-  returnTotal: number
+  summary: ReportSummary
 }
 
 // ── Data builders ────────────────────────────────────────────────────────────
@@ -71,10 +71,10 @@ function buildDailyData(orders: OrderResponse[]): DailyPoint[] {
   for (const o of orders) {
     const d = new Date(o.completedAt ?? o.createdAt)
     const key = dayKey(d)
-    const cogs = o.lines.reduce((s, l) => s + (l.costPrice ?? 0) * l.quantity, 0)
+    const net = orderNet(o)
     const p = map.get(key) ?? makeDay(d)
-    p.revenue = +(p.revenue + o.subtotalAmount).toFixed(2)
-    p.net = +(p.net + Math.max(0, o.subtotalAmount - cogs)).toFixed(2)
+    p.revenue = +(p.revenue + net).toFixed(2)
+    p.net = +(p.net + Math.max(0, net - orderCost(o))).toFixed(2)
     p.orders += 1
     map.set(key, p)
   }
@@ -108,7 +108,7 @@ function buildHourlyData(orders: OrderResponse[]): HourlyPoint[] {
   for (const o of orders) {
     const h = new Date(o.completedAt ?? o.createdAt).getHours()
     counts[h].orders += 1
-    counts[h].revenue += o.subtotalAmount
+    counts[h].revenue += orderNet(o)
   }
   return counts
 }
@@ -617,7 +617,7 @@ function RevenueWave({ data, reduced }: { data: DailyPoint[]; reduced: boolean }
         <FloatingTip x={hover.px} y={hover.py}>
           <TipTitle>{hp.fullLabel}</TipTitle>
           <TipRow color={TEAL} label="الإيرادات" value={formatCurrency(hp.revenue)} />
-          <TipRow color="rgb(var(--border))" label="الصافي" value={formatCurrency(hp.net)} dashed />
+          <TipRow color="rgb(var(--border))" label="الربح" value={formatCurrency(hp.net)} dashed />
           <div style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
             {hp.orders} طلب
           </div>
@@ -869,7 +869,7 @@ function TripleRing({ rings, margin, gross, returnTotal, reduced }: {
           className="block w-full"
           style={{ direction: 'ltr', overflow: 'visible' }}
           role="img"
-          aria-label="تركيبة الإيرادات: الصافي والتكلفة والضريبة"
+          aria-label="تركيبة الإيرادات: الربح والتكلفة والضريبة"
         >
           {rings.map((rg, i) => {
             const r = RING_RADII[i] ?? 30
@@ -1128,7 +1128,7 @@ function WaveLegend({ peakDay }: { peakDay: DailyPoint | null }) {
       </span>
       <span className="inline-flex items-center gap-2 text-xs text-muted">
         <span className="inline-block w-5 border-t-2 border-dashed" style={{ borderColor: 'var(--color-text-muted, #9ca3af)' }} />
-        الصافي بعد التكلفة
+        الربح بعد التكلفة
       </span>
       {peakDay && peakDay.revenue > 0 && (
         <span className="ms-auto text-xs text-muted tabular-nums">
@@ -1145,21 +1145,25 @@ function WaveLegend({ peakDay }: { peakDay: DailyPoint | null }) {
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0)
 
-export function ReportsCharts({ orders, stats, returnTotal }: Props) {
+export function ReportsCharts({ orders, summary }: Props) {
   const reduced = usePrefersReducedMotion()
   const daily = useMemo(() => buildDailyData(orders), [orders])
   const hourly = useMemo(() => buildHourlyData(orders), [orders])
   const products = useMemo(() => buildProductData(orders), [orders])
 
-  const gross = stats.totalSubtotal
-  const netRev = Math.max(0, gross - stats.totalCogs - returnTotal)
-  const margin = pct(netRev, gross)
+  // Shares are of the period's sales before VAT and after discounts; returns are shown under the rings.
+  const gross = summary.sales
+  const profit = Math.max(0, summary.grossProfit)
+  const cogs = Math.max(0, summary.netCogs)
+  const vat = Math.max(0, summary.netVat)
+  const margin = Math.max(0, summary.margin)
+  const returnNet = summary.returns.net
 
   const rings = useMemo<RingDatum[]>(() => [
-    { key: 'net',  label: 'الصافي',  hint: 'صافي الإيراد بعد التكلفة والمرتجعات', color: TEAL,   value: netRev,          frac: clamp01(netRev / gross) },
-    { key: 'cogs', label: 'التكلفة', hint: 'تكلفة البضاعة المباعة',               color: ORANGE, value: stats.totalCogs, frac: clamp01(stats.totalCogs / gross) },
-    { key: 'tax',  label: 'الضريبة', hint: 'ضريبة القيمة المضافة المحصّلة',       color: AMBER,  value: stats.totalTax,  frac: clamp01(stats.totalTax / gross) },
-  ], [netRev, gross, stats.totalCogs, stats.totalTax])
+    { key: 'net',  label: 'الربح',   hint: 'الربح الإجمالي بعد التكلفة والمرتجعات', color: TEAL,   value: profit, frac: clamp01(profit / gross) },
+    { key: 'cogs', label: 'التكلفة', hint: 'تكلفة البضاعة المباعة بعد المرتجعات',  color: ORANGE, value: cogs,   frac: clamp01(cogs / gross) },
+    { key: 'tax',  label: 'الضريبة', hint: 'صافي ضريبة القيمة المضافة بعد المرتجعات', color: AMBER,  value: vat,    frac: clamp01(vat / gross) },
+  ], [profit, gross, cogs, vat])
 
   const activeDays = daily.filter(d => d.orders > 0).length
   const avgDaily = activeDays > 0 ? gross / activeDays : 0
@@ -1188,7 +1192,7 @@ export function ReportsCharts({ orders, stats, returnTotal }: Props) {
         <Card className="lg:col-span-2">
           <ChartHeader
             title="موجة الإيرادات"
-            subtitle="الإيرادات اليومية والصافي بعد التكلفة"
+            subtitle="المبيعات اليومية قبل الضريبة والربح بعد التكلفة"
             aside={<Chip label="متوسط اليوم" value={formatCurrency(avgDaily)} />}
           />
           <div className="p-4 pb-3">
@@ -1219,11 +1223,11 @@ export function ReportsCharts({ orders, stats, returnTotal }: Props) {
         <Card>
           <ChartHeader
             title="تركيبة الإيرادات"
-            subtitle="الصافي والتكلفة والضريبة"
+            subtitle="الربح والتكلفة والضريبة"
             aside={<Chip label="الإجمالي" value={formatCurrency(gross)} />}
           />
           <div className="p-5 pt-4">
-            <TripleRing rings={rings} margin={margin} gross={gross} returnTotal={returnTotal} reduced={reduced} />
+            <TripleRing rings={rings} margin={margin} gross={gross} returnTotal={returnNet} reduced={reduced} />
           </div>
         </Card>
 

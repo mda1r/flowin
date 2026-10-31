@@ -92,26 +92,8 @@ internal sealed class ReturnOrderCommandHandler(
         returnOrderRepository.Add(returnResult.Value);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return MapToResponse(returnResult.Value);
+        // Unit cost of each returned line, taken from the sale it came from.
+        Dictionary<Guid, decimal> lineCosts = order.Lines.ToDictionary(l => l.Id.Value, l => l.CostPrice);
+        return ReturnOrderMapper.ToResponse(returnResult.Value, lineCosts);
     }
-
-    private static ReturnOrderResponse MapToResponse(ReturnOrderEntity r) => new(
-        r.Id.Value,
-        r.OriginalOrderId,
-        r.TenantId,
-        r.BranchId,
-        r.Currency,
-        r.RefundAmount,
-        r.RefundMethod,
-        r.CreatedAt,
-        r.Lines.Select(l => new ReturnOrderLineResponse(
-            l.Id.Value,
-            l.OriginalLineId,
-            l.VariantId,
-            l.ProductName,
-            l.VariantName,
-            l.Quantity,
-            l.UnitPrice,
-            l.LineTotal,
-            l.Reason)).ToList());
 }
