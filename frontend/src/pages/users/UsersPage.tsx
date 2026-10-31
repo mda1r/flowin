@@ -158,7 +158,7 @@ function PagePermModal({
         </>
       }
     >
-      <div dir="rtl" className="space-y-3">
+      <div className="space-y-3">
         <p className="text-xs text-muted">{t.users.selectPages}</p>
         <div className="flex gap-2 text-xs">
           <button onClick={selectAll} className="text-brand-ink hover:underline">{t.users.selectAll}</button>
@@ -405,7 +405,7 @@ export function UsersPage() {
   const iconBtn = 'rounded-lg p-1.5 text-muted transition-colors disabled:opacity-40'
 
   return (
-    <div className="p-8" dir="rtl">
+    <div className="p-8">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -558,7 +558,7 @@ export function UsersPage() {
             </>
           }
         >
-          <form className="space-y-4" dir="rtl">
+          <form className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input label={t.settings.firstName} error={errors.firstName?.message} {...register('firstName')} />
               <Input label={t.settings.lastName} error={errors.lastName?.message} {...register('lastName')} />

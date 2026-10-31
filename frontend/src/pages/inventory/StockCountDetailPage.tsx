@@ -215,7 +215,7 @@ export function StockCountDetailPage() {
   const locale = intlLocale(lang)
 
   return (
-    <div className="flex flex-col gap-6 p-6" dir="rtl">
+    <div className="flex flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">

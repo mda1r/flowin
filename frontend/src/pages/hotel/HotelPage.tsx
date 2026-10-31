@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-import { Modal, ConfirmModal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal, OverlayDialog } from '@/components/ui/Modal'
 import { hotelApi } from '@/api/hotel'
 import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
@@ -208,7 +208,7 @@ export function HotelPage() {
   ).length
 
   return (
-    <div dir="rtl">
+    <div>
       <PageHeader
         title={t.hotel.title}
         description="إدارة الغرف والحجوزات والتنظيف"
@@ -989,7 +989,7 @@ function AddRoomModal({
         </>
       }
     >
-      <form className="space-y-4" dir="rtl">
+      <form className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="رقم الغرفة"
@@ -1076,11 +1076,9 @@ function HotelReceiptModal({
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div data-print-area className="relative mx-4 w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl">
+    <OverlayDialog onClose={onClose} labelledBy="hotel-invoice-title" backdropClassName="bg-black/50" panelClassName="rounded-2xl bg-surface p-6 shadow-2xl" printArea>
         <div className="mb-4 text-center">
-          <h2 className="text-lg font-bold text-fg">{t.hotel.taxInvoice}</h2>
+          <h2 id="hotel-invoice-title" className="text-lg font-bold text-fg">{t.hotel.taxInvoice}</h2>
           <p className="text-xs text-muted">flowin</p>
           {vatNumber && <p className="text-xs text-muted">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
@@ -1144,7 +1142,6 @@ function HotelReceiptModal({
           <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.cancel}</Button>
           <Button variant="primary" onClick={(e) => printElement(e.currentTarget.closest('[data-print-area]'))} className="flex-1">{t.common.print}</Button>
         </div>
-      </div>
-    </div>
+    </OverlayDialog>
   )
 }

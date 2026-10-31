@@ -156,7 +156,7 @@ export function InvoicesPage() {
     )
 
   return (
-    <div dir="rtl">
+    <div>
       <PageHeader
         title={t.invoices.title}
         description="كل فواتير الفرع، بحثاً وفرزاً وطباعةً ومشاركة"

@@ -259,7 +259,7 @@ export function ContractsPage() {
   }
 
   return (
-    <div dir="rtl">
+    <div>
       <PageHeader
         title={t.contracts.title}
         description="إنشاء عقود الإيجار وطباعتها وإدارتها"
@@ -559,7 +559,7 @@ function ContractModal({
         </>
       }
     >
-      <form className="max-h-[65vh] overflow-y-auto space-y-5 pr-1" dir="rtl">
+      <form className="max-h-[65vh] overflow-y-auto space-y-5 pr-1">
         {/* ── Parties ── */}
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">أطراف العقد</p>

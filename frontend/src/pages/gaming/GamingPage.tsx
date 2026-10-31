@@ -250,7 +250,7 @@ export function GamingPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div dir="rtl">
+    <div>
       <PageHeader
         title={t.gaming.title}
         description="إدارة محطات الألعاب والجلسات"

@@ -23,7 +23,7 @@ import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
-import { ConfirmModal } from '@/components/ui/Modal'
+import { ConfirmModal, OverlayDialog } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
@@ -167,8 +167,7 @@ function KitchenTicketModal({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-      <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
+    <OverlayDialog onClose={onClose} label="تذكرة المطبخ" closeOnBackdrop={false} panelClassName="w-80 rounded-2xl bg-surface shadow-2xl">
         <div id="cafe-kitchen-print" className="p-5">
           {/* Header */}
           <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
@@ -237,8 +236,7 @@ function KitchenTicketModal({
             إغلاق
           </button>
         </div>
-      </div>
-    </div>
+    </OverlayDialog>
   )
 }
 
@@ -270,8 +268,7 @@ function CustomerReceiptModal({
     `تقسيم — نقد ${formatCurrency(receipt.splitCash ?? 0)} / بطاقة ${formatCurrency(receipt.splitCard ?? 0)}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-      <div className="w-[22rem] max-w-full overflow-hidden rounded-2xl bg-surface shadow-2xl">
+    <OverlayDialog onClose={onClose} label="فاتورة العميل" closeOnBackdrop={false} panelClassName="w-[22rem] rounded-2xl bg-surface shadow-2xl">
         <div className="max-h-[62vh] overflow-y-auto p-5">
           <ReceiptDocument
             id="cafe-receipt-print"
@@ -357,8 +354,7 @@ function CustomerReceiptModal({
             إغلاق
           </button>
         </div>
-      </div>
-    </div>
+    </OverlayDialog>
   )
 }
 
@@ -413,6 +409,10 @@ export function CafePosPage() {
   // Gaming
   const [startSessionForm, setStartSessionForm] = useState<StartSessionForm | null>(null)
   const [gamingBill, setGamingBill] = useState<GameSessionBillResponse | null>(null)
+  const closeGamingBill = () => {
+    if (gamingBill && !gamingBill.paidAt) toast.warning('الجلسة غير مدفوعة', 'ستظهر كغير محصّلة في الإقفال اليومي')
+    setGamingBill(null)
+  }
   const [gamingNow, setGamingNow] = useState(() => Date.now())
 
   // Shift
@@ -988,7 +988,7 @@ export function CafePosPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" dir="rtl" style={CAFE_ACCENT}>
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" style={CAFE_ACCENT}>
       <OfflineBanner />
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
       <ConfirmModal
@@ -1669,17 +1669,14 @@ export function CafePosPage() {
 
       {/* ── Table Picker Modal ── */}
       {showTablePicker && (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowTablePicker(false)}
-          dir="rtl"
+        <OverlayDialog
+          onClose={() => setShowTablePicker(false)}
+          labelledBy="cafe-table-picker-title"
+          backdropClassName="bg-black/50"
+          panelClassName="w-72 rounded-2xl bg-surface shadow-2xl"
         >
-          <div
-            className="w-72 rounded-2xl bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h3 className="font-bold text-fg">اختر طاولة</h3>
+              <h3 id="cafe-table-picker-title" className="font-bold text-fg">اختر طاولة</h3>
               <button onClick={() => setShowTablePicker(false)} className="text-muted hover:text-fg">
                 <X className="h-4 w-4" />
               </button>
@@ -1691,8 +1688,7 @@ export function CafePosPage() {
                 setShowTablePicker(false)
               }}
             />
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       {/* ── Shift Modals ── */}
@@ -1717,12 +1713,16 @@ export function CafePosPage() {
 
       {/* ── Start Gaming Session Modal ── */}
       {startSessionForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-          <div className="w-80 rounded-2xl bg-surface shadow-2xl">
+        <OverlayDialog
+          onClose={() => setStartSessionForm(null)}
+          labelledBy="cafe-start-session-title"
+          closeOnBackdrop={false}
+          panelClassName="w-80 rounded-2xl bg-surface shadow-2xl"
+        >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{STATION_ICON[startSessionForm.stationTypeKey] ?? '🎮'}</span>
-                <h3 className="font-bold text-fg">{startSessionForm.stationName}</h3>
+                <h3 id="cafe-start-session-title" className="font-bold text-fg">{startSessionForm.stationName}</h3>
               </div>
               <button onClick={() => setStartSessionForm(null)} className="text-muted hover:text-fg">
                 <X className="h-4 w-4" />
@@ -1828,14 +1828,17 @@ export function CafePosPage() {
                 إلغاء
               </button>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       {/* ── Gaming Bill Modal ── */}
       {gamingBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
-          <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
+        <OverlayDialog
+          onClose={closeGamingBill}
+          label="فاتورة جلسة ألعاب"
+          closeOnBackdrop={false}
+          panelClassName="w-80 rounded-2xl bg-surface shadow-2xl"
+        >
             <div id="gaming-bill-print" className="p-5">
               <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
                 <div className="mb-1 text-3xl">{STATION_ICON[gamingBill.stationType] ?? '🎮'}</div>
@@ -1897,18 +1900,14 @@ export function CafePosPage() {
                   طباعة
                 </button>
                 <button
-                  onClick={() => {
-                    if (!gamingBill.paidAt) toast.warning('الجلسة غير مدفوعة', 'ستظهر كغير محصّلة في الإقفال اليومي')
-                    setGamingBill(null)
-                  }}
+                  onClick={closeGamingBill}
                   className="flex flex-1 items-center justify-center rounded-xl py-2 text-sm text-muted hover:bg-surface-2 hover:text-fg transition-colors"
                 >
                   {gamingBill.paidAt ? 'إغلاق' : 'لاحقاً'}
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       {/* ── AI Cashier Agent overlay ── */}

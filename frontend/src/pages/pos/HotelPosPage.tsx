@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { OverlayDialog } from '@/components/ui/Modal'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BedDouble, LogIn, LogOut, X, Sparkles, CalendarPlus, XCircle } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -139,7 +140,7 @@ export function HotelPosPage() {
   }
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={HOTEL_ACCENT}>
+    <div className="flex h-[calc(100vh-0px)] flex-col" style={HOTEL_ACCENT}>
       <PageHeader title="نقطة البيع — الفندق" />
 
       {/* Stats bar */}
@@ -284,15 +285,18 @@ export function HotelPosPage() {
 
       {/* Check-in modal — crystalline glass */}
       {showCheckIn && selectedRoom && (
-        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={HOTEL_ACCENT}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeCheckIn} />
-          <div
-            className="glass-panel relative mx-4 w-full max-w-md animate-float-up p-6"
-            style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
-          >
+        <OverlayDialog
+          onClose={closeCheckIn}
+          labelledBy="hotel-checkin-title"
+          className="scene-3d"
+          style={HOTEL_ACCENT}
+          backdropClassName="bg-black/60 backdrop-blur-sm"
+          panelClassName="glass-panel max-w-md animate-float-up p-6"
+          panelStyle={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
+        >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">{t.hotel.checkIn}</h2>
+                <h2 id="hotel-checkin-title" className="text-base font-semibold">{t.hotel.checkIn}</h2>
                 <p className="text-xs text-muted">
                   غرفة {selectedRoom.roomNumber} — {roomTypeLabel(selectedRoom.roomType)}
                 </p>
@@ -416,21 +420,23 @@ export function HotelPosPage() {
                 {t.hotel.checkIn}
               </Button>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       {/* Check-out modal — crystalline glass */}
       {showCheckOut && selectedRoom && selectedRoom.activeReservation && (
-        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={HOTEL_ACCENT}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeCheckOut} />
-          <div
-            className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6"
-            style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
-          >
+        <OverlayDialog
+          onClose={closeCheckOut}
+          labelledBy="hotel-checkout-title"
+          className="scene-3d"
+          style={HOTEL_ACCENT}
+          backdropClassName="bg-black/60 backdrop-blur-sm"
+          panelClassName="glass-panel animate-float-up p-6"
+          panelStyle={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
+        >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">{t.hotel.checkOut}</h2>
+                <h2 id="hotel-checkout-title" className="text-base font-semibold">{t.hotel.checkOut}</h2>
                 <p className="text-xs text-muted">غرفة {selectedRoom.roomNumber}</p>
               </div>
               <button onClick={closeCheckOut}>
@@ -526,8 +532,7 @@ export function HotelPosPage() {
                 {t.common.confirm}
               </Button>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       <ExtendStayModal

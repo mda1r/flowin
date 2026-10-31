@@ -82,6 +82,11 @@ export const ar: Translations = {
     required: 'مطلوب',
     optional: 'اختياري',
     submitting: 'جاري الحفظ...',
+    openMenu: 'فتح القائمة',
+    closeMenu: 'إغلاق القائمة',
+    mainMenu: 'القائمة الرئيسية',
+    collapseMenu: 'طي القائمة',
+    expandMenu: 'توسيع القائمة',
   },
 
   login: {
