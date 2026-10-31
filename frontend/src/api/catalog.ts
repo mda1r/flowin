@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { CategoryResponse, ProductResponse } from '@/types/api'
+import type { CategoryResponse, ProductResponse, ProductVariantResponse } from '@/types/api'
 
 export const catalogApi = {
   // Categories — tenant determined from auth token, no tenantId in URL
@@ -57,13 +57,27 @@ export const catalogApi = {
     imageUrl?: string
   }) => apiClient.put<ProductResponse>(`/api/v1/products/${productId}`, data),
 
+  // Omitted sku/barcode keep the stored values; an empty barcode clears it.
   updateVariant: (productId: string, variantId: string, data: {
     name: string
     costPrice: number
     salePrice: number
     currency: string
     barcode?: string
-  }) => apiClient.patch(`/api/v1/products/${productId}/variants/${variantId}`, data),
+    sku?: string
+  }) => apiClient.patch<ProductVariantResponse>(`/api/v1/products/${productId}/variants/${variantId}`, data),
+
+  addVariant: (productId: string, data: {
+    sku: string
+    name: string
+    costPrice: number
+    salePrice: number
+    currency: string
+    barcode?: string
+  }) => apiClient.post<ProductVariantResponse>(`/api/v1/products/${productId}/variants`, data),
+
+  setVariantStatus: (productId: string, variantId: string, isActive: boolean) =>
+    apiClient.patch<ProductVariantResponse>(`/api/v1/products/${productId}/variants/${variantId}/status`, { isActive }),
 
   deactivateProduct: (productId: string) =>
     apiClient.delete(`/api/v1/products/${productId}`),

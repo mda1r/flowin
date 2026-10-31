@@ -38,7 +38,7 @@ public sealed class ProductVariant : Entity<VariantId>
             Name = name.Trim(),
             CostPrice = costPrice,
             SalePrice = salePrice,
-            Barcode = barcode?.Trim(),
+            Barcode = NormalizeBarcode(barcode),
             ExpiryDate = expiryDate,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -74,13 +74,24 @@ public sealed class ProductVariant : Entity<VariantId>
         return true;
     }
 
+    // A null barcode keeps the current one; an empty barcode clears it.
     internal void UpdateDetails(string name, string? barcode)
     {
         Name = name.Trim();
-        Barcode = barcode?.Trim();
+        if (barcode is not null)
+        {
+            Barcode = NormalizeBarcode(barcode);
+        }
     }
+
+    internal void ChangeSku(Sku sku) => Sku = sku;
+
+    internal static string? NormalizeBarcode(string? barcode) =>
+        string.IsNullOrWhiteSpace(barcode) ? null : barcode.Trim();
 
     internal void SetExpiryDate(DateTime? expiryDate) => ExpiryDate = expiryDate;
 
     internal void Deactivate() => IsActive = false;
+
+    internal void Activate() => IsActive = true;
 }
