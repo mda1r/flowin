@@ -1,5 +1,6 @@
 using ErrorOr;
 using NexusPOS.Catalog.Application.Common;
+using NexusPOS.Catalog.Application.Services;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.Repositories;
 using NexusPOS.Catalog.Domain.ValueObjects;
@@ -7,7 +8,7 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Catalog.Application.Queries.ListProducts;
 
-internal sealed class ListProductsQueryHandler(IProductRepository productRepository)
+internal sealed class ListProductsQueryHandler(IProductRepository productRepository, ProductModifierReader modifierReader)
     : IQueryHandler<ListProductsQuery, IReadOnlyList<ProductResponse>>
 {
     public async Task<ErrorOr<IReadOnlyList<ProductResponse>>> Handle(
@@ -20,12 +21,16 @@ internal sealed class ListProductsQueryHandler(IProductRepository productReposit
                 ? await productRepository.FindByCategoryAsync(new CategoryId(request.CategoryId.Value), request.Limit, cancellationToken)
                 : await productRepository.FindAllActiveAsync(request.Limit, cancellationToken);
 
-        IReadOnlyList<ProductResponse> responses = products.Select(MapToResponse).ToList();
+        IReadOnlyDictionary<Guid, IReadOnlyList<ProductModifierGroupResponse>> modifiers =
+            await modifierReader.ForProductsAsync([.. products.Select(p => p.Id)], cancellationToken);
+        IReadOnlyList<ProductResponse> responses =
+            [.. products.Select(p => MapToResponse(p, ProductModifierReader.For(modifiers, p.Id.Value)))];
 
         return ErrorOrFactory.From(responses);
     }
 
-    internal static ProductResponse MapToResponse(Product p) => new(
+    internal static ProductResponse MapToResponse(
+        Product p, IReadOnlyList<ProductModifierGroupResponse>? modifierGroups = null) => new(
         p.Id.Value,
         p.Name,
         p.Description,
@@ -40,5 +45,6 @@ internal sealed class ListProductsQueryHandler(IProductRepository productReposit
         p.Variants.Select(v => new ProductVariantResponse(
             v.Id.Value, v.Sku.Value, v.Name,
             v.CostPrice.Amount, v.SalePrice.Amount, v.SalePrice.Currency,
-            v.Barcode, v.IsActive, v.ExpiryDate)).ToList());
+            v.Barcode, v.IsActive, v.ExpiryDate)).ToList(),
+        modifierGroups);
 }

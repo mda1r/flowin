@@ -1,0 +1,3 @@
+namespace NexusPOS.Catalog.Application.Commands.CreateModifierGroup;
+
+internal sealed class CreateModifierGroupCommandValidator : ModifierGroupInputValidator<CreateModifierGroupCommand>;

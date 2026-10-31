@@ -22,6 +22,18 @@ public sealed class ManagementAuthorizationTests
     public void CategoriesController_WriteAction_RequiresPolicy(string action) =>
         PolicyOf(typeof(CategoriesController), action).Should().Be("OwnerOrManager");
 
+    [Theory]
+    [InlineData(nameof(ModifierGroupsController.Create))]
+    [InlineData(nameof(ModifierGroupsController.Update))]
+    [InlineData(nameof(ModifierGroupsController.Deactivate))]
+    [InlineData(nameof(ModifierGroupsController.SetProductGroups))]
+    public void ModifierGroupsController_WriteAction_RequiresPolicy(string action) =>
+        PolicyOf(typeof(ModifierGroupsController), action).Should().Be("OwnerOrManager");
+
+    [Fact]
+    public void ModifierGroupsController_List_IsOpenToTheTill() =>
+        PolicyOf(typeof(ModifierGroupsController), nameof(ModifierGroupsController.List)).Should().BeNull();
+
     private static string? PolicyOf(Type controller, string action) =>
         controller.GetMethod(action)!.GetCustomAttributes<AuthorizeAttribute>().SingleOrDefault()?.Policy;
 }

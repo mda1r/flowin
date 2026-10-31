@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, FlaskConical, ScanBarcode, Power } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, FlaskConical, ScanBarcode, Power, Layers } from 'lucide-react'
 import { recipesApi } from '@/api/recipes'
 import { RecipeModal, type RecipeCopySource } from './RecipeModal'
+import { ModifierGroupsModal } from './ModifierGroupsModal'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -57,6 +58,9 @@ export function ProductsPage() {
   const [deactivatingVariant, setDeactivatingVariant] = useState<{ productId: string; variant: ProductVariantResponse } | null>(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [showModifiers, setShowModifiers] = useState(false)
+  // The edited product's add-on groups, in the order the till will ask them.
+  const [editGroupIds, setEditGroupIds] = useState<string[]>([])
   const { branchId, tenantId, user } = useAuthStore()
   // Catalog writes are Owner/Manager-only on the server; cashiers get a read-only list.
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
@@ -124,6 +128,12 @@ export function ProductsPage() {
   const { data: categories } = useQuery({
     queryKey: ['categories', tenantId],
     queryFn: () => catalogApi.listCategories(),
+  })
+
+  const { data: modifierGroups } = useQuery({
+    queryKey: ['modifier-groups'],
+    queryFn: () => catalogApi.listModifierGroups(),
+    enabled: canManage && !!editingProduct,
   })
 
   const createForm = useForm<CreateFormData>({
@@ -205,17 +215,28 @@ export function ProductsPage() {
   })
 
   const updateProduct = useMutation({
-    mutationFn: (data: EditProductFormData) =>
-      catalogApi.updateProduct(editingProduct!.id, {
+    mutationFn: async (data: EditProductFormData) => {
+      const product = editingProduct!
+      const result = await catalogApi.updateProduct(product.id, {
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
         // Not editable here: send the stored values back so an edit never resets them.
-        taxClass: editingProduct!.taxClass,
-        imageUrl: editingProduct!.imageUrl,
+        taxClass: product.taxClass,
+        imageUrl: product.imageUrl,
         trackInventory: data.trackInventory,
         unitType: data.unitType,
-      }),
+      })
+      const before = (product.modifierGroups ?? []).map((g) => g.id)
+      if (before.join() !== editGroupIds.join()) {
+        try {
+          await catalogApi.setProductModifierGroups(product.id, editGroupIds)
+        } catch (err) {
+          toast.error(t.products.productGroupsFailed, apiErrorMessage(err))
+        }
+      }
+      return result
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
       setEditingProduct(null)
@@ -308,6 +329,7 @@ export function ProductsPage() {
       trackInventory: product.trackInventory,
       unitType: product.unitType ?? 'Piece',
     })
+    setEditGroupIds((product.modifierGroups ?? []).map((g) => g.id))
     setEditingProduct(product)
   }
 
@@ -347,7 +369,11 @@ export function ProductsPage() {
         title={t.products.title}
         description={t.products.subtitle}
         action={canManage && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setShowModifiers(true)}>
+              <Layers className="h-4 w-4" />
+              {t.products.modifiers}
+            </Button>
             <Button variant="secondary" onClick={() => { categoryForm.reset(); setShowCategoryModal(true) }}>
               <Plus className="h-4 w-4" />
               {t.products.newCategory}
@@ -418,6 +444,12 @@ export function ProductsPage() {
                             )}
                           </div>
                           <p className="text-xs text-muted">{product.description ?? '—'}</p>
+                          {(product.modifierGroups?.length ?? 0) > 0 && (
+                            <p className="mt-0.5 flex items-center gap-1 text-xs text-brand-ink">
+                              <Layers className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{product.modifierGroups!.map((g) => g.name).join('، ')}</span>
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           {firstVariant && (
@@ -578,6 +610,8 @@ export function ProductsPage() {
         </Card>
       </div>
 
+      {canManage && <ModifierGroupsModal open={showModifiers} onClose={() => setShowModifiers(false)} />}
+
       {recipeVariant && (
         <RecipeModal variant={recipeVariant} copySources={recipeVariant.copySources} onClose={() => setRecipeVariant(null)} />
       )}
@@ -699,6 +733,45 @@ export function ProductsPage() {
             <input type="checkbox" {...editProductForm.register('trackInventory')} className="rounded" />
             {t.products.trackInventory}
           </label>
+          {canManage && (
+            <fieldset className="space-y-2 rounded-xl border border-border p-3">
+              <legend className="px-1 text-sm font-medium text-fg">{t.products.productGroups}</legend>
+              {(modifierGroups?.data ?? []).length === 0 ? (
+                <p className="text-xs text-muted">{t.products.noGroupsToAttach}</p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted">{t.products.productGroupsHint}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(modifierGroups?.data ?? []).map((g) => {
+                      const position = editGroupIds.indexOf(g.id)
+                      const on = position >= 0
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            setEditGroupIds((ids) => (on ? ids.filter((id) => id !== g.id) : [...ids, g.id]))
+                          }
+                          className={cn(
+                            'inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm transition-colors',
+                            on ? 'border-brand bg-brand-soft font-medium text-brand-ink' : 'border-border bg-surface text-muted hover:text-fg',
+                          )}
+                        >
+                          {on && (
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-xs text-brand-fg tabular-nums">
+                              {position + 1}
+                            </span>
+                          )}
+                          {g.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </fieldset>
+          )}
         </form>
       </Modal>
 

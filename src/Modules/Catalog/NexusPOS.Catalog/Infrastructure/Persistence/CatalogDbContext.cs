@@ -10,4 +10,7 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options,
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<ModifierGroup> ModifierGroups => Set<ModifierGroup>();
+    public DbSet<ModifierOption> ModifierOptions => Set<ModifierOption>();
+    public DbSet<ProductModifierGroup> ProductModifierGroups => Set<ProductModifierGroup>();
 }

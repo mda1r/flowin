@@ -25,6 +25,8 @@ public static class CatalogServiceExtensions
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IVariantPriceDirectory, VariantPriceDirectory>();
+        services.AddScoped<IModifierOptionDirectory, ModifierOptionDirectory>();
+        services.AddScoped<ProductModifierReader>();
 
         return services;
     }

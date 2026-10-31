@@ -108,6 +108,40 @@ export interface ProductResponse {
   imageUrl?: string
   createdAt: string
   variants: ProductVariantResponse[]
+  // Filled by the list, by-id and barcode reads (active groups in the product's order, active options only); null after a write.
+  modifierGroups?: ProductModifierGroupResponse[] | null
+}
+
+// ── Modifiers (add-ons) ──────────────────────────────────────────────────────
+
+// priceDelta is net of VAT, like order line prices; screens add VAT before showing it.
+export interface ModifierOptionResponse {
+  id: string
+  name: string
+  priceDelta: number
+  isActive: boolean
+  sortOrder: number
+}
+
+export interface ModifierGroupResponse {
+  id: string
+  name: string
+  isRequired: boolean
+  minSelect: number
+  maxSelect: number
+  sortOrder: number
+  isActive: boolean
+  options: ModifierOptionResponse[]
+  productIds: string[]
+}
+
+export interface ProductModifierGroupResponse {
+  id: string
+  name: string
+  isRequired: boolean
+  minSelect: number
+  maxSelect: number
+  options: ModifierOptionResponse[]
 }
 
 // ── Inventory ────────────────────────────────────────────────────────────────

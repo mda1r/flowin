@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { CategoryResponse, ProductResponse, ProductVariantResponse } from '@/types/api'
+import type { CategoryResponse, ModifierGroupResponse, ProductResponse, ProductVariantResponse } from '@/types/api'
 
 export const catalogApi = {
   // Categories — tenant determined from auth token, no tenantId in URL
@@ -81,4 +81,31 @@ export const catalogApi = {
 
   deactivateProduct: (productId: string) =>
     apiClient.delete(`/api/v1/products/${productId}`),
+
+  // Modifier (add-on) groups — tenant from the token. Option prices are net of VAT.
+  listModifierGroups: (params?: { includeInactive?: boolean }) =>
+    apiClient.get<ModifierGroupResponse[]>('/api/v1/modifier-groups', { params }),
+
+  createModifierGroup: (data: ModifierGroupPayload) =>
+    apiClient.post<ModifierGroupResponse>('/api/v1/modifier-groups', data),
+
+  // options replaces the list: send an option's id to keep it (old orders point at it), leave it out to remove it.
+  updateModifierGroup: (groupId: string, data: ModifierGroupPayload) =>
+    apiClient.put<ModifierGroupResponse>(`/api/v1/modifier-groups/${groupId}`, data),
+
+  deactivateModifierGroup: (groupId: string) =>
+    apiClient.delete(`/api/v1/modifier-groups/${groupId}`),
+
+  // Replaces the product's groups, in the order the till asks them; [] detaches all.
+  setProductModifierGroups: (productId: string, groupIds: string[]) =>
+    apiClient.put(`/api/v1/products/${productId}/modifier-groups`, { groupIds }),
+}
+
+export interface ModifierGroupPayload {
+  name: string
+  isRequired: boolean
+  minSelect: number
+  maxSelect: number
+  sortOrder: number
+  options: { id?: string; name: string; priceDelta: number; isActive: boolean; sortOrder: number }[]
 }

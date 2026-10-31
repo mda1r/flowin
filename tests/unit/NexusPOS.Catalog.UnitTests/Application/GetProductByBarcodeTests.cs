@@ -1,13 +1,18 @@
 using ErrorOr;
 using FluentAssertions;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using NexusPOS.Catalog.Application.Common;
 using NexusPOS.Catalog.Application.Queries.GetProductByBarcode;
+using NexusPOS.Catalog.Application.Services;
 using NexusPOS.Catalog.Domain;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.Enums;
 using NexusPOS.Catalog.Domain.Repositories;
 using NexusPOS.Catalog.Domain.ValueObjects;
+using NexusPOS.Catalog.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Catalog.UnitTests.Application;
 
@@ -27,6 +32,7 @@ public sealed class GetProductByBarcodeTests
         result.IsError.Should().BeFalse();
         result.Value.Name.Should().Be("أرز بسمتي");
         result.Value.Variants.Should().ContainSingle(v => v.Barcode == "6281000000017");
+        result.Value.ModifierGroups.Should().BeEmpty();
     }
 
     [Fact]
@@ -46,5 +52,11 @@ public sealed class GetProductByBarcodeTests
         _products.Verify(r => r.FindByBarcodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private GetProductByBarcodeQueryHandler Handler() => new(_products.Object);
+    private GetProductByBarcodeQueryHandler Handler()
+    {
+        CatalogDbContext db = new(
+            new DbContextOptionsBuilder<CatalogDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options,
+            new Mock<IPublisher>().Object);
+        return new(_products.Object, new ProductModifierReader(db, new Mock<ITenantContext>().Object));
+    }
 }

@@ -1,5 +1,7 @@
 using ErrorOr;
 using NexusPOS.Catalog.Application.Common;
+using NexusPOS.Catalog.Application.Queries.ListProducts;
+using NexusPOS.Catalog.Application.Services;
 using NexusPOS.Catalog.Domain;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.Repositories;
@@ -8,7 +10,7 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Catalog.Application.Queries.GetProductById;
 
-internal sealed class GetProductByIdQueryHandler(IProductRepository productRepository)
+internal sealed class GetProductByIdQueryHandler(IProductRepository productRepository, ProductModifierReader modifierReader)
     : IQueryHandler<GetProductByIdQuery, ProductResponse>
 {
     public async Task<ErrorOr<ProductResponse>> Handle(
@@ -23,21 +25,8 @@ internal sealed class GetProductByIdQueryHandler(IProductRepository productRepos
             return CatalogErrors.ProductNotFound;
         }
 
-        return new ProductResponse(
-            product.Id.Value,
-            product.Name,
-            product.Description,
-            product.CategoryId?.Value,
-            product.Type,
-            product.TaxClass,
-            product.IsActive,
-            product.TrackInventory,
-            product.UnitType,
-            product.ImageUrl,
-            product.CreatedAt,
-            product.Variants.Select(v => new ProductVariantResponse(
-                v.Id.Value, v.Sku.Value, v.Name,
-                v.CostPrice.Amount, v.SalePrice.Amount, v.SalePrice.Currency,
-                v.Barcode, v.IsActive, v.ExpiryDate)).ToList());
+        IReadOnlyDictionary<Guid, IReadOnlyList<ProductModifierGroupResponse>> modifiers =
+            await modifierReader.ForProductsAsync([product.Id], cancellationToken);
+        return ListProductsQueryHandler.MapToResponse(product, ProductModifierReader.For(modifiers, product.Id.Value));
     }
 }
