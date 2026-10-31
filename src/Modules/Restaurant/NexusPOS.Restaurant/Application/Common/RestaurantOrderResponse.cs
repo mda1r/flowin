@@ -22,4 +22,6 @@ public sealed record RestaurantOrderResponse(
     IReadOnlyList<RestaurantOrderItemResponse> Items,
     bool KitchenOnly = false,
     Guid? SourceOrderId = null,
-    long? TicketNumber = null);
+    long? TicketNumber = null,
+    string? CancelReason = null,
+    DateTime? CancelledAt = null);

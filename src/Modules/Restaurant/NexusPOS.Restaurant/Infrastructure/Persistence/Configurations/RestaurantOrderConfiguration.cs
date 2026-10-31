@@ -41,6 +41,13 @@ internal sealed class RestaurantOrderConfiguration : IEntityTypeConfiguration<Re
         builder.Property(o => o.KitchenOnly).HasColumnName("kitchen_only").IsRequired();
         builder.Property(o => o.SourceOrderId).HasColumnName("source_order_id");
         builder.Property(o => o.TicketNumber).HasColumnName("ticket_number");
+        builder.Property(o => o.CancelReason).HasColumnName("cancel_reason").HasMaxLength(256);
+        builder.Property(o => o.CancelledBy).HasColumnName("cancelled_by");
+        builder.Property(o => o.CancelledAt).HasColumnName("cancelled_at");
+
+        // PostgreSQL's own row version (a system column, so nothing is created): a till that saves an order
+        // someone else changed since it was read fails instead of overwriting, e.g. a round added to a paid bill.
+        builder.Property<uint>("xmin").HasColumnName("xmin").IsRowVersion();
 
         builder.HasMany(o => o.Items)
             .WithOne()

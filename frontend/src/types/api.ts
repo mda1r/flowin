@@ -453,6 +453,8 @@ export interface RestaurantOrderResponse {
   kitchenOnly?: boolean
   sourceOrderId?: string | null
   ticketNumber?: number | null
+  cancelReason?: string
+  cancelledAt?: string
 }
 
 export interface DiscountCodeResponse {

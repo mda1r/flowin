@@ -8,12 +8,16 @@ import type {
   DiscountCodeType,
 } from '@/types/api'
 
+// The server prices each line from the menu; the till only says which dish and how many.
 export interface OrderItemInput {
   menuItemId: string
-  itemName: string
   quantity: number
-  unitPrice: number
   notes?: string
+}
+
+export interface OrderPaymentInput {
+  paymentMethod: 'Cash' | 'Card'
+  amountTendered: number
 }
 
 export const restaurantApi = {
@@ -35,7 +39,6 @@ export const restaurantApi = {
   createMenuItem: (
     branchId: string,
     data: {
-      tenantId: string
       name: string
       description?: string
       category: MenuCategory
@@ -91,18 +94,42 @@ export const restaurantApi = {
       `/api/v1/branches/${branchId}/restaurant/orders/by-table/${tableNumber}`,
     ),
 
+  // sendToKitchen and payment make opening, sending and paying one call. orderId is the till's own id for the
+  // order: resending a call with it returns the order already made instead of opening or charging another.
   createOrder: (
     branchId: string,
     data: {
-      tenantId: string
       tableNumber: number
       items: OrderItemInput[]
       notes?: string
       discountCode?: string
+      sendToKitchen?: boolean
+      payment?: OrderPaymentInput
+      orderId?: string
     },
   ) =>
     apiClient.post<RestaurantOrderResponse>(
       `/api/v1/branches/${branchId}/restaurant/orders`,
+      data,
+    ),
+
+  addItems: (branchId: string, orderId: string, items: OrderItemInput[]) =>
+    apiClient.post<RestaurantOrderResponse>(
+      `/api/v1/branches/${branchId}/restaurant/orders/${orderId}/items`,
+      { items, sendToKitchen: true },
+    ),
+
+  removeItem: (branchId: string, orderId: string, itemId: string) =>
+    apiClient.delete<RestaurantOrderResponse>(
+      `/api/v1/branches/${branchId}/restaurant/orders/${orderId}/items/${itemId}`,
+    ),
+
+  payTable: (
+    branchId: string,
+    data: { tableNumber: number; orderIds: string[] } & OrderPaymentInput,
+  ) =>
+    apiClient.post<RestaurantOrderResponse[]>(
+      `/api/v1/branches/${branchId}/restaurant/orders/pay-table`,
       data,
     ),
 
@@ -141,33 +168,32 @@ export const restaurantApi = {
       data,
     ),
 
-  cancelOrder: (branchId: string, orderId: string) =>
+  cancelOrder: (branchId: string, orderId: string, reason: string) =>
     apiClient.post<RestaurantOrderResponse>(
       `/api/v1/branches/${branchId}/restaurant/orders/${orderId}/cancel`,
+      { reason },
     ),
 
   // ── Discount Codes ─────────────────────────────────────────────────────────
-  listDiscountCodes: (branchId: string, tenantId: string) =>
+  // The tenant comes from the signed-in user, never from the request.
+  listDiscountCodes: (branchId: string) =>
     apiClient.get<DiscountCodeResponse[]>(
       `/api/v1/branches/${branchId}/restaurant/discounts`,
-      { params: { tenantId } },
     ),
 
   validateDiscountCode: (
     branchId: string,
-    tenantId: string,
     code: string,
     orderAmount: number,
   ) =>
     apiClient.get<ValidateDiscountCodeResponse>(
       `/api/v1/branches/${branchId}/restaurant/discounts/validate`,
-      { params: { tenantId, code, orderAmount } },
+      { params: { code, orderAmount } },
     ),
 
   createDiscountCode: (
     branchId: string,
     data: {
-      tenantId: string
       code: string
       type: DiscountCodeType
       value: number

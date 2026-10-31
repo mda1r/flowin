@@ -41,6 +41,21 @@ internal sealed class RestaurantOrderRepository(RestaurantDbContext dbContext) :
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RestaurantOrder>> FindOpenByTableAsync(
+        Guid branchId,
+        int tableNumber,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.RestaurantOrders
+            .Include(o => o.Items)
+            .Where(o => o.BranchId == branchId
+                && o.TableNumber == tableNumber
+                && !o.KitchenOnly
+                && _activeStatuses.Contains(o.Status))
+            .OrderBy(o => o.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<RestaurantOrder>> FindByTableAsync(
         Guid branchId,
         int tableNumber,

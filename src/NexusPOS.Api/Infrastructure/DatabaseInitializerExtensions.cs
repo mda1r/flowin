@@ -466,6 +466,23 @@ internal static class DatabaseInitializerExtensions
         }
     }
 
+    internal static async Task MigrateRestaurantColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        RestaurantDbContext restaurantDb = sp.GetRequiredService<RestaurantDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancel_reason VARCHAR(256)",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_by UUID",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await restaurantDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Restaurant migration skipped: {Sql}", sql); }
+        }
+    }
+
     internal static async Task MigrateCatalogColumnsAsync(IServiceProvider sp, ILogger logger)
     {
         CatalogDbContext catalogDb = sp.GetRequiredService<CatalogDbContext>();

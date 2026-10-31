@@ -100,6 +100,15 @@ public sealed class DiscountCode : AggregateRoot<DiscountCodeId>
         UsedCount++;
     }
 
+    // A cancelled order gives its use back.
+    public void DecrementUsage()
+    {
+        if (UsedCount > 0)
+        {
+            UsedCount--;
+        }
+    }
+
     public void Deactivate()
     {
         IsActive = false;

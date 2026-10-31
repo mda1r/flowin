@@ -34,6 +34,10 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public Guid? SourceOrderId { get; private set; }
     public long? TicketNumber { get; private set; }
 
+    public string? CancelReason { get; private set; }
+    public Guid? CancelledBy { get; private set; }
+    public DateTime? CancelledAt { get; private set; }
+
     public List<RestaurantOrderItem> Items { get; private set; } = [];
 
     public const decimal VatRate = 0.15m;
@@ -50,7 +54,8 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         IEnumerable<(Guid MenuItemId, string ItemName, int Quantity, decimal UnitPrice, string? Notes)> itemsData,
         string? notes,
         string? discountCode,
-        decimal discountAmount)
+        decimal discountAmount,
+        Guid? id = null)
     {
         var items = itemsData.ToList();
         if (items.Count == 0)
@@ -63,31 +68,22 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
             return RestaurantErrors.InvalidTableNumber;
         }
 
-        // Menu prices include VAT, as on the cafe menu: the customer pays the listed price less any discount,
-        // and the VAT is the share of that total.
-        decimal subTotal = Math.Round(items.Sum(i => i.UnitPrice * i.Quantity), 4);
-        decimal effectiveDiscount = Math.Min(discountAmount, subTotal);
-        decimal total = Math.Round(subTotal - effectiveDiscount, 4);
-        decimal taxAmount = Math.Round(total * VatRate / (1 + VatRate), 4);
-
         RestaurantOrder order = new RestaurantOrder
         {
-            Id = new RestaurantOrderId(Guid.NewGuid()),
+            Id = new RestaurantOrderId(id ?? Guid.NewGuid()),
             TenantId = tenantId,
             BranchId = branchId,
             TableNumber = tableNumber,
             Status = RestaurantOrderStatus.Pending,
             Notes = notes?.Trim(),
             AppliedDiscountCode = discountCode?.Trim().ToUpperInvariant(),
-            DiscountAmount = effectiveDiscount,
-            SubTotal = subTotal,
-            TaxAmount = taxAmount,
-            Total = total,
+            DiscountAmount = discountAmount,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             Items = items.Select(i =>
                 RestaurantOrderItem.Create(i.MenuItemId, i.ItemName, i.Quantity, i.UnitPrice, i.Notes)).ToList(),
         };
+        order.RecalculateTotals();
 
         order.RaiseDomainEvent(new RestaurantOrderCreatedDomainEvent(
             order.Id.Value, tenantId, branchId, tableNumber));
@@ -134,6 +130,79 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
 
         order.RaiseDomainEvent(new RestaurantOrderCreatedDomainEvent(order.Id.Value, tenantId, branchId, table));
         return order;
+    }
+
+    // Menu prices include VAT, as on the cafe menu: the customer pays the listed price less any discount,
+    // and the VAT is the share of that total. The discount never exceeds what is left on the bill.
+    private void RecalculateTotals()
+    {
+        SubTotal = Math.Round(Items.Sum(i => i.UnitPrice * i.Quantity), 4);
+        DiscountAmount = Math.Min(DiscountAmount, SubTotal);
+        Total = Math.Round(SubTotal - DiscountAmount, 4);
+        TaxAmount = Math.Round(Total * VatRate / (1 + VatRate), 4);
+    }
+
+    // A further round for a table that already has an open order. Once the order has reached the kitchen,
+    // the new lines go there too, so a ready or served order is back in the kitchen until they are done.
+    public ErrorOr<IReadOnlyList<RestaurantOrderItem>> AddItems(
+        IEnumerable<(Guid MenuItemId, string ItemName, int Quantity, decimal UnitPrice, string? Notes)> itemsData)
+    {
+        if (Status is RestaurantOrderStatus.Paid or RestaurantOrderStatus.Cancelled || KitchenOnly)
+        {
+            return RestaurantErrors.OrderNotModifiable;
+        }
+
+        List<RestaurantOrderItem> added =
+        [
+            .. itemsData.Select(i => RestaurantOrderItem.Create(i.MenuItemId, i.ItemName, i.Quantity, i.UnitPrice, i.Notes)),
+        ];
+        if (added.Count == 0)
+        {
+            return RestaurantErrors.EmptyOrder;
+        }
+
+        Items.AddRange(added);
+        RecalculateTotals();
+        UpdatedAt = DateTime.UtcNow;
+
+        if (Status is RestaurantOrderStatus.Ready or RestaurantOrderStatus.Served)
+        {
+            Status = RestaurantOrderStatus.InKitchen;
+            RaiseDomainEvent(new OrderSentToKitchenDomainEvent(Id.Value, TenantId, BranchId, TableNumber));
+        }
+
+        return added;
+    }
+
+    // Voids one line the kitchen has not finished. A ready line has been cooked, and the last line can only
+    // go by cancelling the whole order, so a reason is recorded.
+    public ErrorOr<RestaurantOrderItem> RemoveItem(RestaurantOrderItemId itemId)
+    {
+        if (Status is RestaurantOrderStatus.Paid or RestaurantOrderStatus.Cancelled)
+        {
+            return RestaurantErrors.OrderNotModifiable;
+        }
+
+        RestaurantOrderItem? item = Items.Find(i => i.Id == itemId);
+        if (item is null)
+        {
+            return RestaurantErrors.OrderItemNotFound;
+        }
+
+        if (item.Status == OrderItemStatus.Ready)
+        {
+            return RestaurantErrors.OrderItemAlreadyReady;
+        }
+
+        if (Items.Count == 1)
+        {
+            return RestaurantErrors.LastOrderItem;
+        }
+
+        Items.Remove(item);
+        RecalculateTotals();
+        UpdatedAt = DateTime.UtcNow;
+        return item;
     }
 
     public ErrorOr<Success> SendToKitchen()
@@ -251,7 +320,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         return Result.Success;
     }
 
-    public ErrorOr<Success> Cancel()
+    public ErrorOr<Success> Cancel(string reason, Guid? cancelledBy)
     {
         if (Status == RestaurantOrderStatus.Paid)
         {
@@ -263,7 +332,15 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
             return RestaurantErrors.OrderAlreadyCancelled;
         }
 
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return RestaurantErrors.CancelReasonRequired;
+        }
+
         Status = RestaurantOrderStatus.Cancelled;
+        CancelReason = reason.Trim();
+        CancelledBy = cancelledBy;
+        CancelledAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
     }
