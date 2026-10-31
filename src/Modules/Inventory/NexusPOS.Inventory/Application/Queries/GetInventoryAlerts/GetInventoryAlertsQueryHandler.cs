@@ -2,6 +2,7 @@ using ErrorOr;
 using NexusPOS.Inventory.Application.Common;
 using NexusPOS.Inventory.Domain.Entities;
 using NexusPOS.Inventory.Domain.Repositories;
+using NexusPOS.Inventory.Domain.Services;
 using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Inventory.Application.Queries.GetInventoryAlerts;
@@ -26,11 +27,12 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
 
         foreach (StockItem item in expiringItems)
         {
+            // Calendar days in Riyadh: 0 is the expiry day itself, negative means already expired.
             int? daysUntilExpiry = item.ExpiryDate.HasValue
-                ? (int)(item.ExpiryDate.Value - now).TotalDays
+                ? StoreCalendar.DaysUntilExpiry(item.ExpiryDate.Value, now)
                 : null;
 
-            bool isExpired = item.ExpiryDate.HasValue && item.ExpiryDate.Value < now;
+            bool isExpired = daysUntilExpiry < 0;
 
             StockAlertItemResponse alert = new(
                 item.Id.Value,
@@ -52,11 +54,10 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
             }
         }
 
-        List<StockAlertItemResponse> lowStock = lowStockItems
+        List<StockAlertItemResponse> lowStock = [.. lowStockItems
             .Select(s => new StockAlertItemResponse(
                 s.Id.Value, s.VariantId, s.BranchId,
-                s.Quantity, s.ReorderPoint, s.ExpiryDate, null, "LowStock"))
-            .ToList();
+                s.Quantity, s.ReorderPoint, s.ExpiryDate, null, "LowStock"))];
 
         InventoryAlertsResponse response = new(
             expired,

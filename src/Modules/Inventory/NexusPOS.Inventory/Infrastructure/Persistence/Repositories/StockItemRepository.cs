@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Inventory.Domain.Entities;
+using NexusPOS.Inventory.Domain.Enums;
 using NexusPOS.Inventory.Domain.Repositories;
+using NexusPOS.Inventory.Domain.Services;
 using NexusPOS.Inventory.Domain.ValueObjects;
 
 namespace NexusPOS.Inventory.Infrastructure.Persistence.Repositories;
@@ -19,16 +21,16 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
                 cancellationToken);
 
     public async Task<IReadOnlyList<StockItem>> FindByBranchAsync(
-        Guid branchId, CancellationToken cancellationToken = default) =>
+        Guid branchId, bool includeArchived = false, CancellationToken cancellationToken = default) =>
         await dbContext.StockItems
-            .Where(s => s.BranchId == branchId)
+            .Where(s => s.BranchId == branchId && (includeArchived || !s.IsArchived))
             .OrderBy(s => s.VariantId)
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockItem>> FindLowStockAsync(
         Guid branchId, CancellationToken cancellationToken = default) =>
         await dbContext.StockItems
-            .Where(s => s.BranchId == branchId && s.ReorderPoint > 0 && s.Quantity <= s.ReorderPoint)
+            .Where(s => s.BranchId == branchId && !s.IsArchived && s.ReorderPoint > 0 && s.Quantity <= s.ReorderPoint)
             .OrderBy(s => s.Quantity)
             .ToListAsync(cancellationToken);
 
@@ -37,13 +39,48 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
     {
         DateTime now = DateTime.UtcNow;
         List<StockItem> allWithExpiry = await dbContext.StockItems
-            .Where(s => s.BranchId == branchId && s.ExpiryDate != null && s.Quantity > 0)
+            .Where(s => s.BranchId == branchId && !s.IsArchived && s.ExpiryDate != null && s.Quantity > 0)
             .OrderBy(s => s.ExpiryDate)
             .ToListAsync(cancellationToken);
 
-        return allWithExpiry
-            .Where(s => s.ExpiryDate!.Value <= now.AddDays(s.NotifyDaysBeforeExpiry))
-            .ToList();
+        return [.. allWithExpiry
+            .Where(s => StoreCalendar.DaysUntilExpiry(s.ExpiryDate!.Value, now) <= s.NotifyDaysBeforeExpiry)];
+    }
+
+    public Task<bool> HasMovementsAsync(StockItemId id, CancellationToken cancellationToken = default) =>
+        dbContext.StockMovements.AnyAsync(m => m.StockItemId == id, cancellationToken);
+
+    public async Task<(IReadOnlyList<StockMovement> Items, int TotalCount)> FindMovementsAsync(
+        StockItemId id,
+        MovementType? type,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<StockMovement> query = dbContext.StockMovements.AsNoTracking().Where(m => m.StockItemId == id);
+        if (type.HasValue)
+        {
+            query = query.Where(m => m.Type == type.Value);
+        }
+        if (fromUtc.HasValue)
+        {
+            query = query.Where(m => m.OccurredAt >= fromUtc.Value);
+        }
+        if (toUtc.HasValue)
+        {
+            query = query.Where(m => m.OccurredAt < toUtc.Value);
+        }
+
+        int total = await query.CountAsync(cancellationToken);
+        List<StockMovement> items = await query
+            .OrderByDescending(m => m.OccurredAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
     }
 
     public void Add(StockItem stockItem) => dbContext.StockItems.Add(stockItem);

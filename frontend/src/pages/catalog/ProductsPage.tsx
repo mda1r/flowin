@@ -152,12 +152,13 @@ export function ProductsPage() {
     if (!branchId) return
     try {
       const stockRes = await inventoryApi.initializeStock(branchId, variantId)
-      const expiryIso = expiryDate ? expiryDate + 'T00:00:00Z' : null
-      if (quantity > 0 || expiryIso) {
-        await inventoryApi.adjustStock(branchId, stockRes.data.id, {
-          newQuantity: quantity,
-          expiryDate: expiryIso,
-          notes: quantity > 0 ? 'كمية أولية عند إنشاء المنتج' : undefined,
+      // Recorded as a receipt so any role that can create products can set it (adjust is manager-only).
+      // An expiry date without stock is not tracked, so it only goes in with a quantity.
+      if (quantity > 0) {
+        await inventoryApi.receiveStock(branchId, stockRes.data.id, {
+          quantity,
+          expiryDate: expiryDate ? expiryDate + 'T00:00:00Z' : null,
+          notes: 'كمية أولية عند إنشاء المنتج',
         })
       }
     } catch {

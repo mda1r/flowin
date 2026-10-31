@@ -149,6 +149,22 @@ export interface StockItemResponse {
   updatedAt: string
   expiryDate?: string
   notifyDaysBeforeExpiry: number
+  isArchived?: boolean
+}
+
+export type MovementType = 'Receive' | 'Sale' | 'Return' | 'TransferIn' | 'TransferOut' | 'Adjustment' | 'WriteOff'
+
+export interface StockMovementResponse {
+  id: string
+  type: MovementType
+  quantity: number
+  quantityBefore: number
+  quantityAfter: number
+  reference?: string | null
+  notes?: string | null
+  occurredAt: string
+  userId?: string | null
+  invoiceNumber?: number | null
 }
 
 export interface StockAlertItemResponse {

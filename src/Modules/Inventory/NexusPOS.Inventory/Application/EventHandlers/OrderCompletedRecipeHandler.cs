@@ -27,7 +27,7 @@ internal sealed class OrderCompletedRecipeHandler(
             await RecipeStockDeduction.DeductAsync(
                 db, notification.TenantId, notification.OrderId,
                 [.. notification.Lines.Select(l => (l.VariantId, l.Quantity))],
-                tenantContext.UserId, cancellationToken);
+                tenantContext.UserId, logger, cancellationToken);
         }
         catch (Exception ex)
         {
