@@ -488,11 +488,30 @@ internal static class DatabaseInitializerExtensions
             )
             """,
             "CREATE INDEX IF NOT EXISTS ix_gaming_packages_branch ON gaming_packages (branch_id, is_active)",
+            // Older duplicates of a station's running session were hidden behind the newest one and never billed;
+            // cancel them so the unique index below can be built.
+            """
+            UPDATE game_sessions g SET status = 'Cancelled', end_time = COALESCE(g.end_time, now())
+            WHERE g.status = 'Active' AND EXISTS (
+                SELECT 1 FROM game_sessions n
+                WHERE n.station_id = g.station_id AND n.status = 'Active'
+                  AND (n.start_time > g.start_time OR (n.start_time = g.start_time AND n.id > g.id)))
+            """,
+            // One running session per station, so two cashiers starting the same station at once cannot both win.
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_game_sessions_active_station ON game_sessions (station_id) WHERE status = 'Active'",
         ];
 
         foreach (string sql in patches)
         {
             try { await gamingDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) when (sql.Contains("ux_game_sessions_active_station", StringComparison.Ordinal))
+            {
+                // Without this index concurrent starts can double-book a station, so make the failure loud.
+                string schema = "?";
+                try { schema = await gamingDb.Database.SqlQueryRaw<string>("SELECT current_schema() AS \"Value\"").FirstOrDefaultAsync() ?? schema; }
+                catch (Exception) { }
+                logger.LogError(ex, "Gaming one-session-per-station index missing in schema {Schema}", schema);
+            }
             catch (Exception ex) { logger.LogWarning(ex, "Gaming migration skipped: {Sql}", sql); }
         }
     }

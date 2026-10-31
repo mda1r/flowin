@@ -5,7 +5,6 @@ using NexusPOS.SharedKernel.Application.Messaging;
 namespace NexusPOS.Gaming.Application.Commands.CreateStation;
 
 public sealed record CreateStationCommand(
-    Guid TenantId,
     Guid BranchId,
     StationType StationType,
     string Name,

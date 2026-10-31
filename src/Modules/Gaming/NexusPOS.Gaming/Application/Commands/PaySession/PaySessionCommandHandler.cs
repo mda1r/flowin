@@ -8,6 +8,7 @@ using NexusPOS.Gaming.Domain.Repositories;
 using NexusPOS.Gaming.Domain.ValueObjects;
 using NexusPOS.Gaming.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.Gaming.Application.Commands.PaySession;
@@ -16,7 +17,8 @@ internal sealed class PaySessionCommandHandler(
     IGameSessionRepository sessions,
     IGameStationRepository stations,
     GamingDbContext db,
-    IPublisher publisher)
+    IPublisher publisher,
+    IExternalSaleInvoices invoices)
     : ICommandHandler<PaySessionCommand, GameSessionBillResponse>
 {
     // Session prices include VAT, like the cafe menu they are sold alongside.
@@ -71,6 +73,12 @@ internal sealed class PaySessionCommandHandler(
         sessions.Update(session);
         await db.SaveChangesAsync(cancellationToken);
 
-        return station is null ? GamingErrors.StationNotFound : GamingMapper.ToBillResponse(session, station);
+        // The receipt carries the same sequential number as the sale POS just recorded.
+        long? invoiceNumber = await invoices.FindNumberAsync(
+            ExternalSaleCompletedDomainEvent.Gaming, session.Id, cancellationToken);
+
+        return station is null
+            ? GamingErrors.StationNotFound
+            : GamingMapper.ToBillResponse(session, station, invoiceNumber);
     }
 }

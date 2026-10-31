@@ -16,6 +16,18 @@ public static class GamingErrors
     public static readonly Error StationNotInUse =
         Error.Conflict("GameStation.NotInUse", "Game station is not currently in use.");
 
+    public static readonly Error StationInUse =
+        Error.Conflict("GameStation.InUse", "أنهِ الجلسة الجارية قبل تحويل الجهاز للصيانة.");
+
+    public static readonly Error StationNotInMaintenance =
+        Error.Conflict("GameStation.NotInMaintenance", "الجهاز ليس في الصيانة.");
+
+    public static readonly Error StationHasActiveSession =
+        Error.Conflict("GameStation.HasActiveSession", "على هذا الجهاز جلسة جارية بالفعل.");
+
+    public static readonly Error RateOverrideNotAllowed =
+        Error.Forbidden("GameSession.RateOverrideNotAllowed", "تغيير سعر الساعة للمالك أو المدير فقط.");
+
     public static readonly Error SessionNotFound =
         Error.NotFound("GameSession.NotFound", "Game session not found.");
 

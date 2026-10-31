@@ -10,6 +10,7 @@ import { ordersApi, posSettingsApi } from '@/api/orders'
 import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency, cn } from '@/lib/utils'
 import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
@@ -34,7 +35,6 @@ import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
 import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
-import { apiErrorMessage } from '@/lib/apiError'
 import { isAxiosError } from 'axios'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
@@ -46,6 +46,8 @@ interface StartSessionForm {
   stationId: string
   stationName: string
   stationTypeKey: string
+  /** The station's own rate; only an owner or manager may start a session at another one. */
+  stationRate: number
   hourlyRate: number
   playerName: string
   durationMinutes: number
@@ -373,6 +375,7 @@ export function CafePosPage() {
     staleTime: 5 * 60_000,
   })
   const posSettings = posSettingsRes?.data ?? DEFAULT_POS_SETTINGS
+  const canManage = isManager
   const [gamingAlertCounts, setGamingAlertCounts] = useState({ expired: 0, warning: 0 })
   const { t } = useI18n()
   const { shift } = useShift()
@@ -830,7 +833,7 @@ export function CafePosPage() {
       return gamingApi.startSession(branchId, form.stationId, {
         playerName: form.playerName,
         durationMinutes: form.durationMinutes,
-        ratePerHour: form.hourlyRate,
+        ratePerHour: canManage && form.hourlyRate !== form.stationRate ? form.hourlyRate : undefined,
         packageId: form.packageId,
       })
     },
@@ -839,7 +842,7 @@ export function CafePosPage() {
       void refetchStations()
       toast.success('تم بدء جلسة الألعاب')
     },
-    onError: () => toast.error('فشل في بدء الجلسة'),
+    onError: (err) => toast.error('فشل في بدء الجلسة', apiErrorMessage(err)),
   })
 
   const endSessionMut = useMutation({
@@ -1489,6 +1492,7 @@ export function CafePosPage() {
                               stationId: station.id,
                               stationName: station.name,
                               stationTypeKey: station.type,
+                              stationRate: station.hourlyRate,
                               hourlyRate: station.hourlyRate,
                               playerName: '',
                               durationMinutes: 60,
@@ -1732,6 +1736,7 @@ export function CafePosPage() {
                 <label className="mb-1.5 block text-sm font-semibold text-fg">
                   {startSessionForm.packageId ? 'سعر الساعة للوقت الإضافي (ر.س)' : 'السعر / ساعة (ر.س)'}
                 </label>
+                {canManage ? (
                 <input
                   type="number"
                   min="0"
@@ -1740,6 +1745,11 @@ export function CafePosPage() {
                   onChange={(e) => setStartSessionForm(f => f && { ...f, hourlyRate: parseFloat(e.target.value) || 0 })}
                   className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-brand text-fg"
                 />
+                ) : (
+                <div className="w-full rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold tabular-nums text-fg">
+                  {formatCurrency(startSessionForm.stationRate)}
+                </div>
+                )}
               </div>
               <div className="rounded-xl bg-brand-soft py-3 text-center">
                 <p className="text-xs text-muted">الإجمالي المتوقع</p>
