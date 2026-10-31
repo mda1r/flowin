@@ -32,6 +32,15 @@ public static class HotelErrors
     public static readonly Error RoomNotOccupied =
         Error.Conflict("Room.NotOccupied", "Room is not currently occupied.");
 
+    public static readonly Error RoomHasActiveReservation =
+        Error.Conflict("Room.HasActiveReservation", "The room has an active reservation. Check the guest out or cancel the reservation first.");
+
+    public static readonly Error RoomOccupiedOnlyByCheckIn =
+        Error.Validation("Room.OccupiedOnlyByCheckIn", "A room becomes occupied only through check-in.");
+
+    public static readonly Error RoomInactive =
+        Error.Conflict("Room.Inactive", "This room has been deactivated.");
+
     // Reservation errors
     public static readonly Error ReservationNotFound =
         Error.NotFound("Reservation.NotFound", "Reservation not found.");
@@ -42,6 +51,9 @@ public static class HotelErrors
     public static readonly Error InvalidCheckoutDate =
         Error.Validation("Reservation.InvalidCheckoutDate", "Check-out date must be after check-in date (at least 1 night).");
 
+    public static readonly Error InvalidExtendDate =
+        Error.Validation("Reservation.InvalidExtendDate", "The new check-out date must be after the current check-out date.");
+
     // Contract errors
     public static readonly Error ContractNotFound =
         Error.NotFound("Contract.NotFound", "Rental contract not found.");
@@ -51,4 +63,13 @@ public static class HotelErrors
 
     public static readonly Error ContractCancelled =
         Error.Conflict("Contract.Cancelled", "This contract has been cancelled.");
+
+    public static readonly Error ContractAlreadyExecuted =
+        Error.Conflict("Contract.AlreadyExecuted", "This contract is already signed.");
+
+    public static readonly Error ContractAlreadyActive =
+        Error.Conflict("Contract.AlreadyActive", "This contract is already active.");
+
+    public static readonly Error ContractLocked =
+        Error.Conflict("Contract.Locked", "A signed or cancelled contract cannot be edited.");
 }

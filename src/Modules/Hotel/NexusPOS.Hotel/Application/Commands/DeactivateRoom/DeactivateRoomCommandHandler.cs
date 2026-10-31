@@ -11,6 +11,7 @@ namespace NexusPOS.Hotel.Application.Commands.DeactivateRoom;
 
 internal sealed class DeactivateRoomCommandHandler(
     IRoomRepository roomRepository,
+    IReservationRepository reservationRepository,
     HotelDbContext dbContext)
     : ICommandHandler<DeactivateRoomCommand, RoomResponse>
 {
@@ -26,7 +27,16 @@ internal sealed class DeactivateRoomCommandHandler(
             return HotelErrors.RoomNotFound;
         }
 
-        room.Deactivate();
+        if (await reservationRepository.FindActiveByRoomAsync(room.Id.Value, cancellationToken) is not null)
+        {
+            return HotelErrors.RoomHasActiveReservation;
+        }
+
+        ErrorOr<Success> result = room.Deactivate();
+        if (result.IsError)
+        {
+            return result.Errors;
+        }
 
         roomRepository.Update(room);
         await dbContext.SaveChangesAsync(cancellationToken);

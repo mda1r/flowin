@@ -20,7 +20,7 @@ internal sealed class SignRentalContractCommandHandler(
         var contract = await repository.FindByIdAsync(
             new RentalContractId(request.ContractId), cancellationToken);
 
-        if (contract is null)
+        if (contract is null || contract.BranchId != request.BranchId)
         {
             return HotelErrors.ContractNotFound;
         }

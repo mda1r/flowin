@@ -70,14 +70,48 @@ public sealed class Reservation : AggregateRoot<ReservationId>
         };
     }
 
-    public ErrorOr<Success> Complete()
+    /// <summary>
+    /// Checks the guest out. Leaving before the booked check-out date bills only the
+    /// nights actually stayed (minimum one); a late check-out keeps the booked nights.
+    /// </summary>
+    public ErrorOr<Success> Complete(DateTime checkedOutAt)
     {
         if (Status != ReservationStatus.Active)
         {
             return HotelErrors.ReservationNotActive;
         }
 
+        if (checkedOutAt.Date < CheckOut.Date)
+        {
+            Nights = Math.Max(1, (checkedOutAt.Date - CheckIn.Date).Days);
+            TotalAmount = Nights * RatePerNight;
+            if (checkedOutAt > CheckIn)
+            {
+                CheckOut = checkedOutAt;
+            }
+        }
+
         Status = ReservationStatus.CheckedOut;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success;
+    }
+
+    /// <summary>Moves the check-out to a later date and re-prices the stay.</summary>
+    public ErrorOr<Success> Extend(DateTime newCheckOut)
+    {
+        if (Status != ReservationStatus.Active)
+        {
+            return HotelErrors.ReservationNotActive;
+        }
+
+        if (newCheckOut.Date <= CheckOut.Date)
+        {
+            return HotelErrors.InvalidExtendDate;
+        }
+
+        CheckOut = newCheckOut;
+        Nights = (newCheckOut.Date - CheckIn.Date).Days;
+        TotalAmount = Nights * RatePerNight;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
     }

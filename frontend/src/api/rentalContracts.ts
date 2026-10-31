@@ -32,4 +32,11 @@ export const rentalContractsApi = {
 
   sign: (branchId: string, contractId: string) =>
     apiClient.post<RentalContractResponse>(`${base(branchId)}/${contractId}/sign`, {}),
+
+  activate: (branchId: string, contractId: string) =>
+    apiClient.post<RentalContractResponse>(`${base(branchId)}/${contractId}/activate`, {}),
+
+  /** Owner/Manager only; signed contracts can't be cancelled. */
+  cancel: (branchId: string, contractId: string) =>
+    apiClient.post<RentalContractResponse>(`${base(branchId)}/${contractId}/cancel`, {}),
 }

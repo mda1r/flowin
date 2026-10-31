@@ -27,6 +27,11 @@ internal sealed class CheckInCommandHandler(
             return HotelErrors.RoomNotFound;
         }
 
+        if (await reservationRepository.FindActiveByRoomAsync(room.Id.Value, cancellationToken) is not null)
+        {
+            return HotelErrors.RoomAlreadyOccupied;
+        }
+
         ErrorOr<Success> occupyResult = room.OccupyRoom();
         if (occupyResult.IsError)
         {

@@ -30,7 +30,6 @@ export const hotelApi = {
   createHotelRoom: (
     branchId: string,
     data: {
-      tenantId: string
       roomType: RoomType
       roomNumber: string
       floor: number
@@ -45,7 +44,6 @@ export const hotelApi = {
     branchId: string,
     roomId: string,
     data: {
-      tenantId: string
       guestName: string
       guestNationalId: string
       guestPhone: string
@@ -63,6 +61,19 @@ export const hotelApi = {
   checkOut: (branchId: string, reservationId: string) =>
     apiClient.post<ReservationResponse>(
       `${base(branchId)}/reservations/${reservationId}/checkout`,
+    ),
+
+  /** Undo a mistaken check-in: the room is freed without a cleaning flag (Owner/Manager). */
+  cancelReservation: (branchId: string, reservationId: string) =>
+    apiClient.post<ReservationResponse>(
+      `${base(branchId)}/reservations/${reservationId}/cancel`,
+    ),
+
+  /** Move the check-out to a later date; nights and total are re-priced server-side. */
+  extendReservation: (branchId: string, reservationId: string, checkOut: string) =>
+    apiClient.patch<ReservationResponse>(
+      `${base(branchId)}/reservations/${reservationId}/extend`,
+      { checkOut },
     ),
 
   markClean: (branchId: string, roomId: string) =>
