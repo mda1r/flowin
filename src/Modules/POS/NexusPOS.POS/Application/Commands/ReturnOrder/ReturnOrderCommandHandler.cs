@@ -97,7 +97,9 @@ internal sealed class ReturnOrderCommandHandler(
         returnOrderRepository.Add(returnResult.Value);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return ReturnOrderMapper.ToResponse(returnResult.Value);
+        // Unit cost of each returned line, taken from the sale it came from.
+        Dictionary<Guid, decimal> lineCosts = order.Lines.ToDictionary(l => l.Id.Value, l => l.CostPrice);
+        return ReturnOrderMapper.ToResponse(returnResult.Value, lineCosts);
     }
 
     // What CRM needs to reverse the sale's loyalty points. The returned share is measured on the lines' net value

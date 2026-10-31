@@ -206,4 +206,21 @@ public sealed class ReturnOrderTests
         e.Loyalty!.CustomerId.Should().Be(_customer);
         e.Loyalty.RefundedToDate.Should().Be(230m);
     }
+
+    // ── Net and VAT split for reports ────────────────────────────────────────
+
+    [Fact]
+    public void Create_SplitsRefundIntoNetAndVat()
+    {
+        Order order = NewOrder();
+        OrderLine line = order.AddLine(Guid.NewGuid(), "لاتيه", "كبير", 50m, 0m, 2m).Value;
+        order.ApplyDiscount(DiscountType.Percentage, 20m);
+        Complete(order);
+
+        ReturnOrder ret = Return(order, [], (line, 2m)).Value;
+
+        ret.NetAmount.Should().Be(80m);
+        ret.TaxAmount.Should().Be(12m);
+        (ret.NetAmount + ret.TaxAmount).Should().Be(ret.RefundAmount);
+    }
 }

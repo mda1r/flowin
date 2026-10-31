@@ -296,6 +296,8 @@ export interface ReturnOrderLineResponse {
   unitPrice: number
   lineTotal: number
   reason: ReturnReason
+  // Unit cost of the original sale line (0 when unknown).
+  costPrice?: number
 }
 
 export interface ReturnOrderResponse {
@@ -306,6 +308,9 @@ export interface ReturnOrderResponse {
   currency: string
   // VAT included.
   refundAmount: number
+  // The refund split into its pre-tax part and the VAT given back.
+  netAmount?: number
+  taxAmount?: number
   refundMethod: RefundMethod
   createdAt: string
   lines: ReturnOrderLineResponse[]
