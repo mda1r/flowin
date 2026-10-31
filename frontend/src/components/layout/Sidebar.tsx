@@ -41,6 +41,7 @@ import {
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { BrandTagline, FlowinLockup, FlowinMark } from '@/components/brand/Brand'
 import { cn } from '@/lib/utils'
+import { useBelowLg } from '@/lib/useBelowLg'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useI18n } from '@/i18n'
@@ -161,20 +162,6 @@ interface SidebarProps {
 
 export function FlowinWordmark({ compact = false }: { compact?: boolean }) {
   return compact ? <FlowinMark framed={false} className="h-9 w-9 text-fg" /> : <FlowinLockup />
-}
-
-const BELOW_LG = '(max-width: 1023.98px)'
-
-/** True below Tailwind's lg breakpoint, where the sidebar is an off-canvas drawer. */
-function useBelowLg() {
-  const [below, setBelow] = useState(() => window.matchMedia(BELOW_LG).matches)
-  useEffect(() => {
-    const mq = window.matchMedia(BELOW_LG)
-    const onChange = () => setBelow(mq.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [])
-  return below
 }
 
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const

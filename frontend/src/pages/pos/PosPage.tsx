@@ -596,6 +596,7 @@ function RetailPosPage() {
         <OverlayDialog
           onClose={() => setShowPayment(false)}
           labelledBy="pos-payment-title"
+          allowPageShortcuts
           className="scene-3d"
           style={RETAIL_ACCENT}
           backdropClassName="bg-black/60 backdrop-blur-sm"

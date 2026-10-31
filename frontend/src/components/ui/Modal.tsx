@@ -159,6 +159,8 @@ interface OverlayDialogProps {
   style?: React.CSSProperties
   /** some overlays must only close through their own buttons */
   closeOnBackdrop?: boolean
+  /** keep the page's useShortcuts keys live while open, e.g. the POS payment step (F5–F9) */
+  allowPageShortcuts?: boolean
 }
 
 /**
@@ -178,6 +180,7 @@ export function OverlayDialog({
   className,
   style,
   closeOnBackdrop = true,
+  allowPageShortcuts,
 }: OverlayDialogProps) {
   const panelRef = useDialogBehavior(open, onClose, 'panel')
   if (!open) return null
@@ -196,6 +199,7 @@ export function OverlayDialog({
         aria-label={labelledBy ? undefined : label}
         tabIndex={-1}
         data-print-area={printArea ? '' : undefined}
+        data-page-shortcuts={allowPageShortcuts ? '' : undefined}
         style={panelStyle}
         className={cn('relative max-h-full w-full min-w-0 max-w-sm overflow-y-auto outline-none', panelClassName)}
       >

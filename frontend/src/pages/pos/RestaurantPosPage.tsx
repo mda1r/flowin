@@ -357,6 +357,7 @@ export function RestaurantPosPage() {
         <OverlayDialog
           onClose={() => setShowPayment(false)}
           labelledBy="pos-payment-title"
+          allowPageShortcuts
           className="scene-3d"
           style={RESTAURANT_ACCENT}
           backdropClassName="bg-black/60 backdrop-blur-sm"

@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react'
 import { Sidebar, FlowinWordmark } from './Sidebar'
 import { authApi } from '@/api/auth'
 import { cn } from '@/lib/utils'
+import { useBelowLg } from '@/lib/useBelowLg'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
 
@@ -17,6 +18,7 @@ export function AppLayout() {
   const { t } = useI18n()
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const wasOpen = useRef(false)
+  const belowLg = useBelowLg()
 
   // The route guard only runs on navigation; a session cleared mid-page (failed token refresh) must also leave.
   useEffect(() => {
@@ -30,6 +32,11 @@ export function AppLayout() {
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
+
+  // the drawer only exists below lg: rotating or widening past it must not leave the page inert
+  useEffect(() => {
+    if (!belowLg) setMobileOpen(false)
+  }, [belowLg])
 
   // drawer open: freeze the page behind it; on close, hand focus back to the hamburger
   useEffect(() => {
@@ -58,7 +65,7 @@ export function AppLayout() {
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
-      <div className="flex min-w-0 flex-1 flex-col" inert={mobileOpen}>
+      <div className="flex min-w-0 flex-1 flex-col" inert={mobileOpen && belowLg}>
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 lg:hidden print:hidden">
           <button
             ref={menuBtnRef}
