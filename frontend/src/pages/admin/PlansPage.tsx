@@ -5,6 +5,7 @@ import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
 import type { BusinessType, SubscriptionPlanResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 const PREDEFINED_FEATURES: { key: string; label: string }[] = [
   { key: 'stock_count', label: 'الجرد المخزني' },
@@ -265,7 +266,7 @@ export function PlansPage() {
 
 function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdated: () => void }) {
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const [editingFeatures, setEditingFeatures] = useState(false)
   const [draftFeatures, setDraftFeatures] = useState<string[]>(plan.features)
 

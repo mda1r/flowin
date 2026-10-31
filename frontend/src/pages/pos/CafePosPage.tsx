@@ -1,3 +1,4 @@
+import { intlLocale } from '@/lib/locale'
 ﻿import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -152,7 +153,7 @@ function KitchenTicketModal({
               طلب المطبخ
             </div>
             <p className="text-xs text-muted">
-              {now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+              {now.toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
             </p>
             <div className="mt-2 flex items-center justify-center gap-2">
               <span className={cn(
@@ -286,7 +287,7 @@ function CustomerReceiptModal({
             message={buildReceiptMessage({
               storeName: sellerName || 'كافيه',
               invoiceNo: invoiceNo({ id: receipt.orderId, number: receipt.number }),
-              date: new Date(receipt.completedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(receipt.completedAt).toLocaleString(intlLocale('ar'), { dateStyle: 'medium', timeStyle: 'short' }),
               items: receipt.items.map((i) => ({
                 name: i.variantName && i.variantName !== 'Standard' ? `${i.productName} - ${i.variantName}` : i.productName,
                 quantity: i.quantity,
@@ -688,7 +689,7 @@ export function CafePosPage() {
       } else {
         toast.success(
           t.pos.orderProcessed,
-          snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString('ar-SA')} نقطة لـ${snapshot.customerName}` : undefined,
+          snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString(intlLocale())} نقطة لـ${snapshot.customerName}` : undefined,
         )
       }
     },
@@ -1656,13 +1657,13 @@ export function CafePosPage() {
                 <div className="flex justify-between">
                   <span className="text-muted">البداية</span>
                   <span className="tabular-nums text-fg">
-                    {new Date(gamingBill.startTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(gamingBill.startTime).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">النهاية</span>
                   <span className="tabular-nums text-fg">
-                    {new Date(gamingBill.endTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(gamingBill.endTime).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="flex justify-between">

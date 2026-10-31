@@ -22,6 +22,7 @@ import type { RoomResponse, ReservationResponse, RoomStatus } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { printElement } from '@/lib/print'
+import { intlLocale } from '@/lib/locale'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -340,7 +341,7 @@ function DashboardTab({
   todayCheckouts: ReservationResponse[]
 }) {
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   return (
     <div className="space-y-6">
       {/* Stats row */}
@@ -453,7 +454,7 @@ function StatCard({
 
 function RoomCard({ room }: { room: RoomResponse }) {
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const res = room.activeReservation
   const daysLeft = res ? daysUntilCheckout(res.checkOut) : null
   const overdue = res ? isCheckoutOverdue(res.checkOut) : false
@@ -550,7 +551,7 @@ function CashierTab({
   onDataChange: () => void
 }) {
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<CheckInFormData>({
     resolver: zodResolver(checkInSchema),
     defaultValues: {
@@ -1011,7 +1012,7 @@ function HotelReceiptModal({
   onClose: () => void
 }) {
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const { data: zatcaSettings } = useQuery({
     queryKey: ['zatca-settings'],
     queryFn: () => zatcaApi.getSettings(),

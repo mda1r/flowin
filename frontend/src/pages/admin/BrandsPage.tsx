@@ -9,6 +9,7 @@ import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
+import { intlLocale } from '@/lib/locale'
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -217,7 +218,7 @@ export function BrandsPage() {
                       <StatusBadge status={brand.status} />
                     </td>
                     <td className="px-4 py-3 text-xs text-muted">
-                      {new Date(brand.createdAt).toLocaleDateString('ar-SA')}
+                      {new Date(brand.createdAt).toLocaleDateString(intlLocale())}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

@@ -22,6 +22,7 @@ import type { SubscriptionStatus, BranchResponse } from '@/types/api'
 import { toast } from '@/components/ui/Toast'
 import { NewSubscriptionModal } from './NewSubscriptionModal'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 function StatusBadge({ status, isActive }: { status?: SubscriptionStatus; isActive: boolean }) {
   const { t } = useI18n()
@@ -52,7 +53,7 @@ export function TenantDetailPage() {
   const { id } = useParams({ from: '/admin/admin/tenants/$id' })
   const qc = useQueryClient()
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const [showSubscribeModal, setShowSubscribeModal] = useState(false)
 
   const { data: tenant, isLoading } = useQuery({

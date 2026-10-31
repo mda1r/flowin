@@ -39,6 +39,7 @@ import {
   TaxExpenseInvoiceResponse,
 } from '@/api/tax'
 import { TaxAiDrawer } from '@/components/tax/TaxAiDrawer'
+import { intlLocale } from '@/lib/locale'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,10 +48,10 @@ type TabKey = 'overview' | 'vatReturn' | 'purchases' | 'issues' | 'ledger'
 // ── Formatters ────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
-  return n.toLocaleString('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n.toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function fmtDate(d: string, locale = 'en-SA') {
+function fmtDate(d: string, locale = intlLocale()) {
   return new Date(d).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
@@ -846,7 +847,7 @@ function LedgerTab({
   const { t, lang } = useI18n()
   const [page, setPage] = useState(1)
   const qc = useQueryClient()
-  const dateLocale = lang === 'ar' ? 'ar-SA' : 'en-SA'
+  const dateLocale = intlLocale(lang)
 
   const { data, isLoading, error } = useQuery<TaxLedgerResult>({
     queryKey: ['tax', 'ledger', periodId, page],
@@ -993,7 +994,7 @@ function PeriodSelector({
   onCreateClick: () => void
 }) {
   const { t, lang } = useI18n()
-  const dateLocale = lang === 'ar' ? 'ar-SA' : 'en-SA'
+  const dateLocale = intlLocale(lang)
   const [open, setOpen] = useState(false)
   const selected = periods.find((p) => p.id === selectedId)
 

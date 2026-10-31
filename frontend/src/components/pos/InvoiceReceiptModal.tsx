@@ -9,6 +9,7 @@ import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
 import { formatCurrency } from '@/lib/utils'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 /* A saved sale opened from the invoices list or a shift report: the store's receipt, printable at roll size,
    and shareable on WhatsApp. A refunded sale says so on the slip and shows how much went back. */
@@ -70,7 +71,7 @@ export function InvoiceReceiptModal({
             message={buildReceiptMessage({
               storeName: sellerName || 'flowin',
               invoiceNo: number,
-              date: new Date(issuedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(issuedAt).toLocaleString(intlLocale('ar'), { dateStyle: 'medium', timeStyle: 'short' }),
               items: figures.lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total })),
               discount: figures.discount,
               vat: figures.tax,

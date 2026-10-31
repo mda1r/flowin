@@ -23,6 +23,7 @@ import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
 import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
+import { intlLocale } from '@/lib/locale'
 
 type Tab = 'overview' | 'members' | 'tax' | 'activity'
 
@@ -365,7 +366,7 @@ function MembersTab({ brandId, members }: MembersTabProps) {
                     <StatusBadge status={m.membershipStatus} />
                   </td>
                   <td className="px-4 py-3 text-xs text-muted">
-                    {new Date(m.linkedAt).toLocaleDateString('ar-SA')}
+                    {new Date(m.linkedAt).toLocaleDateString(intlLocale())}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {m.membershipStatus === 'Active' && (
@@ -601,7 +602,7 @@ export function BrandDetailPage() {
           <div>
             <p className="text-xs text-muted">{t.admin.brands.createdAt}</p>
             <p className="mt-0.5 text-sm font-medium text-fg">
-              {new Date(brand.createdAt).toLocaleDateString('ar-SA')}
+              {new Date(brand.createdAt).toLocaleDateString(intlLocale())}
             </p>
           </div>
         </div>

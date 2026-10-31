@@ -37,6 +37,7 @@ import { orderReceiptFigures, paymentLabel } from '@/lib/orderReceipt'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
+import { intlLocale } from '@/lib/locale'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -769,7 +770,7 @@ function RetailPosPage() {
                       <div className="flex items-center gap-2">
                         <Clock className="h-3.5 w-3.5 shrink-0 text-muted" />
                         <span className="text-xs text-muted">
-                          {new Date(cart.heldAt).toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(cart.heldAt).toLocaleTimeString(intlLocale(lang), { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <p className="mt-0.5 text-sm font-medium text-fg">
@@ -924,7 +925,7 @@ function ZatcaReceiptModal({
             message={buildReceiptMessage({
               storeName: zatcaSettings?.data?.sellerName ?? 'flowin',
               invoiceNo: invoiceNo(order),
-              date: new Date(order.completedAt ?? order.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(order.completedAt ?? order.createdAt).toLocaleString(intlLocale('ar'), { dateStyle: 'medium', timeStyle: 'short' }),
               items: order.lines.map((l) => ({ name: l.productName, quantity: l.quantity, total: l.lineTotal })),
               discount: order.discountAmount || undefined,
               vat: order.taxAmount,

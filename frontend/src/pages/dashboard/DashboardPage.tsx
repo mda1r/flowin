@@ -44,6 +44,7 @@ import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { salesApi } from '@/api/sales'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 /* ────────────────────────────────────────────────────────────────
    animated number counter — snappy ease-out + elastic settle pop.
@@ -217,7 +218,7 @@ function formatOrderTime(iso?: string, lang?: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit' }).format(d)
+  return new Intl.DateTimeFormat(intlLocale(lang), { hour: 'numeric', minute: '2-digit' }).format(d)
 }
 
 function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
@@ -685,7 +686,7 @@ export function DashboardPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? t.dashboard.goodMorning : t.dashboard.goodEvening
   const GreetIcon = hour < 12 ? Sun : hour < 18 ? Sunset : Moon
-  const todayLabel = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US-u-ca-gregory', {
+  const todayLabel = new Intl.DateTimeFormat(intlLocale(lang), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -1048,9 +1049,9 @@ export function DashboardPage() {
                         <p className="text-sm font-medium text-fg">{m.nameAr}</p>
                         <p className="text-xs text-muted">
                           <span className={m.currentQuantityInStorageUnits < 0 ? 'text-danger' : undefined}>
-                            {m.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {m.storageUnit}
+                            {m.currentQuantityInStorageUnits.toLocaleString(intlLocale())} {m.storageUnit}
                           </span>
-                          {m.reorderLevel != null && ` · حد الطلب ${m.reorderLevel.toLocaleString('ar-SA')}`}
+                          {m.reorderLevel != null && ` · حد الطلب ${m.reorderLevel.toLocaleString(intlLocale())}`}
                         </p>
                       </div>
                     </div>
@@ -1061,7 +1062,7 @@ export function DashboardPage() {
                 ))}
                 {lowMaterialsCount > 3 && (
                   <a href="/stock-materials?lowStock=1" className="row-hover block px-6 py-2.5 text-center text-xs font-medium text-info">
-                    و{(lowMaterialsCount - 3).toLocaleString('ar-SA')} مواد أخرى تحت حد الطلب
+                    و{(lowMaterialsCount - 3).toLocaleString(intlLocale())} مواد أخرى تحت حد الطلب
                   </a>
                 )}
               </div>

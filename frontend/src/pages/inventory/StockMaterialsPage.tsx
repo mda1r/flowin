@@ -17,6 +17,7 @@ import type {
   UpdateStockMaterialPayload,
   StockMaterialMovementResponse,
 } from '@/types/stockMaterial'
+import { intlLocale } from '@/lib/locale'
 
 const COST_METHOD_LABELS: Record<string, string> = {
   LastPurchase: 'آخر شراء',
@@ -197,7 +198,7 @@ function MaterialModal({ categories, initial, onSave, onClose, saving, error }: 
           </div>
           {f.storageUnit && f.componentUnit && factor > 0 && (
             <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm text-brand-ink">
-              1 {f.storageUnit} = {factor.toLocaleString('ar-SA')} {f.componentUnit}
+              1 {f.storageUnit} = {factor.toLocaleString(intlLocale())} {f.componentUnit}
             </p>
           )}
         </section>
@@ -265,7 +266,7 @@ function ReceiveModal({ material, onClose }: { material: StockMaterialResponse; 
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
       void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId, material.id] })
-      toast.success(`تم استلام ${q.toLocaleString('ar-SA')} ${material.storageUnit} من ${material.nameAr}`)
+      toast.success(`تم استلام ${q.toLocaleString(intlLocale())} ${material.storageUnit} من ${material.nameAr}`)
       onClose()
     },
     onError: (err) => setError(apiErrorMessage(err)),
@@ -342,7 +343,7 @@ function ReceiveModal({ material, onClose }: { material: StockMaterialResponse; 
           <div>
             <dt className="text-xs text-muted">الكمية بعد الاستلام</dt>
             <dd className="mt-1 font-semibold tabular-nums text-fg">
-              {newQty.toLocaleString('ar-SA')} {material.storageUnit}
+              {newQty.toLocaleString(intlLocale())} {material.storageUnit}
             </dd>
           </div>
           <div>
@@ -409,7 +410,7 @@ function MovementsModal({ material, onClose }: { material: StockMaterialResponse
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td className="whitespace-nowrap px-3 py-2.5 text-muted tabular-nums">
-                    {new Date(r.createdAt.endsWith('Z') ? r.createdAt : `${r.createdAt}Z`).toLocaleString('ar-SA', {
+                    {new Date(r.createdAt.endsWith('Z') ? r.createdAt : `${r.createdAt}Z`).toLocaleString(intlLocale(), {
                       dateStyle: 'medium',
                       timeStyle: 'short',
                     })}
@@ -425,13 +426,13 @@ function MovementsModal({ material, onClose }: { material: StockMaterialResponse
                     dir="ltr"
                   >
                     {r.quantityChange > 0 ? '+' : ''}
-                    {r.quantityChange.toLocaleString('ar-SA')}
+                    {r.quantityChange.toLocaleString(intlLocale())}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-fg">
                     {r.unitCost != null ? `${r.unitCost.toFixed(2)} ر.س` : '—'}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-fg">
-                    {r.quantityAfter.toLocaleString('ar-SA')} {material.storageUnit}
+                    {r.quantityAfter.toLocaleString(intlLocale())} {material.storageUnit}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-fg">{r.costAfter.toFixed(2)} ر.س</td>
                   <td className="px-3 py-2.5 text-muted">{r.note ?? '—'}</td>
@@ -756,14 +757,14 @@ export function StockMaterialsPage() {
                         </td>
                         <td className="px-4 py-3 text-muted">{m.categoryName ?? '—'}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-muted">
-                          1 {m.storageUnit} = {m.conversionFactor.toLocaleString('ar-SA')} {m.componentUnit}
+                          1 {m.storageUnit} = {m.conversionFactor.toLocaleString(intlLocale())} {m.componentUnit}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={cn('font-semibold', m.isLowStock ? 'text-warning' : 'text-fg')}>
-                            {m.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {m.storageUnit}
+                            {m.currentQuantityInStorageUnits.toLocaleString(intlLocale())} {m.storageUnit}
                           </span>
                           {m.reorderLevel != null && (
-                            <span className="ms-1.5 text-xs text-muted">حد الطلب {m.reorderLevel.toLocaleString('ar-SA')}</span>
+                            <span className="ms-1.5 text-xs text-muted">حد الطلب {m.reorderLevel.toLocaleString(intlLocale())}</span>
                           )}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">

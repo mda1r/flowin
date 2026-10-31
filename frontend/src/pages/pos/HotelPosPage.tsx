@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { RoomResponse, RoomType } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 /* hotel accent scoped to this page */
 const HOTEL_ACCENT: React.CSSProperties = {
@@ -227,7 +228,7 @@ export function HotelPosPage() {
 
                         {isOccupied && reservation && (
                           <p className="mt-2 text-xs text-muted">
-                            {t.hotel.checkOut}: {new Date(reservation.checkOut).toLocaleDateString('ar-SA')}
+                            {t.hotel.checkOut}: {new Date(reservation.checkOut).toLocaleDateString(intlLocale())}
                           </p>
                         )}
 
@@ -418,11 +419,11 @@ export function HotelPosPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">{t.hotel.checkIn}</span>
-                <span>{new Date(selectedRoom.activeReservation.checkIn).toLocaleDateString('ar-SA')}</span>
+                <span>{new Date(selectedRoom.activeReservation.checkIn).toLocaleDateString(intlLocale())}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">{t.hotel.checkOut}</span>
-                <span>{new Date(selectedRoom.activeReservation.checkOut).toLocaleDateString('ar-SA')}</span>
+                <span>{new Date(selectedRoom.activeReservation.checkOut).toLocaleDateString(intlLocale())}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">{t.hotel.nights}</span>

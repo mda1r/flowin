@@ -13,12 +13,13 @@ import { paymentLabel } from '@/lib/orderReceipt'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { printElement } from '@/lib/print'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 type Period = '7d' | '30d' | 'all'
 
-const n = (v: number) => v.toLocaleString('ar-SA')
-const time = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-const day = (iso: string) => new Date(iso).toLocaleDateString('ar-SA', { weekday: 'short', day: 'numeric', month: 'short' })
+const n = (v: number) => v.toLocaleString(intlLocale())
+const time = (iso: string) => new Date(iso).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })
+const day = (iso: string) => new Date(iso).toLocaleDateString(intlLocale(), { weekday: 'short', day: 'numeric', month: 'short' })
 
 // "3 س 20 د", or "2 يوم 4 س" for shifts left open past a day.
 function duration(fromIso: string, toIso?: string | null) {
@@ -415,8 +416,8 @@ function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent }: {
         <p className="receipt-title">{isCurrent ? 'تقرير منتصف الشفت (X)' : 'تقرير إقفال الشفت (Z)'}</p>
         <p className="receipt-small">{shift.cashierName}</p>
         <p className="receipt-small">
-          {new Date(shift.openedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}
-          {shift.closedAt && ` — ${new Date(shift.closedAt).toLocaleString('ar-SA', { timeStyle: 'short' })}`}
+          {new Date(shift.openedAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' })}
+          {shift.closedAt && ` — ${new Date(shift.closedAt).toLocaleString(intlLocale(), { timeStyle: 'short' })}`}
         </p>
         <p className="receipt-small">المدة: {duration(shift.openedAt, shift.closedAt)}</p>
       </div>
@@ -450,7 +451,7 @@ function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent }: {
       )}
       {shift.notes && <p className="receipt-note">ملاحظة: {shift.notes}</p>}
       <hr className="receipt-rule" />
-      <p className="receipt-small receipt-center">طُبع {new Date().toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+      <p className="receipt-small receipt-center">طُبع {new Date().toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' })}</p>
       <p className="receipt-small receipt-center" style={{ marginTop: '0.8rem' }}>توقيع الكاشير ____________</p>
       {settings.showPoweredBy && <div className="receipt-powered"><FlowinLogo tone="mono" className="h-3" /></div>}
     </div>

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { useI18n } from '@/i18n'
 import type { StockCountType } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-info/10 text-info',
@@ -154,9 +155,9 @@ export function StockCountPage() {
                     {TYPE_LABELS[session.type] ?? session.type}
                   </td>
                   <td className="px-4 py-3 text-muted text-xs">
-                    {new Date(session.periodStart).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
+                    {new Date(session.periodStart).toLocaleDateString(intlLocale(lang))}
                     {' – '}
-                    {new Date(session.periodEnd).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
+                    {new Date(session.periodEnd).toLocaleDateString(intlLocale(lang))}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[session.status] ?? ''}`}>
@@ -172,10 +173,10 @@ export function StockCountPage() {
                       : <span className="text-muted/50">—</span>}
                   </td>
                   <td className="px-4 py-3 text-muted tabular-nums">
-                    {session.totalSystemValue.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US', { minimumFractionDigits: 2 })} {t.common.sar}
+                    {session.totalSystemValue.toLocaleString(intlLocale(lang), { minimumFractionDigits: 2 })} {t.common.sar}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted">
-                    {new Date(session.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
+                    {new Date(session.createdAt).toLocaleDateString(intlLocale(lang))}
                   </td>
                 </tr>
               ))}

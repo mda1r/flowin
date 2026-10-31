@@ -19,6 +19,7 @@ import { NewSubscriptionModal } from './NewSubscriptionModal'
 import { CreateTenantModal } from './CreateTenantModal'
 import { useI18n } from '@/i18n'
 import type { Translations } from '@/i18n/en'
+import { intlLocale } from '@/lib/locale'
 
 type T = Translations
 
@@ -83,7 +84,7 @@ function daysChip(days: number | undefined, t: T) {
 export function TenantsPage() {
   const qc = useQueryClient()
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const [search, setSearch] = useState('')
   const [showCreateTenant, setShowCreateTenant] = useState(false)
   const [subscribeTarget, setSubscribeTarget] = useState<TenantWithSubscriptionResponse | null>(null)

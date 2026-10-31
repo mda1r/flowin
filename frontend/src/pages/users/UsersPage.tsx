@@ -15,6 +15,7 @@ import { saveUserPermissions, getUserPermissions } from '@/lib/userPermissions'
 import { logActivity } from '@/lib/activityLog'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 const ROLE_LABELS: Record<string, string> = {
   Owner: 'مالك',
@@ -345,7 +346,7 @@ export function UsersPage() {
                     </td>
                     <td className="px-4 py-3 text-muted text-xs">
                       {u.lastLoginAt
-                        ? new Date(u.lastLoginAt).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')
+                        ? new Date(u.lastLoginAt).toLocaleDateString(intlLocale(lang))
                         : t.users.never}
                     </td>
                     {canManage && (

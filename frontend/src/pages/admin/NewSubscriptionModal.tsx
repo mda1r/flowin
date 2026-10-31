@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 interface Props {
   tenantId: string
@@ -15,7 +16,7 @@ interface Props {
 export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType, onClose }: Props) {
   const qc = useQueryClient()
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const [planId, setPlanId] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [expiryDate, setExpiryDate] = useState(

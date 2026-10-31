@@ -11,6 +11,7 @@ import {
 import { superAdminApi } from '@/api/superadmin'
 import type { TenantWithSubscriptionResponse, BusinessType } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 const BIZ_COLOR: Record<BusinessType, string> = {
   Retail:      'bg-muted/30',
@@ -45,7 +46,7 @@ function computeStats(tenants: TenantWithSubscriptionResponse[]) {
 
 export function AdminDashboard() {
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
 
   const BIZ_LABEL: Record<BusinessType, string> = {
     Retail:      t.admin.dashboard.business.retail,

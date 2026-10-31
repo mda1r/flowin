@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils'
 import { logActivity } from '@/lib/activityLog'
 import { useI18n } from '@/i18n'
 import type { ShiftResponse, OrderResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 // ── Open Shift Modal ──────────────────────────────────────────────────────────
 
@@ -124,7 +125,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   }
 
   const handlePrint = () => {
-    const now = new Date().toLocaleString('ar-SA')
+    const now = new Date().toLocaleString(intlLocale('ar'))
     const cashierName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
     const win = window.open('', '_blank', 'width=400,height=600')
     if (!win) return
@@ -229,7 +230,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           )}
           {offlinePending.length > 0 && (
             <p className="text-xs text-warning">
-              {offlinePending.length.toLocaleString('ar-SA')} عملية محفوظة دون اتصال لم تُزامن بعد. انتظر عودة الإنترنت قبل إغلاق الشفت حتى تدخل في حسابه.
+              {offlinePending.length.toLocaleString(intlLocale())} عملية محفوظة دون اتصال لم تُزامن بعد. انتظر عودة الإنترنت قبل إغلاق الشفت حتى تدخل في حسابه.
             </p>
           )}
           <div className="flex gap-2">
@@ -380,7 +381,7 @@ function ShiftLockScreen({ onOpen }: { onOpen: () => void }) {
 export function ShiftBadge({ shift, onCloseShift }: { shift: ShiftResponse; onCloseShift: () => void }) {
   const { t, lang } = useI18n()
   const openedAt = new Date(shift.openedAt)
-  const timeStr = openedAt.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+  const timeStr = openedAt.toLocaleTimeString(intlLocale(lang), { hour: '2-digit', minute: '2-digit' })
 
   return (
     <div className="flex items-center gap-2">

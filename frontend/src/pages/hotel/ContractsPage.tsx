@@ -17,6 +17,7 @@ import { toast } from '@/components/ui/Toast'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import type { RentalContractResponse, ContractStatus } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -131,7 +132,7 @@ function printContract(contract: RentalContractResponse) {
 <body>
   <div class="header">
     <h1>عقد إيجار</h1>
-    <p>تاريخ الإنشاء: ${formatDate(contract.createdAt, 'ar-SA')}</p>
+    <p>تاريخ الإنشاء: ${formatDate(contract.createdAt, 'ar')}</p>
   </div>
 
   <div class="section">
@@ -149,8 +150,8 @@ function printContract(contract: RentalContractResponse) {
     <div class="info-grid">
       <div class="info-row"><span class="info-label">رقم الغرفة / الوحدة:</span><span>${contract.roomNumber}</span></div>
       <div class="info-row"><span class="info-label">الإيجار الشهري:</span><span>${formatCurrency(contract.monthlyRent, contract.currency)}</span></div>
-      <div class="info-row"><span class="info-label">تاريخ البدء:</span><span>${formatDate(contract.startDate, 'ar-SA')}</span></div>
-      <div class="info-row"><span class="info-label">تاريخ الانتهاء:</span><span>${formatDate(contract.endDate, 'ar-SA')}</span></div>
+      <div class="info-row"><span class="info-label">تاريخ البدء:</span><span>${formatDate(contract.startDate, 'ar')}</span></div>
+      <div class="info-row"><span class="info-label">تاريخ الانتهاء:</span><span>${formatDate(contract.endDate, 'ar')}</span></div>
       <div class="info-row"><span class="info-label">مدة العقد:</span><span>${monthCount} شهر</span></div>
       <div class="info-row"><span class="info-label">إجمالي قيمة العقد:</span><span>${formatCurrency(contract.monthlyRent * monthCount, contract.currency)}</span></div>
     </div>
@@ -307,7 +308,7 @@ function ContractRow({
   signPending: boolean
 }) {
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const canEdit = contract.status === 'Draft' || contract.status === 'Active'
   const canSign = contract.status === 'Active'
 

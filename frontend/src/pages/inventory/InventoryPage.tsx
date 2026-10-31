@@ -18,6 +18,7 @@ import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
 import { useI18n } from '@/i18n'
 import type { StockAlertItemResponse, StockItemResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 const adjustSchema = z.object({
   newQuantity: z.coerce.number().nonnegative('Quantity must be 0 or more'),
@@ -79,7 +80,7 @@ function AlertCard({
                   <p className="font-medium">{info?.productName ?? a.variantId}</p>
                   <p className="text-xs opacity-70">
                     {info?.sku} · {t.inventory.quantity.replace('{n}', String(a.quantity))}
-                    {a.expiryDate && ` · ${new Date(a.expiryDate).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}`}
+                    {a.expiryDate && ` · ${new Date(a.expiryDate).toLocaleDateString(intlLocale(lang))}`}
                   </p>
                 </div>
                 {a.daysUntilExpiry !== undefined && a.daysUntilExpiry !== null && (
@@ -339,7 +340,7 @@ export function InventoryPage() {
                     : 'text-fg'
                   return (
                     <span className={`text-sm tabular-nums ${colorClass}`}>
-                      {d.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}
+                      {d.toLocaleDateString(intlLocale(lang))}
                       {daysLeft < 0
                         ? ` (${t.inventory.expiredLabel})`
                         : daysLeft <= 7

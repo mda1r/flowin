@@ -12,6 +12,7 @@ import { paymentLabel } from '@/lib/orderReceipt'
 import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { downloadCsv } from '@/lib/csv'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 type Period = 'today' | 'yesterday' | '7d' | '30d' | 'custom'
 type MethodFilter = 'all' | 'Cash' | 'Card' | 'Split'
@@ -181,18 +182,18 @@ export function InvoicesPage() {
 
         {/* summary */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Stat label="عدد الفواتير" value={summary.count.toLocaleString('ar-SA')} />
+          <Stat label="عدد الفواتير" value={summary.count.toLocaleString(intlLocale())} />
           <Stat label="إجمالي المبيعات" value={formatCurrency(summary.total)} strong />
           <Stat label="ضريبة القيمة المضافة" value={formatCurrency(summary.vat)} />
           <Stat label="متوسط الفاتورة" value={formatCurrency(summary.avg)} />
           <Stat
-            label={`المسترد (${summary.refundedCount.toLocaleString('ar-SA')})`}
+            label={`المسترد (${summary.refundedCount.toLocaleString(intlLocale())})`}
             value={formatCurrency(summary.refundedAmount)}
             tone={summary.refundedAmount > 0 ? 'danger' : undefined}
           />
         </div>
         {ordersRaw.length >= PAGE_CAP && (
-          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">يظهر أول {PAGE_CAP.toLocaleString('ar-SA')} فاتورة في هذه الفترة؛ اختر فترة أقصر لرؤية الكل.</p>
+          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">يظهر أول {PAGE_CAP.toLocaleString(intlLocale())} فاتورة في هذه الفترة؛ اختر فترة أقصر لرؤية الكل.</p>
         )}
 
         {/* list */}
@@ -234,7 +235,7 @@ export function InvoicesPage() {
                         <bdi dir="ltr" className="font-display font-semibold tabular-nums text-fg">#{invoiceNo(o)}</bdi>
                       </td>
                       <td className="px-4 py-3 text-muted tabular-nums">
-                        {new Date(o.completedAt ?? o.createdAt).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(o.completedAt ?? o.createdAt).toLocaleString(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="max-w-[16rem] px-4 py-3 text-muted">
                         <span className="block truncate" title={o.lines.map((l) => `${l.productName} ×${l.quantity}`).join('، ')}>

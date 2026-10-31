@@ -21,6 +21,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { PurchaseOrderResponse, PurchaseOrderStatus, SupplierResponse } from '@/types/api'
 import type { StockMaterialResponse } from '@/types/stockMaterial'
+import { intlLocale } from '@/lib/locale'
 
 const statusVariant: Record<PurchaseOrderStatus, 'gray' | 'blue' | 'green' | 'red' | 'yellow'> = {
   Draft: 'gray',
@@ -270,7 +271,7 @@ function OrderDetailModal({
                             <span className="text-fg">{l.description}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 tabular-nums text-fg">{l.orderedQuantity.toLocaleString('ar-SA')}</td>
+                        <td className="px-4 py-2.5 tabular-nums text-fg">{l.orderedQuantity.toLocaleString(intlLocale())}</td>
                         <td className="px-4 py-2.5 tabular-nums text-fg">{formatCurrency(l.unitCost)}</td>
                         <td className="px-4 py-2.5 font-semibold tabular-nums text-fg">{formatCurrency(l.lineTotal)}</td>
                         {isDraft && (
@@ -523,7 +524,7 @@ export function PurchasingPage() {
                 {
                   key: 'lines',
                   header: 'الأصناف',
-                  render: (r) => <span className="tabular-nums text-muted">{r.lines.length.toLocaleString('ar-SA')}</span>,
+                  render: (r) => <span className="tabular-nums text-muted">{r.lines.length.toLocaleString(intlLocale())}</span>,
                 },
                 {
                   key: 'totalAmount',

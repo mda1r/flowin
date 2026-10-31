@@ -16,6 +16,7 @@ import { materialReorderQty, productReorderQty } from '@/lib/reorder'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { ProductResponse, StockItemResponse, SupplierResponse } from '@/types/api'
 import type { StockMaterialResponse } from '@/types/stockMaterial'
+import { intlLocale } from '@/lib/locale'
 
 interface DraftLine {
   key: string
@@ -87,7 +88,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
       kind: 'material',
       id: m.id,
       name: m.nameAr,
-      stockLabel: `${m.currentQuantityInStorageUnits.toLocaleString('ar-SA')} ${m.storageUnit} · حد الطلب ${(m.reorderLevel ?? 0).toLocaleString('ar-SA')}`,
+      stockLabel: `${m.currentQuantityInStorageUnits.toLocaleString(intlLocale())} ${m.storageUnit} · حد الطلب ${(m.reorderLevel ?? 0).toLocaleString(intlLocale())}`,
       quantity: String(materialReorderQty(m)),
       unitCost: m.currentCost > 0 ? String(m.currentCost) : '',
       selected: true,
@@ -101,7 +102,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
           kind: 'product' as const,
           id: s.variantId,
           name: info?.name ?? 'منتج',
-          stockLabel: `${s.quantity.toLocaleString('ar-SA')} · حد الطلب ${s.reorderPoint.toLocaleString('ar-SA')}`,
+          stockLabel: `${s.quantity.toLocaleString(intlLocale())} · حد الطلب ${s.reorderPoint.toLocaleString(intlLocale())}`,
           quantity: String(productReorderQty(s)),
           unitCost: info && info.cost > 0 ? String(info.cost) : '',
           selected: true,
@@ -143,7 +144,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
     },
     onSuccess: (orderId) => {
       void qc.invalidateQueries({ queryKey: ['purchase-orders', branchId] })
-      toast.success('تم إنشاء أمر الشراء', `${chosen.length.toLocaleString('ar-SA')} صنف · راجعه ثم أرسله للمورد`)
+      toast.success('تم إنشاء أمر الشراء', `${chosen.length.toLocaleString(intlLocale())} صنف · راجعه ثم أرسله للمورد`)
       onCreated(orderId)
     },
     onError: (err: Error & { orderId?: string; added?: number }) => {
@@ -165,7 +166,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
         <h3 className="flex items-center gap-2 text-13 font-semibold text-muted">
           {icon}
           {title}
-          <span className="tabular-nums">({rows.length.toLocaleString('ar-SA')})</span>
+          <span className="tabular-nums">({rows.length.toLocaleString(intlLocale())})</span>
         </h3>
         <ul className="space-y-2">
           {rows.map((l) => (
@@ -236,7 +237,7 @@ export function ReorderModal({ suppliers, onClose, onCreated, onAddSupplier }: R
               إلغاء
             </Button>
             <Button onClick={() => create.mutate()} loading={create.isPending} disabled={!canCreate}>
-              إنشاء أمر الشراء ({chosen.length.toLocaleString('ar-SA')})
+              إنشاء أمر الشراء ({chosen.length.toLocaleString(intlLocale())})
             </Button>
           </>
         ) : undefined

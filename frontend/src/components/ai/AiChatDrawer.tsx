@@ -7,6 +7,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { aiApi, type AiChatMessage } from '@/api/ai'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/utils'
+import { intlLocale } from '@/lib/locale'
 
 // ── Quick prompts for each "agent" role ───────────────────────────────────────
 
@@ -113,7 +114,7 @@ function InsightsPanel({ branchId }: { branchId: string }) {
       ))}
       {data.generatedAt && (
         <p className="text-center text-xs text-muted/50">
-          آخر تحديث: {new Date(data.generatedAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+          آخر تحديث: {new Date(data.generatedAt).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
         </p>
       )}
     </div>

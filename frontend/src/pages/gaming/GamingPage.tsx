@@ -20,6 +20,7 @@ import { useI18n } from '@/i18n'
 import { playAlarmSequence, playBeep, requestNotificationPermission, sendGameNotification } from '@/lib/gamingAlerts'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { PackageBillLines, PackagePicker, PackagesManager } from '@/components/gaming/Packages'
+import { intlLocale } from '@/lib/locale'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -243,8 +244,8 @@ export function GamingPage() {
     if (!billModal) return
     const win = window.open('', '_blank', 'width=400,height=600')
     if (!win) return
-    const startTime = new Date(billModal.startTime).toLocaleString('ar-SA')
-    const endTime = new Date(billModal.endTime).toLocaleString('ar-SA')
+    const startTime = new Date(billModal.startTime).toLocaleString(intlLocale('ar'))
+    const endTime = new Date(billModal.endTime).toLocaleString(intlLocale('ar'))
     win.document.write(`
       <html dir="rtl"><head><meta charset="utf-8"><title>إيصال</title>
       <style>body{font-family:Arial,sans-serif;padding:24px;direction:rtl}
@@ -677,11 +678,11 @@ export function GamingPage() {
               {[
                 {
                   label: t.gaming.startSession,
-                  value: new Date(billModal.startTime).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US'),
+                  value: new Date(billModal.startTime).toLocaleString(intlLocale(lang)),
                 },
                 {
                   label: t.gaming.endSession,
-                  value: new Date(billModal.endTime).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US'),
+                  value: new Date(billModal.endTime).toLocaleString(intlLocale(lang)),
                 },
                 {
                   label: t.gaming.duration,

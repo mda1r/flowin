@@ -7,6 +7,7 @@ import type { LogCategory } from '@/lib/activityLog'
 import type { ActivityLogResponse } from '@/types/api'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 const CATEGORY_LABELS: Record<LogCategory, string> = {
   shift:         'الشفت',
@@ -35,7 +36,7 @@ function categoryColor(cat: string): string {
 }
 
 function exportCsv(logs: ActivityLogResponse[], t: ReturnType<typeof useI18n>['t'], lang: string) {
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const rows = [
     [
       t.activityLogs.csvColumns.date,
@@ -241,8 +242,8 @@ export function ActivityLogsPage() {
                       }
                     >
                       <td className="px-4 py-3 tabular-nums text-muted whitespace-nowrap">
-                        <p className="text-xs">{d.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US')}</p>
-                        <p className="text-[11px] text-muted">{d.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                        <p className="text-xs">{d.toLocaleDateString(intlLocale(lang))}</p>
+                        <p className="text-[11px] text-muted">{d.toLocaleTimeString(intlLocale(lang), { hour: '2-digit', minute: '2-digit' })}</p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">

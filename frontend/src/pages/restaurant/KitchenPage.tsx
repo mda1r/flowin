@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import type { RestaurantOrderResponse, OrderItemStatus } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -235,7 +236,7 @@ export function KitchenPage() {
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted">
-            {new Date().toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+            {new Date().toLocaleTimeString(intlLocale(lang), { hour: '2-digit', minute: '2-digit' })}
           </div>
           {!initialized && (
             <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-muted">

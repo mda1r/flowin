@@ -5,6 +5,7 @@ import { toast } from '@/components/ui/Toast'
 import { useAuthStore } from '@/stores/authStore'
 import { discardSale, syncOfflineSales, useOfflineSales, type QueuedSale } from '@/lib/offlineSales'
 import { formatCurrency } from '@/lib/utils'
+import { intlLocale } from '@/lib/locale'
 
 export function OfflineBanner() {
   const { branchId, tenantId } = useAuthStore()
@@ -16,8 +17,8 @@ export function OfflineBanner() {
 
   const syncNow = async () => {
     const { synced, failed } = await syncOfflineSales(tenantId)
-    if (synced) toast.success(`تمت مزامنة ${synced.toLocaleString('ar-SA')} عملية`)
-    if (failed) toast.error(`رفض الخادم ${failed.toLocaleString('ar-SA')} عملية`, 'راجعها في الشريط أعلى الشاشة')
+    if (synced) toast.success(`تمت مزامنة ${synced.toLocaleString(intlLocale())} عملية`)
+    if (failed) toast.error(`رفض الخادم ${failed.toLocaleString(intlLocale())} عملية`, 'راجعها في الشريط أعلى الشاشة')
   }
 
   return (
@@ -29,7 +30,7 @@ export function OfflineBanner() {
           {pending.length > 0 && (
             <>
               {' '}
-              <span className="font-semibold tabular-nums">{pending.length.toLocaleString('ar-SA')}</span> عملية بانتظار المزامنة
+              <span className="font-semibold tabular-nums">{pending.length.toLocaleString(intlLocale())}</span> عملية بانتظار المزامنة
               (<span className="tabular-nums">{formatCurrency(pending.reduce((s, x) => s + x.total, 0))}</span>). لا تمسح بيانات المتصفح.
             </>
           )}
@@ -52,7 +53,7 @@ export function OfflineBanner() {
             <li key={s.clientReference} className="flex items-center gap-2">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               <span className="flex-1">
-                عملية {new Date(s.queuedAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })} ·{' '}
+                عملية {new Date(s.queuedAt).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })} ·{' '}
                 {formatCurrency(s.total)} رُفضت: {s.lastError}
               </span>
               <button type="button" onClick={() => setDiscarding(s)} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-danger/10" aria-label="حذف العملية المرفوضة">
