@@ -23,21 +23,40 @@ const sizeClasses = {
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
-  const { t } = useI18n()
+// open dialogs, innermost last: only the top one reacts to Escape/Tab when they are nested
+const openDialogs: symbol[] = []
+
+/**
+ * Dialog behaviour shared by Modal and OverlayDialog: initial focus, Escape to close, Tab trapped
+ * inside the panel, background scroll locked, focus handed back to the opener on close.
+ */
+function useDialogBehavior(open: boolean, onClose: () => void, initialFocus: 'field' | 'panel') {
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
-  const titleId = useId()
+  // remember the opener while rendering: autoFocus fields inside the panel take focus before effects run
+  const openerRef = useRef<HTMLElement | null>(null)
+  const wasOpenRef = useRef(false)
+  if (open !== wasOpenRef.current) {
+    wasOpenRef.current = open
+    if (open) openerRef.current = document.activeElement as HTMLElement | null
+  }
 
   useEffect(() => {
     if (!open) return
-    const previouslyFocused = document.activeElement as HTMLElement | null
+    const token = Symbol('dialog')
+    openDialogs.push(token)
+    const previouslyFocused = openerRef.current
     const panel = panelRef.current
-    const first = panel?.querySelector<HTMLElement>('[data-autofocus]') ?? panel?.querySelector<HTMLElement>('input, select, textarea')
-    ;(first ?? panel)?.focus()
+    if (!panel?.contains(document.activeElement)) {
+      const first =
+        panel?.querySelector<HTMLElement>('[data-autofocus]') ??
+        (initialFocus === 'field' ? panel?.querySelector<HTMLElement>('input, select, textarea') : null)
+      ;(first ?? panel)?.focus()
+    }
 
     const handleKey = (e: KeyboardEvent) => {
+      if (openDialogs[openDialogs.length - 1] !== token) return
       if (e.key === 'Escape') {
         e.stopPropagation()
         onCloseRef.current()
@@ -45,13 +64,18 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }: M
       }
       if (e.key !== 'Tab' || !panel) return
       const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
-      if (items.length === 0) return
+      if (items.length === 0) {
+        e.preventDefault()
+        return
+      }
       const firstEl = items[0]
       const lastEl = items[items.length - 1]
-      if (e.shiftKey && document.activeElement === firstEl) {
+      const active = document.activeElement
+      const outside = !active || active === panel || !panel.contains(active)
+      if (e.shiftKey && (active === firstEl || outside)) {
         e.preventDefault()
         lastEl.focus()
-      } else if (!e.shiftKey && document.activeElement === lastEl) {
+      } else if (!e.shiftKey && (active === lastEl || outside)) {
         e.preventDefault()
         firstEl.focus()
       }
@@ -62,9 +86,19 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }: M
     return () => {
       document.removeEventListener('keydown', handleKey)
       document.body.style.overflow = prevOverflow
+      const idx = openDialogs.indexOf(token)
+      if (idx !== -1) openDialogs.splice(idx, 1)
       previouslyFocused?.focus?.()
     }
-  }, [open])
+  }, [open, initialFocus])
+
+  return panelRef
+}
+
+export function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
+  const { t } = useI18n()
+  const panelRef = useDialogBehavior(open, onClose, 'field')
+  const titleId = useId()
 
   if (!open) return null
 
@@ -101,6 +135,71 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }: M
 
           {footer && <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-surface-2/50 px-6 py-4">{footer}</div>}
         </div>
+      </div>
+    </div>
+  )
+}
+
+interface OverlayDialogProps {
+  /** defaults to true, for overlays that are mounted only while shown */
+  open?: boolean
+  onClose: () => void
+  /** id of the visible heading that names the dialog, or a plain label when there is none */
+  labelledBy?: string
+  label?: string
+  children: React.ReactNode
+  /** the panel's own look (glass-panel, width, padding…); height and phone width are capped for you */
+  panelClassName?: string
+  panelStyle?: React.CSSProperties
+  /** marks the panel as the region printElement prints */
+  printArea?: boolean
+  backdropClassName?: string
+  /** extra classes/style for the full-screen layer, e.g. a page's accent scene */
+  className?: string
+  style?: React.CSSProperties
+  /** some overlays must only close through their own buttons */
+  closeOnBackdrop?: boolean
+}
+
+/**
+ * Accessible shell for POS-style overlays that keep their own panel design: same keyboard,
+ * focus and scroll handling as Modal, the panel scrolls instead of running off short screens.
+ */
+export function OverlayDialog({
+  open = true,
+  onClose,
+  labelledBy,
+  label,
+  children,
+  panelClassName,
+  panelStyle,
+  printArea,
+  backdropClassName = 'bg-black/60',
+  className,
+  style,
+  closeOnBackdrop = true,
+}: OverlayDialogProps) {
+  const panelRef = useDialogBehavior(open, onClose, 'panel')
+  if (!open) return null
+  return (
+    <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-4', className)} style={style}>
+      <div
+        className={cn('absolute inset-0', backdropClassName)}
+        onClick={closeOnBackdrop ? onClose : undefined}
+        aria-hidden="true"
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        aria-label={labelledBy ? undefined : label}
+        tabIndex={-1}
+        data-print-area={printArea ? '' : undefined}
+        style={panelStyle}
+        className={cn('relative max-h-full w-full min-w-0 max-w-sm overflow-y-auto outline-none', panelClassName)}
+      >
+        {children}
       </div>
     </div>
   )

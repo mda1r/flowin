@@ -11,7 +11,7 @@ import type { MenuCategory, MenuItemResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { CashTender } from '@/components/pos/CashTender'
-import { ConfirmModal } from '@/components/ui/Modal'
+import { ConfirmModal, OverlayDialog } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 
 const VAT = 0.15
@@ -354,10 +354,15 @@ export function RestaurantPosPage() {
 
       {/* Payment modal */}
       {showPayment && (
-        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RESTAURANT_ACCENT}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPayment(false)} />
-          <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
-            <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
+        <OverlayDialog
+          onClose={() => setShowPayment(false)}
+          labelledBy="pos-payment-title"
+          className="scene-3d"
+          style={RESTAURANT_ACCENT}
+          backdropClassName="bg-black/60 backdrop-blur-sm"
+          panelClassName="glass-panel animate-float-up p-6"
+        >
+            <h2 id="pos-payment-title" className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
             <div
               className="mb-6 rounded-xl p-4"
               style={{
@@ -401,8 +406,7 @@ export function RestaurantPosPage() {
                 {t.common.confirm}
               </Button>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
     </div>
   )

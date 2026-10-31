@@ -27,7 +27,7 @@ import { OfflineBanner } from '@/components/pos/OfflineBanner'
 import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
-import { ConfirmModal } from '@/components/ui/Modal'
+import { ConfirmModal, OverlayDialog } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
@@ -593,10 +593,15 @@ function RetailPosPage() {
 
       {/* Payment modal */}
       {showPayment && (
-        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RETAIL_ACCENT}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPayment(false)} />
-          <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
-            <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
+        <OverlayDialog
+          onClose={() => setShowPayment(false)}
+          labelledBy="pos-payment-title"
+          className="scene-3d"
+          style={RETAIL_ACCENT}
+          backdropClassName="bg-black/60 backdrop-blur-sm"
+          panelClassName="glass-panel animate-float-up p-6"
+        >
+            <h2 id="pos-payment-title" className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
             <div className="mb-4 space-y-1 text-sm">
               <div className="flex justify-between text-muted">
                 <span>{t.pos.subtotal}</span>
@@ -744,18 +749,15 @@ function RetailPosPage() {
                 {t.pos.confirmPayment}
               </Button>
             </div>
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       {/* Held orders panel */}
       {showHeld && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowHeld(false)} />
-          <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-5" dir="rtl">
+        <OverlayDialog onClose={() => setShowHeld(false)} labelledBy="pos-held-title" panelClassName="glass-panel animate-float-up p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold text-fg">{t.pos.heldOrders}</h2>
-              <button onClick={() => setShowHeld(false)} className="text-muted hover:text-fg">
+              <h2 id="pos-held-title" className="font-semibold text-fg">{t.pos.heldOrders}</h2>
+              <button onClick={() => setShowHeld(false)} className="text-muted hover:text-fg" aria-label={t.common.close}>
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -791,8 +793,7 @@ function RetailPosPage() {
                 ))}
               </ul>
             )}
-          </div>
-        </div>
+        </OverlayDialog>
       )}
 
       {/* ZATCA Receipt modal */}
@@ -888,6 +889,7 @@ function ZatcaReceiptModal({
   })
   const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
   const receiptSettings = useReceiptSettings()
+  const { t } = useI18n()
 
   const qrCode = generateZatcaQr({
     sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
@@ -898,9 +900,14 @@ function ZatcaReceiptModal({
   })
 
   return (
-    <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RETAIL_ACCENT}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
+    <OverlayDialog
+      onClose={onClose}
+      label={t.pos.receipt}
+      className="scene-3d"
+      style={RETAIL_ACCENT}
+      backdropClassName="bg-black/60 backdrop-blur-sm"
+      panelClassName="glass-panel animate-float-up p-6"
+    >
         <div className="-mx-2 mb-4 max-h-[60vh] overflow-y-auto px-2">
           <ReceiptDocument
             id="retail-receipt-print"
@@ -949,7 +956,6 @@ function ZatcaReceiptModal({
             طباعة
           </Button>
         </div>
-      </div>
-    </div>
+    </OverlayDialog>
   )
 }

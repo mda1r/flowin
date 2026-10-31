@@ -13,7 +13,7 @@ import { recipesApi } from '@/api/recipes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, OverlayDialog } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
 import { restaurantApi } from '@/api/restaurant'
 import { zatcaApi } from '@/api/zatca'
@@ -683,10 +683,8 @@ function PaymentModal({
   const tendered = parseFloat(amountTendered) || 0
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
-        <h2 className="mb-1 text-lg font-semibold">{t.restaurant.pay} — {t.restaurant.table} {order.tableNumber}</h2>
+    <OverlayDialog onClose={onClose} labelledBy="restaurant-pay-title" backdropClassName="bg-black/50" panelClassName="rounded-2xl bg-surface p-6 shadow-2xl">
+        <h2 id="restaurant-pay-title" className="mb-1 text-lg font-semibold">{t.restaurant.pay} — {t.restaurant.table} {order.tableNumber}</h2>
         <div className="mb-4 space-y-1 text-sm">
           <div className="flex justify-between text-muted">
             <span>{t.restaurant.subtotal}</span>
@@ -759,8 +757,7 @@ function PaymentModal({
             تأكيد الدفع
           </Button>
         </div>
-      </div>
-    </div>
+    </OverlayDialog>
   )
 }
 
@@ -790,11 +787,9 @@ function RestaurantReceiptModal({
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div data-print-area className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
+    <OverlayDialog onClose={onClose} labelledBy="restaurant-invoice-title" backdropClassName="bg-black/50" panelClassName="rounded-2xl bg-surface p-6 shadow-2xl" printArea>
         <div className="mb-4 text-center">
-          <h2 className="text-lg font-bold">فاتورة ضريبية</h2>
+          <h2 id="restaurant-invoice-title" className="text-lg font-bold">فاتورة ضريبية</h2>
           <p className="text-xs text-muted">طاولة {order.tableNumber}</p>
           {vatNumber && <p className="text-xs text-muted mt-0.5">flowin — رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
@@ -835,8 +830,7 @@ function RestaurantReceiptModal({
           <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.close}</Button>
           <Button variant="primary" onClick={(e) => printElement(e.currentTarget.closest('[data-print-area]'))} className="flex-1">طباعة</Button>
         </div>
-      </div>
-    </div>
+    </OverlayDialog>
   )
 }
 

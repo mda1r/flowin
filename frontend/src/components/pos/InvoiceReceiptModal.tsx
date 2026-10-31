@@ -1,4 +1,5 @@
 import { Printer, RotateCcw, X } from 'lucide-react'
+import { OverlayDialog } from '@/components/ui/Modal'
 import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
@@ -8,6 +9,7 @@ import { generateZatcaQr } from '@/lib/zatca'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
 import { formatCurrency } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 
 /* A saved sale opened from the invoices list or a shift report: the store's receipt, printable at roll size,
@@ -22,6 +24,7 @@ export function InvoiceReceiptModal({
   onClose: () => void
 }) {
   const settings = useReceiptSettings()
+  const { t } = useI18n()
   const { sellerName, vatNumber } = useSellerIdentity()
   const figures = orderReceiptFigures(order)
   const number = invoiceNo(order)
@@ -35,13 +38,16 @@ export function InvoiceReceiptModal({
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl" role="dialog" aria-modal="true" aria-label={`فاتورة رقم ${number}`}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex max-h-[92vh] w-full max-w-[22rem] flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
+    <OverlayDialog
+      onClose={onClose}
+      label={`فاتورة رقم ${number}`}
+      backdropClassName="bg-black/60 backdrop-blur-sm"
+      panelClassName="flex max-h-[92vh] max-w-[22rem] flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl"
+    >
         <button
           onClick={onClose}
-          className="absolute left-3 top-3 z-10 rounded-lg p-1 text-muted hover:bg-surface-2 hover:text-fg"
-          aria-label="إغلاق"
+          className="absolute end-3 top-3 z-10 rounded-lg p-1 text-muted hover:bg-surface-2 hover:text-fg"
+          aria-label={t.common.close}
         >
           <X className="h-4 w-4" />
         </button>
@@ -87,7 +93,6 @@ export function InvoiceReceiptModal({
             طباعة الفاتورة
           </button>
         </div>
-      </div>
-    </div>
+    </OverlayDialog>
   )
 }
