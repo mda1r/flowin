@@ -631,7 +631,9 @@ export const en = {
     submitCsr: 'Submit to ZATCA',
     supplierData: 'Supplier Data',
     supplierDataHint: 'This information will appear on your e-invoices',
-    vatLengthError: 'VAT number must be at least 15 digits',
+    vatLengthError: 'VAT number must be 15 digits starting and ending with 3',
+    readOnlyHint: 'Only the owner or a manager can change these details',
+    saveFailed: 'Could not save settings',
     phase2Hint: 'Directly submit invoices to the Fatoora platform — requires a digital certificate from ZATCA',
     phase1Info: 'Auto-generate XML invoices and QR codes with every completed order',
     phase2Info: 'Submit invoices directly to the Fatoora platform with digital signature',
@@ -910,6 +912,14 @@ export const en = {
       open: 'Open', preparing: 'Preparing', reviewRequired: 'Review Required',
       readyForReview: 'Ready for Review', approved: 'Approved', closed: 'Closed',
     },
+    close: {
+      action: 'Close period', title: 'Close tax period',
+      body: 'Closing locks the return figures; invoices can no longer be added or removed. Close the period after you file the return with ZATCA.',
+      confirm: 'Close period', cancel: 'Cancel', closing: 'Closing…',
+      done: 'Period closed', failed: 'Could not close the period',
+      lockedNotice: 'This period is closed; figures are locked as filed',
+      closedError: 'This period is closed and cannot be changed',
+    },
     tabs: {
       overview: 'Overview', vatReturn: 'VAT Return', sales: 'Sales',
       purchases: 'Purchases & Expenses', issues: 'Issues',
@@ -1047,6 +1057,9 @@ export const en = {
       headers: {
         type: 'Type', transaction: 'Transaction', date: 'Date',
         baseAmount: 'Base Amount', taxAmount: 'Tax Amount', rate: 'Rate',
+      },
+      transactionTypes: {
+        sale: 'Sale', sale_return: 'Return', purchase_invoice: 'Purchase invoice', manual_adjustment: 'Adjustment',
       },
     },
     taxCategory: {

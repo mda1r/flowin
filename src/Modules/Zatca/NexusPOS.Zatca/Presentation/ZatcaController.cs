@@ -40,8 +40,9 @@ public sealed class ZatcaController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrors);
     }
 
-    /// <summary>حفظ إعدادات زاتكا للمستأجر</summary>
+    /// <summary>حفظ إعدادات زاتكا للمستأجر (المالك أو المدير فقط)</summary>
     [HttpPut("zatca/settings")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ZatcaSettingsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveSettings(
         [FromBody] SaveZatcaSettingsRequest request,

@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.Tax.Application.Common;
+using NexusPOS.Tax.Domain;
 using NexusPOS.Tax.Domain.Entities;
 using NexusPOS.Tax.Infrastructure.Persistence;
 
@@ -27,75 +29,69 @@ internal sealed class RefreshTaxLedgerCommandHandler(
 
         if (period is null)
         {
-            return Error.NotFound("TaxPeriod.NotFound", "Tax period not found.");
+            return TaxErrors.PeriodNotFound;
+        }
+
+        if (period.Status == TaxPeriodStatus.Closed)
+        {
+            return TaxErrors.PeriodClosed;
         }
 
         string schemaName = $"tenant_{request.TenantId:N}";
         ValidateSchemaName(schemaName);
 
-        // Use UTC so Npgsql 9 can bind against timestamptz columns without throwing.
-        DateTime startTs = DateTime.SpecifyKind(period.StartDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        DateTime endTs = DateTime.SpecifyKind(period.EndDate.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc);
+        // The period's days are Riyadh calendar days; sales are stored in UTC.
+        (DateTime startTs, DateTime endTs) = TaxPeriodClock.ToUtcRange(period.StartDate, period.EndDate);
 
-        List<SaleRow> sales;
+        List<SourceTransaction> source;
         try
         {
-            sales = await QuerySaleRowsAsync(schemaName, startTs, endTs, cancellationToken);
+            source = await QuerySourceTransactionsAsync(schemaName, startTs, endTs, cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "RefreshTaxLedger: failed to read sale_records for tenant {TenantId} period {PeriodId}",
+                "RefreshTaxLedger: failed to read sales and returns for tenant {TenantId} period {PeriodId}",
                 request.TenantId, request.PeriodId);
             return 0;
         }
 
-        HashSet<Guid> existingRefs = [..await db.TaxLedgerEntries
+        List<TaxLedgerEntry> importedInPeriod = await db.TaxLedgerEntries
             .Where(e => e.TenantId == request.TenantId &&
                         e.PeriodId == request.PeriodId &&
-                        e.TransactionType == LedgerTransactionType.Sale)
+                        (e.ReferenceType == LedgerReferenceType.SaleRecord || e.ReferenceType == LedgerReferenceType.ReturnOrder))
+            .ToListAsync(cancellationToken);
+
+        List<Guid> sourceIds = source.Select(s => s.Id).ToList();
+        HashSet<Guid> importedElsewhere = [..await db.TaxLedgerEntries
+            .Where(e => e.TenantId == request.TenantId &&
+                        e.PeriodId != request.PeriodId &&
+                        (e.ReferenceType == LedgerReferenceType.SaleRecord || e.ReferenceType == LedgerReferenceType.ReturnOrder) &&
+                        e.ReferenceId != null &&
+                        sourceIds.Contains(e.ReferenceId.Value))
             .Select(e => e.ReferenceId!.Value)
             .ToListAsync(cancellationToken)];
 
-        List<TaxLedgerEntry> newEntries = [];
-        const decimal standardVatRate = 0.15m;
+        LedgerSyncPlan plan = TaxLedgerSync.Plan(
+            request.TenantId, request.PeriodId, source, importedInPeriod, importedElsewhere);
 
-        foreach (SaleRow row in sales)
+        if (plan.ToAdd.Count > 0 || plan.ToRemove.Count > 0)
         {
-            if (existingRefs.Contains(row.Id) || row.TaxAmount <= 0)
-            {
-                continue;
-            }
-
-            newEntries.Add(TaxLedgerEntry.Create(
-                request.TenantId,
-                request.PeriodId,
-                LedgerEntryType.Output,
-                LedgerTransactionType.Sale,
-                row.SubtotalAmount,
-                row.TaxAmount,
-                standardVatRate,
-                DateOnly.FromDateTime(row.CompletedAt),
-                row.Id,
-                "SaleRecord"));
-        }
-
-        if (newEntries.Count > 0)
-        {
-            db.TaxLedgerEntries.AddRange(newEntries);
+            db.TaxLedgerEntries.RemoveRange(plan.ToRemove);
+            db.TaxLedgerEntries.AddRange(plan.ToAdd);
             await db.SaveChangesAsync(cancellationToken);
         }
 
         logger.LogInformation(
-            "RefreshTaxLedger: imported {Count} new sale entries for tenant {TenantId} period {PeriodId}",
-            newEntries.Count, request.TenantId, request.PeriodId);
+            "RefreshTaxLedger: added {Added} and removed {Removed} entries for tenant {TenantId} period {PeriodId}",
+            plan.ToAdd.Count, plan.ToRemove.Count, request.TenantId, request.PeriodId);
 
-        return newEntries.Count;
+        return plan.ToAdd.Count;
     }
 
     // Uses a dedicated ADO.NET connection with explicit search_path — the same mechanism
     // TenantSchemaInterceptor uses — so this works from any DbContext, including TaxConfigDbContext.
-    private async Task<List<SaleRow>> QuerySaleRowsAsync(
+    private async Task<List<SourceTransaction>> QuerySourceTransactionsAsync(
         string schemaName, DateTime startTs, DateTime endTs,
         CancellationToken cancellationToken)
     {
@@ -112,30 +108,63 @@ internal sealed class RefreshTaxLedgerCommandHandler(
             await pathCmd.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText =
-            """
-            SELECT id, tax_amount, subtotal_amount, completed_at
-            FROM sale_records
-            WHERE completed_at >= $1
-              AND completed_at <= $2
-            """;
+        List<SourceTransaction> rows = [];
 
-        cmd.Parameters.Add(new NpgsqlParameter<DateTime> { TypedValue = startTs, NpgsqlDbType = NpgsqlDbType.TimestampTz });
-        cmd.Parameters.Add(new NpgsqlParameter<DateTime> { TypedValue = endTs, NpgsqlDbType = NpgsqlDbType.TimestampTz });
-
-        List<SaleRow> rows = [];
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        await using (var salesCmd = conn.CreateCommand())
         {
-            rows.Add(new SaleRow(
-                reader.GetGuid(0),
-                reader.GetDecimal(1),
-                reader.GetDecimal(2),
-                reader.GetDateTime(3)));
+            salesCmd.CommandText =
+                """
+                SELECT id, subtotal_amount, discount_amount, tax_amount, completed_at
+                FROM sale_records
+                WHERE completed_at >= $1
+                  AND completed_at < $2
+                """;
+            AddRange(salesCmd, startTs, endTs);
+
+            await using var reader = await salesCmd.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(SourceTransaction.Sale(
+                    reader.GetGuid(0),
+                    reader.GetDecimal(1),
+                    reader.GetDecimal(2),
+                    reader.GetDecimal(3),
+                    reader.GetDateTime(4)));
+            }
+        }
+
+        // Refunds are credit notes: they take their VAT back out of the period they were issued in.
+        await using (var returnsCmd = conn.CreateCommand())
+        {
+            returnsCmd.CommandText =
+                """
+                SELECT r.id, r.refund_amount, COALESCE(SUM(l.line_total), 0), r.created_at
+                FROM return_orders r
+                LEFT JOIN return_order_lines l ON l.return_order_id = r.id
+                WHERE r.created_at >= $1
+                  AND r.created_at < $2
+                GROUP BY r.id, r.refund_amount, r.created_at
+                """;
+            AddRange(returnsCmd, startTs, endTs);
+
+            await using var reader = await returnsCmd.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(SourceTransaction.Return(
+                    reader.GetGuid(0),
+                    reader.GetDecimal(1),
+                    reader.GetDecimal(2),
+                    reader.GetDateTime(3)));
+            }
         }
 
         return rows;
+    }
+
+    private static void AddRange(NpgsqlCommand cmd, DateTime startTs, DateTime endTs)
+    {
+        cmd.Parameters.Add(new NpgsqlParameter<DateTime> { TypedValue = startTs, NpgsqlDbType = NpgsqlDbType.TimestampTz });
+        cmd.Parameters.Add(new NpgsqlParameter<DateTime> { TypedValue = endTs, NpgsqlDbType = NpgsqlDbType.TimestampTz });
     }
 
     [SuppressMessage("Security", "CA2100", Justification = "Schema name validated against strict pattern.")]
@@ -146,6 +175,4 @@ internal sealed class RefreshTaxLedgerCommandHandler(
             throw new InvalidOperationException($"Invalid schema name: {schemaName}");
         }
     }
-
-    private sealed record SaleRow(Guid Id, decimal TaxAmount, decimal SubtotalAmount, DateTime CompletedAt);
 }

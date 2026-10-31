@@ -2,6 +2,9 @@ import { apiClient } from './client'
 
 // ── Response types ────────────────────────────────────────────────────────────
 
+// A closed period has been filed with ZATCA: the server rejects any change to it with 409 TaxPeriod.Closed.
+export const isPeriodClosed = (period: { status: string }) => period.status === 'closed'
+
 export interface TaxPeriodResponse {
   id: string
   startDate: string
