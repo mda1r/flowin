@@ -45,6 +45,7 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -53,8 +54,14 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
         [FromBody] CreateRoomRequest request,
         CancellationToken cancellationToken)
     {
+        // The tenant always comes from the caller's token, never from the request body.
+        if (!Guid.TryParse(User.FindFirst("tenant_id")?.Value, out Guid tenantId) || tenantId == Guid.Empty)
+        {
+            return Forbid();
+        }
+
         CreateRoomCommand command = new(
-            request.TenantId, branchId, request.RoomType, request.RoomNumber,
+            tenantId, branchId, request.RoomType, request.RoomNumber,
             request.Floor, request.Capacity, request.NightlyRate, request.Currency,
             request.Description);
         ErrorOr<RoomResponse> result = await mediator.Send(command, cancellationToken);
@@ -64,6 +71,7 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
     }
 
     [HttpPatch("{roomId:guid}/status")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -79,6 +87,7 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("{roomId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateRoom(
@@ -106,7 +115,6 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
 }
 
 public sealed record CreateRoomRequest(
-    Guid TenantId,
     RoomType RoomType,
     string RoomNumber,
     int Floor,

@@ -21,8 +21,11 @@ internal sealed class ListHotelRoomsQueryHandler(
         Reservation[] activeReservations = [.. await reservationRepository.FindActiveByBranchAsync(
             request.BranchId, cancellationToken)];
 
+        // Legacy data can hold two active reservations for one room; keep the one that
+        // checks out first (the list is ordered by check-out) instead of throwing.
         Dictionary<Guid, ReservationResponse> reservationByRoom = activeReservations
-            .ToDictionary(r => r.RoomId, HotelMapper.ToReservationResponse);
+            .GroupBy(r => r.RoomId)
+            .ToDictionary(g => g.Key, g => HotelMapper.ToReservationResponse(g.First()));
 
         List<RoomResponse> result = rooms
             .Select(room =>

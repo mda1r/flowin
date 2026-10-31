@@ -5,23 +5,25 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   BedDouble, AlertTriangle, CheckCircle, Clock, Sparkles, Plus, QrCode,
-  Users, Home, Brush, Calendar, Phone, CreditCard,
+  Users, Home, Brush, Calendar, Phone, CreditCard, CalendarPlus, XCircle,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { hotelApi } from '@/api/hotel'
 import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
+import { generateZatcaQr } from '@/lib/zatca'
 import type { RoomResponse, ReservationResponse, RoomStatus } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { printElement } from '@/lib/print'
+import { hotelErrorMessage, stayTotals } from './stay'
+import { ExtendStayModal } from './ExtendStayModal'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -111,7 +113,8 @@ export function HotelPage() {
   const [checkoutReceipt, setCheckoutReceipt] = useState<ReservationResponse | null>(null)
   const [checkoutRoomNumber, setCheckoutRoomNumber] = useState<string>('')
 
-  const { branchId, tenantId } = useAuthStore()
+  const { branchId, user } = useAuthStore()
+  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const qc = useQueryClient()
 
   const invalidateAll = () => {
@@ -210,10 +213,12 @@ export function HotelPage() {
         title={t.hotel.title}
         description="إدارة الغرف والحجوزات والتنظيف"
         action={
-          <Button onClick={() => setShowAddRoom(true)}>
-            <Plus className="h-4 w-4" />
-            إضافة غرفة
-          </Button>
+          canManage && (
+            <Button onClick={() => setShowAddRoom(true)}>
+              <Plus className="h-4 w-4" />
+              إضافة غرفة
+            </Button>
+          )
         }
       />
 
@@ -279,7 +284,7 @@ export function HotelPage() {
             rooms={rooms}
             reservations={reservations}
             branchId={branchId!}
-            tenantId={tenantId!}
+            canManage={canManage}
             onCheckoutSuccess={(reservation, roomNumber) => {
               setCheckoutReceipt(reservation)
               setCheckoutRoomNumber(roomNumber)
@@ -304,7 +309,6 @@ export function HotelPage() {
         open={showAddRoom}
         onClose={() => setShowAddRoom(false)}
         branchId={branchId!}
-        tenantId={tenantId!}
         onSuccess={invalidateAll}
       />
 
@@ -538,14 +542,14 @@ function CashierTab({
   rooms,
   reservations,
   branchId,
-  tenantId,
+  canManage,
   onCheckoutSuccess,
   onDataChange,
 }: {
   rooms: RoomResponse[]
   reservations: ReservationResponse[]
   branchId: string
-  tenantId: string
+  canManage: boolean
   onCheckoutSuccess: (reservation: ReservationResponse, roomNumber: string) => void
   onDataChange: () => void
 }) {
@@ -566,9 +570,9 @@ function CashierTab({
   const watchedRate = watch('ratePerNight')
 
   const nights = nightsCount(watchedCheckIn ?? '', watchedCheckOut ?? '')
-  const subtotal = nights * (watchedRate || 0)
-  const vat = subtotal * SAUDI_VAT_RATE
-  const total = subtotal + vat
+  const { subtotal, vat, total } = stayTotals(nights * (watchedRate || 0))
+  const [extending, setExtending] = useState<ReservationResponse | null>(null)
+  const [cancelling, setCancelling] = useState<ReservationResponse | null>(null)
 
   // Auto-fill rate when room changes
   useEffect(() => {
@@ -584,7 +588,6 @@ function CashierTab({
   const checkIn = useMutation({
     mutationFn: (data: CheckInFormData) =>
       hotelApi.checkIn(branchId, data.roomId, {
-        tenantId,
         guestName: data.guestName,
         guestNationalId: data.guestNationalId,
         guestPhone: data.guestPhone,
@@ -598,7 +601,7 @@ function CashierTab({
       reset({ checkIn: todayDateStr(), checkOut: tomorrowDateStr(), ratePerNight: 0 })
       toast.success('تم تسجيل الوصول', 'تم إنشاء الحجز بنجاح')
     },
-    onError: () => toast.error('فشل تسجيل الوصول', 'يرجى التحقق من البيانات والمحاولة مرة أخرى'),
+    onError: (err) => toast.error('فشل تسجيل الوصول', hotelErrorMessage(err, 'يرجى التحقق من البيانات والمحاولة مرة أخرى')),
   })
 
   const checkOut = useMutation({
@@ -608,7 +611,17 @@ function CashierTab({
       onDataChange()
       onCheckoutSuccess(response.data, variables.roomNumber)
     },
-    onError: () => toast.error('فشل تسجيل المغادرة', 'يرجى المحاولة مرة أخرى'),
+    onError: (err) => toast.error('فشل تسجيل المغادرة', hotelErrorMessage(err)),
+  })
+
+  const cancelReservation = useMutation({
+    mutationFn: (reservationId: string) => hotelApi.cancelReservation(branchId, reservationId),
+    onSuccess: () => {
+      onDataChange()
+      setCancelling(null)
+      toast.success(t.hotel.reservationCancelled)
+    },
+    onError: (err) => toast.error(t.hotel.cancelReservation, hotelErrorMessage(err)),
   })
 
   const roomMap = Object.fromEntries(rooms.map((r) => [r.id, r]))
@@ -749,7 +762,7 @@ function CashierTab({
               const overdue = isCheckoutOverdue(res.checkOut)
               return (
                 <div key={res.id} className="px-6 py-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium text-fg truncate">{res.guestName}</p>
@@ -772,22 +785,39 @@ function CashierTab({
                         <span>{res.nights} {t.hotel.nights}</span>
                       </div>
                       <p className="mt-1 text-xs font-semibold text-success">
-                        {formatCurrency(res.totalAmount)} (قبل الضريبة)
+                        {formatCurrency(stayTotals(res.totalAmount).total)} ({t.hotel.totalWithVat})
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={overdue ? 'danger' : 'secondary'}
-                      loading={checkOut.isPending && checkOut.variables?.reservationId === res.id}
-                      onClick={() =>
-                        checkOut.mutate({
-                          reservationId: res.id,
-                          roomNumber: room?.roomNumber ?? '',
-                        })
-                      }
-                    >
-                      مغادرة
-                    </Button>
+                    <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
+                      <Button size="sm" variant="secondary" onClick={() => setExtending(res)}>
+                        <CalendarPlus className="h-4 w-4" />
+                        {t.hotel.extendStay}
+                      </Button>
+                      {canManage && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setCancelling(res)}
+                          title={t.hotel.cancelReservation}
+                          aria-label={t.hotel.cancelReservation}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant={overdue ? 'danger' : 'secondary'}
+                        loading={checkOut.isPending && checkOut.variables?.reservationId === res.id}
+                        onClick={() =>
+                          checkOut.mutate({
+                            reservationId: res.id,
+                            roomNumber: room?.roomNumber ?? '',
+                          })
+                        }
+                      >
+                        مغادرة
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )
@@ -795,6 +825,24 @@ function CashierTab({
           )}
         </div>
       </div>
+
+      <ExtendStayModal
+        reservation={extending}
+        branchId={branchId}
+        onClose={() => setExtending(null)}
+        onSuccess={onDataChange}
+      />
+
+      <ConfirmModal
+        open={!!cancelling}
+        onClose={() => setCancelling(null)}
+        onConfirm={() => cancelling && cancelReservation.mutate(cancelling.id)}
+        title={t.hotel.cancelReservation}
+        message={t.hotel.cancelReservationConfirm.replace('{name}', cancelling?.guestName ?? '')}
+        confirmLabel={t.hotel.cancelReservation}
+        confirmVariant="danger"
+        loading={cancelReservation.isPending}
+      />
     </div>
   )
 }
@@ -888,13 +936,11 @@ function AddRoomModal({
   open,
   onClose,
   branchId,
-  tenantId,
   onSuccess,
 }: {
   open: boolean
   onClose: () => void
   branchId: string
-  tenantId: string
   onSuccess: () => void
 }) {
   const { t } = useI18n()
@@ -911,7 +957,6 @@ function AddRoomModal({
   const create = useMutation({
     mutationFn: (data: AddRoomFormData) =>
       hotelApi.createHotelRoom(branchId, {
-        tenantId,
         roomType: data.roomType,
         roomNumber: data.roomNumber,
         floor: data.floor,
@@ -926,7 +971,7 @@ function AddRoomModal({
       reset({ roomType: 'Standard', floor: 1, capacity: 2, currency: 'SAR' })
       toast.success('تمت الإضافة', 'تم إضافة الغرفة بنجاح')
     },
-    onError: () => toast.error('فشلت الإضافة', 'قد يكون رقم الغرفة مستخدماً بالفعل'),
+    onError: (err) => toast.error('فشلت الإضافة', hotelErrorMessage(err, 'قد يكون رقم الغرفة مستخدماً بالفعل')),
   })
 
   return (
@@ -1019,9 +1064,8 @@ function HotelReceiptModal({
   })
   const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
 
-  const total = reservation.totalAmount
-  const vat = +(total * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)).toFixed(2)
-  const subtotal = total - vat
+  // totalAmount is the net stay amount; VAT is added on top (same rule as the check-in quote).
+  const { subtotal, vat, total } = stayTotals(reservation.totalAmount)
 
   const qrCode = generateZatcaQr({
     sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',

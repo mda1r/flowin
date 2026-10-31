@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.Hotel.Application.Commands.ActivateRentalContract;
+using NexusPOS.Hotel.Application.Commands.CancelRentalContract;
 using NexusPOS.Hotel.Application.Commands.CreateRentalContract;
 using NexusPOS.Hotel.Application.Commands.SignRentalContract;
 using NexusPOS.Hotel.Application.Commands.UpdateRentalContract;
@@ -109,6 +111,27 @@ public sealed class RentalContractsController(ISender mediator) : ControllerBase
     public async Task<IActionResult> Sign(Guid branchId, Guid contractId, CancellationToken ct = default)
     {
         var result = await mediator.Send(new SignRentalContractCommand(contractId, branchId), ct);
+        return result.Match(Ok, MapErrors);
+    }
+
+    [HttpPost("{contractId:guid}/activate")]
+    [ProducesResponseType(typeof(RentalContractResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Activate(Guid branchId, Guid contractId, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new ActivateRentalContractCommand(contractId, branchId), ct);
+        return result.Match(Ok, MapErrors);
+    }
+
+    [HttpPost("{contractId:guid}/cancel")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(RentalContractResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Cancel(Guid branchId, Guid contractId, CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new CancelRentalContractCommand(contractId, branchId), ct);
         return result.Match(Ok, MapErrors);
     }
 
