@@ -45,6 +45,20 @@ public sealed class CustomerTests
         customer.LoyaltyPoints.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("0551234567", "+966551234567")]
+    [InlineData("  +966 55 123 4567 ", "+966551234567")]
+    [InlineData("٠٥٥١٢٣٤٥٦٧", "+966551234567")]
+    [InlineData("0112345678", "0112345678")]
+    [InlineData("٠١١ ٢٣٤٥٦٧٨", "011 2345678")]
+    [InlineData("   ", null)]
+    public void Create_StoresThePhoneNormalised(string phone, string? expected)
+    {
+        Customer customer = Customer.Create(_tenantId, "Jane", phone: phone);
+
+        customer.Phone.Should().Be(expected);
+    }
+
     // ── UpdateProfile ─────────────────────────────────────────────────────────
 
     [Fact]
@@ -172,7 +186,7 @@ public sealed class CustomerTests
         customer.UpdateProfile("Jane", "   ", "0500000000", "", null, null);
 
         customer.Email.Should().BeNull();
-        customer.Phone.Should().Be("0500000000");
+        customer.Phone.Should().Be("+966500000000");
         customer.Address.Should().BeNull();
     }
 

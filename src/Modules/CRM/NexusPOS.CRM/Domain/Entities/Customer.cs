@@ -1,5 +1,6 @@
 using ErrorOr;
 using NexusPOS.CRM.Domain.Events;
+using NexusPOS.CRM.Domain.Marketing;
 using NexusPOS.CRM.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
 
@@ -40,7 +41,7 @@ public sealed class Customer : AggregateRoot<CustomerId>
             TenantId = tenantId,
             Name = name.Trim(),
             Email = Clean(email),
-            Phone = Clean(phone),
+            Phone = CleanPhone(phone),
             Address = Clean(address),
             DateOfBirth = dateOfBirth,
             LoyaltyPoints = 0,
@@ -62,7 +63,7 @@ public sealed class Customer : AggregateRoot<CustomerId>
         MarketingOptIn = marketingOptIn ?? MarketingOptIn;
         Name = name.Trim();
         Email = Clean(email);
-        Phone = Clean(phone);
+        Phone = CleanPhone(phone);
         Address = Clean(address);
         DateOfBirth = dateOfBirth;
         Notes = Clean(notes);
@@ -120,4 +121,12 @@ public sealed class Customer : AggregateRoot<CustomerId>
 
     // A blank field is no value at all, so two customers without an email never collide on the unique email index.
     internal static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    // Phones are kept in one international form (+9665XXXXXXXX for a Saudi mobile) so the till finds a regular however
+    // the number was typed and the same number cannot be signed up twice. The + keeps numbers from other countries
+    // valid for WhatsApp campaigns. A number the rules do not recognise, like a landline, is kept as typed with 0-9 digits.
+    internal static string? CleanPhone(string? value) =>
+        WhatsAppPhone.Normalize(value) is string normalized
+            ? "+" + normalized
+            : Clean(value) is string raw ? WhatsAppPhone.ToAsciiDigits(raw) : null;
 }

@@ -331,6 +331,8 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_batch_id UUID NULL",
             "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS business_account_id VARCHAR(64) NOT NULL DEFAULT ''",
             "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS template_body VARCHAR(1100) NULL",
+            // No patch rewrites old customers.phone values into the normalised form: doing that in SQL is error-prone.
+            // CustomerSearch and ExistsActiveByPhoneAsync also match the forms older rows were saved in.
         ];
 
         foreach (string sql in patches)

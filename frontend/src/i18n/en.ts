@@ -452,6 +452,14 @@ export const en = {
     kindRedeem: 'Redeemed',
     kindAdjust: 'Manual adjustment',
     kindReverse: 'Reversed by a return',
+    quickAdd: 'Add new customer',
+    quickAdded: '{name} added and linked to the order',
+    birthday: 'Birthday',
+    whatsAppOptIn: 'Agrees to offers on WhatsApp',
+    phoneInvalid: 'Invalid number. Example: 0512345678',
+    needsInternet: 'Adding a customer needs an internet connection',
+    optInHint: 'Turn it on only after the customer agrees.',
+    enterToPick: 'Press Enter to pick the customer',
   },
 
   sales: {
@@ -1822,6 +1830,7 @@ export const en = {
       'POS.DuplicateVariant': 'This item is already on the order',
       'POS.EmptyOrder': 'Add at least one item before paying',
       'POS.InsufficientLoyaltyPoints': "The customer doesn't have enough points",
+      'Customer.PhoneTaken': 'A customer with this mobile number already exists',
       'POS.InsufficientPayment': 'The amount paid is less than the total',
       'POS.InvalidDiscountValue': "Discount can't be negative",
       'POS.InvalidLoyaltyPoints': 'Invalid number of points',

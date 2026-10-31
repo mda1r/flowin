@@ -1,8 +1,12 @@
-// Normalizes a phone typed at the till to wa.me's international digits form.
-// Saudi mobiles: 05XXXXXXXX, 5XXXXXXXX, +9665XXXXXXXX or 009665XXXXXXXX → 9665XXXXXXXX.
+// Arabic-Indic (٠-٩) and Persian (۰-۹) digits, which Arabic keyboards type, become 0-9; everything else is kept.
+export const toAsciiDigits = (text: string) =>
+  text.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0))
+
+// Normalizes a phone typed at the till to wa.me's international digits form, like the server's WhatsAppPhone.
+// Saudi mobiles: 05XXXXXXXX, 5XXXXXXXX, +9665XXXXXXXX or 009665XXXXXXXX → 9665XXXXXXXX, in any of those digit sets.
 // Other international numbers are accepted when written with + or 00.
 export function normalizePhoneForWhatsApp(input: string): string | null {
-  const raw = input.trim()
+  const raw = toAsciiDigits(input.trim())
   const international = raw.startsWith('+') || raw.startsWith('00')
   let digits = raw.replace(/\D/g, '')
   if (digits.startsWith('00')) digits = digits.slice(2)

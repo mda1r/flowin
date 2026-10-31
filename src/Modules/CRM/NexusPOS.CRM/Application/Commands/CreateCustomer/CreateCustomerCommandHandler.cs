@@ -30,8 +30,16 @@ internal sealed class CreateCustomerCommandHandler(
             }
         }
 
+        // One customer per phone in a store, however the number was typed, so points never split across two records.
+        string? phone = Customer.CleanPhone(request.Phone);
+        if (phone is not null &&
+            await customerRepository.ExistsActiveByPhoneAsync(request.TenantId, phone, null, cancellationToken))
+        {
+            return CrmErrors.CustomerPhoneTaken;
+        }
+
         Customer customer = Customer.Create(
-            request.TenantId, request.Name, email, request.Phone,
+            request.TenantId, request.Name, email, phone,
             request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn ?? false);
 
         customerRepository.Add(customer);

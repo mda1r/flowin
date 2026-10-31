@@ -85,7 +85,12 @@ export function CustomersPage() {
   const save = useMutation({
     mutationFn: (formData: FormData) =>
       editing
-        ? customersApi.update(tenantId!, editing.id, toPayload(formData))
+        ? customersApi.update(tenantId!, editing.id, {
+            ...toPayload(formData),
+            // The form has no birthday or notes yet: send back what is stored so saving does not wipe them.
+            dateOfBirth: editing.dateOfBirth ?? null,
+            notes: editing.notes ?? null,
+          })
         : customersApi.create(tenantId!, toPayload(formData)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['customers', tenantId] })

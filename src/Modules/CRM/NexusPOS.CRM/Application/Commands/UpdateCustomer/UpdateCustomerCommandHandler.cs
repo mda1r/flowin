@@ -39,7 +39,16 @@ internal sealed class UpdateCustomerCommandHandler(
             }
         }
 
-        customer.UpdateProfile(request.Name, email, request.Phone,
+        // Only a changed number is checked, so editing a customer who already shares a phone from before still saves.
+        string? phone = Customer.CleanPhone(request.Phone);
+        if (phone is not null &&
+            phone != Customer.CleanPhone(customer.Phone) &&
+            await customerRepository.ExistsActiveByPhoneAsync(request.TenantId, phone, customer.Id, cancellationToken))
+        {
+            return CrmErrors.CustomerPhoneTaken;
+        }
+
+        customer.UpdateProfile(request.Name, email, phone,
             request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn);
 
         customerRepository.Update(customer);

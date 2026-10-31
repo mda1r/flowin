@@ -852,7 +852,7 @@ function RetailPosPage() {
                   setSplitCard('')
                 }}
                 maxRedeemable={maxRedeemable}
-                payable={grossTotal}
+                earnBase={grossTotal}
                 rules={loyaltyRules}
               />
             </div>

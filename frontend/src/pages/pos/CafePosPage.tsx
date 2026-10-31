@@ -39,7 +39,7 @@ import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage, 
 import { isAxiosError } from 'axios'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
-import { buildReceiptMessage } from '@/lib/whatsapp'
+import { buildReceiptMessage, toAsciiDigits } from '@/lib/whatsapp'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -217,8 +217,7 @@ function clearDraft(branchId: string | null) {
 }
 
 // A typed quantity: Arabic-Indic and Persian digits count too, since a phone's Arabic keypad sends them.
-const parseQty = (text: string) =>
-  parseInt(text.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)), 10)
+const parseQty = (text: string) => parseInt(toAsciiDigits(text), 10)
 
 const CAFE_ACCENT: React.CSSProperties = {
   '--accent-l': '#0B7A65',
@@ -1563,7 +1562,7 @@ export function CafePosPage() {
                   redeemPoints={appliedPoints}
                   onRedeemPointsChange={setRedeemPoints}
                   maxRedeemable={maxRedeemable}
-                  payable={afterDiscount}
+                  earnBase={grandTotal}
                   rules={loyaltyRules}
                 />
                 {showDiscount || discountInput ? (

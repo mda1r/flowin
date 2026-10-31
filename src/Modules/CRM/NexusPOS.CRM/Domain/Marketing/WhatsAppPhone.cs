@@ -11,7 +11,7 @@ public static class WhatsAppPhone
             return null;
         }
 
-        string raw = input.Trim();
+        string raw = ToAsciiDigits(input.Trim());
         bool international = raw.StartsWith('+') || raw.StartsWith("00", StringComparison.Ordinal);
         string digits = new([.. raw.Where(char.IsAsciiDigit)]);
         if (digits.StartsWith("00", StringComparison.Ordinal))
@@ -35,5 +35,35 @@ public static class WhatsAppPhone
         }
 
         return international && digits.Length is >= 8 and <= 15 ? digits : null;
+    }
+
+    // Arabic-Indic (٠-٩) and Persian (۰-۹) digits, which Arabic keyboards type, become 0-9; everything else is kept.
+    public static string ToAsciiDigits(string input) =>
+        string.Create(input.Length, input, static (span, source) =>
+        {
+            for (int i = 0; i < source.Length; i++)
+            {
+                char c = source[i];
+                span[i] = c switch
+                {
+                    >= '\u0660' and <= '\u0669' => (char)('0' + (c - '\u0660')),
+                    >= '\u06F0' and <= '\u06F9' => (char)('0' + (c - '\u06F0')),
+                    _ => c,
+                };
+            }
+        });
+
+    // The ways a normalised number may be stored: +9665XXXXXXXX as customers save it now, and in rows saved before that
+    // 9665XXXXXXXX, 009665XXXXXXXX, 05XXXXXXXX or 5XXXXXXXX for a Saudi mobile.
+    public static IReadOnlyList<string> StoredForms(string normalized)
+    {
+        List<string> forms = [normalized, "+" + normalized, "00" + normalized];
+        if (normalized.Length == 12 && normalized.StartsWith("9665", StringComparison.Ordinal))
+        {
+            forms.Add("0" + normalized[3..]);
+            forms.Add(normalized[3..]);
+        }
+
+        return forms;
     }
 }

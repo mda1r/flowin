@@ -10,6 +10,9 @@ public static class CrmErrors
     public static readonly Error CustomerEmailTaken =
         Error.Conflict("Customer.EmailTaken", "يوجد عميل بنفس البريد الإلكتروني");
 
+    public static readonly Error CustomerPhoneTaken =
+        Error.Conflict("Customer.PhoneTaken", "يوجد عميل مسجّل بنفس رقم الجوال");
+
     public static readonly Error InsufficientLoyaltyPoints =
         Error.Validation("Customer.InsufficientLoyaltyPoints", "نقاط العميل لا تكفي");
 

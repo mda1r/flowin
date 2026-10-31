@@ -36,9 +36,10 @@ export const customersApi = {
       `/api/v1/tenants/${tenantId}/customers/${customerId}`,
     ),
 
+  // dateOfBirth is YYYY-MM-DD.
   create: (
     tenantId: string,
-    data: { name: string; email?: string; phone?: string; address?: string; marketingOptIn?: boolean },
+    data: { name: string; email?: string; phone?: string; address?: string; dateOfBirth?: string; marketingOptIn?: boolean },
   ) =>
     apiClient.post<CustomerResponse>(
       `/api/v1/tenants/${tenantId}/customers`,
@@ -48,7 +49,15 @@ export const customersApi = {
   update: (
     tenantId: string,
     customerId: string,
-    data: { name: string; email?: string; phone?: string; address?: string; marketingOptIn?: boolean },
+    data: {
+      name: string
+      email?: string
+      phone?: string
+      address?: string
+      dateOfBirth?: string | null
+      notes?: string | null
+      marketingOptIn?: boolean
+    },
   ) =>
     apiClient.put<CustomerResponse>(
       `/api/v1/tenants/${tenantId}/customers/${customerId}`,

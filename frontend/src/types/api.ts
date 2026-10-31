@@ -396,6 +396,9 @@ export interface CustomerResponse {
   email?: string
   phone?: string
   address?: string
+  // YYYY-MM-DD; not on the edit form yet, so an update sends back what is stored.
+  dateOfBirth?: string | null
+  notes?: string | null
   loyaltyPoints: number
   isActive: boolean
   createdAt: string

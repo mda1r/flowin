@@ -19,6 +19,7 @@ const CODE_MESSAGES: Record<string, string> = {
   'Inventory.StockCountNotInProgress': 'هذا الجرد لم يعد مفتوحاً',
   'Inventory.StockCountAlreadyCompleted': 'هذا الجرد مكتمل ولا يمكن إلغاؤه',
   'Customer.EmailTaken': 'يوجد عميل آخر بنفس البريد الإلكتروني',
+  'Customer.PhoneTaken': 'يوجد عميل مسجّل بنفس رقم الجوال',
   'Customer.InsufficientLoyaltyPoints': 'رصيد النقاط لا يكفي',
   'Organization.BranchAlreadyExists': 'يوجد فرع آخر بنفس الاسم',
   'Organization.CannotDeactivateMainBranch': 'لا يمكن تعطيل الفرع الرئيسي، عيّن فرعاً آخر كرئيسي أولاً',

@@ -454,6 +454,14 @@ export const ar: Translations = {
     kindRedeem: 'مستبدلة',
     kindAdjust: 'تعديل يدوي',
     kindReverse: 'عكس بسبب مرتجع',
+    quickAdd: 'إضافة عميل جديد',
+    quickAdded: 'أُضيف {name} وربطه بالطلب',
+    birthday: 'تاريخ الميلاد',
+    whatsAppOptIn: 'يوافق على العروض عبر واتساب',
+    phoneInvalid: 'رقم غير صالح. مثال: 0512345678',
+    needsInternet: 'الإضافة تحتاج اتصالاً بالإنترنت',
+    optInHint: 'فعّله فقط بعد أخذ موافقة العميل.',
+    enterToPick: 'Enter لاختيار العميل',
   },
 
   sales: {
@@ -1823,6 +1831,7 @@ export const ar: Translations = {
       'POS.DuplicateVariant': 'هذا الصنف موجود في الطلب',
       'POS.EmptyOrder': 'أضف صنفاً واحداً على الأقل قبل الدفع',
       'POS.InsufficientLoyaltyPoints': 'رصيد العميل من النقاط لا يكفي',
+      'Customer.PhoneTaken': 'يوجد عميل مسجّل بنفس رقم الجوال',
       'POS.InsufficientPayment': 'المبلغ المدفوع أقل من الإجمالي',
       'POS.InvalidDiscountValue': 'الخصم لا يكون بالسالب',
       'POS.InvalidLoyaltyPoints': 'عدد النقاط غير صالح',

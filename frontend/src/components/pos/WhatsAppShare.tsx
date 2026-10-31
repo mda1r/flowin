@@ -34,8 +34,10 @@ export function WhatsAppShare({ message, defaultPhone }: { message: string; defa
           rel="noopener noreferrer"
           aria-disabled={!normalized}
           onClick={(e) => { if (!normalized) e.preventDefault() }}
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-white transition-colors ${
-            normalized ? 'bg-[#1F9D55] hover:bg-[#17803F]' : 'cursor-not-allowed bg-[#1F9D55]/40'
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
+            normalized
+              ? 'border-success/40 bg-success/15 text-success hover:bg-success/25'
+              : 'cursor-not-allowed border-border bg-surface-2 text-muted'
           }`}
         >
           <MessageCircle className="h-4 w-4" />
