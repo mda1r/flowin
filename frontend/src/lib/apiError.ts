@@ -17,6 +17,9 @@ const CODE_MESSAGES: Record<string, string> = {
   'Inventory.StockCountAlreadyCompleted': 'هذا الجرد مكتمل ولا يمكن إلغاؤه',
   'Customer.EmailTaken': 'يوجد عميل آخر بنفس البريد الإلكتروني',
   'Customer.InsufficientLoyaltyPoints': 'رصيد النقاط لا يكفي',
+  'Organization.BranchAlreadyExists': 'يوجد فرع آخر بنفس الاسم',
+  'Organization.CannotDeactivateMainBranch': 'لا يمكن تعطيل الفرع الرئيسي، عيّن فرعاً آخر كرئيسي أولاً',
+  'Organization.MainBranchMustBeActive': 'فعّل الفرع أولاً قبل تعيينه كرئيسي',
 }
 
 // Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line.

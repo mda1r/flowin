@@ -31,6 +31,13 @@ internal sealed class UpdateBranchCommandHandler(
             return OrganizationErrors.BranchNotFound;
         }
 
+        bool nameTaken = await branchRepository.ExistsByNameAsync(
+            branch.TenantId, request.Name, branch.Id, cancellationToken);
+        if (nameTaken)
+        {
+            return OrganizationErrors.BranchAlreadyExists;
+        }
+
         Address? address = BuildAddress(request);
         branch.Update(request.Name, request.Type, address, request.PhoneNumber, request.Email);
 
@@ -42,9 +49,9 @@ internal sealed class UpdateBranchCommandHandler(
 
     private static Address? BuildAddress(UpdateBranchCommand request)
     {
-        if (request.Street is null && request.City is null &&
-            request.State is null && request.Country is null &&
-            request.PostalCode is null)
+        if (string.IsNullOrWhiteSpace(request.Street) && string.IsNullOrWhiteSpace(request.City) &&
+            string.IsNullOrWhiteSpace(request.State) && string.IsNullOrWhiteSpace(request.Country) &&
+            string.IsNullOrWhiteSpace(request.PostalCode))
         {
             return null;
         }
@@ -52,9 +59,9 @@ internal sealed class UpdateBranchCommandHandler(
         return Address.Create(
             request.Street ?? string.Empty,
             request.City ?? string.Empty,
-            request.State,
+            string.IsNullOrWhiteSpace(request.State) ? null : request.State,
             request.Country ?? string.Empty,
-            request.PostalCode);
+            string.IsNullOrWhiteSpace(request.PostalCode) ? null : request.PostalCode);
     }
 
     private static BranchResponse MapToResponse(Branch branch) => new(
