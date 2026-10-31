@@ -1,4 +1,5 @@
 using ErrorOr;
+using Microsoft.EntityFrameworkCore;
 using NexusPOS.Inventory.Application.Commands.CreateStockCountSession;
 using NexusPOS.Inventory.Application.Common;
 using NexusPOS.Inventory.Domain;
@@ -35,7 +36,15 @@ internal sealed class CancelStockCountSessionCommandHandler(
         }
 
         stockCountRepository.Update(session);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The session changed since it was loaded (completed or cancelled meanwhile).
+            return InventoryErrors.StockCountNotInProgress;
+        }
 
         return CreateStockCountSessionCommandHandler.MapToResponse(session);
     }

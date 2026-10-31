@@ -10,6 +10,7 @@ public interface IStockItemRepository
     Task<IReadOnlyList<StockItem>> FindByBranchAsync(Guid branchId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StockItem>> FindLowStockAsync(Guid branchId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StockItem>> FindExpiringAsync(Guid branchId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StockItem>> LockForUpdateAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
     void Add(StockItem stockItem);
     void Update(StockItem stockItem);
     void Remove(StockItem stockItem);

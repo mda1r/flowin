@@ -1,4 +1,6 @@
 using ErrorOr;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using NexusPOS.Inventory.Application.Commands.CreateStockCountSession;
 using NexusPOS.Inventory.Application.Common;
 using NexusPOS.Inventory.Domain;
@@ -35,11 +37,18 @@ internal sealed class CompleteStockCountSessionCommandHandler(
             return result.Errors;
         }
 
+        // One transaction: the stock rows stay locked from read to save, and the session's xmin
+        // token makes a second complete (double click, retry, another manager) fail instead of
+        // applying the differences twice.
+        await using IDbContextTransaction transaction =
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         List<StockCountItem> discrepancies = session.Items.Where(i => i.HasDiscrepancy).ToList();
         if (request.AutoAdjust && discrepancies.Count > 0)
         {
             Dictionary<Guid, StockItem> stockById =
-                (await stockItemRepository.FindByBranchAsync(session.BranchId, cancellationToken))
+                (await stockItemRepository.LockForUpdateAsync(
+                    discrepancies.ConvertAll(i => i.StockItemId), cancellationToken))
                 .ToDictionary(s => s.Id.Value);
             string reference = $"جرد-{session.Id.Value}";
 
@@ -63,7 +72,17 @@ internal sealed class CompleteStockCountSessionCommandHandler(
         }
 
         stockCountRepository.Update(session);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another request completed, cancelled or edited the session first; nothing was applied.
+            return InventoryErrors.StockCountNotInProgress;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
 
         return CreateStockCountSessionCommandHandler.MapToResponse(session);
     }
