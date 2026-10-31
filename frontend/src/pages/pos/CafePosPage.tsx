@@ -6,7 +6,7 @@ import {
   Gamepad2, Clock, Play, Square, Search, Percent,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
-import { ordersApi } from '@/api/orders'
+import { ordersApi, posSettingsApi } from '@/api/orders'
 import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
@@ -102,8 +102,8 @@ interface CustomerReceiptData {
 type PayMode = 'Cash' | 'Card' | 'Split'
 type DiscountMode = 'Percentage' | 'Fixed'
 
-// Mirrors CheckoutOrderCommand.CashierDiscountCapPercent: above it only an owner or manager can discount.
-const CASHIER_DISCOUNT_CAP = 20
+// Until the branch till rules load, the same cap the retail till assumes.
+const DEFAULT_POS_SETTINGS = { maxCashierDiscountPercent: 10, hasApprovalPin: false }
 
 const newLineKey = () => Math.random().toString(36).slice(2, 10)
 
@@ -366,6 +366,13 @@ export function CafePosPage() {
   const { branchId, tenantId, user } = useAuthStore()
   const isGamingLounge = user?.businessType === 'Gaming'
   const isManager = user?.role === 'Owner' || user?.role === 'Manager'
+  const { data: posSettingsRes } = useQuery({
+    queryKey: ['pos-settings', branchId],
+    queryFn: () => posSettingsApi.get(branchId!),
+    enabled: !!branchId,
+    staleTime: 5 * 60_000,
+  })
+  const posSettings = posSettingsRes?.data ?? DEFAULT_POS_SETTINGS
   const [gamingAlertCounts, setGamingAlertCounts] = useState({ expired: 0, warning: 0 })
   const { t } = useI18n()
   const { shift } = useShift()
@@ -394,6 +401,7 @@ export function CafePosPage() {
   const [discountMode, setDiscountMode] = useState<DiscountMode>('Percentage')
   const [discountInput, setDiscountInput] = useState('')
   const [showDiscount, setShowDiscount] = useState(false)
+  const [approvalPin, setApprovalPin] = useState('')
   const queryClient = useQueryClient()
 
   // AI Cashier
@@ -609,7 +617,11 @@ export function CafePosPage() {
     cartTotal,
   ) * 100) / 100
   const discountShare = cartTotal > 0 ? (discountGross / cartTotal) * 100 : 0
-  const discountOverCap = !isManager && discountShare > CASHIER_DISCOUNT_CAP + 0.01
+  // The branch sets how far a cashier may discount alone; past it a manager types their PIN, if the branch has one.
+  const discountCap = posSettings.maxCashierDiscountPercent
+  const overCap = !isManager && discountShare > discountCap + 0.01
+  const needsPin = overCap && posSettings.hasApprovalPin && navigator.onLine
+  const discountOverCap = overCap && !needsPin
   const afterDiscount = Math.round((cartTotal - discountGross) * 100) / 100
   const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, afterDiscount, loyaltyRules) : 0
   const appliedPoints = Math.min(redeemPoints, maxRedeemable)
@@ -672,6 +684,7 @@ export function CafePosPage() {
         ...(discountGross > 0 && (discountMode === 'Percentage'
           ? { discountType: 'Percentage' as const, discountValue: Math.min(discountRaw, 100) }
           : { discountType: 'Fixed' as const, discountValue: Math.round((discountGross / preTaxRate) * 10000) / 10000 })),
+        ...(needsPin && { approvalPin: approvalPin.trim() }),
         // The kitchen screen gets the paid sale as a ticket; dine-in without a table goes as "no table".
         kitchen: { tableNumber: orderType === 'here' ? tableNumber : null, takeaway: orderType === 'takeaway' },
         loyaltyPoints: appliedPoints,
@@ -750,6 +763,7 @@ export function CafePosPage() {
       setCashTendered('')
       setPayMode('Cash')
       setDiscountInput('')
+      setApprovalPin('')
       setShowDiscount(false)
       void queryClient.invalidateQueries({ queryKey: ['pos-stock', branchId] })
       if (loyaltyCustomer) {
@@ -771,8 +785,8 @@ export function CafePosPage() {
     onError: (e: Error) => {
       if (e.message === 'empty') toast.error('السلة فارغة')
       else if (e.message === 'offline-loyalty') toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
-      else if (e.message === 'discount-cap') toast.error(`أقصى خصم للكاشير ${CASHIER_DISCOUNT_CAP}٪`, 'اطلب من المدير إتمام البيع')
-      else if (isAxiosError(e) && (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.['POS.PriceBelowCatalog']) {
+      else if (e.message === 'discount-cap') toast.error(`أقصى خصم للكاشير ${discountCap}٪`, 'اطلب من المدير إتمام البيع')
+      else if (isAxiosError(e) && ['POS.PriceBelowCatalog', 'POS.UnknownProduct'].some((code) => (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.[code])) {
         void repriceCart(e).catch(() => toast.error(t.pos.paymentFailed, apiErrorMessage(e)))
       } else {
         // An item that left the catalog is refused too; reload the menu so it can be picked again.
@@ -790,7 +804,7 @@ export function CafePosPage() {
     Math.abs(splitCashNum + splitCardNum - grandTotal) < 0.01
   )
   const cashShort = payMode === 'Cash' && cashTendered !== '' && (parseFloat(cashTendered) || 0) < grandTotal
-  const canCheckout = cart.length > 0 && splitValid && !cashShort && !discountOverCap
+  const canCheckout = cart.length > 0 && splitValid && !cashShort && !discountOverCap && (!needsPin || approvalPin.trim().length >= 4)
 
   // ── AI Cashier checkout ────────────────────────────────────────────────────
 
@@ -908,7 +922,7 @@ export function CafePosPage() {
       run: () => {
         if (!canCheckout) {
           if (cart.length === 0) toast.error('السلة فارغة')
-          else if (discountOverCap) toast.error(`أقصى خصم للكاشير ${CASHIER_DISCOUNT_CAP}٪`)
+          else if (discountOverCap) toast.error(`أقصى خصم للكاشير ${discountCap}٪`)
           else if (cashShort) toast.error('المبلغ المستلم أقل من الإجمالي')
           else toast.error('تحقق من مبالغ الدفع المقسّم')
           return
@@ -1172,12 +1186,29 @@ export function CafePosPage() {
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    {discountOverCap ? (
+                    {needsPin ? (
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] font-medium text-warning">
+                          الخصم أكبر من حد الكاشير ({discountCap}٪) — رمز المدير
+                        </span>
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={8}
+                          value={approvalPin}
+                          onChange={(e) => setApprovalPin(e.target.value.replace(/\D/g, ''))}
+                          placeholder="••••"
+                          aria-label="رمز موافقة المدير"
+                          className="input-3d w-full py-1.5 text-sm tabular-nums"
+                        />
+                      </label>
+                    ) : discountOverCap ? (
                       <p className="text-[11px] font-medium text-danger">
-                        أقصى خصم للكاشير {CASHIER_DISCOUNT_CAP}٪ — الأعلى يحتاج المدير
+                        أقصى خصم للكاشير {discountCap}٪ — الأعلى يحتاج المدير
                       </p>
                     ) : !isManager ? (
-                      <p className="text-[11px] text-muted">حتى {CASHIER_DISCOUNT_CAP}٪ من الفاتورة</p>
+                      <p className="text-[11px] text-muted">حتى {discountCap}٪ من الفاتورة</p>
                     ) : null}
                   </div>
                 ) : (

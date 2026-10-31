@@ -2,6 +2,7 @@ using ErrorOr;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.POS.Application.Common;
+using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
@@ -34,25 +35,68 @@ internal sealed class CheckoutOrderCommandHandler(
             return rules.Errors;
         }
 
-        IReadOnlyDictionary<Guid, decimal>? catalogPrices = request.IsManager || request.OfflineCreatedAt is not null
-            ? null
-            : await prices.GetSalePricesAsync([.. request.Lines.Select(l => l.VariantId)], cancellationToken);
+        // A sale rung up offline was already made: it keeps the price and discount the till accepted then, and
+        // whatever the server would refuse now is logged for the manager to review instead.
+        DateTime now = DateTime.UtcNow;
+        bool offline = OfflineSale.IsOffline(request.OfflineCreatedAt, now);
+        List<string> review = [];
 
-        // Check the sale before taking an invoice number, so a refused sale never leaves a gap in the sequence.
-        ErrorOr<Order> dryRun = CheckoutBuilder.Build(request, rules.Value, null, catalogPrices);
-        if (dryRun.IsError)
+        // Managers may reprice at the till.
+        if (!request.ByOwnerOrManager)
         {
-            return dryRun.Errors;
+            IReadOnlyDictionary<Guid, decimal> shelf = await prices.GetSalePricesAsync(
+                [.. request.Lines.Select(l => l.VariantId)], cancellationToken);
+            ErrorOr<Success> priced = CatalogPriceCheck.Check(request, shelf);
+            if (priced.IsError && !offline)
+            {
+                return priced.Errors;
+            }
+
+            if (priced.IsError)
+            {
+                review.Add($"سعر أقل من الكتالوج: {string.Join("، ", CatalogPriceCheck.Unverified(request, shelf))}");
+            }
+        }
+
+        // Build once without a number first, so a rejected sale never uses up an invoice number.
+        ErrorOr<Order> draft = CheckoutBuilder.Build(request, rules.Value);
+        if (draft.IsError)
+        {
+            return draft.Errors;
+        }
+
+        if (offline)
+        {
+            string? overCap = await OverCapAsync(request, draft.Value, cancellationToken);
+            if (overCap is not null)
+            {
+                review.Add(overCap);
+            }
+        }
+        else
+        {
+            ErrorOr<Success> approved = await ApproveDiscountAsync(request, draft.Value, now, cancellationToken);
+            if (approved.IsError)
+            {
+                return approved.Errors;
+            }
         }
 
         long number = await numbers.NextAsync(request.TenantId, cancellationToken);
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, catalogPrices);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number);
         if (built.IsError)
         {
             return built.Errors;
         }
 
         db.Orders.Add(built.Value);
+        if (review.Count > 0)
+        {
+            db.ActivityLogs.Add(ActivityLog.Create(
+                request.BranchId, request.UserId, request.UserName ?? "كاشير", null, "order",
+                "بيع دون اتصال يحتاج مراجعة", $"الطلب {number}: {string.Join("؛ ", review)}", now));
+        }
+
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -92,6 +136,75 @@ internal sealed class CheckoutOrderCommandHandler(
 
         return OrderMapper.ToResponse(order);
     }
+
+    private async Task<ErrorOr<Success>> ApproveDiscountAsync(
+        CheckoutOrderCommand request, Order draft, DateTime now, CancellationToken ct)
+    {
+        decimal percent = DiscountApproval.ManualDiscountPercent(draft);
+        if (percent <= 0 || request.ByOwnerOrManager)
+        {
+            return Result.Success;
+        }
+
+        PosBranchSettings? settings = await LoadSettingsAsync(request.BranchId, ct);
+        ErrorOr<bool> needsPin = DiscountApproval.NeedsPin(percent, false, settings, request.ApprovalPin);
+        if (needsPin.IsError)
+        {
+            return needsPin.Errors;
+        }
+
+        return needsPin.Value
+            ? await VerifyPinAsync(request.BranchId, settings!.ApprovalPinHash!, request.ApprovalPin!.Trim(), now, ct)
+            : Result.Success;
+    }
+
+    // Each try takes a wrong-PIN slot in one UPDATE before the PIN is checked, so parallel guesses cannot share a
+    // slot. The fifth slot locks approvals for fifteen minutes; the right PIN clears the count and the lock.
+    private async Task<ErrorOr<Success>> VerifyPinAsync(Guid branchId, string pinHash, string pin, DateTime now, CancellationToken ct)
+    {
+        DateTime? lockedUntil = now + PosBranchSettings.PinLockout;
+        int taken = await db.PosBranchSettings
+            .Where(s => s.BranchId == branchId && (s.PinLockedUntil == null || s.PinLockedUntil <= now))
+            .ExecuteUpdateAsync(
+                u => u
+                    .SetProperty(
+                        s => s.FailedPinAttempts,
+                        s => s.FailedPinAttempts + 1 >= PosBranchSettings.MaxPinAttempts ? 0 : s.FailedPinAttempts + 1)
+                    .SetProperty(
+                        s => s.PinLockedUntil,
+                        s => s.FailedPinAttempts + 1 >= PosBranchSettings.MaxPinAttempts ? lockedUntil : s.PinLockedUntil),
+                ct);
+        if (taken == 0)
+        {
+            return PosErrors.ApprovalPinLocked;
+        }
+
+        if (!ApprovalPinHasher.Verify(pin, pinHash))
+        {
+            return PosErrors.InvalidApprovalPin;
+        }
+
+        await db.PosBranchSettings
+            .Where(s => s.BranchId == branchId)
+            .ExecuteUpdateAsync(u => u.SetProperty(s => s.FailedPinAttempts, 0).SetProperty(s => s.PinLockedUntil, (DateTime?)null), ct);
+        return Result.Success;
+    }
+
+    // For a sale made offline: a cashier discount past today's cap, described for the manager's review.
+    private async Task<string?> OverCapAsync(CheckoutOrderCommand request, Order draft, CancellationToken ct)
+    {
+        decimal percent = DiscountApproval.ManualDiscountPercent(draft);
+        if (percent <= 0 || request.ByOwnerOrManager)
+        {
+            return null;
+        }
+
+        decimal cap = DiscountApproval.Cap(await LoadSettingsAsync(request.BranchId, ct));
+        return percent > cap ? $"خصم {percent:0.##}% فوق حد الكاشير {cap:0.##}%" : null;
+    }
+
+    private Task<PosBranchSettings?> LoadSettingsAsync(Guid branchId, CancellationToken ct) =>
+        db.PosBranchSettings.AsNoTracking().FirstOrDefaultAsync(s => s.BranchId == branchId, ct);
 
     private Task<Order?> FindByReference(CheckoutOrderCommand request, CancellationToken ct) =>
         db.Orders

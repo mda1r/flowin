@@ -4,9 +4,9 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
 
-// One request for a whole sale: lines, optional discount, loyalty redemption and payment. Used online and to sync offline sales.
-// IsManager comes from the caller's role, never from the request body: it lifts the cashier discount cap and the catalog price check
-// (a synced offline sale skips them too, see CheckoutBuilder).
+// One request for a whole sale: lines, optional discounts and loyalty redemption, and payment. Used online and to sync offline sales.
+// ByOwnerOrManager comes from the caller's role (Owner or Manager), never from the request body; UserId and UserName
+// are the caller too, for the review note an offline sale can leave.
 // Kitchen, when set, sends the sale to the kitchen screen as an already-paid ticket.
 public sealed record CheckoutOrderCommand(
     Guid TenantId,
@@ -24,15 +24,15 @@ public sealed record CheckoutOrderCommand(
     DateTime? OfflineCreatedAt,
     DiscountType DiscountType = DiscountType.None,
     decimal DiscountValue = 0m,
-    bool IsManager = false,
+    string? ApprovalPin = null,
+    bool ByOwnerOrManager = false,
+    Guid UserId = default,
+    string? UserName = null,
     CheckoutOrderCommand.KitchenTicket? Kitchen = null) : ICommand<OrderResponse>
 {
-    // The largest order discount a cashier can give without an owner or manager, as a share of the bill.
-    public const decimal CashierDiscountCapPercent = 20m;
-
     public sealed record Line(
         Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity,
-        string? Notes = null);
+        DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m, string? Notes = null);
 
     public sealed record KitchenTicket(int? TableNumber, bool Takeaway);
 }

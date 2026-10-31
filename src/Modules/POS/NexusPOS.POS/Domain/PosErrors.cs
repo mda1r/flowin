@@ -58,12 +58,24 @@ public static class PosErrors
     public static readonly Error InsufficientLoyaltyPoints =
         Error.Validation("POS.InsufficientLoyaltyPoints", "رصيد العميل من النقاط لا يكفي.");
 
-    public static Error DiscountAboveCashierLimit(decimal capPercent) =>
-        Error.Validation("POS.DiscountAboveCashierLimit", $"الخصم أكبر من {capPercent:0.##}٪، يحتاج موافقة المدير أو المالك.");
+    public static Error DiscountNeedsManager(decimal cap) =>
+        Error.Forbidden("POS.DiscountNeedsManager", $"الخصم أكبر من حد الكاشير ({cap:0.##}%). اطلب من المدير تنفيذه.");
 
-    public static Error PriceBelowCatalog(string productName) =>
-        Error.Validation("POS.PriceBelowCatalog", $"سعر «{productName}» أقل من سعره في قائمة المنتجات، حدّث الصفحة أو استخدم الخصم.");
+    public static Error DiscountApprovalRequired(decimal cap) =>
+        Error.Forbidden("POS.DiscountApprovalRequired", $"الخصم أكبر من حد الكاشير ({cap:0.##}%). أدخل رمز المدير.");
 
-    public static Error UnknownVariant(string productName) =>
-        Error.Validation("POS.UnknownVariant", $"«{productName}» غير موجود في قائمة المنتجات، حدّث الصفحة.");
+    public static readonly Error InvalidApprovalPin =
+        Error.Forbidden("POS.InvalidApprovalPin", "رمز المدير غير صحيح.");
+
+    public static readonly Error ApprovalPinLocked =
+        Error.Forbidden("POS.ApprovalPinLocked", "أُوقف رمز المدير مؤقتاً بعد محاولات خاطئة. حاول بعد ربع ساعة.");
+
+    public static readonly Error ApprovalPinNotSet =
+        Error.Forbidden("POS.ApprovalPinNotSet", "لم يُضبط رمز موافقة المدير لهذا الفرع.");
+
+    public static Error UnknownProduct(string name) =>
+        Error.Validation("POS.UnknownProduct", $"الصنف «{name}» غير موجود في الكتالوج.");
+
+    public static Error PriceBelowCatalog(string name) =>
+        Error.Validation("POS.PriceBelowCatalog", $"سعر «{name}» أقل من سعر الكتالوج. احذفه وأعد إضافته، أو استخدم الخصم.");
 }

@@ -19,6 +19,7 @@ using NexusPOS.POS.Application.Queries.ListReturns;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Presentation.Requests;
 using NexusPOS.SharedKernel.Application;
+using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
 
@@ -28,6 +29,15 @@ namespace NexusPOS.POS.Presentation;
 [Authorize]
 public sealed class OrdersController(ISender mediator) : ControllerBase
 {
+    private string? CurrentUserName
+    {
+        get
+        {
+            string full = $"{User.FindFirstValue("given_name")} {User.FindFirstValue("family_name")}".Trim();
+            return full.Length > 0 ? full : User.FindFirstValue(ClaimTypes.Email);
+        }
+    }
+
     /// <summary>List orders for a branch.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<OrderResponse>), StatusCodes.Status200OK)]
@@ -124,7 +134,9 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
     }
 
     /// <summary>Apply a discount to the order total.</summary>
+    /// <remarks>Owner or Manager only: cashiers discount through checkout, where the branch cap applies.</remarks>
     [HttpPost("{orderId:guid}/discount")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -170,11 +182,12 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         CheckoutOrderCommand command = new(
             tenantId, branchId, request.ClientReference, request.Currency, request.TaxRate, request.CustomerId,
             [.. (request.Lines ?? []).Select(l => new CheckoutOrderCommand.Line(
-                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity, l.Notes))],
+                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity, l.DiscountType, l.DiscountValue, l.Notes))],
             request.LoyaltyPoints, request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount,
-            UtcDates.AsUtc(request.OfflineCreatedAt),
-            request.DiscountType, request.DiscountValue,
-            IsManager: User.IsInRole("Owner") || User.IsInRole("Manager"),
+            UtcDates.AsUtc(request.OfflineCreatedAt), request.DiscountType, request.DiscountValue, request.ApprovalPin,
+            ByOwnerOrManager: User.IsInRole("Owner") || User.IsInRole("Manager"),
+            UserId: Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId) ? userId : Guid.Empty,
+            UserName: CurrentUserName,
             Kitchen: request.Kitchen is { } k ? new CheckoutOrderCommand.KitchenTicket(k.TableNumber, k.Takeaway) : null);
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
@@ -270,6 +283,7 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
             _ => StatusCodes.Status500InternalServerError,
         };
 

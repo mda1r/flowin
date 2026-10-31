@@ -1,7 +1,7 @@
 using ErrorOr;
-using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Enums;
+using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
@@ -9,60 +9,35 @@ namespace NexusPOS.POS.Application.Commands.Checkout;
 // Builds and completes the order entirely in memory, so nothing is saved unless every step succeeds.
 internal static class CheckoutBuilder
 {
-    // catalogPrices: listed sale prices (VAT included) by variant. A cashier's line may not be cheaper than the
-    // catalog, so a lowered price cannot stand in for a discount, nor name an item the catalog does not have;
-    // owners and managers may override. An offline sale already happened at the till, under whoever was logged
-    // in then and at the prices of the time, so its sync is not checked again (it stays marked by OfflineCreatedAt).
-    public static ErrorOr<Order> Build(
-        CheckoutOrderCommand cmd,
-        LoyaltyRules loyalty,
-        long? number = null,
-        IReadOnlyDictionary<Guid, decimal>? catalogPrices = null)
+    public static ErrorOr<Order> Build(CheckoutOrderCommand cmd, LoyaltyRules loyalty, long? number = null)
     {
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
         order.TagClientReference(cmd.ClientReference, cmd.OfflineCreatedAt);
 
-        bool enforceCashierRules = !cmd.IsManager && cmd.OfflineCreatedAt is null;
-
         foreach (CheckoutOrderCommand.Line line in cmd.Lines)
         {
-            if (enforceCashierRules && catalogPrices is not null)
+            ErrorOr<Discount> lineDiscount = Discount.Create(line.DiscountType, line.DiscountValue);
+            if (lineDiscount.IsError)
             {
-                if (!catalogPrices.TryGetValue(line.VariantId, out decimal listed))
-                {
-                    return PosErrors.UnknownVariant(line.ProductName);
-                }
-
-                if (Math.Round(line.UnitPrice * (1 + cmd.TaxRate), 2) < Math.Round(listed, 2) - 0.01m)
-                {
-                    return PosErrors.PriceBelowCatalog(line.ProductName);
-                }
+                return lineDiscount.Errors;
             }
 
             ErrorOr<OrderLine> added = order.AddLine(
-                line.VariantId, line.ProductName, line.VariantName, line.UnitPrice, line.CostPrice, line.Quantity,
-                notes: line.Notes);
+                line.VariantId, line.ProductName, line.VariantName, line.UnitPrice, line.CostPrice, line.Quantity, lineDiscount.Value,
+                line.Notes);
             if (added.IsError)
             {
                 return added.Errors;
             }
         }
 
-        // The order discount comes off the bill before loyalty points, as in Order's totals.
-        if (cmd.DiscountType != DiscountType.None && cmd.DiscountValue > 0)
+        // The cashier's cart discount comes off before loyalty, so points can never pay for more than what is left.
+        if (cmd.DiscountType != DiscountType.None)
         {
             ErrorOr<Success> discounted = order.ApplyDiscount(cmd.DiscountType, cmd.DiscountValue);
             if (discounted.IsError)
             {
                 return discounted.Errors;
-            }
-
-            decimal share = order.SubtotalAmount > 0
-                ? order.OrderDiscount.ComputeAmount(order.SubtotalAmount) / order.SubtotalAmount * 100m
-                : 0m;
-            if (enforceCashierRules && share > CheckoutOrderCommand.CashierDiscountCapPercent + 0.01m)
-            {
-                return PosErrors.DiscountAboveCashierLimit(CheckoutOrderCommand.CashierDiscountCapPercent);
             }
         }
 
