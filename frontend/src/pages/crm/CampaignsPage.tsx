@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, CheckCircle2, ImagePlus, Megaphone, MessageCircle, RefreshCw, Search, Send, Settings2, X } from 'lucide-react'
+import { isAxiosError } from 'axios'
+import { AlertTriangle, CheckCircle2, ImagePlus, Info, Megaphone, MessageCircle, RefreshCw, Search, Send, Settings2, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -9,7 +10,8 @@ import { Modal } from '@/components/ui/Modal'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { toast } from '@/components/ui/Toast'
 import { WhatsAppSettingsModal } from '@/components/crm/WhatsAppSettingsModal'
-import { marketingApi, personalizedMessage, type Campaign, type CampaignChannel } from '@/api/marketing'
+import { WhatsAppTestSend } from '@/components/crm/WhatsAppTestSend'
+import { fillTemplate, marketingApi, personalizedMessage, templateText, type Campaign, type CampaignChannel } from '@/api/marketing'
 import { useAuthStore } from '@/stores/authStore'
 import { apiErrorMessage } from '@/lib/apiError'
 import { compressImage } from '@/lib/image'
@@ -18,13 +20,20 @@ import { cn } from '@/lib/utils'
 
 const MAX_MESSAGE = 1000
 const NAME = '{الاسم}'
+const GREETING = `هلا ${NAME} 👋\n`
+
+// Identifies this browser tab to the server while it sends a campaign, so another tab or device waits.
+const TAB_RUNNER_ID =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (Number(c) ^ ((Math.random() * 16) >> (Number(c) / 4))).toString(16))
 
 const publicUrl = (path?: string | null) => (path ? `${window.location.origin}${path}` : undefined)
 
 export function CampaignsPage() {
   const { tenantId } = useAuthStore()
   const qc = useQueryClient()
-  const [message, setMessage] = useState(`هلا ${NAME} 👋\n`)
+  const [message, setMessage] = useState(GREETING)
   const [image, setImage] = useState<{ id: string; path: string; preview: string } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [channel, setChannel] = useState<CampaignChannel>('Links')
@@ -32,6 +41,10 @@ export function CampaignsPage() {
   const [search, setSearch] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [openCampaignId, setOpenCampaignId] = useState<string | null>(null)
+  // The campaign just created from this exact form, so a second press does not quietly create a duplicate.
+  const [lastCreated, setLastCreated] = useState<{ fingerprint: string; id: string } | null>(null)
+  const [confirmDuplicate, setConfirmDuplicate] = useState(false)
+  const knownIds = useRef<Set<string> | null>(null)
   const textRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -39,6 +52,8 @@ export function CampaignsPage() {
     queryKey: ['marketing-audience', tenantId],
     queryFn: () => marketingApi.audience(tenantId!),
     enabled: !!tenantId,
+    // Coming back from WhatsApp must not reload the list under the owner's ticks.
+    refetchOnWindowFocus: false,
   })
   const { data: whatsApp } = useQuery({
     queryKey: ['whatsapp-settings', tenantId],
@@ -52,12 +67,39 @@ export function CampaignsPage() {
   })
 
   const reachable = useMemo(() => audience?.reachable ?? [], [audience])
-  // Everyone reachable starts selected; the owner unticks whoever should not get this offer.
-  useEffect(() => setSelected(new Set(reachable.map((r) => r.customerId))), [reachable])
+  // Everyone reachable starts selected; the owner unticks whoever should not get this offer. A later reload keeps
+  // those choices: only customers new to the list get ticked, and ones who left it are dropped.
+  useEffect(() => {
+    if (!audience) return
+    const ids = audience.reachable.map((r) => r.customerId)
+    const before = knownIds.current
+    const now = new Set(ids)
+    knownIds.current = now
+    setSelected((prev) => {
+      if (!before) return now
+      const next = new Set([...prev].filter((id) => now.has(id)))
+      for (const id of ids) if (!before.has(id)) next.add(id)
+      return next
+    })
+  }, [audience])
 
   const visible = reachable.filter((r) => !search.trim() || r.name.includes(search.trim()) || r.phone.includes(search.trim()))
   const apiReady = !!whatsApp?.configured
   const needsImage = channel === 'Api' && !!whatsApp?.hasImageHeader && !image
+  // The approved template already greets the customer by name ({{1}}), so {الاسم} in the offer would repeat it.
+  const nameInTemplate = channel === 'Api' && !!whatsApp?.includeNameVariable
+  const nameTwice = nameInTemplate && message.includes(NAME)
+  // The offer fills a template variable that Meta will not take empty, so an image alone is not enough here.
+  const needsText = channel === 'Api' && !message.trim()
+
+  const chooseChannel = (next: CampaignChannel) => {
+    setChannel(next)
+    if (next === 'Api' && whatsApp?.includeNameVariable && message.startsWith(GREETING)) setMessage(message.slice(GREETING.length))
+    if (next === 'Links' && !message.trim()) setMessage(GREETING)
+  }
+
+  const removeName = () =>
+    setMessage((m) => (m.startsWith(GREETING) ? m.slice(GREETING.length) : m.split(NAME).join('').replace(/ {2,}/g, ' ')))
 
   const insertName = () => {
     const el = textRef.current
@@ -100,13 +142,26 @@ export function CampaignsPage() {
     onSuccess: (campaign) => {
       qc.setQueryData(['campaign', tenantId, campaign.id], campaign)
       void qc.invalidateQueries({ queryKey: ['campaigns', tenantId] })
+      setLastCreated({ fingerprint, id: campaign.id })
+      setConfirmDuplicate(false)
       setOpenCampaignId(campaign.id)
     },
     onError: (err) => toast.error('تعذّر إنشاء الحملة', apiErrorMessage(err)),
   })
 
-  const canCreate = (message.trim().length > 0 || !!image) && selected.size > 0 && !needsImage && (channel === 'Links' || apiReady)
+  const fingerprint = JSON.stringify([message.trim(), image?.id ?? null, channel, [...selected].sort()])
+  const startCampaign = () => {
+    if (lastCreated?.fingerprint === fingerprint) setConfirmDuplicate(true)
+    else create.mutate()
+  }
+
+  const canCreate = (message.trim().length > 0 || !!image) && selected.size > 0 && !needsImage && !needsText && (channel === 'Links' || apiReady)
   const sample = reachable[0]?.name ?? 'محمد'
+  // In API mode the customer reads the approved template with the variables filled in.
+  const apiOffer = templateText(message.split(NAME).join(sample))
+  const apiPreview = whatsApp?.templateBody
+    ? fillTemplate(whatsApp.templateBody, nameInTemplate ? [sample, apiOffer] : [apiOffer])
+    : nameInTemplate ? `${sample} · ${apiOffer}` : apiOffer
 
   return (
     <div>
@@ -173,13 +228,13 @@ export function CampaignsPage() {
               <div className="grid gap-2 sm:grid-cols-2">
                 <ChannelOption
                   checked={channel === 'Links'}
-                  onSelect={() => setChannel('Links')}
+                  onSelect={() => chooseChannel('Links')}
                   title="روابط واتساب (مجاني)"
                   body="تفتح محادثة كل عميل والنص جاهز، وتضغط إرسال بنفسك. الصورة تصل كرابط."
                 />
                 <ChannelOption
                   checked={channel === 'Api'}
-                  onSelect={() => setChannel('Api')}
+                  onSelect={() => chooseChannel('Api')}
                   disabled={!apiReady}
                   title="واتساب للأعمال (تلقائي)"
                   body={apiReady ? 'ترسل المنصة للجميع بالصورة عبر قالبك المعتمد.' : 'يحتاج إعداد حساب Meta أولاً.'}
@@ -190,6 +245,13 @@ export function CampaignsPage() {
                 <p className="mt-2 text-xs text-muted">في الإرسال التلقائي تتحول أسطر النص إلى سطر واحد مفصول بـ « · »، لأن قوالب واتساب لا تقبل أسطراً جديدة في المتغيرات.</p>
               )}
               {needsImage && <p className="mt-2 text-xs text-warning">قالبك المعتمد فيه صورة، أضف صورة للحملة.</p>}
+              {needsText && <p className="mt-2 text-xs text-warning">اكتب نص العرض، فقالب واتساب لا يُرسَل بدونه.</p>}
+              {nameTwice && (
+                <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-warning">
+                  {`قالبك يذكر اسم العميل بنفسه، فوجود ${NAME} في النص يكرر الاسم.`}
+                  <button type="button" onClick={removeName} className="font-medium text-brand-ink underline">{`إزالة ${NAME}`}</button>
+                </p>
+              )}
             </fieldset>
           </Card>
 
@@ -252,17 +314,30 @@ export function CampaignsPage() {
             <div className="ms-auto max-w-[17rem] overflow-hidden rounded-xl rounded-tr-sm bg-white text-[#111b21] shadow-sm dark:bg-[#202c33] dark:text-[#e9edef]">
               {image && <img src={image.preview} alt="" className="max-h-60 w-full object-cover" />}
               <p className="whitespace-pre-wrap break-words px-3 py-2 text-sm leading-6">
-                {channel === 'Api'
-                  ? message.split(NAME).join(sample).trim().replace(/\s*\n+\s*/g, ' · ')
-                  : personalizedMessage(message, sample).trim() || '…'}
+                {channel === 'Api' ? apiPreview || '…' : personalizedMessage(message, sample).trim() || '…'}
               </p>
               {channel === 'Links' && image && <p className="px-3 pb-2 text-xs text-[#027eb5] underline" dir="ltr">{window.location.host}/api/v1/public/media/…</p>}
             </div>
           </div>
-          <Button className="w-full" disabled={!canCreate} loading={create.isPending} onClick={() => create.mutate()}>
+          {channel === 'Api' && !whatsApp?.templateBody && (
+            <p className="flex gap-1.5 text-xs leading-5 text-muted">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {`هذا ما يُملأ في متغيرات قالب «${whatsApp?.templateName ?? ''}». افحص الاتصال من «واتساب للأعمال» مع WABA ID لترى نص القالب كاملاً.`}
+            </p>
+          )}
+          <Button className="w-full" disabled={!canCreate} loading={create.isPending} onClick={startCampaign}>
             <Send className="h-4 w-4" />
             {channel === 'Api' ? `إنشاء الحملة وإرسالها لـ ${selected.size.toLocaleString('ar-SA')}` : `تجهيز الإرسال لـ ${selected.size.toLocaleString('ar-SA')}`}
           </Button>
+          {channel === 'Api' && apiReady && (
+            <details className="rounded-xl border border-border px-3 py-2">
+              <summary className="cursor-pointer text-sm font-medium text-fg">جرّب العرض على رقمك أولاً</summary>
+              <div className="mt-2 space-y-1.5">
+                <WhatsAppTestSend message={message} imageId={image?.id} name={sample} disabled={needsImage || needsText} />
+                <p className="text-xs text-muted">تصلك الرسالة كما ستصل لعملائك، ولا تُنشأ حملة.</p>
+              </div>
+            </details>
+          )}
           <p className="text-xs leading-5 text-muted">
             أرسل فقط لمن وافق على استلام عروضك. الإزعاج بالرسائل قد يعرّض رقمك للحظر من واتساب.
           </p>
@@ -292,6 +367,29 @@ export function CampaignsPage() {
 
       <WhatsAppSettingsModal open={showSettings} onClose={() => setShowSettings(false)} current={whatsApp} />
       {openCampaignId && <CampaignRunner campaignId={openCampaignId} onClose={() => setOpenCampaignId(null)} />}
+      <Modal
+        open={confirmDuplicate}
+        onClose={() => setConfirmDuplicate(false)}
+        title="الحملة نفسها موجودة"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" loading={create.isPending} onClick={() => create.mutate()}>إنشاء حملة ثانية</Button>
+            <Button
+              onClick={() => {
+                setConfirmDuplicate(false)
+                if (lastCreated) setOpenCampaignId(lastCreated.id)
+              }}
+            >
+              فتح الحملة السابقة
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-relaxed text-muted">
+          أنشأت قبل قليل حملة بنفس النص والمستلمين. حملة ثانية ترسل لهم العرض مرة أخرى.
+        </p>
+      </Modal>
     </div>
   )
 }
@@ -325,9 +423,26 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
   const { tenantId } = useAuthStore()
   const qc = useQueryClient()
   const key = ['campaign', tenantId, campaignId]
-  const { data: campaign } = useQuery({ queryKey: key, queryFn: () => marketingApi.campaign(tenantId!, campaignId), enabled: !!tenantId })
   const [running, setRunning] = useState(false)
+  const [stopReason, setStopReason] = useState<string | null>(null)
   const stopRef = useRef(false)
+  const { data: campaign } = useQuery({
+    queryKey: key,
+    queryFn: () => marketingApi.campaign(tenantId!, campaignId),
+    enabled: !!tenantId,
+    // Always fresh on open: progress or another device's lease may have changed since it was last shown.
+    staleTime: 0,
+    // While another tab or device is sending, or a batch this tab lost track of is still running, look again every
+    // few seconds so the button frees up when it stops.
+    refetchInterval: (q) => {
+      const c = q.state.data
+      return c?.sendingRunnerId && (c.sendingRunnerId !== TAB_RUNNER_ID || c.batchInProgress) ? 5_000 : false
+    },
+  })
+  const busyElsewhere = !running && !!campaign?.sendingRunnerId && campaign.sendingRunnerId !== TAB_RUNNER_ID
+  // This tab's request timed out or the connection dropped, but the server is still sending that batch.
+  const busyHere = !running && !busyElsewhere && !!campaign?.batchInProgress
+  const busy = busyElsewhere || busyHere
 
   const update = (c: Campaign) => {
     qc.setQueryData(key, c)
@@ -337,18 +452,35 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
   const runApi = async () => {
     if (!campaign) return
     stopRef.current = false
+    setStopReason(null)
     setRunning(true)
+    let lostTrack = false
     try {
       let current = campaign
       while (!stopRef.current && current.recipients?.some((r) => r.status === 'Pending')) {
-        current = await marketingApi.sendBatch(tenantId!, campaignId)
+        current = await marketingApi.sendBatch(tenantId!, campaignId, TAB_RUNNER_ID)
         update(current)
       }
       if (!stopRef.current) toast.success('انتهى الإرسال', `${current.sent.toLocaleString('ar-SA')} أُرسلت · ${current.failed.toLocaleString('ar-SA')} فشلت`)
     } catch (err) {
-      toast.error('توقف الإرسال', apiErrorMessage(err))
+      if (isAxiosError(err) && !err.response) {
+        // No answer: the server may still be sending this batch, so it keeps the lease until the batch ends.
+        lostTrack = true
+        toast.warning('انقطع الاتصال أثناء الإرسال', 'ننتظر انتهاء الدفعة الحالية، ثم يمكنك المتابعة.')
+      } else if (isAxiosError(err) && err.response?.status === 409) {
+        // Another tab or device holds the lease; the banner below says so, nothing needs fixing.
+        toast.info('الإرسال جارٍ الآن', apiErrorMessage(err))
+      } else {
+        // Token, template, payment or connection: the rest stay waiting and the reason stays on screen.
+        const reason = apiErrorMessage(err)
+        setStopReason(reason)
+        toast.error('توقف الإرسال', reason)
+      }
+      void qc.invalidateQueries({ queryKey: key })
     } finally {
       setRunning(false)
+      // Paused or closed: another device can carry on straight away instead of waiting for the lease to run out.
+      if (!lostTrack) void marketingApi.releaseSending(tenantId!, campaignId, TAB_RUNNER_ID).catch(() => undefined)
     }
   }
 
@@ -387,7 +519,7 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
         campaign?.channel === 'Api' ? (
           <>
             {campaign.failed > 0 && !running && (
-              <Button variant="secondary" loading={retry.isPending} onClick={() => retry.mutate()}>
+              <Button variant="secondary" loading={retry.isPending} disabled={busy} onClick={() => retry.mutate()}>
                 <RefreshCw className="h-4 w-4" />
                 إعادة محاولة الفاشلة
               </Button>
@@ -395,7 +527,7 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
             {running ? (
               <Button variant="secondary" onClick={() => (stopRef.current = true)}>إيقاف مؤقت</Button>
             ) : (
-              <Button disabled={pending === 0} onClick={() => void runApi()}>
+              <Button disabled={pending === 0 || busy} onClick={() => void runApi()}>
                 <Send className="h-4 w-4" />
                 {campaign.sent + campaign.failed > 0 ? 'متابعة الإرسال' : 'بدء الإرسال'}
               </Button>
@@ -428,6 +560,30 @@ function CampaignRunner({ campaignId, onClose }: { campaignId: string; onClose: 
               <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${progress}%` }} />
             </div>
           </div>
+
+          {campaign.channel === 'Api' && busyElsewhere && (
+            <p className="flex gap-2 rounded-lg bg-info/10 px-3 py-2 text-xs leading-5 text-info" role="status">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              الحملة تُرسل الآن من جهاز أو نافذة أخرى. يتاح الإرسال هنا حين يتوقف هناك، أو خلال دقيقة ونصف إن أُغلقت.
+            </p>
+          )}
+
+          {campaign.channel === 'Api' && busyHere && (
+            <p className="flex gap-2 rounded-lg bg-info/10 px-3 py-2 text-xs leading-5 text-info" role="status">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              الدفعة السابقة ما زالت تُرسل، يتاح «متابعة الإرسال» حين تنتهي.
+            </p>
+          )}
+
+          {campaign.channel === 'Api' && stopReason && !running && !busy && (
+            <div className="flex gap-2 rounded-lg bg-danger/10 px-3 py-2 text-xs leading-5 text-danger" role="alert">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                {stopReason}
+                <span className="block text-muted">الباقون ما زالوا بالانتظار، اضغط «متابعة الإرسال» بعد إصلاح السبب.</span>
+              </p>
+            </div>
+          )}
 
           {campaign.channel === 'Links' && (
             <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs leading-5 text-muted">

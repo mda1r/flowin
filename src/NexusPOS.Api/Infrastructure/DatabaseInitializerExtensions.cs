@@ -307,6 +307,11 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
             // Recorded once, the first time this runs: sales completed before it predate the points ledger.
             "INSERT INTO loyalty_ledger_start (id, started_at) VALUES (1, now()) ON CONFLICT (id) DO NOTHING",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_runner_id UUID NULL",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_lease_until TIMESTAMPTZ NULL",
+            "ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS sending_batch_id UUID NULL",
+            "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS business_account_id VARCHAR(64) NOT NULL DEFAULT ''",
+            "ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS template_body VARCHAR(1100) NULL",
         ];
 
         foreach (string sql in patches)
