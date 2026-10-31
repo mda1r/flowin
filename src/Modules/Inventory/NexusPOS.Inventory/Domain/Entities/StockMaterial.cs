@@ -113,11 +113,13 @@ public sealed class StockMaterial
             throw new ArgumentOutOfRangeException(nameof(unitCost), "Unit cost cannot be negative.");
         }
 
+        // A negative balance means stock was sold before it was recorded, so the receipt settles it
+        // first. Only the cost blend ignores it: there is no stock on hand to average against.
         decimal onHand = Math.Max(CurrentQuantityInStorageUnits, 0m);
         CurrentCost = CostMethod == CostMethod.WeightedAverage && onHand > 0
             ? Math.Round(((onHand * CurrentCost) + (quantity * unitCost)) / (onHand + quantity), 4)
             : unitCost;
-        CurrentQuantityInStorageUnits = onHand + quantity;
+        CurrentQuantityInStorageUnits += quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -151,9 +153,30 @@ public sealed class StockMaterial
         UpdatedAt = DateTime.UtcNow;
     }
 
+    // Sets the balance to a counted quantity and returns the change, for the adjustment movement.
+    public decimal AdjustTo(decimal countedQuantity)
+    {
+        if (countedQuantity < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(countedQuantity), "Counted quantity cannot be negative.");
+        }
+
+        decimal change = countedQuantity - CurrentQuantityInStorageUnits;
+        CurrentQuantityInStorageUnits = countedQuantity;
+        UpdatedAt = DateTime.UtcNow;
+        return change;
+    }
+
     public void Deactivate()
     {
         IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public bool IsLowStock => ReorderLevel.HasValue && CurrentQuantityInStorageUnits <= ReorderLevel.Value;

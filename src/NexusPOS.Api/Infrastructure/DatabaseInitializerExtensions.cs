@@ -369,7 +369,7 @@ internal static class DatabaseInitializerExtensions
             CREATE TABLE IF NOT EXISTS stock_material_movements (
                 id UUID PRIMARY KEY,
                 tenant_id UUID NOT NULL,
-                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE CASCADE,
+                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE RESTRICT,
                 type INT NOT NULL,
                 quantity_change NUMERIC(18,4) NOT NULL,
                 unit_cost NUMERIC(18,4),

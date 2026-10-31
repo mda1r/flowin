@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/Toast'
 import { recipesApi } from '@/api/recipes'
 import { stockMaterialApi } from '@/api/stockMaterial'
 import { useAuthStore } from '@/stores/authStore'
+import { useCanManageMaterials } from '@/hooks/useCanManageMaterials'
 import { apiErrorMessage } from '@/lib/apiError'
 import { marginPercent, netOfVat } from '@/lib/pricing'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -29,6 +30,8 @@ let nextKey = 1
 
 export function RecipeModal({ variant, onClose }: RecipeModalProps) {
   const { tenantId } = useAuthStore()
+  // Cashiers can look up a recipe and its cost; saving is Owner/Manager only on the server too.
+  const canEdit = useCanManageMaterials()
   const qc = useQueryClient()
   const [lines, setLines] = useState<DraftLine[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -95,7 +98,8 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
       title={`وصفة: ${variant.name}`}
       size="xl"
       footer={
-        materials.length > 0 && (
+        materials.length > 0 &&
+        (canEdit ? (
           <>
             <Button variant="secondary" onClick={onClose} disabled={save.isPending}>
               إلغاء
@@ -104,7 +108,11 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
               حفظ الوصفة
             </Button>
           </>
-        )
+        ) : (
+          <Button variant="secondary" onClick={onClose}>
+            إغلاق
+          </Button>
+        ))
       }
     >
       {loading ? (
@@ -127,7 +135,9 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
       ) : (
         <div className="space-y-5">
           <p className="text-sm text-muted">
-            حدّد المواد الداخلة في صنع قطعة واحدة. عند بيع المنتج تُخصم الكميات من مواد المخزون تلقائياً.
+            {canEdit
+              ? 'حدّد المواد الداخلة في صنع قطعة واحدة. عند بيع المنتج تُخصم الكميات من مواد المخزون تلقائياً.'
+              : 'عرض فقط. تعديل الوصفة متاح للمالك والمدير.'}
           </p>
 
           {error && (
@@ -152,6 +162,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
                       value={l.materialId}
                       onChange={(e) => update(l.key, { materialId: e.target.value })}
                       aria-label="المادة"
+                      disabled={!canEdit}
                     >
                       {materials
                         .filter((mm) => mm.id === l.materialId || !used.has(mm.id))
@@ -171,6 +182,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
                         placeholder="الكمية"
                         aria-label={`الكمية بـ${m?.componentUnit ?? ''}`}
                         onChange={(e) => update(l.key, { quantity: e.target.value })}
+                        readOnly={!canEdit}
                       />
                       <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted">
                         {m?.componentUnit}
@@ -179,21 +191,23 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
                     <span className="w-24 shrink-0 text-end text-sm tabular-nums text-fg">
                       {lineCost(l).toFixed(2)} ر.س
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setLines((ls) => (ls ?? []).filter((x) => x.key !== l.key))}
-                      className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                      aria-label={`إزالة ${m?.nameAr ?? 'المكوّن'}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setLines((ls) => (ls ?? []).filter((x) => x.key !== l.key))}
+                        className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                        aria-label={`إزالة ${m?.nameAr ?? 'المكوّن'}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </li>
                 )
               })}
             </ul>
           )}
 
-          {used.size < materials.length && (
+          {canEdit && used.size < materials.length && (
             <Button variant="secondary" size="sm" onClick={addLine}>
               <Plus className="h-4 w-4" />
               إضافة مكوّن

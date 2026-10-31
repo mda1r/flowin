@@ -16,7 +16,7 @@ internal sealed class ListStockMaterialsQueryHandler(InventoryDbContext db)
         CancellationToken cancellationToken)
     {
         IQueryable<StockMaterial> query = db.StockMaterials
-            .Where(m => m.TenantId == request.TenantId && m.IsActive);
+            .Where(m => m.TenantId == request.TenantId && m.IsActive != request.Archived);
 
         if (request.CategoryId.HasValue)
         {

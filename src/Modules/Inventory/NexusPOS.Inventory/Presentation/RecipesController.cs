@@ -39,6 +39,7 @@ public sealed class RecipesController(ISender mediator) : ControllerBase
     }
 
     [HttpPut("{variantId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RecipeResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Set(
         Guid tenantId, Guid variantId, [FromBody] SetRecipeRequest request, CancellationToken cancellationToken)

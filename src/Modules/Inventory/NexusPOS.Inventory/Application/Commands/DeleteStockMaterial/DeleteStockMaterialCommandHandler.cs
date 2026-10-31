@@ -7,9 +7,9 @@ using NexusPOS.SharedKernel.Application.Messaging;
 namespace NexusPOS.Inventory.Application.Commands.DeleteStockMaterial;
 
 internal sealed class DeleteStockMaterialCommandHandler(InventoryDbContext db)
-    : ICommandHandler<DeleteStockMaterialCommand>
+    : ICommandHandler<DeleteStockMaterialCommand, DeleteStockMaterialResponse>
 {
-    public async Task<ErrorOr<Success>> Handle(
+    public async Task<ErrorOr<DeleteStockMaterialResponse>> Handle(
         DeleteStockMaterialCommand request,
         CancellationToken cancellationToken)
     {
@@ -33,9 +33,22 @@ internal sealed class DeleteStockMaterialCommandHandler(InventoryDbContext db)
                 $"لا يمكن حذف المادة لأنها مستخدمة في وصفة {recipeUses} منتج. احذفها من الوصفات أولاً.");
         }
 
-        db.StockMaterials.Remove(material);
+        // Movements are the audit trail for supplier invoices and cost of goods, so a material
+        // with any history is archived; only one that never moved is removed outright.
+        bool hasMovements = await db.StockMaterialMovements
+            .AnyAsync(mv => mv.TenantId == request.TenantId && mv.MaterialId == material.Id, cancellationToken);
+
+        if (hasMovements)
+        {
+            material.Deactivate();
+        }
+        else
+        {
+            db.StockMaterials.Remove(material);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
-        return Result.Success;
+        return new DeleteStockMaterialResponse(hasMovements);
     }
 }

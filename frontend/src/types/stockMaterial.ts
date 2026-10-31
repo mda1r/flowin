@@ -83,6 +83,11 @@ export interface UpdateStockMaterialPayload {
   reorderLevel?: number
 }
 
+export interface AdjustStockMaterialPayload {
+  newQuantity: number
+  reason: string
+}
+
 export interface RecipeLineResponse {
   materialId: string
   materialName: string
