@@ -24,7 +24,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
-import { isTransientError, newClientReference, queueSale } from '@/lib/offlineSales'
+import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal } from '@/components/ui/Modal'
@@ -260,7 +260,7 @@ function RetailPosPage() {
     },
     onSuccess: ({ order, offline }) => {
       setCompletedOffline(offline)
-      if (offline) toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
+      if (offline) toast.warning(...savedOnDeviceMessage())
       setCompletedOrder(order)
       setCompletedPhone(loyaltyCustomer?.phone ?? undefined)
       clear()

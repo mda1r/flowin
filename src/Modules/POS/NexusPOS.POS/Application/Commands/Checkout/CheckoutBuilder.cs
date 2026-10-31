@@ -10,7 +10,11 @@ internal static class CheckoutBuilder
     // How far back a till's offline clock is trusted when dating a synced sale.
     private static readonly TimeSpan _offlineWindow = TimeSpan.FromHours(72);
 
-    public static ErrorOr<Order> Build(CheckoutOrderCommand cmd, LoyaltyRules loyalty, long? number = null)
+    // A stamp this close to the request is an online sale (or one that only just missed the server): dated now.
+    private static readonly TimeSpan _offlineGrace = TimeSpan.FromMinutes(1);
+
+    // notBefore is the branch's latest shift boundary: a synced sale is never dated into a shift whose totals are closed.
+    public static ErrorOr<Order> Build(CheckoutOrderCommand cmd, LoyaltyRules loyalty, long? number = null, DateTime? notBefore = null)
     {
         DateTime? offlineAt = AsUtc(cmd.OfflineCreatedAt);
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
@@ -43,21 +47,27 @@ internal static class CheckoutBuilder
 
         decimal tendered = Math.Max(cmd.AmountTendered, Math.Round(order.TotalAmount, 2));
         ErrorOr<Success> completed = order.Complete(
-            cmd.PaymentMethod, tendered, cmd.CashAmount, cmd.CardAmount, SaleTime(offlineAt, DateTime.UtcNow));
+            cmd.PaymentMethod, tendered, cmd.CashAmount, cmd.CardAmount, SaleTime(offlineAt, DateTime.UtcNow, notBefore));
         return completed.IsError ? completed.Errors : order;
     }
 
-    // A sale rung up offline belongs to the day and shift it happened in, not the moment it synced.
-    // A till clock in the future or far in the past is pulled back into range.
-    internal static DateTime? SaleTime(DateTime? offlineCreatedAt, DateTime utcNow)
+    // A sale rung up offline keeps the time it happened, but never earlier than the start of a shift still open
+    // (so its cash is in a shift that has yet to close) nor older than the offline window. Null means "now":
+    // no stamp, a recent one, or a till clock in the future.
+    internal static DateTime? SaleTime(DateTime? offlineCreatedAt, DateTime utcNow, DateTime? notBefore = null)
     {
-        if (AsUtc(offlineCreatedAt) is not DateTime at)
+        if (AsUtc(offlineCreatedAt) is not DateTime at || at > utcNow - _offlineGrace)
         {
             return null;
         }
 
         DateTime earliest = utcNow - _offlineWindow;
-        return at > utcNow ? utcNow : at < earliest ? earliest : at;
+        if (AsUtc(notBefore) is DateTime boundary && boundary > earliest)
+        {
+            earliest = boundary < utcNow ? boundary : utcNow;
+        }
+
+        return at < earliest ? earliest : at;
     }
 
     private static DateTime? AsUtc(DateTime? value) => value switch

@@ -8,7 +8,7 @@ import { formatCurrency } from '@/lib/utils'
 
 export function OfflineBanner() {
   const { branchId, tenantId } = useAuthStore()
-  const { online, pending, syncing } = useOfflineSales(tenantId, branchId)
+  const { online, pending, syncing, stalled } = useOfflineSales(tenantId, branchId)
   const [discarding, setDiscarding] = useState<QueuedSale | null>(null)
   const rejected = pending.filter((s) => s.lastError)
 
@@ -26,7 +26,11 @@ export function OfflineBanner() {
       <div className="flex flex-wrap items-center gap-3">
         <CloudOff className="h-4 w-4 shrink-0" />
         <span className="flex-1">
-          {online ? 'عاد الاتصال.' : 'لا يوجد اتصال بالإنترنت. استمر في البيع: المبيعات تُحفظ على هذا الجهاز.'}
+          {!online
+            ? 'لا يوجد اتصال بالإنترنت. استمر في البيع: المبيعات تُحفظ على هذا الجهاز.'
+            : stalled
+              ? 'الخادم لا يستجيب الآن. المبيعات محفوظة على هذا الجهاز وستُرسل تلقائياً.'
+              : 'عاد الاتصال.'}
           {pending.length > 0 && (
             <>
               {' '}

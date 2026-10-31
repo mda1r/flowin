@@ -19,11 +19,13 @@ public sealed class OfflineSaleTests
     public void OfflineSale_IsDatedWhenItWasRungUp_NotWhenItSynced()
     {
         DateTime rungUp = DateTime.UtcNow.AddHours(-9);
+        DateTime before = DateTime.UtcNow;
 
         Order order = CheckoutBuilder.Build(Command(rungUp), LoyaltyRules.Default).Value;
 
         order.CompletedAt.Should().Be(rungUp);
-        order.CreatedAt.Should().Be(rungUp);
+        // Received now, so it still shows in today's order lists.
+        order.CreatedAt.Should().BeOnOrAfter(before);
         order.DomainEvents.OfType<OrderCompletedDomainEvent>().Single().CompletedAt.Should().Be(rungUp);
     }
 
@@ -39,11 +41,46 @@ public sealed class OfflineSaleTests
     }
 
     [Fact]
-    public void ATillClockInTheFuture_IsPulledBackToNow()
+    public void ATillClockInTheFuture_IsDatedNow()
     {
         DateTime now = new(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
 
-        CheckoutBuilder.SaleTime(now.AddHours(5), now).Should().Be(now);
+        CheckoutBuilder.SaleTime(now.AddHours(5), now).Should().BeNull();
+    }
+
+    [Fact]
+    public void AStampFromMomentsAgo_IsTreatedAsAnOnlineSale()
+    {
+        DateTime now = new(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
+
+        CheckoutBuilder.SaleTime(now.AddSeconds(-20), now).Should().BeNull();
+        CheckoutBuilder.SaleTime(now.AddMinutes(-5), now).Should().Be(now.AddMinutes(-5));
+    }
+
+    [Fact]
+    public void ASaleSyncedAfterItsShiftClosed_LandsInTheShiftOpenNow()
+    {
+        DateTime now = new(2026, 10, 31, 20, 0, 0, DateTimeKind.Utc);
+        DateTime rungUpInShiftA = new(2026, 10, 31, 15, 0, 0, DateTimeKind.Utc);
+        DateTime shiftBOpened = new(2026, 10, 31, 17, 0, 0, DateTimeKind.Utc);
+
+        DateTime? at = CheckoutBuilder.SaleTime(rungUpInShiftA, now, notBefore: shiftBOpened);
+
+        // Shift B's close counts orders with CompletedAt >= its OpenedAt, so the cash is not lost between shifts.
+        at.Should().Be(shiftBOpened);
+        CheckoutBuilder.SaleTime(new DateTime(2026, 10, 31, 18, 0, 0, DateTimeKind.Utc), now, shiftBOpened)
+            .Should().Be(new DateTime(2026, 10, 31, 18, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public void ABackdatedSale_NeverLeavesTheOpenShift()
+    {
+        DateTime shiftOpened = DateTime.UtcNow.AddHours(-2);
+
+        Order order = CheckoutBuilder.Build(Command(DateTime.UtcNow.AddHours(-40)), LoyaltyRules.Default, notBefore: shiftOpened).Value;
+
+        order.CompletedAt.Should().Be(shiftOpened);
+        order.DomainEvents.OfType<OrderCompletedDomainEvent>().Single().CompletedAt.Should().Be(shiftOpened);
     }
 
     [Fact]

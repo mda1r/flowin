@@ -213,6 +213,7 @@ public sealed class Order : AggregateRoot<OrderId>
     }
 
     // completedAt is when the sale really happened (a till that was offline); defaults to now.
+    // CreatedAt stays the time the server received it.
     public ErrorOr<Success> Complete(
         Enums.PaymentMethod method, decimal amountTendered, decimal? cashAmount = null, decimal? cardAmount = null, DateTime? completedAt = null)
     {
@@ -241,10 +242,6 @@ public sealed class Order : AggregateRoot<OrderId>
             SplitCard = cardAmount;
         }
         CompletedAt = completedAt ?? DateTime.UtcNow;
-        if (CompletedAt < CreatedAt)
-        {
-            CreatedAt = CompletedAt.Value;
-        }
         UpdatedAt = DateTime.UtcNow;
 
         var lineItems = Lines

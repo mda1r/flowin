@@ -35,7 +35,7 @@ import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
-import { isTransientError, newClientReference, queueSale } from '@/lib/offlineSales'
+import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage } from '@/lib/whatsapp'
@@ -684,7 +684,7 @@ export function CafePosPage() {
       setLoyaltyCustomer(null)
       setRedeemPoints(0)
       if (offline) {
-        toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
+        toast.warning(...savedOnDeviceMessage())
       } else {
         toast.success(
           t.pos.orderProcessed,

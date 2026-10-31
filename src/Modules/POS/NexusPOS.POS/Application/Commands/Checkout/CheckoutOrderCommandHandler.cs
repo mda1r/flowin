@@ -32,8 +32,15 @@ internal sealed class CheckoutOrderCommandHandler(
             return rules.Errors;
         }
 
+        // A sale that synced after its shift closed is dated into the shift open now, so its cash is still counted.
+        DateTime? shiftBoundary = request.OfflineCreatedAt is null
+            ? null
+            : await db.CashierShifts
+                .Where(s => s.BranchId == request.BranchId)
+                .MaxAsync(s => (DateTime?)(s.ClosedAt ?? s.OpenedAt), cancellationToken);
+
         // Every check runs before the sale takes an invoice number, so a rejected sale leaves no gap in the sequence.
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, notBefore: shiftBoundary);
         if (built.IsError)
         {
             return built.Errors;
