@@ -56,7 +56,10 @@ export function LoginPage() {
     } catch (err) {
       // No response or a 5xx means the server is down or unreachable, not that the password is wrong.
       const unreachable = isAxiosError(err) && (!err.response || err.response.status >= 500)
+      // The platform admin suspended this business (e.g. unpaid subscription).
+      const suspended = isAxiosError(err) && (err.response?.data as { title?: string } | undefined)?.title === 'IAM.TenantSuspended'
       if (unreachable) toast.error(t.login.serverUnreachable, t.login.serverUnreachableHint)
+      else if (suspended) toast.error(t.login.loginFailed, lang === 'ar' ? 'الحساب موقوف، تواصل مع الدعم' : 'This account is suspended. Please contact support.')
       else toast.error(t.login.loginFailed, t.login.invalidCredentials)
     } finally {
       setLoading(false)
