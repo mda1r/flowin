@@ -708,6 +708,8 @@ export interface GameSessionBillResponse {
   packageName?: string
   packagePrice?: number
   overtimeMinutes?: number
+  /** The sequential number of the sale POS recorded; set once the session is paid. */
+  invoiceNumber?: number | null
 }
 
 export interface GamingPackageResponse {

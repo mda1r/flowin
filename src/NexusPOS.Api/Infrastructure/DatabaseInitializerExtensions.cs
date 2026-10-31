@@ -434,6 +434,8 @@ internal static class DatabaseInitializerExtensions
             )
             """,
             "CREATE INDEX IF NOT EXISTS ix_gaming_packages_branch ON gaming_packages (branch_id, is_active)",
+            // One running session per station, so two cashiers starting the same station at once cannot both win.
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_game_sessions_active_station ON game_sessions (station_id) WHERE status = 'Active'",
         ];
 
         foreach (string sql in patches)

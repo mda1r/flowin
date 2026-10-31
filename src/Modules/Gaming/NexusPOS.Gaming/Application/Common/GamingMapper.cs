@@ -43,7 +43,7 @@ internal static class GamingMapper
         session.RatePerHour,
         session.Status);
 
-    internal static GameSessionBillResponse ToBillResponse(GameSession session, GameStation station)
+    internal static GameSessionBillResponse ToBillResponse(GameSession session, GameStation station, long? invoiceNumber = null)
     {
         double actualMinutes = session.EndTime.HasValue
             ? (session.EndTime.Value - session.StartTime).TotalMinutes
@@ -66,6 +66,7 @@ internal static class GamingMapper
             session.PaidAt,
             session.PackageName,
             session.PackagePrice,
-            session.OvertimeMinutes);
+            session.OvertimeMinutes,
+            invoiceNumber);
     }
 }

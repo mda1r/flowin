@@ -6,7 +6,6 @@ internal sealed class CreateStationCommandValidator : AbstractValidator<CreateSt
 {
     public CreateStationCommandValidator()
     {
-        RuleFor(x => x.TenantId).NotEmpty();
         RuleFor(x => x.BranchId).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(128);
         RuleFor(x => x.HourlyRate).GreaterThan(0);

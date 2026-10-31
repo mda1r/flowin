@@ -45,6 +45,7 @@ internal sealed class TenantSchemaProvisioner(
         await DatabaseInitializerExtensions.EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<HotelDbContext>(sp, logger);
         await DatabaseInitializerExtensions.EnsureCreatedAsync<GamingDbContext>(sp, logger);
+        await DatabaseInitializerExtensions.MigrateGamingColumnsAsync(sp, logger);
 
         logger.LogInformation(
             "Provisioned schema {Schema} for new tenant {TenantId}",
