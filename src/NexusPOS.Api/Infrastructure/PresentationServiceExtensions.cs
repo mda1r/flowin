@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -61,9 +62,10 @@ internal static class PresentationServiceExtensions
             // Auth limits are partitioned per client IP; a single shared bucket let one busy minute
             // across all shops lock every other cashier out of login and token refresh.
             int trustedProxyHops = configuration.GetValue("RateLimit:TrustedProxyHops", 1);
-            AddPerIpAuthPolicy(options, AuthRateLimiting.RegisterPolicy, configuration.GetValue("RateLimit:AuthEndpointsPerMinute", 10), trustedProxyHops);
-            AddPerIpAuthPolicy(options, AuthRateLimiting.LoginPolicy, configuration.GetValue("RateLimit:LoginPerMinute", 20), trustedProxyHops);
-            AddPerIpAuthPolicy(options, AuthRateLimiting.RefreshPolicy, configuration.GetValue("RateLimit:RefreshPerMinute", 120), trustedProxyHops);
+            IPNetwork[] knownProxies = AuthRateLimiting.ParseKnownProxies(configuration.GetSection("RateLimit:KnownProxies").Get<string[]>());
+            AddPerIpAuthPolicy(options, AuthRateLimiting.RegisterPolicy, configuration.GetValue("RateLimit:AuthEndpointsPerMinute", 10), trustedProxyHops, knownProxies);
+            AddPerIpAuthPolicy(options, AuthRateLimiting.LoginPolicy, configuration.GetValue("RateLimit:LoginPerMinute", 20), trustedProxyHops, knownProxies);
+            AddPerIpAuthPolicy(options, AuthRateLimiting.RefreshPolicy, configuration.GetValue("RateLimit:RefreshPerMinute", 120), trustedProxyHops, knownProxies);
 
             options.AddSlidingWindowLimiter("general", limiterOptions =>
             {
@@ -104,9 +106,9 @@ internal static class PresentationServiceExtensions
         return services;
     }
 
-    private static void AddPerIpAuthPolicy(RateLimiterOptions options, string policyName, int permitsPerMinute, int trustedProxyHops) =>
+    private static void AddPerIpAuthPolicy(RateLimiterOptions options, string policyName, int permitsPerMinute, int trustedProxyHops, IPNetwork[] knownProxies) =>
         options.AddPolicy(policyName, context => RateLimitPartition.GetSlidingWindowLimiter(
-            AuthRateLimiting.ClientKey(context, trustedProxyHops),
+            AuthRateLimiting.ClientKey(context, trustedProxyHops, knownProxies),
             _ => new SlidingWindowRateLimiterOptions
             {
                 Window = TimeSpan.FromMinutes(1),

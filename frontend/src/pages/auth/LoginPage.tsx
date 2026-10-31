@@ -64,9 +64,9 @@ export function LoginPage() {
       const code = res?.data?.title
       const unreachable = isAxiosError(err) && (!res || res.status >= 500)
       if (unreachable) toast.error(t.login.serverUnreachable, t.login.serverUnreachableHint)
-      else if (res?.status === 429) toast.error(t.login.loginFailed, t.login.tooManyAttempts)
-      else if (code === 'IAM.AccountLocked') toast.error(t.login.loginFailed, t.login.accountLocked)
-      else if (code === 'IAM.UserInactive') toast.error(t.login.loginFailed, t.login.accountInactive)
+      else if (res?.status === 429) toast.error(t.login.cannotSignIn, t.login.tooManyAttempts)
+      else if (code === 'IAM.AccountLocked') toast.error(t.login.cannotSignIn, t.login.accountLocked)
+      else if (code === 'IAM.UserInactive') toast.error(t.login.cannotSignIn, t.login.accountInactive)
       else toast.error(t.login.loginFailed, t.login.invalidCredentials)
     } finally {
       setLoading(false)
