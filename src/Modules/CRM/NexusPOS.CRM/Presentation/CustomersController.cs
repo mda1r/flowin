@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ErrorOr;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +9,9 @@ using NexusPOS.CRM.Application.Commands.CreateCustomer;
 using NexusPOS.CRM.Application.Commands.RedeemLoyaltyPoints;
 using NexusPOS.CRM.Application.Commands.UpdateCustomer;
 using NexusPOS.CRM.Application.Common;
+using NexusPOS.CRM.Application.Queries.CountCustomers;
 using NexusPOS.CRM.Application.Queries.GetCustomer;
+using NexusPOS.CRM.Application.Queries.GetLoyaltyHistory;
 using NexusPOS.CRM.Application.Queries.ListCustomers;
 
 namespace NexusPOS.CRM.Presentation;
@@ -28,9 +31,21 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListCustomersQuery query = new(tenantId, search, page, pageSize);
+        ListCustomersQuery query = new(tenantId, search, Math.Max(page, 1), Math.Clamp(pageSize, 1, 200));
         ErrorOr<IReadOnlyList<CustomerResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
+    }
+
+    // The total behind the paged list, kept separate so the list itself stays a plain array for older clients.
+    [HttpGet("count")]
+    [ProducesResponseType(typeof(CustomerCountResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CountCustomers(
+        Guid tenantId,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        ErrorOr<int> result = await mediator.Send(new CountCustomersQuery(tenantId, search), cancellationToken);
+        return result.Match(count => Ok(new CustomerCountResponse(count)), MapErrorsToResult);
     }
 
     [HttpGet("{customerId:guid}")]
@@ -78,6 +93,7 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{customerId:guid}/loyalty/add")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(CustomerResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -87,12 +103,13 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
         [FromBody] LoyaltyPointsRequest request,
         CancellationToken cancellationToken)
     {
-        AddLoyaltyPointsCommand command = new(customerId, tenantId, request.Points);
+        AddLoyaltyPointsCommand command = new(customerId, tenantId, request.Points, request.Reason ?? string.Empty, CurrentUserId());
         ErrorOr<CustomerResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
     [HttpPost("{customerId:guid}/loyalty/redeem")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(CustomerResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -102,10 +119,27 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
         [FromBody] LoyaltyPointsRequest request,
         CancellationToken cancellationToken)
     {
-        RedeemLoyaltyPointsCommand command = new(customerId, tenantId, request.Points);
+        RedeemLoyaltyPointsCommand command = new(customerId, tenantId, request.Points, request.Reason ?? string.Empty, CurrentUserId());
         ErrorOr<CustomerResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
+
+    [HttpGet("{customerId:guid}/loyalty/history")]
+    [ProducesResponseType(typeof(IReadOnlyList<LoyaltyTransactionResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetLoyaltyHistory(
+        Guid tenantId,
+        Guid customerId,
+        [FromQuery] int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        GetLoyaltyHistoryQuery query = new(customerId, tenantId, limit);
+        ErrorOr<IReadOnlyList<LoyaltyTransactionResponse>> result = await mediator.Send(query, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    private Guid? CurrentUserId() =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid id) ? id : null;
 
     private IActionResult MapErrorsToResult(List<Error> errors)
     {
@@ -139,4 +173,6 @@ public sealed record UpdateCustomerRequest(
     string? Notes = null,
     bool? MarketingOptIn = null);
 
-public sealed record LoyaltyPointsRequest(int Points);
+public sealed record LoyaltyPointsRequest(int Points, string? Reason = null);
+
+public sealed record CustomerCountResponse(int TotalCount);

@@ -6,6 +6,8 @@ const CODE_MESSAGES: Record<string, string> = {
   'Inventory.CategoryNameExists': 'يوجد تصنيف بنفس الاسم',
   'Inventory.CategoryHasItems': 'لا يمكن حذف تصنيف يحتوي على مواد، انقل المواد أو احذفها أولاً',
   'Inventory.CategoryNotFound': 'التصنيف غير موجود',
+  'Customer.EmailTaken': 'يوجد عميل آخر بنفس البريد الإلكتروني',
+  'Customer.InsufficientLoyaltyPoints': 'رصيد النقاط لا يكفي',
 }
 
 // Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line.

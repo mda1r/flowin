@@ -32,6 +32,9 @@ internal sealed class AddLoyaltyPointsCommandHandler(
             return result.Errors;
         }
 
+        dbContext.LoyaltyTransactions.Add(LoyaltyTransaction.Create(
+            request.TenantId, request.CustomerId, request.Points, LoyaltyTransactionKind.Adjust,
+            userId: request.UserId, reason: request.Reason));
         customerRepository.Update(customer);
         await dbContext.SaveChangesAsync(cancellationToken);
 

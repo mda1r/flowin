@@ -586,12 +586,13 @@ export function DashboardPage() {
   const ordersLoading = ordersQuery.isLoading && ordersQuery.fetchStatus !== 'idle'
   const ordersFetched = ordersQuery.isSuccess
 
+  // The real total, not the length of the list's first page.
   const customersQuery = useQuery({
-    queryKey: ['customers', tenantId],
-    queryFn: () => customersApi.list(tenantId!),
+    queryKey: ['customers', tenantId, 'count', ''],
+    queryFn: () => customersApi.count(tenantId!),
     enabled: !!tenantId,
   })
-  const customers = customersQuery.data
+  const customerCount = customersQuery.data
   const customersLoading = customersQuery.isLoading && customersQuery.fetchStatus !== 'idle'
 
   const { data: alertsData } = useQuery({
@@ -790,7 +791,7 @@ export function DashboardPage() {
                   {customersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-10 animate-pulse rounded-md bg-border" />
                   ) : (
-                    <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{customers?.data?.length ?? 0}</p>
+                    <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{customerCount ?? 0}</p>
                   )}
                 </div>
                 {hasAlerts && (

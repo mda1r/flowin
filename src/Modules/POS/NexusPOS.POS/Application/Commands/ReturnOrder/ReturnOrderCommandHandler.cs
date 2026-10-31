@@ -2,10 +2,12 @@ using ErrorOr;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Enums;
+using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.Repositories;
 using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.SharedKernel.Domain;
 using OrderEntity = NexusPOS.POS.Domain.Entities.Order;
 using OrderLineEntity = NexusPOS.POS.Domain.Entities.OrderLine;
 using ReturnOrderEntity = NexusPOS.POS.Domain.Entities.ReturnOrder;
@@ -82,7 +84,8 @@ internal sealed class ReturnOrderCommandHandler(
             request.RefundMethod,
             returnLines,
             request.RestockItems,
-            order.TaxRate);
+            order.TaxRate,
+            LoyaltyContext(order, existingReturns, returnLines));
 
         if (returnResult.IsError)
         {
@@ -93,6 +96,41 @@ internal sealed class ReturnOrderCommandHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToResponse(returnResult.Value);
+    }
+
+    // What CRM needs to reverse the sale's loyalty points. The returned share is measured on the lines' net value
+    // (after line discounts), so a partial return takes back only its part of the points.
+    private static ReturnOrderCompletedDomainEvent.CustomerLoyalty? LoyaltyContext(
+        OrderEntity order,
+        IReadOnlyList<ReturnOrderEntity> existingReturns,
+        IEnumerable<(Guid lineId, Guid variantId, string productName, string variantName, decimal quantity, decimal unitPrice, ReturnReason reason)> returnLines)
+    {
+        if (order.CustomerId is not Guid customerId)
+        {
+            return null;
+        }
+
+        Dictionary<Guid, OrderLineEntity> linesById = order.Lines.ToDictionary(l => l.Id.Value);
+        decimal NetValue(Guid lineId, decimal quantity)
+        {
+            return linesById.TryGetValue(lineId, out OrderLineEntity? line) && line.Quantity > 0
+                ? line.LineTotal / line.Quantity * quantity
+                : 0m;
+        }
+
+        decimal returnedNet =
+            existingReturns.SelectMany(r => r.Lines).Sum(l => NetValue(l.OriginalLineId, l.Quantity)) +
+            returnLines.Sum(l => NetValue(l.lineId, l.quantity));
+        decimal share = order.SubtotalAmount > 0 ? Math.Clamp(returnedNet / order.SubtotalAmount, 0m, 1m) : 1m;
+
+        return new ReturnOrderCompletedDomainEvent.CustomerLoyalty(
+            customerId,
+            order.TotalAmount,
+            order.LoyaltyPointsRedeemed,
+            LoyaltyRules.ValueOf(order.LoyaltyPointsRedeemed, order.LoyaltyPointValue),
+            share,
+            existingReturns.Sum(r => r.RefundAmount),
+            order.CompletedAt);
     }
 
     private static ReturnOrderResponse MapToResponse(ReturnOrderEntity r) => new(
