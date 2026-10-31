@@ -16,6 +16,7 @@ import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
+import { apiErrorMessage } from '@/lib/apiError'
 import { riyadhDaysUntil } from '@/lib/dates'
 import { expiryText } from '@/lib/expiry'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
@@ -219,9 +220,17 @@ export function InventoryPage() {
   })
 
   // Expired stock is written off by adjusting it to zero with a waste reference, so it leaves the alerts.
-  const openWriteOff = (stockItemId: string) => {
-    const item = items.find((i) => i.id === stockItemId)
-    if (!item) return
+  const openWriteOff = async (stockItemId: string) => {
+    // The alerts can arrive before the stock list, so fall back to loading the single item.
+    let item = items.find((i) => i.id === stockItemId)
+    if (!item) {
+      try {
+        item = (await inventoryApi.getItem(branchId!, stockItemId)).data
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t.inventory.failed))
+        return
+      }
+    }
     openAdjust(item)
     reset({
       newQuantity: 0,
@@ -287,7 +296,7 @@ export function InventoryPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => openWriteOff(a.stockItemId)}
+                  onClick={() => void openWriteOff(a.stockItemId)}
                   className="text-danger hover:bg-danger/10 hover:text-danger"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
