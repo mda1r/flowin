@@ -26,7 +26,14 @@ import { RenewSubscriptionModal } from './RenewSubscriptionModal'
 import { SuspendTenantModal } from './SuspendTenantModal'
 import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency } from '@/lib/utils'
-import { monthsLabel, periodTotalWithVat, subscriptionMonths } from '@/lib/subscriptionBilling'
+import {
+  SHORTEST_MONTH_DAYS,
+  daysLabel,
+  monthsLabel,
+  periodTotalWithVat,
+  subscriptionDays,
+  subscriptionMonths,
+} from '@/lib/subscriptionBilling'
 import { useI18n } from '@/i18n'
 
 function StatusBadge({ status, isActive }: { status?: SubscriptionStatus; isActive: boolean }) {
@@ -255,33 +262,40 @@ export function TenantDetailPage() {
           {tenant.subscriptionHistory.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted">{t.common.noData}</p>
           ) : (
-            tenant.subscriptionHistory.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-6 py-4">
-                <div>
-                  <p className="text-sm font-medium text-fg">{s.planName}</p>
-                  <p className="text-xs text-muted">
-                    {new Date(s.startDate).toLocaleDateString(locale)} ←{' '}
-                    {new Date(s.expiryDate).toLocaleDateString(locale)}
-                  </p>
-                  {s.notes && (
-                    <p className="mt-1 text-xs italic text-muted">{s.notes}</p>
-                  )}
-                </div>
-                <div className="text-end">
-                  <p className="text-sm font-semibold tabular-nums text-fg">
-                    {formatCurrency(
-                      periodTotalWithVat(s.planPrice, subscriptionMonths(s.startDate, s.expiryDate)),
-                      'SAR',
-                      locale,
+            tenant.subscriptionHistory.map((s) => {
+              // A cancelled one never ran, and one cut short under a month was not a month's charge:
+              // show the period only, not an amount that was never billed.
+              const days = subscriptionDays(s.startDate, s.expiryDate)
+              const months = subscriptionMonths(s.startDate, s.expiryDate)
+              const billable = s.status !== 'Cancelled' && days >= SHORTEST_MONTH_DAYS
+              return (
+                <div key={s.id} className="flex items-center justify-between px-6 py-4">
+                  <div>
+                    <p className="text-sm font-medium text-fg">{s.planName}</p>
+                    <p className="text-xs text-muted">
+                      {new Date(s.startDate).toLocaleDateString(locale)} ←{' '}
+                      {new Date(s.expiryDate).toLocaleDateString(locale)}
+                    </p>
+                    {s.notes && (
+                      <p className="mt-1 text-xs italic text-muted">{s.notes}</p>
                     )}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {monthsLabel(subscriptionMonths(s.startDate, s.expiryDate))} · شامل الضريبة
-                  </p>
-                  <StatusBadgeMini status={s.status} />
+                  </div>
+                  <div className="text-end">
+                    {billable ? (
+                      <>
+                        <p className="text-sm font-semibold tabular-nums text-fg">
+                          {formatCurrency(periodTotalWithVat(s.planPrice, months), 'SAR', locale)}
+                        </p>
+                        <p className="text-xs text-muted">{monthsLabel(months)} · شامل الضريبة</p>
+                      </>
+                    ) : (
+                      s.status !== 'Cancelled' && <p className="text-xs text-muted">{daysLabel(days)}</p>
+                    )}
+                    <StatusBadgeMini status={s.status} />
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
@@ -333,7 +347,7 @@ export function TenantDetailPage() {
         <RenewSubscriptionModal
           tenantId={tenant.id}
           tenantName={tenant.name}
-          subscription={sub}
+          subscription={tenant.renewableSubscription ?? sub}
           onClose={() => setShowRenewModal(false)}
         />
       )}

@@ -37,6 +37,7 @@ internal sealed class GetTenantQueryHandler(
         var history = subscriptions.Select(s => s.ToResponse(now)).ToList();
 
         Domain.Entities.TenantSubscription? activeSub = Domain.Entities.TenantSubscription.PickCurrent(subscriptions, now);
+        Domain.Entities.TenantSubscription? renewableSub = Domain.Entities.TenantSubscription.PickRenewable(subscriptions);
 
         bool aiEnabled = await superAdminDb.TenantAiAccesses
             .AsNoTracking()
@@ -58,6 +59,7 @@ internal sealed class GetTenantQueryHandler(
             history,
             tenant.BusinessType.ToString(),
             aiEnabled,
-            tenant.SuspensionReason);
+            tenant.SuspensionReason,
+            renewableSub?.ToResponse(now));
     }
 }

@@ -17,7 +17,7 @@ interface Props {
   onClose: () => void
 }
 
-// One-click renewal: extends the current subscription on the same plan by the chosen months.
+// One-click renewal: extends the end of the tenant's subscription chain on the same plan by the chosen months.
 export function RenewSubscriptionModal({ tenantId, tenantName, subscription, onClose }: Props) {
   const qc = useQueryClient()
   const { t, lang } = useI18n()
@@ -26,13 +26,15 @@ export function RenewSubscriptionModal({ tenantId, tenantName, subscription, onC
 
   // Mirrors the server: a running subscription is extended from its expiry, an ended one from today.
   const expiry = new Date(subscription.expiryDate)
-  const from = expiry.getTime() > Date.now() ? expiry : new Date()
+  const ended = expiry.getTime() <= Date.now()
+  const from = ended ? new Date() : expiry
   const newExpiry = new Date(from)
   newExpiry.setMonth(newExpiry.getMonth() + months)
   const total = periodTotalWithVat(subscription.planPrice, months)
 
   const mutation = useMutation({
-    mutationFn: () => superAdminApi.renewSubscription(tenantId, months),
+    // The id lets the server refuse if a later subscription now exists, so the quoted price stays true.
+    mutationFn: () => superAdminApi.renewSubscription(tenantId, months, subscription.id),
     onSuccess: ({ data }) => {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
       qc.invalidateQueries({ queryKey: ['admin', 'tenant', tenantId] })
@@ -57,11 +59,14 @@ export function RenewSubscriptionModal({ tenantId, tenantName, subscription, onC
       }
     >
       <div dir="rtl" className="space-y-4 text-sm">
-        <div className="flex items-center justify-between rounded-lg bg-surface-2 px-4 py-3">
-          <span className="text-muted">{subscription.planName}</span>
-          <span className="text-muted">
-            ينتهي {expiry.toLocaleDateString(locale)}
-          </span>
+        <div className="rounded-lg bg-surface-2 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-muted">{subscription.planName}</span>
+            <span className={ended ? 'text-danger' : 'text-muted'}>
+              {ended ? 'انتهى' : 'ينتهي'} {expiry.toLocaleDateString(locale)}
+            </span>
+          </div>
+          {ended && <p className="mt-1 text-xs text-muted">تبدأ المدة الجديدة من اليوم</p>}
         </div>
 
         <div>

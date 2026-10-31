@@ -27,10 +27,10 @@ export const superAdminApi = {
       data,
     ),
 
-  renewSubscription: (tenantId: string, months: number) =>
+  renewSubscription: (tenantId: string, months: number, subscriptionId: string) =>
     apiClient.post<TenantSubscriptionResponse>(
       `/api/v1/superadmin/tenants/${tenantId}/subscriptions/renew`,
-      { months },
+      { months, subscriptionId },
     ),
 
   suspendTenant: (tenantId: string, reason: string) =>

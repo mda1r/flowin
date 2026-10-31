@@ -32,16 +32,18 @@ internal sealed class ListTenantsQueryHandler(
             .ToListAsync(cancellationToken);
 
         DateTime now = DateTime.UtcNow;
-        Dictionary<Guid, TenantSubscription?> subByTenant = subscriptions
+        Dictionary<Guid, List<TenantSubscription>> subsByTenant = subscriptions
             .GroupBy(s => s.TenantId)
-            .ToDictionary(g => g.Key, g => TenantSubscription.PickCurrent(g, now));
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var result = tenants.Select(t =>
         {
             TenantSubscriptionResponse? activeSub = null;
-            if (subByTenant.TryGetValue(t.Id.Value, out var sub) && sub is not null)
+            TenantSubscriptionResponse? renewableSub = null;
+            if (subsByTenant.TryGetValue(t.Id.Value, out var subs))
             {
-                activeSub = sub.ToResponse(now);
+                activeSub = TenantSubscription.PickCurrent(subs, now)?.ToResponse(now);
+                renewableSub = TenantSubscription.PickRenewable(subs)?.ToResponse(now);
             }
 
             return new TenantWithSubscriptionResponse(
@@ -55,7 +57,8 @@ internal sealed class ListTenantsQueryHandler(
                 t.CreatedAt,
                 t.SuspendedAt,
                 activeSub,
-                t.BusinessType.ToString());
+                t.BusinessType.ToString(),
+                RenewableSubscription: renewableSub);
         }).ToList();
 
         return result;

@@ -14,4 +14,5 @@ public sealed record TenantDetailResponse(
     List<TenantSubscriptionResponse> SubscriptionHistory,
     string BusinessType = "Retail",
     bool AiEnabled = false,
-    string? SuspensionReason = null);
+    string? SuspensionReason = null,
+    TenantSubscriptionResponse? RenewableSubscription = null);

@@ -12,6 +12,12 @@ export function subscriptionMonths(startDate: string, expiryDate: string): numbe
   return Math.max(1, Math.round(days / AVG_MONTH_DAYS))
 }
 
+// Whole days a subscription covers; under SHORTEST_MONTH_DAYS it is not a billable month.
+export const SHORTEST_MONTH_DAYS = 28
+export function subscriptionDays(startDate: string, expiryDate: string): number {
+  return Math.max(0, Math.round((new Date(expiryDate).getTime() - new Date(startDate).getTime()) / DAY_MS))
+}
+
 // Plan prices are stored net per month; customers pay them with 15% VAT.
 export const periodTotalWithVat = (netMonthlyPrice: number, months: number) =>
   netMonthlyPrice * months * (1 + SAUDI_VAT_RATE)
@@ -29,4 +35,12 @@ export function monthsLabel(months: number): string {
   if (months === 2) return 'شهرين'
   if (months <= 10) return `${months} أشهر`
   return `${months} شهراً`
+}
+
+// Arabic count of days: يوم، يومين، 3 أيام، 11 يوماً
+export function daysLabel(days: number): string {
+  if (days === 1) return 'يوم'
+  if (days === 2) return 'يومين'
+  if (days >= 3 && days <= 10) return `${days} أيام`
+  return `${days} يوماً`
 }

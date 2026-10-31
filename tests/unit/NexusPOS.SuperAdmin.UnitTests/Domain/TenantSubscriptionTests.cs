@@ -143,4 +143,24 @@ public sealed class TenantSubscriptionTests
 
         TenantSubscription.PickCurrent([cancelled], _now).Should().BeNull();
     }
+
+    [Fact]
+    public void PickRenewable_WithPrepaidPeriod_ReturnsEndOfChainNotLive()
+    {
+        TenantSubscription live = Sub(_now.AddDays(-20), _now.AddDays(10));
+        TenantSubscription prepaid = Sub(_now.AddDays(10), _now.AddDays(40));
+
+        TenantSubscription.PickCurrent([live, prepaid], _now).Should().BeSameAs(live);
+        TenantSubscription.PickRenewable([live, prepaid]).Should().BeSameAs(prepaid);
+    }
+
+    [Fact]
+    public void PickRenewable_IgnoresCancelled()
+    {
+        TenantSubscription live = Sub(_now.AddDays(-20), _now.AddDays(10));
+        TenantSubscription cancelled = Sub(_now.AddDays(10), _now.AddDays(40));
+        cancelled.EndAt(_now);
+
+        TenantSubscription.PickRenewable([live, cancelled]).Should().BeSameAs(live);
+    }
 }

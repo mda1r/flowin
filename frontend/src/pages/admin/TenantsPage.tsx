@@ -93,6 +93,8 @@ export function TenantsPage() {
   const [subscribeTarget, setSubscribeTarget] = useState<TenantWithSubscriptionResponse | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TenantWithSubscriptionResponse | null>(null)
   const [renewTarget, setRenewTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  // Renewal extends the end of the chain, which can be a pre-paid period after the live one.
+  const renewSub = renewTarget?.renewableSubscription ?? renewTarget?.activeSubscription
   const [suspendTarget, setSuspendTarget] = useState<TenantWithSubscriptionResponse | null>(null)
 
   const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
@@ -303,11 +305,11 @@ export function TenantsPage() {
         />
       )}
 
-      {renewTarget?.activeSubscription && (
+      {renewTarget && renewSub && (
         <RenewSubscriptionModal
           tenantId={renewTarget.id}
           tenantName={renewTarget.name}
-          subscription={renewTarget.activeSubscription}
+          subscription={renewSub}
           onClose={() => setRenewTarget(null)}
         />
       )}

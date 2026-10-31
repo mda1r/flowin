@@ -129,4 +129,11 @@ public sealed class TenantSubscription
             ?? candidates.Where(s => s.EffectiveStatus(now) == SubscriptionStatus.Trial).MinBy(s => s.StartDate)
             ?? candidates.MaxBy(s => s.ExpiryDate);
     }
+
+    /// <summary>
+    /// The subscription a renewal extends: the end of the chain (latest expiry, not cancelled).
+    /// It differs from <see cref="PickCurrent"/> when a pre-paid period follows the live one.
+    /// </summary>
+    public static TenantSubscription? PickRenewable(IEnumerable<TenantSubscription> subscriptions) =>
+        subscriptions.Where(s => s.Status != SubscriptionStatus.Cancelled).MaxBy(s => s.ExpiryDate);
 }

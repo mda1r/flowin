@@ -594,6 +594,8 @@ export interface TenantWithSubscriptionResponse {
   activeSubscription?: TenantSubscriptionResponse
   businessType: BusinessType
   defaultPassword?: string
+  // End of the subscription chain: what a renewal extends (a pre-paid period after the live one).
+  renewableSubscription?: TenantSubscriptionResponse
 }
 
 export interface TenantDetailResponse extends TenantWithSubscriptionResponse {

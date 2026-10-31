@@ -50,6 +50,8 @@ export function AdminDashboard() {
   const { t, lang } = useI18n()
   const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const [renewTarget, setRenewTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  // Renewal extends the end of the chain, which can be a pre-paid period after the live one.
+  const renewSub = renewTarget?.renewableSubscription ?? renewTarget?.activeSubscription
 
   const BIZ_LABEL: Record<BusinessType, string> = {
     Retail:      t.admin.dashboard.business.retail,
@@ -241,11 +243,11 @@ export function AdminDashboard() {
         </div>
       )}
 
-      {renewTarget?.activeSubscription && (
+      {renewTarget && renewSub && (
         <RenewSubscriptionModal
           tenantId={renewTarget.id}
           tenantName={renewTarget.name}
-          subscription={renewTarget.activeSubscription}
+          subscription={renewSub}
           onClose={() => setRenewTarget(null)}
         />
       )}

@@ -132,13 +132,14 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
     [HttpPost("tenants/{id:guid}/subscriptions/renew")]
     [ProducesResponseType(typeof(TenantSubscriptionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> RenewSubscription(
         Guid id,
         [FromBody] RenewSubscriptionRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new RenewSubscriptionCommand(id, request.Months), cancellationToken);
+        var result = await mediator.Send(new RenewSubscriptionCommand(id, request.Months, request.SubscriptionId), cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 

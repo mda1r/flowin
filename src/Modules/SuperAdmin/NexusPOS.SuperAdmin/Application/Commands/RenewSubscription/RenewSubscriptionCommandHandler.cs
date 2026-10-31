@@ -31,13 +31,19 @@ internal sealed class RenewSubscriptionCommandHandler(
         }
 
         List<TenantSubscription> subscriptions = await subscriptionRepository.GetByTenantIdAsync(request.TenantId, cancellationToken);
-        TenantSubscription? latest = subscriptions
-            .Where(s => s.Status != SubscriptionStatus.Cancelled)
-            .MaxBy(s => s.ExpiryDate);
+        TenantSubscription? latest = request.SubscriptionId is { } shownId
+            ? subscriptions.FirstOrDefault(s => s.Id == shownId && s.Status != SubscriptionStatus.Cancelled)
+            : TenantSubscription.PickRenewable(subscriptions);
 
         if (latest is null)
         {
             return Error.NotFound("Subscription.NotFound", "لا يوجد اشتراك لتجديده، أنشئ اشتراكاً جديداً");
+        }
+
+        // The admin priced the subscription they were shown; never extend a different one.
+        if (subscriptions.Any(s => s.Status != SubscriptionStatus.Cancelled && s.ExpiryDate > latest.ExpiryDate))
+        {
+            return Error.Conflict("Subscription.NotLatest", "يوجد اشتراك لاحق، جدّده بدلاً من هذا");
         }
 
         DateTime now = DateTime.UtcNow;
