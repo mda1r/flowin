@@ -137,10 +137,14 @@ function RetailPosPage() {
   const cartBase = cartTotals(lines, null).beforeLoyalty
 
   // Past the branch cap a cashier needs the manager PIN, which only the server can check — so never offline.
+  // Offline before the branch rules ever loaded, the cap is unknown, so a cashier gives no discount at all.
   const discountCap = posSettings.maxCashierDiscountPercent
+  const settingsLoaded = !!posSettingsRes
   const overCap = !isManager && totals.discountPercent > discountCap
+  const offlineOverCap = overCap || (!isManager && !settingsLoaded && totals.discountPercent > 0)
   const online = typeof navigator === 'undefined' ? true : navigator.onLine
-  const discountBlocked = overCap && (!posSettings.hasApprovalPin || !online)
+  const capKnown = settingsLoaded || online
+  const discountBlocked = online ? overCap && !posSettings.hasApprovalPin : offlineOverCap
   const needsPin = overCap && !discountBlocked
 
   const { data: products, isLoading } = useQuery({
@@ -314,7 +318,7 @@ function RetailPosPage() {
 
       if (!navigator.onLine) {
         if (appliedPoints > 0) throw new Error('offline-loyalty')
-        if (overCap) throw new Error('offline-discount')
+        if (offlineOverCap) throw new Error('offline-discount')
         return saveOffline()
       }
       try {
@@ -323,7 +327,7 @@ function RetailPosPage() {
         return { order: data, offline: false }
       } catch (err) {
         if (isNetworkError(err)) {
-          if (overCap) throw new Error('offline-discount')
+          if (offlineOverCap) throw new Error('offline-discount')
           return saveOffline()
         }
         throw err
@@ -351,7 +355,12 @@ function RetailPosPage() {
         return
       }
       if (err.message === 'offline-discount') {
-        toast.error('الخصم يحتاج اتصالاً', `خصم أكبر من ${discountCap}% يُعتمد من الخادم. خفّضه أو انتظر الاتصال`)
+        toast.error(
+          'الخصم يحتاج اتصالاً',
+          settingsLoaded
+            ? `خصم أكبر من ${discountCap}% يُعتمد من الخادم. خفّضه أو انتظر الاتصال`
+            : 'حد الخصم غير معروف دون اتصال. أزل الخصم أو انتظر الاتصال',
+        )
         return
       }
       const code = isAxiosError(err) ? (err.response?.data as { title?: string } | undefined)?.title : undefined
@@ -476,12 +485,17 @@ function RetailPosPage() {
     { keys: ['?', '؟', 'F1'], label: 'help', run: () => setShowShortcuts(true) },
   ])
 
-  const capNote = !isManager && totals.discountPercent > 0 && (
-    <p className={cn('text-xs', overCap ? 'text-warning' : 'text-muted')}>
-      حد خصم الكاشير {discountCap}%
-      {overCap && (posSettings.hasApprovalPin ? ' — سيُطلب رمز المدير عند الدفع' : ' — اطلب من المدير تنفيذ الخصم')}
-    </p>
-  )
+  // The cashier cap against the bill's discount share with the value being typed, so it warns before payment.
+  const capNote = (percent: number) => {
+    if (isManager) return null
+    const over = capKnown ? percent > discountCap : percent > 0
+    return (
+      <p className={cn('text-xs', over ? 'text-warning' : 'text-muted')}>
+        {capKnown ? `حد خصم الكاشير ${discountCap}%` : 'حد خصم الكاشير غير معروف دون اتصال'}
+        {over && (!online ? ' — يحتاج اتصالاً لاعتماده' : posSettings.hasApprovalPin ? ' — سيُطلب رمز المدير عند الدفع' : ' — اطلب من المدير تنفيذ الخصم')}
+      </p>
+    )
+  }
 
   return (
     <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RETAIL_ACCENT}>
@@ -799,7 +813,9 @@ function RetailPosPage() {
               <p role="alert" className="mb-4 rounded-xl bg-danger/10 px-3 py-2 text-xs font-medium text-danger">
                 {online
                   ? `الخصم ${totals.discountPercent}% أكبر من حد الكاشير (${discountCap}%). اطلب من المدير تنفيذه أو خفّض الخصم.`
-                  : `الخصم ${totals.discountPercent}% أكبر من حد الكاشير (${discountCap}%) ويحتاج اتصالاً لاعتماده.`}
+                  : capKnown
+                    ? `الخصم ${totals.discountPercent}% أكبر من حد الكاشير (${discountCap}%) ويحتاج اتصالاً لاعتماده.`
+                    : 'حد خصم الكاشير غير معروف دون اتصال، والخصم يحتاج اتصالاً لاعتماده.'}
               </p>
             )}
             {needsPin && (
@@ -954,7 +970,7 @@ function RetailPosPage() {
         current={cartDiscount}
         onApply={setDiscount}
         roundDown={roundDownAmount(cartBase)}
-        note={capNote}
+        note={(d) => capNote(cartTotals(lines, d).discountPercent)}
       >
         {isManager && branchId && <DiscountRulesPanel branchId={branchId} settings={posSettings} />}
       </DiscountModal>
@@ -965,7 +981,9 @@ function RetailPosPage() {
         base={discountLine ? discountLine.unitPrice * discountLine.quantity : 0}
         current={discountLine?.discount ?? null}
         onApply={(d) => { if (discountLine) setLineDiscount(discountLine.variantId, d) }}
-        note={capNote}
+        note={(d) =>
+          capNote(cartTotals(lines.map((l) => (l.variantId === discountLine?.variantId ? { ...l, discount: d } : l)), cartDiscount).discountPercent)
+        }
       />
 
       {/* Note for a held cart */}

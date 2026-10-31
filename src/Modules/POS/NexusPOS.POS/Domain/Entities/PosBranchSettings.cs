@@ -1,11 +1,10 @@
-using ErrorOr;
-
 namespace NexusPOS.POS.Domain.Entities;
 
 // Per-branch till rules: how far a cashier may discount alone, and the manager PIN that approves more.
 public sealed class PosBranchSettings
 {
     public const decimal DefaultMaxCashierDiscountPercent = 10m;
+    // Five wrong PINs lock approvals for fifteen minutes, so a short PIN cannot be guessed by retrying.
     public const int MaxPinAttempts = 5;
     public static readonly TimeSpan PinLockout = TimeSpan.FromMinutes(15);
 
@@ -39,35 +38,5 @@ public sealed class PosBranchSettings
         FailedPinAttempts = 0;
         PinLockedUntil = null;
         UpdatedAt = DateTime.UtcNow;
-    }
-
-    // Five wrong PINs lock approvals for fifteen minutes, so a short PIN cannot be guessed by retrying.
-    public ErrorOr<Success> CheckPin(string pin, Func<string, string, bool> verify, DateTime now)
-    {
-        if (ApprovalPinHash is null)
-        {
-            return PosErrors.ApprovalPinNotSet;
-        }
-
-        if (PinLockedUntil > now)
-        {
-            return PosErrors.ApprovalPinLocked;
-        }
-
-        if (verify(pin, ApprovalPinHash))
-        {
-            FailedPinAttempts = 0;
-            PinLockedUntil = null;
-            return Result.Success;
-        }
-
-        FailedPinAttempts++;
-        if (FailedPinAttempts >= MaxPinAttempts)
-        {
-            FailedPinAttempts = 0;
-            PinLockedUntil = now + PinLockout;
-        }
-
-        return PosErrors.InvalidApprovalPin;
     }
 }

@@ -1,5 +1,4 @@
 using ErrorOr;
-using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 
@@ -21,18 +20,21 @@ internal static class DiscountApproval
         return Math.Round(manual / before * 100m, 2);
     }
 
-    public static ErrorOr<Success> Check(
-        decimal discountPercent, bool canOverride, PosBranchSettings? settings, string? pin, DateTime now)
+    public static decimal Cap(PosBranchSettings? settings) =>
+        settings?.MaxCashierDiscountPercent ?? PosBranchSettings.DefaultMaxCashierDiscountPercent;
+
+    // False: the discount stands as it is. True: it stands once the manager PIN checks out. An error: refused.
+    public static ErrorOr<bool> NeedsPin(decimal discountPercent, bool canOverride, PosBranchSettings? settings, string? pin)
     {
         if (discountPercent <= 0 || canOverride)
         {
-            return Result.Success;
+            return false;
         }
 
-        decimal cap = settings?.MaxCashierDiscountPercent ?? PosBranchSettings.DefaultMaxCashierDiscountPercent;
+        decimal cap = Cap(settings);
         if (discountPercent <= cap)
         {
-            return Result.Success;
+            return false;
         }
 
         if (settings?.ApprovalPinHash is null)
@@ -45,6 +47,6 @@ internal static class DiscountApproval
             return PosErrors.DiscountApprovalRequired(cap);
         }
 
-        return settings.CheckPin(pin.Trim(), ApprovalPinHasher.Verify, now);
+        return true;
     }
 }

@@ -27,7 +27,8 @@ interface DiscountModalProps {
   onApply: (discount: CartDiscount | null) => void
   // Cart mode: the fraction to knock off for a whole-riyal total.
   roundDown?: number
-  note?: React.ReactNode
+  // Shown under the preview; gets the discount as typed so far (null while nothing valid is typed).
+  note?: (preview: CartDiscount | null) => React.ReactNode
   children?: React.ReactNode
 }
 
@@ -50,6 +51,7 @@ export function DiscountModal({ open, onClose, title, base, current, onApply, ro
     : type === 'Fixed' && num > base + 0.001 ? 'الخصم أكبر من المبلغ'
     : null
   const canApply = value !== '' && !Number.isNaN(num) && !error
+  const preview: CartDiscount | null = off > 0 && !error ? { type, value: num } : null
 
   const apply = () => {
     if (!canApply) return
@@ -154,7 +156,7 @@ export function DiscountModal({ open, onClose, title, base, current, onApply, ro
           </div>
         )}
 
-        {note}
+        {note?.(preview)}
         {children}
       </div>
     </Modal>

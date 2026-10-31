@@ -19,6 +19,7 @@ using NexusPOS.POS.Application.Queries.ListReturns;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Presentation.Requests;
 using NexusPOS.SharedKernel.Application;
+using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
 
@@ -28,6 +29,15 @@ namespace NexusPOS.POS.Presentation;
 [Authorize]
 public sealed class OrdersController(ISender mediator) : ControllerBase
 {
+    private string? CurrentUserName
+    {
+        get
+        {
+            string full = $"{User.FindFirstValue("given_name")} {User.FindFirstValue("family_name")}".Trim();
+            return full.Length > 0 ? full : User.FindFirstValue(ClaimTypes.Email);
+        }
+    }
+
     /// <summary>List orders for a branch.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<OrderResponse>), StatusCodes.Status200OK)]
@@ -175,7 +185,9 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
                 l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity, l.DiscountType, l.DiscountValue))],
             request.LoyaltyPoints, request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount,
             UtcDates.AsUtc(request.OfflineCreatedAt), request.DiscountType, request.DiscountValue, request.ApprovalPin,
-            ByOwnerOrManager: User.IsInRole("Owner") || User.IsInRole("Manager"));
+            ByOwnerOrManager: User.IsInRole("Owner") || User.IsInRole("Manager"),
+            UserId: Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId) ? userId : Guid.Empty,
+            UserName: CurrentUserName);
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

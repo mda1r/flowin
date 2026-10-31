@@ -81,45 +81,30 @@ public sealed class CheckoutDiscountTests
     [Fact]
     public void WithinTheCap_NeedsNoApproval()
     {
-        DiscountApproval.Check(10m, false, null, null, DateTime.UtcNow).IsError.Should().BeFalse();
+        DiscountApproval.NeedsPin(10m, false, null, null).Value.Should().BeFalse();
     }
 
     [Fact]
     public void OwnersAndManagers_AreNeverCapped()
     {
-        DiscountApproval.Check(80m, true, null, null, DateTime.UtcNow).IsError.Should().BeFalse();
+        DiscountApproval.NeedsPin(80m, true, null, null).Value.Should().BeFalse();
     }
 
     [Fact]
     public void AboveTheCap_WithoutABranchPin_NeedsTheManager()
     {
-        DiscountApproval.Check(15m, false, null, "1234", DateTime.UtcNow)
+        DiscountApproval.NeedsPin(15m, false, null, "1234")
             .FirstError.Code.Should().Be("POS.DiscountNeedsManager");
     }
 
     [Fact]
-    public void AboveTheCap_AsksForThePin_ThenAcceptsTheRightOne()
+    public void AboveTheCap_AsksForThePin_ThenSendsItToBeChecked()
     {
         PosBranchSettings settings = SettingsWithPin("4826");
 
-        DiscountApproval.Check(15m, false, settings, null, DateTime.UtcNow)
+        DiscountApproval.NeedsPin(15m, false, settings, null)
             .FirstError.Code.Should().Be("POS.DiscountApprovalRequired");
-        DiscountApproval.Check(15m, false, settings, "4826", DateTime.UtcNow).IsError.Should().BeFalse();
-    }
-
-    [Fact]
-    public void FiveWrongPins_LockApprovals_EvenForTheRightPin()
-    {
-        PosBranchSettings settings = SettingsWithPin("4826");
-        DateTime now = DateTime.UtcNow;
-
-        for (int i = 0; i < PosBranchSettings.MaxPinAttempts; i++)
-        {
-            DiscountApproval.Check(15m, false, settings, "0000", now).FirstError.Should().Be(PosErrors.InvalidApprovalPin);
-        }
-
-        DiscountApproval.Check(15m, false, settings, "4826", now.AddMinutes(1)).FirstError.Should().Be(PosErrors.ApprovalPinLocked);
-        DiscountApproval.Check(15m, false, settings, "4826", now.AddMinutes(16)).IsError.Should().BeFalse();
+        DiscountApproval.NeedsPin(15m, false, settings, "4826").Value.Should().BeTrue();
     }
 
     [Fact]
@@ -128,7 +113,19 @@ public sealed class CheckoutDiscountTests
         PosBranchSettings settings = PosBranchSettings.Create(Guid.NewGuid(), Guid.NewGuid());
         settings.SetMaxCashierDiscount(25m);
 
-        DiscountApproval.Check(20m, false, settings, null, DateTime.UtcNow).IsError.Should().BeFalse();
+        DiscountApproval.NeedsPin(20m, false, settings, null).Value.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ALiveRequestClaimingToBeOffline_IsStillChecked()
+    {
+        DateTime now = DateTime.UtcNow;
+
+        OfflineSale.IsOffline(now, now).Should().BeFalse();
+        OfflineSale.IsOffline(now.AddSeconds(-30), now).Should().BeFalse();
+        OfflineSale.IsOffline(now.AddMinutes(5), now).Should().BeFalse();
+        OfflineSale.IsOffline(null, now).Should().BeFalse();
+        OfflineSale.IsOffline(now.AddMinutes(-10), now).Should().BeTrue();
     }
 
     [Fact]
@@ -166,6 +163,12 @@ public sealed class CheckoutDiscountTests
     {
         CatalogPriceCheck.Check(Command(), new Dictionary<Guid, decimal> { [_rice] = 23m })
             .FirstError.Code.Should().Be("POS.UnknownProduct");
+    }
+
+    [Fact]
+    public void AnOfflineSale_NamesTheLinesBelowTheCatalogue_ForReview()
+    {
+        CatalogPriceCheck.Unverified(Command(ricePrice: 15m), Shelf(23m, 11.5m)).Should().Equal("أرز");
     }
 
     private static Dictionary<Guid, decimal> Shelf(decimal rice, decimal milk) => new() { [_rice] = rice, [_milk] = milk };

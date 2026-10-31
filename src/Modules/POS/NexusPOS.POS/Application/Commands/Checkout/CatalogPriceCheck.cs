@@ -26,4 +26,8 @@ internal static class CatalogPriceCheck
 
         return Result.Success;
     }
+
+    // For a sale already made offline: the lines that would not pass Check, by name, for the manager to review.
+    public static List<string> Unverified(CheckoutOrderCommand cmd, IReadOnlyDictionary<Guid, decimal> shelfPrices) =>
+        [.. cmd.Lines.Where(l => Check(cmd with { Lines = [l] }, shelfPrices).IsError).Select(l => l.ProductName)];
 }

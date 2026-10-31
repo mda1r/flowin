@@ -49,10 +49,12 @@ interface CartState {
 const TAX_RATE = 0.15
 
 // Applies a change to the active cart and mirrors it into the saved draft of its scope.
-function commit(state: CartState, next: CartDraft): Partial<CartState> {
+// An empty cart drops its discount, so one customer's discount never carries over to the next.
+function commit(state: CartState, change: CartDraft): Partial<CartState> {
+  const next = change.lines.length === 0 ? { lines: change.lines, discount: null } : change
   if (!state.scope) return next
   const drafts = { ...state.drafts }
-  if (next.lines.length === 0 && !next.discount) delete drafts[state.scope]
+  if (next.lines.length === 0) delete drafts[state.scope]
   else drafts[state.scope] = next
   return { ...next, drafts }
 }
