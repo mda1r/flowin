@@ -244,6 +244,12 @@ internal static class DatabaseInitializerExtensions
         [
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS closing_card_count NUMERIC(18,4)",
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS card_variance NUMERIC(18,4)",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_digital_sales NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_cash_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
+            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS closed_by_name VARCHAR(200)",
+            // Shifts closed before the digital bucket existed kept digital sales only inside total_sales. They are
+            // summed from the orders, so split rounding leftovers do not show up as a few halalas of digital.
+            "UPDATE cashier_shifts s SET total_digital_sales = COALESCE((SELECT SUM(o.total_amount) FROM orders o WHERE o.branch_id = s.branch_id AND o.status = 2 AND (o.payment_method IS NULL OR o.payment_method NOT IN (1, 2, 4)) AND o.completed_at >= s.opened_at AND o.completed_at <= s.closed_at), 0) WHERE s.status = 2 AND s.total_digital_sales = 0 AND s.total_sales > s.total_cash_sales + s.total_card_sales",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cash_amount NUMERIC(18,4)",
             "ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_amount NUMERIC(18,4)",
             "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS cost_price NUMERIC(18,4) NOT NULL DEFAULT 0",
@@ -269,7 +275,6 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS client_reference UUID",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_return_orders_client_reference ON return_orders (client_reference) WHERE client_reference IS NOT NULL",
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
-            "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS cash_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
         ];
 
         foreach (string sql in patches)

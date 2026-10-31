@@ -136,8 +136,14 @@ export interface ShiftResponse {
   notes: string | null
   openedAt: string
   closedAt: string | null
+  // Digital wallets and anything that is neither cash nor card, so the three add up to totalSales.
+  totalDigitalSales: number
+  // Cash handed back on returns during the shift; it comes out of expectedCash.
+  totalCashRefunds: number
+  // Set when a manager closed the shift for the cashier.
+  closedByName: string | null
+  // Everything handed back on returns during the shift (cash, card and store credit).
   totalRefunds?: number
-  cashRefunds?: number
 }
 
 export interface StockItemResponse {

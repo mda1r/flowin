@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle, Banknote, ChevronLeft, ChevronRight, ClipboardCheck, CreditCard, Gamepad2, Printer,
-  Receipt, RotateCcw, TrendingUp, UtensilsCrossed,
+  Receipt, RotateCcw, Smartphone, TrendingUp, UtensilsCrossed,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -21,8 +21,13 @@ import { apiErrorMessage } from '@/lib/apiError'
 import type { CompletedSessionResponse } from '@/api/gaming'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 
+// Payment and refund methods the server records; anything else falls back to its raw name.
 const PAYMENT_LABELS: Record<string, string> = {
-  Cash: 'نقداً', Card: 'بطاقة', BankTransfer: 'تحويل بنكي', Voucher: 'قسيمة', StoreCredit: 'رصيد متجر',
+  Cash: 'نقداً', Card: 'بطاقة', Digital: 'دفع رقمي', Split: 'تقسيم', StoreCredit: 'رصيد متجر',
+}
+const PAYMENT_ICONS: Record<string, React.ReactNode> = {
+  Cash: <Banknote className="h-3.5 w-3.5" />,
+  Digital: <Smartphone className="h-3.5 w-3.5" />,
 }
 
 const shiftDate = (iso: string | null) => (iso ? localYmd(new Date(iso)) : null)
@@ -109,6 +114,12 @@ export function DailyClosePage() {
     queryFn: () => shiftsApi.list(branchId!, 1, 100),
     enabled: !!branchId,
   })
+  // Open shifts' stored totals stay empty until they close; this gives their figures so far.
+  const openShiftsQ = useQuery({
+    queryKey: ['daily-close', 'shifts-open', branchId],
+    queryFn: () => shiftsApi.listOpen(branchId!),
+    enabled: !!branchId,
+  })
   const restaurantQ = useQuery({
     queryKey: ['daily-close', 'restaurant', branchId, day],
     queryFn: () => restaurantApi.listPaidOrders(branchId!, range.from, range.to),
@@ -133,7 +144,10 @@ export function DailyClosePage() {
       .filter((r) => localYmd(new Date(r.createdAt)) === day)
     const restaurant = hasRestaurant ? restaurantQ.data?.data ?? [] : []
     const sessions = hasGaming ? gamingQ.data?.data ?? [] : []
-    const shiftsRaw: ShiftResponse[] = Array.isArray(shiftsQ.data?.data) ? shiftsQ.data!.data : []
+    const liveOpen = new Map((Array.isArray(openShiftsQ.data?.data) ? openShiftsQ.data!.data : []).map((s) => [s.id, s]))
+    const shiftsRaw: ShiftResponse[] = (Array.isArray(shiftsQ.data?.data) ? shiftsQ.data!.data : [])
+      .map((s) => liveOpen.get(s.id) ?? s)
+    for (const s of liveOpen.values()) if (!shiftsRaw.some((x) => x.id === s.id)) shiftsRaw.push(s)
     const shifts = shiftsRaw.filter((s) =>
       shiftDate(s.openedAt) === day || shiftDate(s.closedAt) === day ||
       (s.status === 'Open' && (shiftDate(s.openedAt) ?? '') <= day && day <= today))
@@ -208,7 +222,7 @@ export function DailyClosePage() {
     // VAT from every invoice recorded that day (till, restaurant and paid gaming sessions).
     const vat = dayOrders.reduce((s, o) => s + o.taxAmount, 0)
     return { pos, payments, topProducts, refunds, rest, gaming, shifts, revenue, vat, net: revenue - refunds.total }
-  }, [ordersQ.data, returnsQ.data, restaurantQ.data, gamingQ.data, shiftsQ.data, day, today, hasGaming, hasRestaurant])
+  }, [ordersQ.data, returnsQ.data, restaurantQ.data, gamingQ.data, shiftsQ.data, openShiftsQ.data, day, today, hasGaming, hasRestaurant])
 
   const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -278,7 +292,7 @@ export function DailyClosePage() {
                   {Object.keys(report.payments).length === 0 ? (
                     <p className="text-sm text-muted">لا توجد مبيعات</p>
                   ) : Object.entries(report.payments).map(([k, v]) => (
-                    <Row key={k} label={<span className="flex items-center gap-1.5">{k === 'Cash' ? <Banknote className="h-3.5 w-3.5" /> : <CreditCard className="h-3.5 w-3.5" />}{PAYMENT_LABELS[k] ?? k}</span>} value={formatCurrency(v)} />
+                    <Row key={k} label={<span className="flex items-center gap-1.5">{PAYMENT_ICONS[k] ?? <CreditCard className="h-3.5 w-3.5" />}{PAYMENT_LABELS[k] ?? k}</span>} value={formatCurrency(v)} />
                   ))}
                 </div>
               </Section>

@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Lock, Unlock, Clock, ShoppingBag, CreditCard, Banknote, TrendingUp, AlertTriangle, Printer } from 'lucide-react'
+import { isAxiosError } from 'axios'
+import { Lock, Unlock, Clock, ShoppingBag, CreditCard, Banknote, TrendingUp, AlertTriangle, Printer, RotateCcw, Smartphone, WifiOff, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { shiftsApi } from '@/api/shifts'
 import { ordersApi } from '@/api/orders'
 import { useOfflineSales } from '@/lib/offlineSales'
@@ -10,8 +11,12 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
+import { apiErrorMessage } from '@/lib/apiError'
+import { printElement } from '@/lib/print'
 import { logActivity } from '@/lib/activityLog'
 import { useI18n } from '@/i18n'
+import { CashCountField } from './CashCountGrid'
+import { ShiftReportDocument, shiftDuration, topProductsOf, type TopProduct } from './ShiftReportDocument'
 import type { ShiftResponse, OrderResponse } from '@/types/api'
 
 // ── Open Shift Modal ──────────────────────────────────────────────────────────
@@ -22,9 +27,11 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const [openingCash, setOpeningCash] = useState('')
   const [loading, setLoading] = useState(false)
+  const amount = Number(openingCash) || 0
+  const invalid = amount < 0
 
   const handleOpen = async () => {
-    const amount = parseFloat(openingCash) || 0
+    if (invalid) return
     setLoading(true)
     try {
       await shiftsApi.open(branchId!, amount)
@@ -40,8 +47,15 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
       })
       toast.success(t.shiftGate.shiftOpen)
       onClose()
-    } catch {
-      toast.error('فشل فتح الشفت')
+    } catch (err) {
+      // Already open (another tab or device opened it): pick that shift up instead of failing.
+      if (isAxiosError(err) && err.response?.status === 409) {
+        await qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
+        toast.info('لديك شفت مفتوح بالفعل', 'تم تحميله، تابع البيع عليه.')
+        onClose()
+      } else {
+        toast.error('تعذّر فتح الشفت', apiErrorMessage(err))
+      }
     } finally {
       setLoading(false)
     }
@@ -55,7 +69,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
-          <Button loading={loading} onClick={handleOpen}>{t.shiftGate.open}</Button>
+          <Button loading={loading} onClick={handleOpen} disabled={invalid}>{t.shiftGate.open}</Button>
         </>
       }
     >
@@ -69,6 +83,7 @@ export function OpenShiftModal({ onClose }: { onClose: () => void }) {
           placeholder="0.00"
           value={openingCash}
           onChange={(e) => setOpeningCash(e.target.value)}
+          error={invalid ? 'رصيد الفتح لا يمكن أن يكون سالباً' : undefined}
           autoFocus
         />
       </div>
@@ -82,137 +97,143 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
   const { branchId, user, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const { t } = useI18n()
-  const [closingCash, setClosingCash] = useState('')
+  const [countedCash, setCountedCash] = useState<number | null>(null)
   const [closingCard, setClosingCard] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [closed, setClosed] = useState<{ shift: ShiftResponse; topProducts: TopProduct[] } | null>(null)
   const { pending: offlinePending } = useOfflineSales(tenantId, branchId)
 
-  const { data: shiftOrders } = useQuery({
-    queryKey: ['shift-orders', branchId, shift.id, shift.openedAt],
-    queryFn: async () => {
-      const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', from: shift.openedAt, pageSize: 500 })
-      const raw: OrderResponse[] = Array.isArray(data) ? data : ((data as any)?.items ?? [])
-      const shiftStart = new Date(shift.openedAt)
-      return raw.filter((o) => new Date(o.completedAt ?? o.createdAt) >= shiftStart)
-    },
+  // The server sums the shift's sales and cash refunds, so the preview matches what closing will store.
+  const { data: live, isLoading: loadingLive, isError: liveFailed, refetch: refetchLive } = useQuery({
+    queryKey: ['shift-summary', branchId, shift.id],
+    queryFn: async () => (await shiftsApi.summary(branchId!, shift.id)).data,
     enabled: !!branchId,
+    staleTime: 0,
+    refetchInterval: closed ? false : 30_000,
   })
 
-  const computed = useMemo(() => {
-    const orders = shiftOrders ?? []
-    const cashSales = orders.filter((o) => o.paymentMethod === 'Cash').reduce((s, o) => s + o.totalAmount, 0)
-    const cardSales = orders.filter((o) => o.paymentMethod === 'Card').reduce((s, o) => s + o.totalAmount, 0)
-    const splitCash = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + (o.splitCash ?? 0), 0)
-    const splitCard = orders.filter((o) => o.paymentMethod === 'Split').reduce((s, o) => s + (o.splitCard ?? 0), 0)
-    const totalCash = cashSales + splitCash
-    const totalCard = cardSales + splitCard
-    return { cashSales: totalCash, cardSales: totalCard, totalSales: totalCash + totalCard, totalOrders: orders.length }
-  }, [shiftOrders])
+  const cashAmount = countedCash ?? 0
+  const cardAmount = Number(closingCard) || 0
+  const expectedCash = live?.expectedCash ?? null
+  const cashVariance = expectedCash == null ? null : Math.round((cashAmount - expectedCash) * 100) / 100
+  const cardVariance = live ? Math.round((cardAmount - live.totalCardSales) * 100) / 100 : null
+  // An uncounted drawer would close as zero cash and store the whole take as a deficit; an empty one is typed as 0.
+  const invalid = countedCash == null || countedCash < 0 || cardAmount < 0
 
-  const cashAmount = parseFloat(closingCash) || 0
-  const cardAmount = parseFloat(closingCard) || 0
-  const expectedCash = shift.openingCash + computed.cashSales
-  const cashVariance = Math.round((cashAmount - expectedCash) * 100) / 100
-  const cardVariance = Math.round((cardAmount - computed.cardSales) * 100) / 100
+  const cashierName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
+  const printReport = (id: string) => window.setTimeout(() => printElement(document.getElementById(id)), 0)
 
-  const duration = () => {
-    const ms = Date.now() - new Date(shift.openedAt).getTime()
-    const h = Math.floor(ms / 3_600_000)
-    const m = Math.floor((ms % 3_600_000) / 60_000)
-    return `${h}س ${m}د`
-  }
+  // The Z report prints by itself once the shift is closed.
+  useEffect(() => {
+    if (closed) printReport(`z-report-close-${closed.shift.id}`)
+  }, [closed])
 
-  const handlePrint = () => {
-    const now = new Date().toLocaleString('ar-SA')
-    const cashierName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
-    const win = window.open('', '_blank', 'width=400,height=600')
-    if (!win) return
-    win.document.write(`
-      <html dir="rtl"><head><meta charset="utf-8"/><title>ملخص الشفت</title>
-      <style>
-        body{font-family:Arial,sans-serif;font-size:13px;margin:16px;color:#111}
-        h2{text-align:center;font-size:16px;margin-bottom:4px}
-        .sub{text-align:center;color:#555;font-size:11px;margin-bottom:12px}
-        hr{border:none;border-top:1px dashed #999;margin:8px 0}
-        .row{display:flex;justify-content:space-between;margin:4px 0}
-        .row .lbl{color:#444}.row .val{font-weight:bold}
-        .variance{padding:4px 8px;border-radius:4px;font-size:12px;margin-top:2px}
-        .ok{background:#d1fae5;color:#065f46}.bad{background:#fee2e2;color:#991b1b}
-        .total{font-size:15px;font-weight:bold;text-align:center;margin-top:8px}
-      </style></head><body>
-      <h2>ملخص الشفت</h2>
-      <div class="sub">${cashierName} · ${now}</div>
-      <hr/>
-      <div class="row"><span class="lbl">رصيد الفتح</span><span class="val">${formatCurrency(shift.openingCash)}</span></div>
-      <div class="row"><span class="lbl">مدة الشفت</span><span class="val">${duration()}</span></div>
-      <div class="row"><span class="lbl">عدد الطلبات</span><span class="val">${computed.totalOrders}</span></div>
-      <hr/>
-      <div class="row"><span class="lbl">مبيعات نقدية</span><span class="val">${formatCurrency(computed.cashSales)}</span></div>
-      <div class="row"><span class="lbl">مبيعات بطاقة</span><span class="val">${formatCurrency(computed.cardSales)}</span></div>
-      <hr/>
-      <div class="row"><span class="lbl">النقد المتوقع</span><span class="val">${formatCurrency(expectedCash)}</span></div>
-      <div class="row"><span class="lbl">النقد الفعلي</span><span class="val">${formatCurrency(cashAmount)}</span></div>
-      <div class="variance ${cashVariance >= 0 ? 'ok' : 'bad'}">${cashVariance >= 0 ? 'فائض نقدي' : 'عجز نقدي'}: ${formatCurrency(Math.abs(cashVariance))}</div>
-      <div class="row" style="margin-top:8px"><span class="lbl">إجمالي البطاقة المتوقع</span><span class="val">${formatCurrency(computed.cardSales)}</span></div>
-      <div class="row"><span class="lbl">إجمالي البطاقة الفعلي</span><span class="val">${formatCurrency(cardAmount)}</span></div>
-      <div class="variance ${cardVariance >= 0 ? 'ok' : 'bad'}">${cardVariance >= 0 ? 'فائض بطاقة' : 'عجز بطاقة'}: ${formatCurrency(Math.abs(cardVariance))}</div>
-      <hr/>
-      <div class="total">الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة، المجموع ${formatCurrency(computed.totalSales)}</div>
-      ${notes ? `<hr/><div style="color:#555;font-size:11px">ملاحظة: ${notes}</div>` : ''}
-      </body></html>
-    `)
-    win.document.close()
-    win.print()
+  // Leaving the result screen is what hands the till back to the lock screen.
+  const finish = () => {
+    if (closed) {
+      qc.setQueriesData({ queryKey: ['current-shift', branchId] }, null)
+      qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
+      qc.invalidateQueries({ queryKey: ['shift-current', branchId] })
+      qc.invalidateQueries({ queryKey: ['shifts', branchId] })
+      qc.invalidateQueries({ queryKey: ['shifts-open', branchId] })
+    }
+    onClose()
   }
 
   const handleClose = async () => {
+    if (invalid) return
     setLoading(true)
     try {
-      await shiftsApi.close(branchId!, shift.id, cashAmount, cardAmount, notes || undefined)
-      qc.invalidateQueries({ queryKey: ['current-shift', branchId] })
-      qc.invalidateQueries({ queryKey: ['shifts', branchId] })
+      const { data: result } = await shiftsApi.close(branchId!, shift.id, cashAmount, cardAmount, notes.trim() || undefined)
+      const cashV = result.cashVariance ?? 0
+      const cardV = result.cardVariance ?? 0
       logActivity(tenantId ?? '', {
         userId: user?.id ?? '',
-        userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        userName: cashierName,
         userEmail: user?.email,
         category: 'shift',
         action: 'إغلاق الشفت',
-        details: `الدخل اليوم: ${formatCurrency(computed.cashSales)} كاش و ${formatCurrency(computed.cardSales)} بطاقة، المجموع ${formatCurrency(computed.totalSales)}`,
+        details: `الدخل: ${formatCurrency(result.totalCashSales)} كاش و ${formatCurrency(result.totalCardSales)} بطاقة${result.totalDigitalSales ? ` و ${formatCurrency(result.totalDigitalSales)} رقمي` : ''}، المجموع ${formatCurrency(result.totalSales)}`,
         branchId: branchId ?? undefined,
       })
-      if (cashVariance < 0) {
+      if (cashV < 0) {
         logActivity(tenantId ?? '', {
           userId: user?.id ?? '',
-          userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          userName: cashierName,
           userEmail: user?.email,
           category: 'shift',
           action: 'عجز في الصندوق',
-          details: `عجز نقدي ${formatCurrency(Math.abs(cashVariance))} — متوقع ${formatCurrency(expectedCash)} · فعلي ${formatCurrency(cashAmount)}`,
+          details: `عجز نقدي ${formatCurrency(Math.abs(cashV))} — متوقع ${formatCurrency(result.expectedCash ?? 0)} · فعلي ${formatCurrency(cashAmount)}`,
           branchId: branchId ?? undefined,
         })
       }
-      if (cardVariance < 0) {
+      if (cardV < 0) {
         logActivity(tenantId ?? '', {
           userId: user?.id ?? '',
-          userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          userName: cashierName,
           userEmail: user?.email,
           category: 'shift',
           action: 'عجز في البطاقة',
-          details: `عجز بطاقة ${formatCurrency(Math.abs(cardVariance))} — متوقع ${formatCurrency(computed.cardSales)} · فعلي ${formatCurrency(cardAmount)}`,
+          details: `عجز بطاقة ${formatCurrency(Math.abs(cardV))} — متوقع ${formatCurrency(result.totalCardSales)} · فعلي ${formatCurrency(cardAmount)}`,
           branchId: branchId ?? undefined,
         })
       }
+      // Best sellers for the Z report; the report still prints without them if this fails.
+      let topProducts: TopProduct[] = []
+      try {
+        const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', from: result.openedAt, to: result.closedAt ?? undefined, pageSize: 500 })
+        topProducts = topProductsOf((Array.isArray(data) ? data : []) as OrderResponse[])
+      } catch { /* optional */ }
       toast.success(t.shiftGate.shiftClosed)
-      onClose()
-    } catch {
-      toast.error('فشل إغلاق الشفت')
+      setClosed({ shift: result, topProducts })
+    } catch (err) {
+      toast.error('تعذّر إغلاق الشفت', apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
-  const hasVariance = (closingCash && cashVariance !== 0) || (closingCard && cardVariance !== 0)
+  if (closed) {
+    const s = closed.shift
+    return (
+      <Modal
+        open
+        onClose={finish}
+        title={t.shiftGate.shiftClosed}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => printReport(`z-report-close-${s.id}`)} className="gap-1">
+              <Printer className="h-4 w-4" />
+              طباعة تقرير Z
+            </Button>
+            <Button onClick={finish}>تم</Button>
+          </>
+        }
+      >
+        <div className="space-y-4" dir="rtl">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <CheckCircle2 className="h-10 w-10 text-success" />
+            <p className="text-sm text-muted">
+              {shiftDuration(s.openedAt, s.closedAt)} · {s.totalOrders.toLocaleString('ar-SA')} فاتورة · {formatCurrency(s.totalSales)}
+            </p>
+          </div>
+          <VarianceBadge label={t.shiftGate.cashCount} variance={s.cashVariance ?? 0} />
+          <VarianceBadge label={t.shiftGate.cardCount} variance={s.cardVariance ?? 0} />
+          <p className="text-center text-xs text-muted">يُطبع تقرير الإقفال تلقائياً، وأعد الطباعة إن لم تخرج الورقة.</p>
+        </div>
+        <div className="hidden">
+          <ShiftReportDocument id={`z-report-close-${s.id}`} shift={s} topProducts={closed.topProducts} isCurrent={false} />
+        </div>
+      </Modal>
+    )
+  }
+
+  const hasVariance = (countedCash != null && cashVariance != null && cashVariance !== 0)
+    || (closingCard !== '' && cardVariance != null && cardVariance !== 0)
+  const digital = live?.totalDigitalSales ?? 0
+  const cashRefunds = live?.totalCashRefunds ?? 0
+  const money = (v: number | undefined) => (v == null ? '—' : formatCurrency(v))
 
   return (
     <Modal
@@ -234,11 +255,11 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           )}
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
-            <Button variant="secondary" onClick={handlePrint} className="gap-1">
+            <Button variant="secondary" onClick={() => printReport(`x-report-${shift.id}`)} disabled={!live} className="gap-1">
               <Printer className="h-4 w-4" />
               {t.common.print}
             </Button>
-            <Button variant="danger" loading={loading} onClick={handleClose} disabled={offlinePending.length > 0}>
+            <Button variant="danger" loading={loading} onClick={handleClose} disabled={offlinePending.length > 0 || invalid}>
               <Lock className="h-4 w-4" />
               {t.shiftGate.close}
             </Button>
@@ -247,44 +268,36 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
       }
     >
       <div className="space-y-4" dir="rtl">
-        {/* summary cards */}
+        {liveFailed && (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+            <span>تعذّر جلب أرقام الشفت. الإغلاق يحسبها على الخادم على أي حال.</span>
+            <button type="button" className="font-semibold hover:underline" onClick={() => void refetchLive()}>إعادة المحاولة</button>
+          </div>
+        )}
+
+        {/* summary cards: figures come from the server, not a capped page of orders */}
         <div className="grid grid-cols-2 gap-3">
-          <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={String(computed.totalOrders)} />
-          <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label={t.shiftGate.totalSales} value={formatCurrency(computed.totalSales)} />
-          <SummaryCard icon={<Banknote className="h-4 w-4" />} label={t.shiftGate.cashSales} value={formatCurrency(computed.cashSales)} />
-          <SummaryCard icon={<CreditCard className="h-4 w-4" />} label={t.shiftGate.cardSales} value={formatCurrency(computed.cardSales)} />
-          <SummaryCard icon={<Clock className="h-4 w-4" />} label="مدة الشفت" value={duration()} />
+          <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={live ? live.totalOrders.toLocaleString('ar-SA') : '—'} loading={loadingLive} />
+          <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label={t.shiftGate.totalSales} value={money(live?.totalSales)} loading={loadingLive} />
+          <SummaryCard icon={<Banknote className="h-4 w-4" />} label={t.shiftGate.cashSales} value={money(live?.totalCashSales)} loading={loadingLive} />
+          <SummaryCard icon={<CreditCard className="h-4 w-4" />} label={t.shiftGate.cardSales} value={money(live?.totalCardSales)} loading={loadingLive} />
+          {digital > 0 && <SummaryCard icon={<Smartphone className="h-4 w-4" />} label="دفع رقمي وأخرى" value={formatCurrency(digital)} />}
+          {cashRefunds > 0 && <SummaryCard icon={<RotateCcw className="h-4 w-4" />} label="مرتجعات نقدية" value={`−${formatCurrency(cashRefunds)}`} />}
+          <SummaryCard icon={<Clock className="h-4 w-4" />} label="مدة الشفت" value={shiftDuration(shift.openedAt)} />
           <SummaryCard icon={<Banknote className="h-4 w-4" />} label={t.shiftGate.openingCash} value={formatCurrency(shift.openingCash)} />
         </div>
 
-        {/* daily income summary */}
-        <div className="rounded-xl bg-surface-2 p-3 text-center text-sm">
-          <span className="text-muted">{t.shiftGate.dailyIncome}: </span>
-          <span className="font-semibold text-fg">{formatCurrency(computed.cashSales)} كاش</span>
-          <span className="text-muted"> و </span>
-          <span className="font-semibold text-fg">{formatCurrency(computed.cardSales)} بطاقة</span>
-          <span className="text-muted">، المجموع </span>
-          <span className="font-bold text-brand-ink">{formatCurrency(computed.totalSales)}</span>
-        </div>
-
         {/* cash section */}
-        <div className="space-y-2 rounded-xl border border-border p-3">
-          <p className="text-xs font-medium text-muted">{t.shiftGate.cashCount}</p>
+        <div className="space-y-3 rounded-xl border border-border p-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted">{t.shiftGate.expectedCash}</span>
-            <span className="font-bold tabular-nums">{formatCurrency(expectedCash)}</span>
+            <span className="text-muted">
+              {t.shiftGate.expectedCash}
+              {cashRefunds > 0 && <span className="ms-1 text-xs">(بعد المرتجعات النقدية)</span>}
+            </span>
+            <span className="font-bold tabular-nums">{expectedCash == null ? '—' : formatCurrency(expectedCash)}</span>
           </div>
-          <Input
-            label={t.shiftGate.closingCash}
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="0.00"
-            value={closingCash}
-            onChange={(e) => setClosingCash(e.target.value)}
-            autoFocus
-          />
-          {closingCash && (
+          <CashCountField label={t.shiftGate.closingCash} onChange={setCountedCash} autoFocus />
+          {countedCash != null && cashVariance != null && (
             <VarianceBadge label={t.shiftGate.cashCount} variance={cashVariance} />
           )}
         </div>
@@ -294,7 +307,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           <p className="text-xs font-medium text-muted">{t.shiftGate.cardCount}</p>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted">{t.shiftGate.expectedCard}</span>
-            <span className="font-bold tabular-nums">{formatCurrency(computed.cardSales)}</span>
+            <span className="font-bold tabular-nums">{money(live?.totalCardSales)}</span>
           </div>
           <Input
             label={t.shiftGate.cardCount}
@@ -304,8 +317,9 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
             placeholder="0.00"
             value={closingCard}
             onChange={(e) => setClosingCard(e.target.value)}
+            error={cardAmount < 0 ? 'المبلغ لا يمكن أن يكون سالباً' : undefined}
           />
-          {closingCard && (
+          {closingCard !== '' && cardVariance != null && (
             <VarianceBadge label={t.shiftGate.cardCount} variance={cardVariance} />
           )}
         </div>
@@ -314,16 +328,22 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           label="ملاحظات (اختياري)"
           placeholder="أي ملاحظات على الشفت..."
           value={notes}
+          maxLength={1000}
           onChange={(e) => setNotes(e.target.value)}
         />
       </div>
+      {live && (
+        <div className="hidden">
+          <ShiftReportDocument id={`x-report-${shift.id}`} shift={live} topProducts={[]} isCurrent />
+        </div>
+      )}
     </Modal>
   )
 }
 
-function VarianceBadge({ label, variance }: { label: string; variance: number }) {
+export function VarianceBadge({ label, variance }: { label: string; variance: number }) {
   const { t } = useI18n()
-  const exact = variance === 0
+  const exact = Math.abs(variance) < 0.005
   return (
     <div className={`flex items-center gap-2 rounded-lg p-2.5 text-sm font-medium ${
       exact
@@ -342,14 +362,14 @@ function VarianceBadge({ label, variance }: { label: string; variance: number })
   )
 }
 
-function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function SummaryCard({ icon, label, value, loading }: { icon: React.ReactNode; label: string; value: string; loading?: boolean }) {
   return (
     <div className="rounded-lg bg-surface-2 p-3">
       <div className="mb-1 flex items-center gap-1.5 text-muted">
         {icon}
         <span className="text-xs">{label}</span>
       </div>
-      <p className="font-semibold text-fg tabular-nums">{value}</p>
+      {loading ? <div className="skeleton h-5 w-20" /> : <p className="font-semibold text-fg tabular-nums">{value}</p>}
     </div>
   )
 }
@@ -370,6 +390,25 @@ function ShiftLockScreen({ onOpen }: { onOpen: () => void }) {
       <Button onClick={onOpen} className="gap-2">
         <Unlock className="h-4 w-4" />
         {t.shiftGate.openShift}
+      </Button>
+    </div>
+  )
+}
+
+// Shown instead of the lock screen when the shift could not be checked and none is known yet.
+function ShiftUnavailable({ onRetry, retrying }: { onRetry: () => void; retrying: boolean }) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 p-8 text-center">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-warning/10">
+        <WifiOff className="h-9 w-9 text-warning" />
+      </div>
+      <div>
+        <h2 className="text-xl font-bold text-fg">تعذّر التحقق من الشفت</h2>
+        <p className="mt-1 text-sm text-muted">تحقق من الاتصال ثم أعد المحاولة.</p>
+      </div>
+      <Button onClick={onRetry} loading={retrying} className="gap-2">
+        <RefreshCw className="h-4 w-4" />
+        إعادة المحاولة
       </Button>
     </div>
   )
@@ -399,25 +438,45 @@ export function ShiftBadge({ shift, onCloseShift }: { shift: ShiftResponse; onCl
 
 // ── Main ShiftGate Export ─────────────────────────────────────────────────────
 
-export function useShift() {
-  const { branchId } = useAuthStore()
+// The last known shift per user and branch, so a dropped connection or a server error does not lock a till
+// that has an open shift (sales keep going through the offline queue).
+const shiftCacheKey = (tenantId: string | null, userId: string | undefined, branchId: string | null) =>
+  `flowin:shift:${tenantId ?? ''}:${userId ?? ''}:${branchId ?? ''}`
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['current-shift', branchId],
+function readCachedShift(key: string): ShiftResponse | null | undefined {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw == null ? undefined : (JSON.parse(raw) as ShiftResponse | null)
+  } catch {
+    return undefined
+  }
+}
+
+function writeCachedShift(key: string, shift: ShiftResponse | null) {
+  try { localStorage.setItem(key, JSON.stringify(shift)) } catch { /* storage unavailable */ }
+}
+
+export function useShift() {
+  const { branchId, tenantId, user } = useAuthStore()
+  const cacheKey = shiftCacheKey(tenantId, user?.id, branchId)
+
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: ['current-shift', branchId, user?.id],
     queryFn: async () => {
-      if (!branchId) return null
-      try {
-        const res = await shiftsApi.getCurrent(branchId)
-        return res.data
-      } catch {
-        return null
-      }
+      const res = await shiftsApi.getCurrent(branchId!)
+      // Only "204 No Content" means no open shift; any failure throws and the last known shift stays.
+      const shift = res.status === 204 || !res.data ? null : res.data
+      writeCachedShift(cacheKey, shift)
+      return shift
     },
+    initialData: () => readCachedShift(cacheKey),
+    initialDataUpdatedAt: 0,
     enabled: !!branchId,
     staleTime: 30_000,
+    retry: 1,
   })
 
-  return { shift: data ?? null, isLoading }
+  return { shift: data ?? null, isLoading, isError, isFetching, refetch }
 }
 
 /**
@@ -432,7 +491,7 @@ export function ShiftGate({
   children: React.ReactNode
   onOpenShift: () => void
 }) {
-  const { shift, isLoading } = useShift()
+  const { shift, isLoading, isError, isFetching, refetch } = useShift()
 
   if (isLoading) {
     return (
@@ -443,8 +502,31 @@ export function ShiftGate({
   }
 
   if (!shift) {
-    return <ShiftLockScreen onOpen={onOpenShift} />
+    return isError
+      ? <ShiftUnavailable onRetry={() => void refetch()} retrying={isFetching} />
+      : <ShiftLockScreen onOpen={onOpenShift} />
   }
 
-  return <>{children}</>
+  return (
+    <>
+      {isError && (
+        <div role="status" className="flex shrink-0 items-center justify-between gap-3 border-b border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
+          <span className="flex items-center gap-2">
+            <WifiOff className="h-3.5 w-3.5 shrink-0" />
+            تعذّر تحديث حالة الشفت، والبيع مستمر على آخر شفت معروف.
+          </span>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center gap-1 font-semibold hover:underline disabled:opacity-60"
+          >
+            <RefreshCw className={isFetching ? 'h-3.5 w-3.5 animate-spin motion-reduce:animate-none' : 'h-3.5 w-3.5'} />
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
+      {children}
+    </>
+  )
 }

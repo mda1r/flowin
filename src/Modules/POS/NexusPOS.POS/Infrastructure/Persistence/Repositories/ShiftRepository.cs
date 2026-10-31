@@ -22,6 +22,14 @@ internal sealed class ShiftRepository(PosDbContext dbContext) : IShiftRepository
                                    && s.Status == ShiftStatus.Open, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CashierShift>> ListOpenByBranchAsync(Guid branchId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.CashierShifts
+            .Where(s => s.BranchId == branchId && s.Status == ShiftStatus.Open)
+            .OrderBy(s => s.OpenedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CashierShift>> ListByBranchAsync(Guid branchId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         return await dbContext.CashierShifts

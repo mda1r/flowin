@@ -22,5 +22,7 @@ public sealed record ShiftResponse(
     string? Notes,
     DateTime OpenedAt,
     DateTime? ClosedAt,
-    decimal TotalRefunds = 0m,
-    decimal CashRefunds = 0m);
+    decimal TotalDigitalSales,
+    decimal TotalCashRefunds,
+    string? ClosedByName,
+    decimal TotalRefunds = 0m);

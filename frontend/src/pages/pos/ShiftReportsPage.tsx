@@ -1,61 +1,54 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock, FileText, Printer, Receipt, RotateCcw } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, FileText, Lock, Printer, Receipt, RotateCcw, UserCheck } from 'lucide-react'
 import { shiftsApi } from '@/api/shifts'
 import { ordersApi } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
 import { cn, formatCurrency } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { InvoiceReceiptModal } from '@/components/pos/InvoiceReceiptModal'
-import { FlowinLogo } from '@/components/brand/Brand'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
+import { toast } from '@/components/ui/Toast'
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { paymentLabel } from '@/lib/orderReceipt'
-import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { printElement } from '@/lib/print'
+import { apiErrorMessage } from '@/lib/apiError'
+import { logActivity } from '@/lib/activityLog'
+import { CashCountField } from './CashCountGrid'
+import { ShiftReportDocument, n, reconcile, shiftDuration as duration, topProductsOf } from './ShiftReportDocument'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 
 type Period = '7d' | '30d' | 'all'
 
-const n = (v: number) => v.toLocaleString('ar-SA')
 const time = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
 const day = (iso: string) => new Date(iso).toLocaleDateString('ar-SA', { weekday: 'short', day: 'numeric', month: 'short' })
 
-// "3 س 20 د", or "2 يوم 4 س" for shifts left open past a day.
-function duration(fromIso: string, toIso?: string | null) {
-  const ms = (toIso ? new Date(toIso).getTime() : Date.now()) - new Date(fromIso).getTime()
-  const mins = Math.max(0, Math.floor(ms / 60_000))
-  const d = Math.floor(mins / 1440)
-  const h = Math.floor((mins % 1440) / 60)
-  const m = mins % 60
-  return d > 0 ? `${n(d)} يوم ${n(h)} س` : `${n(h)} س ${n(m)} د`
-}
-
 const LONG_OPEN_HOURS = 16
 
-// Card refunds go back through the terminal, so the card total it should show is net of them, as the server reckons at close.
-function reconcile(s: ShiftResponse, cardRefunds = 0) {
-  const expectedCash = s.expectedCash ?? s.openingCash + s.totalCashSales
-  const expectedCard = s.totalCardSales - cardRefunds
-  return {
-    expectedCash,
-    countedCash: s.closingCash,
-    cashVariance: s.cashVariance ?? (s.closingCash != null ? s.closingCash - expectedCash : null),
-    expectedCard,
-    countedCard: s.closingCardCount,
-    cardVariance: s.cardVariance ?? (s.closingCardCount != null ? s.closingCardCount - expectedCard : null),
-  }
-}
-
 export function ShiftReportsPage() {
-  const { branchId } = useAuthStore()
+  const { branchId, user } = useAuthStore()
+  // The shift history carries every cashier's cash variances, so the server keeps it for owners and managers.
+  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const [period, setPeriod] = useState<Period>('7d')
   const [cashier, setCashier] = useState('all')
+  const [forceClosing, setForceClosing] = useState<ShiftResponse | null>(null)
 
   const { data: current } = useQuery({
     queryKey: ['shift-current', branchId],
-    queryFn: async () => (await shiftsApi.getCurrent(branchId!)).data as ShiftResponse | null,
+    queryFn: async () => (await shiftsApi.getCurrent(branchId!)).data || null,
     enabled: !!branchId,
     refetchInterval: 30_000,
+  })
+  const { data: openShifts } = useQuery({
+    queryKey: ['shifts-open', branchId],
+    queryFn: async () => {
+      const { data } = await shiftsApi.listOpen(branchId!)
+      return (Array.isArray(data) ? data : []) as ShiftResponse[]
+    },
+    enabled: !!branchId && canManage,
+    refetchInterval: 60_000,
   })
   const { data: shifts = [], isLoading } = useQuery({
     queryKey: ['shifts', branchId],
@@ -63,7 +56,7 @@ export function ShiftReportsPage() {
       const { data } = await shiftsApi.list(branchId!, 1, 100)
       return (Array.isArray(data) ? data : []) as ShiftResponse[]
     },
-    enabled: !!branchId,
+    enabled: !!branchId && canManage,
   })
   const { data: returns = [] } = useQuery({
     queryKey: ['returns', branchId],
@@ -73,6 +66,12 @@ export function ShiftReportsPage() {
     },
     enabled: !!branchId,
   })
+
+  // Managers see every open shift in the branch; a cashier sees their own.
+  const open = useMemo(() => {
+    const list = canManage && openShifts ? openShifts : current ? [current] : []
+    return [...list].sort((a, b) => Number(b.userId === user?.id) - Number(a.userId === user?.id))
+  }, [canManage, openShifts, current, user?.id])
 
   const cashiers = useMemo(() => [...new Set(shifts.map((s) => s.cashierName))], [shifts])
   const closed = useMemo(() => {
@@ -95,133 +94,127 @@ export function ShiftReportsPage() {
       <PageHeader title="تقارير الشفتات" description="مطابقة الدرج، أداء كل شفت، وتقرير الإقفال للطباعة" icon={<FileText className="h-5 w-5" />} />
 
       <div className="space-y-5 p-4 sm:p-6">
-        {current && (
-          <section aria-label="الشفت الحالي">
-            <p className="mb-2 text-xs font-semibold text-brand-ink">الشفت الحالي</p>
-            <ShiftCard shift={current} returns={returns} isCurrent />
+        {open.length > 0 && (
+          <section aria-label={canManage ? 'الشفتات المفتوحة' : 'الشفت الحالي'} className="space-y-3">
+            <p className="text-xs font-semibold text-brand-ink">
+              {canManage ? `الشفتات المفتوحة (${n(open.length)})` : 'الشفت الحالي'}
+            </p>
+            {open.map((s) => (
+              <ShiftCard
+                key={s.id}
+                shift={s}
+                returns={returns}
+                isCurrent
+                isOwn={s.userId === user?.id}
+                onForceClose={canManage && s.userId !== user?.id ? () => setForceClosing(s) : undefined}
+              />
+            ))}
           </section>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-xl border border-border bg-surface p-1" role="tablist" aria-label="الفترة">
-            {([['7d', '7 أيام'], ['30d', '30 يوم'], ['all', 'الكل']] as const).map(([k, label]) => (
-              <button key={k} role="tab" aria-selected={period === k} onClick={() => setPeriod(k)}
-                className={cn('rounded-lg px-3 py-1.5 text-sm font-medium transition-colors', period === k ? 'bg-brand text-brand-fg' : 'text-muted hover:bg-surface-2 hover:text-fg')}>
-                {label}
-              </button>
-            ))}
-          </div>
-          {cashiers.length > 1 && (
-            <select className="input w-auto" value={cashier} onChange={(e) => setCashier(e.target.value)} aria-label="الكاشير">
-              <option value="all">كل الكاشيرية</option>
-              {cashiers.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Summary label="شفتات مغلقة" value={n(closed.length)} />
-          <Summary label="مبيعات الشفتات" value={formatCurrency(totals.sales)} strong />
-          <Summary label="الفواتير" value={n(totals.orders)} />
-          <Summary
-            label={totals.deficits ? `صافي الفروقات · ${n(totals.deficits)} بعجز` : 'صافي الفروقات'}
-            value={`${totals.variance > 0 ? '+' : ''}${formatCurrency(totals.variance)}`}
-            tone={totals.variance < 0 ? 'danger' : totals.variance > 0 ? 'success' : undefined}
-          />
-        </div>
-
-        {isLoading ? (
-          <div className="flex min-h-[30vh] items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-brand" />
-          </div>
-        ) : closed.length === 0 ? (
-          <div className="flex min-h-[25vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-center">
-            <Clock className="h-10 w-10 text-muted/50" />
-            <p className="text-muted">لا توجد شفتات مغلقة في هذه الفترة</p>
-          </div>
+        {!canManage ? (
+          <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">
+            سجل الشفتات وفروقات الدرج يظهر للمالك والمدير.
+          </p>
         ) : (
-          <div className="space-y-3">
-            {closed.map((s) => <ShiftCard key={s.id} shift={s} returns={returns} />)}
-          </div>
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex gap-1 rounded-xl border border-border bg-surface p-1" role="tablist" aria-label="الفترة">
+                {([['7d', '7 أيام'], ['30d', '30 يوم'], ['all', 'الكل']] as const).map(([k, label]) => (
+                  <button key={k} role="tab" aria-selected={period === k} onClick={() => setPeriod(k)}
+                    className={cn('rounded-lg px-3 py-1.5 text-sm font-medium transition-colors', period === k ? 'bg-brand text-brand-fg' : 'text-muted hover:bg-surface-2 hover:text-fg')}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {cashiers.length > 1 && (
+                <select className="input w-auto" value={cashier} onChange={(e) => setCashier(e.target.value)} aria-label="الكاشير">
+                  <option value="all">كل الكاشيرية</option>
+                  {cashiers.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Summary label="شفتات مغلقة" value={n(closed.length)} />
+              <Summary label="مبيعات الشفتات" value={formatCurrency(totals.sales)} strong />
+              <Summary label="الفواتير" value={n(totals.orders)} />
+              <Summary
+                label={totals.deficits ? `صافي الفروقات · ${n(totals.deficits)} بعجز` : 'صافي الفروقات'}
+                value={`${totals.variance > 0 ? '+' : ''}${formatCurrency(totals.variance)}`}
+                tone={totals.variance < 0 ? 'danger' : totals.variance > 0 ? 'success' : undefined}
+              />
+            </div>
+
+            {isLoading ? (
+              <div className="flex min-h-[30vh] items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-brand" />
+              </div>
+            ) : closed.length === 0 ? (
+              <div className="flex min-h-[25vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-center">
+                <Clock className="h-10 w-10 text-muted/50" />
+                <p className="text-muted">لا توجد شفتات مغلقة في هذه الفترة</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {closed.map((s) => <ShiftCard key={s.id} shift={s} returns={returns} />)}
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {forceClosing && <ForceCloseModal shift={forceClosing} onClose={() => setForceClosing(null)} />}
     </div>
   )
 }
 
-// An open shift's totals are only written when it closes, so while it runs they come from its invoices.
-function liveTotals(shift: ShiftResponse, orders: OrderResponse[], returns: ReturnOrderResponse[]): ShiftResponse {
-  const cash = orders.reduce((a, o) => a + (o.paymentMethod === 'Cash' ? o.totalAmount : o.paymentMethod === 'Split' ? o.splitCash ?? 0 : 0), 0)
-  // Cash refunds leave the drawer, as the server counts them at close.
-  const opened = new Date(shift.openedAt).getTime()
-  const since = returns.filter((x) => new Date(x.createdAt).getTime() >= opened)
-  const cashBack = since.filter((x) => x.refundMethod === 'Cash').reduce((a, x) => a + x.refundAmount, 0)
-  // VAT handed back on refunds comes off the shift's VAT, at the rate of the invoice being returned.
-  const rates = new Map(orders.map((o) => [o.id, o.taxRate ?? 0.15]))
-  const taxBack = since.reduce((a, x) => {
-    const rate = rates.get(x.originalOrderId) ?? 0.15
-    return a + (rate > 0 ? (x.refundAmount * rate) / (1 + rate) : 0)
-  }, 0)
-  const card = orders.reduce((a, o) => a + (o.paymentMethod === 'Card' ? o.totalAmount : o.paymentMethod === 'Split' ? o.splitCard ?? 0 : 0), 0)
-  return {
-    ...shift,
-    totalOrders: orders.length,
-    totalSales: orders.reduce((a, o) => a + o.totalAmount, 0),
-    totalCashSales: cash,
-    totalCardSales: card,
-    totalTax: orders.reduce((a, o) => a + o.taxAmount, 0) - taxBack,
-    expectedCash: shift.openingCash + cash - cashBack,
-  }
-}
-
-function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: ShiftResponse; returns: ReturnOrderResponse[]; isCurrent?: boolean }) {
+function ShiftCard({ shift: stored, returns, isCurrent = false, isOwn = false, onForceClose }: {
+  shift: ShiftResponse
+  returns: ReturnOrderResponse[]
+  isCurrent?: boolean
+  isOwn?: boolean
+  onForceClose?: () => void
+}) {
   const { branchId } = useAuthStore()
   const [expanded, setExpanded] = useState(false)
   const [wantPrint, setWantPrint] = useState(false)
   const [selected, setSelected] = useState<OrderResponse | null>(null)
+  // An open shift's stored totals are only written when it closes; the server sums them live meanwhile.
+  const { data: live } = useQuery({
+    queryKey: ['shift-summary', branchId, stored.id],
+    queryFn: async () => (await shiftsApi.summary(branchId!, stored.id)).data,
+    enabled: isCurrent && !!branchId,
+    refetchInterval: isCurrent ? 30_000 : false,
+  })
+  // The invoices are only for the list and best sellers; the totals above never depend on this page of orders.
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['shift-orders', branchId, stored.id],
     queryFn: async () => {
       const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', from: stored.openedAt, to: stored.closedAt ?? new Date().toISOString(), pageSize: 500 })
       return (Array.isArray(data) ? data : []) as OrderResponse[]
     },
-    enabled: (isCurrent || expanded || wantPrint) && !!branchId,
-    refetchInterval: isCurrent ? 30_000 : false,
+    enabled: (expanded || wantPrint) && !!branchId,
   })
 
-  const shift = isCurrent ? liveTotals(stored, orders, returns) : stored
-
-  const refundsInShift = useMemo(() => {
-    const until = stored.closedAt ? new Date(stored.closedAt).getTime() : Date.now()
-    const list = returns.filter((x) => {
-      const t = new Date(x.createdAt).getTime()
-      return t >= new Date(stored.openedAt).getTime() && t <= until
-    })
-    return {
-      count: list.length,
-      amount: list.reduce((a, x) => a + x.refundAmount, 0),
-      card: list.filter((x) => x.refundMethod === 'Card').reduce((a, x) => a + x.refundAmount, 0),
-    }
-  }, [returns, stored.openedAt, stored.closedAt])
-
-  const r = reconcile(shift, refundsInShift.card)
+  const shift = isCurrent && live ? live : stored
+  const r = reconcile(shift)
   const avg = shift.totalOrders ? shift.totalSales / shift.totalOrders : 0
-  const cashShare = shift.totalSales ? (shift.totalCashSales / shift.totalSales) * 100 : 0
+  const digital = shift.totalDigitalSales ?? 0
+  const cashRefunds = shift.totalCashRefunds ?? 0
+  const share = (v: number) => (shift.totalSales ? (v / shift.totalSales) * 100 : 0)
   const openHours = (Date.now() - new Date(shift.openedAt).getTime()) / 3_600_000
 
-  const topProducts = useMemo(() => {
-    const map = new Map<string, { name: string; qty: number; total: number }>()
-    for (const o of orders) {
-      const gross = 1 + (o.taxRate ?? 0.15)
-      for (const l of o.lines) {
-        const e = map.get(l.productName) ?? { name: l.productName, qty: 0, total: 0 }
-        e.qty += l.quantity
-        e.total += l.lineTotal * gross
-        map.set(l.productName, e)
-      }
-    }
-    return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, 5)
-  }, [orders])
+  const refundsInShift = useMemo(() => {
+    const until = shift.closedAt ? new Date(shift.closedAt).getTime() : Date.now()
+    const list = returns.filter((x) => {
+      const t = new Date(x.createdAt).getTime()
+      return t >= new Date(shift.openedAt).getTime() && t <= until
+    })
+    return { count: list.length, amount: list.reduce((a, x) => a + x.refundAmount, 0) }
+  }, [returns, shift])
+
+  const topProducts = useMemo(() => topProductsOf(orders), [orders])
 
   // Print once the shift's invoices are in, so the Z-report carries its best sellers.
   useEffect(() => {
@@ -236,7 +229,10 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
       <div className="p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-semibold text-fg">{shift.cashierName}</p>
+            <p className="font-semibold text-fg">
+              {shift.cashierName}
+              {isCurrent && isOwn && <span className="ms-2 text-xs font-normal text-muted">(أنت)</span>}
+            </p>
             <p className="mt-0.5 text-xs text-muted">
               {day(shift.openedAt)} · {time(shift.openedAt)}
               {shift.closedAt && ` — ${day(shift.closedAt) !== day(shift.openedAt) ? day(shift.closedAt) + ' ' : ''}${time(shift.closedAt)}`}
@@ -259,7 +255,9 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
         {isCurrent && openHours > LONG_OPEN_HOURS && (
           <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            الشفت مفتوح منذ {duration(shift.openedAt)}. أغلقه وطابق الدرج في نهاية كل يوم حتى تصح التقارير.
+            {isOwn
+              ? `الشفت مفتوح منذ ${duration(shift.openedAt)}. أغلقه وطابق الدرج في نهاية كل يوم حتى تصح التقارير.`
+              : `الشفت مفتوح منذ ${duration(shift.openedAt)}. اطلب من الكاشير إغلاقه، أو أغلقه إدارياً بعد عدّ الدرج.`}
           </p>
         )}
 
@@ -272,13 +270,15 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
 
         {shift.totalSales > 0 && (
           <div className="mt-4">
-            <div className="mb-1 flex justify-between text-xs text-muted">
+            <div className="mb-1 flex flex-wrap justify-between gap-x-3 text-xs text-muted">
               <span>نقداً {formatCurrency(shift.totalCashSales)}</span>
               <span>بطاقة {formatCurrency(shift.totalCardSales)}</span>
+              {digital > 0 && <span>رقمي وأخرى {formatCurrency(digital)}</span>}
             </div>
-            <div className="flex h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`نقداً ${Math.round(cashShare)}٪`}>
-              <div className="h-full bg-brand-strong" style={{ width: `${cashShare}%` }} />
-              <div className="h-full flex-1 bg-fg/25" />
+            <div className="flex h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`نقداً ${Math.round(share(shift.totalCashSales))}٪`}>
+              <div className="h-full bg-brand-strong" style={{ width: `${share(shift.totalCashSales)}%` }} />
+              <div className="h-full bg-fg/25" style={{ width: `${share(shift.totalCardSales)}%` }} />
+              {digital > 0 && <div className="h-full bg-info/60" style={{ width: `${share(digital)}%` }} />}
             </div>
           </div>
         )}
@@ -296,22 +296,35 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
             </thead>
             <tbody className="divide-y divide-border">
               <tr>
-                <td className="py-2 text-fg">النقد في الدرج <span className="text-xs text-muted">(عهدة {formatCurrency(shift.openingCash)} + مبيعات نقدية − مرتجعات نقدية)</span></td>
+                <td className="py-2 text-fg">
+                  النقد في الدرج{' '}
+                  <span className="text-xs text-muted">
+                    (عهدة {formatCurrency(shift.openingCash)} + مبيعات نقدية{cashRefunds > 0 ? ` − مرتجعات نقدية ${formatCurrency(cashRefunds)}` : ''})
+                  </span>
+                </td>
                 <td className="py-2 text-end tabular-nums">{formatCurrency(r.expectedCash)}</td>
                 <td className="py-2 text-end tabular-nums">{r.countedCash != null ? formatCurrency(r.countedCash) : '—'}</td>
                 <td className="py-2 text-end"><Variance v={r.cashVariance} /></td>
               </tr>
               <tr>
                 <td className="py-2 text-fg">البطاقات <span className="text-xs text-muted">(جهاز الشبكة)</span></td>
-                <td className="py-2 text-end tabular-nums">{formatCurrency(r.expectedCard)}</td>
+                <td className="py-2 text-end tabular-nums">{formatCurrency(shift.totalCardSales)}</td>
                 <td className="py-2 text-end tabular-nums">{r.countedCard != null ? formatCurrency(r.countedCard) : '—'}</td>
                 <td className="py-2 text-end"><Variance v={r.cardVariance} /></td>
               </tr>
+              {digital > 0 && (
+                <tr>
+                  <td className="py-2 text-fg">دفع رقمي وأخرى <span className="text-xs text-muted">(لا يُعدّ في الدرج)</span></td>
+                  <td className="py-2 text-end tabular-nums">{formatCurrency(digital)}</td>
+                  <td className="py-2 text-end text-muted">—</td>
+                  <td className="py-2 text-end text-muted">—</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {(refundsInShift.count > 0 || shift.notes) && (
+        {(refundsInShift.count > 0 || shift.notes || shift.closedByName) && (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {refundsInShift.count > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-2.5 py-1 text-danger">
@@ -319,20 +332,38 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
                 {n(refundsInShift.count)} مرتجع · {formatCurrency(refundsInShift.amount)}
               </span>
             )}
+            {shift.closedByName && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-1 text-warning">
+                <UserCheck className="h-3 w-3" />
+                أغلقه إدارياً: {shift.closedByName}
+              </span>
+            )}
             {shift.notes && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-muted">ملاحظة: {shift.notes}</span>}
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-border px-4 py-2">
-        <button
-          type="button"
-          onClick={() => setWantPrint(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-fg hover:bg-surface-2"
-        >
-          <Printer className="h-3.5 w-3.5" />
-          {wantPrint ? 'جارٍ التجهيز…' : isCurrent ? 'طباعة تقرير منتصف الشفت (X)' : 'طباعة تقرير الإقفال (Z)'}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2">
+        <div className="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setWantPrint(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-fg hover:bg-surface-2"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            {wantPrint ? 'جارٍ التجهيز…' : isCurrent ? 'طباعة تقرير منتصف الشفت (X)' : 'طباعة تقرير الإقفال (Z)'}
+          </button>
+          {onForceClose && (
+            <button
+              type="button"
+              onClick={onForceClose}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              إغلاق إداري
+            </button>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -406,71 +437,109 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
   )
 }
 
-function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent }: {
-  id: string
-  shift: ShiftResponse
-  topProducts: { name: string; qty: number; total: number }[]
-  refunds: { count: number; amount: number; card: number }
-  isCurrent: boolean
-}) {
-  const settings = useReceiptSettings()
-  const { sellerName, vatNumber } = useSellerIdentity()
-  const r = reconcile(shift, refunds.card)
-  const row = (label: string, value: string) => (
-    <div className="receipt-row"><span>{label}</span><span className="tabular-nums">{value}</span></div>
-  )
-  const v = (x: number | null) => (x == null ? '—' : `${x > 0 ? '+' : ''}${formatCurrency(x)}`)
+// An owner or manager closes a shift the cashier left open, after counting the drawer themselves.
+function ForceCloseModal({ shift, onClose }: { shift: ShiftResponse; onClose: () => void }) {
+  const { branchId, user, tenantId } = useAuthStore()
+  const qc = useQueryClient()
+  const [countedCash, setCountedCash] = useState<number | null>(null)
+  const [card, setCard] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const { data: live } = useQuery({
+    queryKey: ['shift-summary', branchId, shift.id],
+    queryFn: async () => (await shiftsApi.summary(branchId!, shift.id)).data,
+    enabled: !!branchId,
+    staleTime: 0,
+  })
+  const s = live ?? shift
+  const expected = reconcile(s).expectedCash
+  const cardAmount = Number(card) || 0
+  // A skipped card total would be stored as 0 and book the whole card take as a shortfall, so it is required too.
+  const invalid = countedCash == null || countedCash < 0 || card.trim() === '' || cardAmount < 0
+
+  const submit = async () => {
+    if (invalid) return
+    setSaving(true)
+    try {
+      const { data } = await shiftsApi.forceClose(branchId!, shift.id, countedCash, cardAmount, notes.trim() || undefined)
+      logActivity(tenantId ?? '', {
+        userId: user?.id ?? '',
+        userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+        userEmail: user?.email,
+        category: 'shift',
+        action: 'إغلاق إداري لشفت',
+        details: `شفت ${shift.cashierName} — متوقع ${formatCurrency(data.expectedCash ?? 0)} · معدود ${formatCurrency(countedCash)}`,
+        branchId: branchId ?? undefined,
+      })
+      void qc.invalidateQueries({ queryKey: ['shifts', branchId] })
+      void qc.invalidateQueries({ queryKey: ['shifts-open', branchId] })
+      void qc.invalidateQueries({ queryKey: ['shift-current', branchId] })
+      void qc.invalidateQueries({ queryKey: ['daily-close'] })
+      toast.success('تم إغلاق الشفت', `${shift.cashierName} · فرق النقد ${formatCurrency(data.cashVariance ?? 0)}`)
+      onClose()
+    } catch (err) {
+      toast.error('تعذّر إغلاق الشفت', apiErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div id={id} className="receipt-paper scheme-light bg-surface text-fg" data-paper={settings.paperWidthMm} dir="rtl">
-      <header className="receipt-center">
-        {settings.logoPath && <img src={settings.logoPath} alt="" className="receipt-logo" />}
-        {sellerName && <p className="receipt-store">{sellerName}</p>}
-        {vatNumber && <p className="receipt-small">الرقم الضريبي: {vatNumber}</p>}
-      </header>
-      <hr className="receipt-rule" />
-      <div className="receipt-center">
-        <p className="receipt-title">{isCurrent ? 'تقرير منتصف الشفت (X)' : 'تقرير إقفال الشفت (Z)'}</p>
-        <p className="receipt-small">{shift.cashierName}</p>
-        <p className="receipt-small">
-          {new Date(shift.openedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}
-          {shift.closedAt && ` — ${new Date(shift.closedAt).toLocaleString('ar-SA', { timeStyle: 'short' })}`}
-        </p>
-        <p className="receipt-small">المدة: {duration(shift.openedAt, shift.closedAt)}</p>
-      </div>
-      <hr className="receipt-rule" />
-      <div className="receipt-totals">
-        {row('عدد الفواتير', n(shift.totalOrders))}
-        {row('مبيعات نقدية', formatCurrency(shift.totalCashSales))}
-        {row('مبيعات بطاقة', formatCurrency(shift.totalCardSales))}
-        {refunds.count > 0 && row(`المرتجعات (${n(refunds.count)})`, `−${formatCurrency(refunds.amount)}`)}
-        {row('ضريبة القيمة المضافة', formatCurrency(shift.totalTax))}
-        <div className="receipt-row receipt-total"><span>إجمالي المبيعات</span><span className="tabular-nums">{formatCurrency(shift.totalSales)}</span></div>
-      </div>
-      <hr className="receipt-rule" />
-      <p className="receipt-title">مطابقة الدرج</p>
-      <div className="receipt-totals">
-        {row('عهدة الافتتاح', formatCurrency(shift.openingCash))}
-        {row('النقد المتوقع', formatCurrency(r.expectedCash))}
-        {row('النقد المعدود', r.countedCash != null ? formatCurrency(r.countedCash) : '—')}
-        {row('فرق النقد', v(r.cashVariance))}
-        {row('البطاقات المسجلة', r.countedCard != null ? formatCurrency(r.countedCard) : '—')}
-        {row('فرق البطاقات', v(r.cardVariance))}
-      </div>
-      {topProducts.length > 0 && (
+    <Modal
+      open
+      onClose={onClose}
+      title={`إغلاق شفت ${shift.cashierName}`}
+      footer={
         <>
-          <hr className="receipt-rule" />
-          <p className="receipt-title">الأكثر مبيعاً</p>
-          <div className="receipt-totals">
-            {topProducts.map((p) => row(`${p.name} ×${n(p.qty)}`, formatCurrency(p.total)))}
-          </div>
+          <Button variant="secondary" onClick={onClose}>إلغاء</Button>
+          <Button variant="danger" loading={saving} disabled={invalid} onClick={submit}>
+            <Lock className="h-4 w-4" />
+            إغلاق الشفت
+          </Button>
         </>
-      )}
-      {shift.notes && <p className="receipt-note">ملاحظة: {shift.notes}</p>}
-      <hr className="receipt-rule" />
-      <p className="receipt-small receipt-center">طُبع {new Date().toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}</p>
-      <p className="receipt-small receipt-center" style={{ marginTop: '0.8rem' }}>توقيع الكاشير ____________</p>
-      {settings.showPoweredBy && <div className="receipt-powered"><FlowinLogo tone="mono" className="h-3" /></div>}
-    </div>
+      }
+    >
+      <div className="space-y-4" dir="rtl">
+        <p className="text-sm text-muted">
+          مفتوح منذ {duration(shift.openedAt)}. عُدّ الدرج ثم سجّل المبلغ؛ يُحفظ اسمك على الشفت كمن أغلقه.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Cell label="النقد المتوقع" value={formatCurrency(expected)} strong />
+          <Cell label="البطاقات المتوقعة" value={formatCurrency(s.totalCardSales)} />
+        </div>
+        <CashCountField label="النقد المعدود" onChange={setCountedCash} autoFocus />
+        {countedCash != null && countedCash >= 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted">فرق النقد</span>
+            <Variance v={Math.round((countedCash - expected) * 100) / 100} />
+          </div>
+        )}
+        <Input
+          label="إجمالي البطاقات من جهاز الشبكة"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          value={card}
+          onChange={(e) => setCard(e.target.value)}
+          error={cardAmount < 0 ? 'المبلغ لا يمكن أن يكون سالباً' : undefined}
+          hint="أدخل 0 إن لم تكن هناك مبيعات بطاقة"
+        />
+        {card.trim() !== '' && cardAmount >= 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted">فرق البطاقات</span>
+            <Variance v={Math.round((cardAmount - s.totalCardSales) * 100) / 100} />
+          </div>
+        )}
+        <Input
+          label="ملاحظة (اختياري)"
+          placeholder="مثال: الكاشير غادر دون إغلاق"
+          value={notes}
+          maxLength={1000}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </div>
+    </Modal>
   )
 }
 
