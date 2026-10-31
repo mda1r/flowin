@@ -444,6 +444,7 @@ export const en = {
     receive: 'Receive',
     createAndAddItems: 'Create, then add items',
     noSuppliersYet: 'No suppliers yet. Add one from the Suppliers tab first.',
+    noSuppliers: 'No suppliers yet',
     chooseSupplier: 'Choose a supplier…',
     supplierRequired: 'Choose a supplier',
     nameRequired: 'Name is required',

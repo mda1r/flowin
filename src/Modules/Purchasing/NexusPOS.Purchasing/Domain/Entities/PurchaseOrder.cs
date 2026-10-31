@@ -9,6 +9,9 @@ namespace NexusPOS.Purchasing.Domain.Entities;
 
 public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
 {
+    // Matches the notes column length in PurchaseOrderConfiguration.
+    private const int MaxNotesLength = 1024;
+
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public SupplierId SupplierId { get; private set; } = null!;
@@ -179,10 +182,18 @@ public sealed class PurchaseOrder : AggregateRoot<PurchaseOrderId>
         }
 
         Status = PurchaseOrderStatus.Cancelled;
-        Notes = reason?.Trim() ?? Notes;
+
+        // Append the reason so the order's existing notes are kept.
+        string? trimmedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        if (trimmedReason is not null)
+        {
+            string combined = string.IsNullOrWhiteSpace(Notes) ? trimmedReason : $"{Notes}\n{trimmedReason}";
+            Notes = combined.Length > MaxNotesLength ? combined[..MaxNotesLength] : combined;
+        }
+
         UpdatedAt = DateTime.UtcNow;
 
-        RaiseDomainEvent(new PurchaseOrderCancelledDomainEvent(Id.Value, TenantId, BranchId, reason));
+        RaiseDomainEvent(new PurchaseOrderCancelledDomainEvent(Id.Value, TenantId, BranchId, trimmedReason));
         return Result.Success;
     }
 }

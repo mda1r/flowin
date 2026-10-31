@@ -446,6 +446,7 @@ export const ar: Translations = {
     receive: 'استلام',
     createAndAddItems: 'إنشاء ثم إضافة الأصناف',
     noSuppliersYet: 'لا يوجد موردون بعد. أضف مورداً من تبويب «الموردون» أولاً.',
+    noSuppliers: 'لا يوجد موردون بعد',
     chooseSupplier: 'اختر المورد…',
     supplierRequired: 'اختر المورد',
     nameRequired: 'الاسم مطلوب',

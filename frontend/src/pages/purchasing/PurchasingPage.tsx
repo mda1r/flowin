@@ -44,7 +44,7 @@ const statusLabel = (t: Translations, s: PurchaseOrderStatus): string =>
     Cancelled: t.purchasing.cancelled,
   })[s]
 
-const STATUS_FILTERS: (PurchaseOrderStatus | 'all')[] = ['all', 'Draft', 'Sent', 'Received', 'Cancelled']
+const STATUS_FILTERS: (PurchaseOrderStatus | 'all')[] = ['all', 'Draft', 'Sent', 'PartiallyReceived', 'Received', 'Cancelled']
 
 const orderSchema = (t: Translations) =>
   z.object({
@@ -654,7 +654,7 @@ export function PurchasingPage() {
   const hasNextPage = orderRows.length === PAGE_SIZE
 
   // Inactive suppliers are included so the suppliers tab can show them and past orders keep their names.
-  const { data: suppliersResp } = useQuery({
+  const { data: suppliersResp, isLoading: suppliersLoading } = useQuery({
     queryKey: ['suppliers', tenantId, 'all'],
     queryFn: () => purchasingApi.listSuppliers(tenantId!, { includeInactive: true, pageSize: 200 }),
     enabled: !!tenantId,
@@ -900,7 +900,8 @@ export function PurchasingPage() {
             <Table
               data={allSuppliers}
               keyExtractor={(r) => r.id}
-              emptyMessage={t.common.noData}
+              loading={suppliersLoading}
+              emptyMessage={t.purchasing.noSuppliers}
               columns={[
                 {
                   key: 'name',
