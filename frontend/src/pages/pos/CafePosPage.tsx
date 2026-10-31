@@ -3,19 +3,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot,
-  Gamepad2, Clock, Play, Square, Search, Percent,
+  Gamepad2, Clock, Play, Square, Search,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
-import { ordersApi, posSettingsApi } from '@/api/orders'
+import { ordersApi } from '@/api/orders'
 import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
-import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency, cn } from '@/lib/utils'
 import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
-import { aiCashierApi, type AiCashierCartSnapshot } from '@/api/aiCashier'
-import { AiCashierAgent, type AiCartResult } from '@/components/cafe/AiCashierAgent'
+import { pushKitchenTicket } from '@/lib/cafeKitchen'
+import { restaurantApi } from '@/api/restaurant'
+import { aiCashierApi } from '@/api/aiCashier'
+import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
 import { gamingApi } from '@/api/gaming'
 import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
@@ -23,7 +24,7 @@ import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
-import { ConfirmModal, OverlayDialog } from '@/components/ui/Modal'
+import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
@@ -34,8 +35,7 @@ import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
-import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage } from '@/lib/offlineSales'
-import { isAxiosError } from 'axios'
+import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage } from '@/lib/whatsapp'
@@ -46,8 +46,6 @@ interface StartSessionForm {
   stationId: string
   stationName: string
   stationTypeKey: string
-  /** The station's own rate; only an owner or manager may start a session at another one. */
-  stationRate: number
   hourlyRate: number
   playerName: string
   durationMinutes: number
@@ -57,8 +55,6 @@ interface StartSessionForm {
 }
 
 interface CafeCartItem {
-  // Local id of the cart line: the same drink with different notes is a separate line.
-  lineKey: string
   variantId: string
   productName: string
   variantName: string
@@ -72,10 +68,7 @@ interface KitchenTicketData {
   items: CafeCartItem[]
   orderType: 'here' | 'takeaway'
   tableNumber: number | null
-  // The sale's invoice number, the same one the kitchen screen shows.
-  ticketNo: string
-  offline?: boolean
-  createdAt: string
+  ticketNumber: number
 }
 
 interface CustomerReceiptData {
@@ -95,31 +88,12 @@ interface CustomerReceiptData {
   offline?: boolean
   customerName?: string
   customerPhone?: string
-  discount?: number
   loyaltyDiscount?: number
   pointsRedeemed?: number
   pointsEarned?: number
 }
 
 type PayMode = 'Cash' | 'Card' | 'Split'
-type DiscountMode = 'Percentage' | 'Fixed'
-
-// Until the branch till rules load, the same cap the retail till assumes.
-const DEFAULT_POS_SETTINGS = { maxCashierDiscountPercent: 10, hasApprovalPin: false }
-
-const newLineKey = () => Math.random().toString(36).slice(2, 10)
-
-// One line per drink and notes: equal items with equal notes fold together, keeping the first line's place.
-function mergeCartLines(lines: CafeCartItem[]): CafeCartItem[] {
-  const out: CafeCartItem[] = []
-  for (const line of lines) {
-    const notes = line.notes.trim()
-    const same = out.find((l) => l.variantId === line.variantId && l.notes === notes)
-    if (same) same.quantity += line.quantity
-    else out.push({ ...line, notes })
-  }
-  return out
-}
 
 const CAFE_ACCENT: React.CSSProperties = {
   '--accent-l': '#0B7A65',
@@ -166,8 +140,10 @@ function KitchenTicketModal({
   ticket: KitchenTicketData
   onClose: () => void
 }) {
+  const now = new Date()
   return (
-    <OverlayDialog onClose={onClose} label="تذكرة المطبخ" closeOnBackdrop={false} panelClassName="w-80 rounded-2xl bg-surface shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
+      <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div id="cafe-kitchen-print" className="p-5">
           {/* Header */}
           <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
@@ -176,7 +152,7 @@ function KitchenTicketModal({
               طلب المطبخ
             </div>
             <p className="text-xs text-muted">
-              {new Date(ticket.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+              {now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
             </p>
             <div className="mt-2 flex items-center justify-center gap-2">
               <span className={cn(
@@ -189,15 +165,14 @@ function KitchenTicketModal({
                   ? ticket.tableNumber ? `طاولة ${ticket.tableNumber}` : 'بدون طاولة'
                   : '🛍 تيك أواي'}
               </span>
-              <span className="text-sm tabular-nums text-muted" dir="ltr">#{ticket.ticketNo}</span>
+              <span className="text-sm text-muted">#{ticket.ticketNumber}</span>
             </div>
-            {ticket.offline && <p className="mt-2 text-xs text-warning">رقم مؤقت · يصل للمطبخ عند المزامنة</p>}
           </div>
 
           {/* Items */}
           <div className="space-y-3">
-            {ticket.items.map((item) => (
-              <div key={item.lineKey} className="border-b border-border pb-3 last:border-0 last:pb-0">
+            {ticket.items.map((item, i) => (
+              <div key={i} className="border-b border-border pb-3 last:border-0 last:pb-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-fg">{item.productName}</p>
@@ -236,7 +211,8 @@ function KitchenTicketModal({
             إغلاق
           </button>
         </div>
-    </OverlayDialog>
+      </div>
+    </div>
   )
 }
 
@@ -245,11 +221,9 @@ function KitchenTicketModal({
 function CustomerReceiptModal({
   receipt,
   onClose,
-  onKitchenTicket,
 }: {
   receipt: CustomerReceiptData
   onClose: () => void
-  onKitchenTicket?: () => void
 }) {
   const { sellerName, vatNumber } = useSellerIdentity()
   const receiptSettings = useReceiptSettings()
@@ -268,7 +242,8 @@ function CustomerReceiptModal({
     `تقسيم — نقد ${formatCurrency(receipt.splitCash ?? 0)} / بطاقة ${formatCurrency(receipt.splitCard ?? 0)}`
 
   return (
-    <OverlayDialog onClose={onClose} label="فاتورة العميل" closeOnBackdrop={false} panelClassName="w-[22rem] rounded-2xl bg-surface shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
+      <div className="w-[22rem] max-w-full overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div className="max-h-[62vh] overflow-y-auto p-5">
           <ReceiptDocument
             id="cafe-receipt-print"
@@ -278,7 +253,7 @@ function CustomerReceiptModal({
             invoiceNo={invoiceNo({ id: receipt.orderId, number: receipt.number })}
             issuedAt={receipt.completedAt}
             lines={receipt.items.map((item) => ({
-              key: item.lineKey,
+              key: item.variantId,
               name: item.productName,
               quantity: item.quantity,
               total: item.unitPrice * item.quantity,
@@ -287,7 +262,6 @@ function CustomerReceiptModal({
             subtotal={receipt.subtotal}
             tax={receipt.tax}
             total={receipt.grandTotal}
-            discount={receipt.discount}
             loyalty={receipt.loyaltyDiscount ? { amount: receipt.loyaltyDiscount, points: receipt.pointsRedeemed ?? 0 } : undefined}
             paymentLabel={payLabel}
             tendered={receipt.payMode === 'Cash' ? receipt.cashTendered : undefined}
@@ -318,7 +292,7 @@ function CustomerReceiptModal({
                 quantity: i.quantity,
                 total: i.unitPrice * i.quantity,
               })),
-              discount: (receipt.discount ?? 0) + (receipt.loyaltyDiscount ?? 0) || undefined,
+              discount: receipt.loyaltyDiscount,
               vat: receipt.tax,
               vatIncluded: true,
               total: receipt.grandTotal,
@@ -336,16 +310,6 @@ function CustomerReceiptModal({
             <Printer className="h-4 w-4" />
             طباعة
           </button>
-          {onKitchenTicket && (
-            <button
-              onClick={onKitchenTicket}
-              title="طباعة تذكرة المطبخ"
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-fg hover:bg-surface-2"
-            >
-              <ChefHat className="h-4 w-4 text-brand-strong" />
-              المطبخ
-            </button>
-          )}
           <button
             onClick={onClose}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-fg hover:bg-surface-2"
@@ -354,7 +318,8 @@ function CustomerReceiptModal({
             إغلاق
           </button>
         </div>
-    </OverlayDialog>
+      </div>
+    </div>
   )
 }
 
@@ -363,15 +328,6 @@ function CustomerReceiptModal({
 export function CafePosPage() {
   const { branchId, tenantId, user } = useAuthStore()
   const isGamingLounge = user?.businessType === 'Gaming'
-  const isManager = user?.role === 'Owner' || user?.role === 'Manager'
-  const { data: posSettingsRes } = useQuery({
-    queryKey: ['pos-settings', branchId],
-    queryFn: () => posSettingsApi.get(branchId!),
-    enabled: !!branchId,
-    staleTime: 5 * 60_000,
-  })
-  const posSettings = posSettingsRes?.data ?? DEFAULT_POS_SETTINGS
-  const canManage = isManager
   const [gamingAlertCounts, setGamingAlertCounts] = useState({ expired: 0, warning: 0 })
   const { t } = useI18n()
   const { shift } = useShift()
@@ -387,7 +343,7 @@ export function CafePosPage() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [confirmClearCart, setConfirmClearCart] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const lastLineRef = useRef<string | null>(null)
+  const lastVariantRef = useRef<string | null>(null)
 
   // Cart
   const [cart, setCart] = useState<CafeCartItem[]>([])
@@ -397,11 +353,8 @@ export function CafePosPage() {
   const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
   const loyaltyRules = useLoyaltyRules()
   const [redeemPoints, setRedeemPoints] = useState(0)
-  const [discountMode, setDiscountMode] = useState<DiscountMode>('Percentage')
-  const [discountInput, setDiscountInput] = useState('')
-  const [showDiscount, setShowDiscount] = useState(false)
-  const [approvalPin, setApprovalPin] = useState('')
   const queryClient = useQueryClient()
+  const payModeRef = useRef<PayMode>('Cash')
 
   // AI Cashier
   const [aiCashierActive, setAiCashierActive] = useState(false)
@@ -409,10 +362,6 @@ export function CafePosPage() {
   // Gaming
   const [startSessionForm, setStartSessionForm] = useState<StartSessionForm | null>(null)
   const [gamingBill, setGamingBill] = useState<GameSessionBillResponse | null>(null)
-  const closeGamingBill = () => {
-    if (gamingBill && !gamingBill.paidAt) toast.warning('الجلسة غير مدفوعة', 'ستظهر كغير محصّلة في الإقفال اليومي')
-    setGamingBill(null)
-  }
   const [gamingNow, setGamingNow] = useState(() => Date.now())
 
   // Shift
@@ -423,10 +372,10 @@ export function CafePosPage() {
   const [splitCash, setSplitCash] = useState<string>('')
   const [splitCard, setSplitCard] = useState<string>('')
 
-  // Kitchen ticket & customer receipt. The last sale's ticket is kept so the cashier can reprint it.
-  const [lastKitchenTicket, setLastKitchenTicket] = useState<KitchenTicketData | null>(null)
-  const [showKitchenTicket, setShowKitchenTicket] = useState(false)
+  // Kitchen ticket & customer receipt
+  const [kitchenTicket, setKitchenTicket] = useState<KitchenTicketData | null>(null)
   const [customerReceipt, setCustomerReceipt] = useState<CustomerReceiptData | null>(null)
+  const [ticketCounter, setTicketCounter] = useState(1)
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
@@ -521,8 +470,7 @@ export function CafePosPage() {
     return () => clearInterval(id)
   }, [selectedCategoryId])
 
-  // One drink can sit on several lines (different notes); stock counts them all.
-  const cartQty = (variantId: string) => cart.reduce((n, i) => (i.variantId === variantId ? n + i.quantity : n), 0)
+  const cartQty = (variantId: string) => cart.find(i => i.variantId === variantId)?.quantity ?? 0
 
   const canAddMore = (variantId: string, addingQty = 1): boolean => {
     if (!trackMap[variantId]) return true
@@ -544,167 +492,79 @@ export function CafePosPage() {
       toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
       return
     }
+    lastVariantRef.current = variantId
     setCart((prev) => {
-      // A tap adds to the plain line; a line with notes is a different order and stays as it is.
-      const existing = prev.find((i) => i.variantId === variantId && !i.notes)
-      if (existing) {
-        lastLineRef.current = existing.lineKey
-        return prev.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + 1 } : i)
-      }
-      const lineKey = newLineKey()
-      lastLineRef.current = lineKey
-      return [...prev, { lineKey, variantId, productName, variantName, unitPrice, costPrice, quantity: 1, notes: '' }]
+      const existing = prev.find((i) => i.variantId === variantId)
+      if (existing) return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + 1 } : i)
+      return [...prev, { variantId, productName, variantName, unitPrice, costPrice, quantity: 1, notes: '' }]
     })
   }
 
-  // ── AI cashier cart ops ─────────────────────────────────────────────────────
-  // One AI reply can carry several actions in the same tick, so these work on a ref
-  // that is updated immediately instead of waiting for the next render.
-  const aiCartRef = useRef<CafeCartItem[]>(cart)
-  aiCartRef.current = cart
-  const commitAiCart = (next: CafeCartItem[]) => {
-    aiCartRef.current = next
-    setCart(next)
-  }
-
-  const aiStockAllows = (variantId: string, trackInventory: boolean, qty: number): boolean => {
-    if (!trackInventory) return true
-    const available = stockMap[variantId]
-    if (available === undefined || qty <= available) return true
-    toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
-    return false
-  }
-
-  const aiQtyOf = (variantId: string, except?: string) =>
-    aiCartRef.current.reduce((n, i) => (i.variantId === variantId && i.lineKey !== except ? n + i.quantity : n), 0)
-
-  // The same drink with the same note joins its line; a different note is its own line, as at the till.
-  const addVariantById = (variantId: string, qty: number, notes: string): AiCartResult => {
-    const product = allProducts.find((p) => p.variants.some((v) => v.id === variantId))
-    const variant = product?.variants.find((v) => v.id === variantId)
-    if (!product || !variant) return 'not_found'
-    const note = (notes ?? '').trim()
-    const current = aiCartRef.current
-    const existing = current.find((i) => i.variantId === variantId && i.notes === note)
-    if (!aiStockAllows(variantId, product.trackInventory, aiQtyOf(variantId) + qty)) return 'out_of_stock'
-    commitAiCart(existing
-      ? current.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + qty } : i)
-      : [...current, { lineKey: newLineKey(), variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: note }])
-    return 'ok'
-  }
-
-  // Sets the item's quantity on its plain line (or its first line); other lines with notes stay as they are.
-  const setVariantQtyById = (variantId: string, qty: number): AiCartResult => {
-    const current = aiCartRef.current
-    const lines = current.filter((i) => i.variantId === variantId)
-    if (lines.length === 0) return 'not_in_cart'
-    if (qty <= 0) {
-      commitAiCart(current.filter((i) => i.variantId !== variantId))
-      return 'ok'
+  const addVariantById = useCallback((variantId: string, qty: number, notes: string) => {
+    for (const product of allProducts) {
+      const variant = product.variants.find((v) => v.id === variantId)
+      if (variant) {
+        if (product.trackInventory) {
+          const available = stockMap[variantId]
+          if (available !== undefined) {
+            const inCart = cartQty(variantId)
+            if (inCart + qty > available) {
+              toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+              return
+            }
+          }
+        }
+        setCart((prev) => {
+          const existing = prev.find((i) => i.variantId === variantId)
+          if (existing) {
+            return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + qty, notes: notes || i.notes } : i)
+          }
+          return [...prev, { variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: notes ?? '' }]
+        })
+        break
+      }
     }
-    const target = lines.find((i) => !i.notes) ?? lines[0]
-    if (!aiStockAllows(variantId, trackMap[variantId] ?? false, aiQtyOf(variantId, target.lineKey) + qty)) return 'out_of_stock'
-    commitAiCart(current.map((i) => i.lineKey === target.lineKey ? { ...i, quantity: qty } : i))
-    return 'ok'
-  }
+  }, [allProducts, stockMap, cartQty])
 
-  const removeVariantById = (variantId: string): AiCartResult => setVariantQtyById(variantId, 0)
-
-  const getAiCartSnapshot = (): AiCashierCartSnapshot => {
-    const lines = aiCartRef.current.map((i) => ({
-      variantId: i.variantId,
-      name: (i.variantName && i.variantName !== i.productName ? `${i.productName} - ${i.variantName}` : i.productName) + (i.notes ? ` (${i.notes})` : ''),
-      quantity: i.quantity,
-      lineTotal: Math.round(i.unitPrice * i.quantity * 100) / 100,
-    }))
-    return { lines, total: Math.round(lines.reduce((s, l) => s + l.lineTotal, 0) * 100) / 100 }
-  }
-
-  const updateQty = (lineKey: string, delta: number) => {
-    const line = cart.find((i) => i.lineKey === lineKey)
-    if (!line) return
-    if (delta > 0 && !canAddMore(line.variantId)) {
-      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[line.variantId] ?? 0} وحدة`)
+  const updateQty = (variantId: string, delta: number) => {
+    if (delta > 0 && !canAddMore(variantId)) {
+      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
       return
     }
     setCart((prev) =>
       prev
-        .map((i) => i.lineKey === lineKey ? { ...i, quantity: i.quantity + delta } : i)
+        .map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + delta } : i)
         .filter((i) => i.quantity > 0),
     )
   }
 
-  const removeItem = (lineKey: string) => setCart((prev) => prev.filter((i) => i.lineKey !== lineKey))
+  const removeItem = (variantId: string) => setCart((prev) => prev.filter((i) => i.variantId !== variantId))
 
-  const updateNote = (lineKey: string, note: string) => {
-    setCart((prev) => prev.map((i) => i.lineKey === lineKey ? { ...i, notes: note } : i))
-  }
-
-  // Once a note is written, a line that now matches another one (same drink, same note) joins it.
-  const finishNote = () => {
-    setEditingNoteId(null)
-    setCart(mergeCartLines)
+  const updateNote = (variantId: string, note: string) => {
+    setCart((prev) => prev.map((i) => i.variantId === variantId ? { ...i, notes: note } : i))
   }
 
   // الأسعار شاملة الضريبة — نستخرج الضريبة من الإجمالي
   const cartTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-  // The order discount comes off first, then loyalty points, as on the server. A fixed discount is typed
-  // in riyals the customer sees (VAT included); a percentage is the same share before or after VAT.
-  const discountRaw = Math.max(0, parseFloat(discountInput) || 0)
-  const discountGross = Math.round(Math.min(
-    discountMode === 'Percentage' ? cartTotal * Math.min(discountRaw, 100) / 100 : discountRaw,
-    cartTotal,
-  ) * 100) / 100
-  const discountShare = cartTotal > 0 ? (discountGross / cartTotal) * 100 : 0
-  // The branch sets how far a cashier may discount alone; past it a manager types their PIN, if the branch has one.
-  const discountCap = posSettings.maxCashierDiscountPercent
-  const overCap = !isManager && discountShare > discountCap + 0.01
-  const needsPin = overCap && posSettings.hasApprovalPin && navigator.onLine
-  const discountOverCap = overCap && !needsPin
-  const afterDiscount = Math.round((cartTotal - discountGross) * 100) / 100
-  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, afterDiscount, loyaltyRules) : 0
+  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal, loyaltyRules) : 0
   const appliedPoints = Math.min(redeemPoints, maxRedeemable)
   const loyaltyDiscount = pointsValue(appliedPoints, loyaltyRules)
-  // grandTotal is what the customer pays, after the order discount and any loyalty discount.
-  const grandTotal = Math.round((afterDiscount - loyaltyDiscount) * 100) / 100
+  // grandTotal is what the customer pays, after any loyalty discount.
+  const grandTotal = Math.round((cartTotal - loyaltyDiscount) * 100) / 100
   const vatOf = (gross: number) => Math.round((gross * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
   const tax = vatOf(grandTotal)
   const subtotal = Math.round((grandTotal - tax) * 100) / 100
 
   // ── Checkout ──────────────────────────────────────────────────────────────
 
-  // A sale refused for a price below the catalog means the menu changed after these items were added:
-  // reload it and reprice the cart lines from it, so the next press of pay goes through.
-  const repriceCart = async (err: Error) => {
-    const fresh = await queryClient.fetchQuery({
-      queryKey: ['products', tenantId],
-      queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 200 }),
-      staleTime: 0,
-    })
-    void queryClient.invalidateQueries({ queryKey: ['cafe-products', tenantId] })
-    const raw = fresh?.data
-    const list: ProductResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
-    const prices = new Map(list.flatMap((p) => p.variants.map((v) => [v.id, v.salePrice] as const)))
-    const stale = (i: CafeCartItem) => prices.has(i.variantId) && prices.get(i.variantId) !== i.unitPrice
-    if (!cart.some(stale)) {
-      toast.error(apiErrorMessage(err), 'احذف الصنف من السلة وأضفه من جديد')
-      return
-    }
-    setCart((prev) => prev.map((i) => (stale(i) ? { ...i, unitPrice: prices.get(i.variantId)! } : i)))
-    toast.warning('تحدّثت الأسعار من قائمة المنتجات', 'راجع الإجمالي ثم ادفع مرة أخرى')
-  }
-
-  // The button and the AI cashier share one path: a single idempotent /orders/checkout with the offline fallback.
-  // The AI cashier settles the exact total by cash or card, so it has no tendered amount or split.
   const checkout = useMutation({
-    mutationFn: async ({ mode, viaAi }: { mode: PayMode; viaAi?: boolean }) => {
+    mutationFn: async () => {
       if (!branchId || !tenantId) throw new Error('no-branch')
       if (cart.length === 0) throw new Error('empty')
-      if (discountOverCap) throw new Error('discount-cap')
 
       // Prices include VAT; the server receives the pre-VAT price and adds the tax back.
       const preTaxRate = 1 + SAUDI_VAT_RATE
-      const handed = mode === 'Cash' && !viaAi ? parseFloat(cashTendered) || 0 : 0
+      const handed = payMode === 'Cash' ? parseFloat(cashTendered) || 0 : 0
       const clientReference = newClientReference()
       const payload: CheckoutPayload = {
         clientReference,
@@ -718,25 +578,17 @@ export function CafePosPage() {
           unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
           costPrice: item.costPrice,
           quantity: item.quantity,
-          notes: item.notes.trim() || undefined,
         })),
-        ...(discountGross > 0 && (discountMode === 'Percentage'
-          ? { discountType: 'Percentage' as const, discountValue: Math.min(discountRaw, 100) }
-          : { discountType: 'Fixed' as const, discountValue: Math.round((discountGross / preTaxRate) * 10000) / 10000 })),
-        ...(needsPin && { approvalPin: approvalPin.trim() }),
-        // The kitchen screen gets the paid sale as a ticket; dine-in without a table goes as "no table".
-        kitchen: { tableNumber: orderType === 'here' ? tableNumber : null, takeaway: orderType === 'takeaway' },
         loyaltyPoints: appliedPoints,
-        paymentMethod: mode as PaymentMethod,
+        paymentMethod: payMode as PaymentMethod,
         amountTendered: Math.max(grandTotal, handed),
-        ...(mode === 'Split' && {
+        ...(payMode === 'Split' && {
           cashAmount: parseFloat(splitCash) || 0,
           cardAmount: parseFloat(splitCard) || 0,
         }),
       }
 
-      // Keep selling without a connection: the sale waits on this device and syncs when the network returns,
-      // and the kitchen ticket goes with it.
+      // Keep selling without a connection: the sale waits on this device and syncs when the network returns.
       const saveOffline = () => {
         queueSale({
           clientReference,
@@ -757,83 +609,93 @@ export function CafePosPage() {
         const { data } = await ordersApi.checkout(branchId, payload)
         return { orderId: data.id, number: data.number ?? null, offline: false }
       } catch (err) {
-        if (isTransientError(err)) return saveOffline()
+        if (isNetworkError(err)) return saveOffline()
         throw err
       }
     },
-    onSuccess: ({ orderId, number, offline }, { mode, viaAi }) => {
-      const completedAt = new Date().toISOString()
+    onSuccess: ({ orderId, number, offline }) => {
       const snapshot = {
         items: [...cart],
         grandTotal,
         tax,
         subtotal,
-        payMode: mode,
-        splitCash: mode === 'Split' ? splitCashNum || undefined : undefined,
-        splitCard: mode === 'Split' ? splitCardNum || undefined : undefined,
-        cashTendered: mode === 'Cash' && !viaAi && parseFloat(cashTendered) > 0 ? parseFloat(cashTendered) : undefined,
-        tableNumber: orderType === 'here' ? tableNumber : null,
+        payMode,
+        splitCash: splitCashNum || undefined,
+        splitCard: splitCardNum || undefined,
+        cashTendered: payMode === 'Cash' && parseFloat(cashTendered) > 0 ? parseFloat(cashTendered) : undefined,
+        tableNumber,
         orderType,
         customerName: loyaltyCustomer?.name,
         customerPhone: loyaltyCustomer?.phone ?? undefined,
-        discount: discountGross || undefined,
         loyaltyDiscount: loyaltyDiscount || undefined,
         pointsRedeemed: appliedPoints || undefined,
         pointsEarned: loyaltyCustomer && loyaltyRules.enabled ? pointsEarned(grandTotal, loyaltyRules) : undefined,
       }
 
-      // The server put the ticket on the kitchen screen; this copy is for printing it here.
-      setLastKitchenTicket({
-        items: snapshot.items,
-        orderType,
-        tableNumber: snapshot.tableNumber,
-        ticketNo: invoiceNo({ id: orderId, number }),
-        offline,
-        createdAt: completedAt,
-      })
-      setShowKitchenTicket(false)
+      // Push to kitchen (fire and forget)
+      if (tenantId) {
+        pushKitchenTicket(tenantId, {
+          ticketNumber: ticketCounter,
+          tableNumber,
+          orderType,
+          items: cart.map((i) => ({
+            productName: i.productName,
+            variantName: i.variantName,
+            quantity: i.quantity,
+            notes: i.notes,
+          })),
+        })
+      }
+      if (branchId && tenantId && !offline) {
+        restaurantApi
+          .createOrder(branchId, {
+            tenantId,
+            tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
+            items: cart.map((i) => ({
+              menuItemId: i.variantId,
+              itemName: i.productName,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              notes: i.notes || undefined,
+            })),
+          })
+          .catch(() => {})
+      }
 
-      setCustomerReceipt({ orderId, number, ...snapshot, completedAt, offline })
+      // Show customer receipt
+      setCustomerReceipt({
+        orderId,
+        number,
+        ...snapshot,
+        completedAt: new Date().toISOString(),
+        offline,
+      })
+      setTicketCounter((n) => n + 1)
       setCart([])
-      lastLineRef.current = null
       setTableNumber(null)
       setSplitCash('')
       setSplitCard('')
       setCashTendered('')
       setPayMode('Cash')
-      setDiscountInput('')
-      setApprovalPin('')
-      setShowDiscount(false)
-      void queryClient.invalidateQueries({ queryKey: ['pos-stock', branchId] })
       if (loyaltyCustomer) {
         void queryClient.invalidateQueries({ queryKey: ['pos-customer-search'] })
         void queryClient.invalidateQueries({ queryKey: ['customers'] })
       }
       setLoyaltyCustomer(null)
       setRedeemPoints(0)
-      if (viaAi) setAiCashierActive(false)
       if (offline) {
-        toast.warning(...savedOnDeviceMessage())
+        toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
       } else {
         toast.success(
-          viaAi ? 'تم إتمام الطلب عبر كاشير AI' : t.pos.orderProcessed,
+          t.pos.orderProcessed,
           snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString('ar-SA')} نقطة لـ${snapshot.customerName}` : undefined,
         )
       }
     },
     onError: (e: Error) => {
       if (e.message === 'empty') toast.error('السلة فارغة')
-      else if (e.message === 'offline-storage') toast.error('لم تُحفظ العملية: ذاكرة الجهاز ممتلئة', 'دوّن العملية يدوياً، فهي غير مسجلة. السلة باقية كما هي')
       else if (e.message === 'offline-loyalty') toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
-      else if (e.message === 'discount-cap') toast.error(`أقصى خصم للكاشير ${discountCap}٪`, 'اطلب من المدير إتمام البيع')
-      else if (isAxiosError(e) && ['POS.PriceBelowCatalog', 'POS.UnknownProduct'].some((code) => (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.[code])) {
-        void repriceCart(e).catch(() => toast.error(t.pos.paymentFailed, apiErrorMessage(e)))
-      } else {
-        // An item that left the catalog is refused too; reload the menu so it can be picked again.
-        void queryClient.invalidateQueries({ queryKey: ['products', tenantId] })
-        void queryClient.invalidateQueries({ queryKey: ['cafe-products', tenantId] })
-        toast.error(t.pos.paymentFailed, apiErrorMessage(e))
-      }
+      else toast.error(t.pos.paymentFailed)
     },
   })
 
@@ -844,24 +706,72 @@ export function CafePosPage() {
     Math.abs(splitCashNum + splitCardNum - grandTotal) < 0.01
   )
   const cashShort = payMode === 'Cash' && cashTendered !== '' && (parseFloat(cashTendered) || 0) < grandTotal
-  const canCheckout = cart.length > 0 && splitValid && !cashShort && !discountOverCap && (!needsPin || approvalPin.trim().length >= 4)
+  const canCheckout = cart.length > 0 && splitValid && !cashShort
 
   // ── AI Cashier checkout ────────────────────────────────────────────────────
 
-  // The AI may add items and pay in the same reply; paying waits for that cart to render, so the
-  // checkout reads the cart the AI just wrote. Resolves false on failure so the agent can say so.
-  const [aiPayRequest, setAiPayRequest] = useState<{ mode: 'Cash' | 'Card'; resolve: (ok: boolean) => void } | null>(null)
-  const handleAiCompleteOrder = useCallback(
-    (paymentMethod: 'Cash' | 'Card') => new Promise<boolean>((resolve) => setAiPayRequest({ mode: paymentMethod, resolve })),
-    [],
-  )
-  useEffect(() => {
-    if (!aiPayRequest) return
-    const { mode, resolve } = aiPayRequest
-    setAiPayRequest(null)
-    if (checkout.isPending) { resolve(false); return }
-    checkout.mutateAsync({ mode, viaAi: true }).then(() => resolve(true), () => resolve(false))
-  }, [aiPayRequest, checkout])
+  const aiCheckout = useMutation({
+    mutationFn: async (paymentMethod: 'Cash' | 'Card') => {
+      if (!branchId || !tenantId) throw new Error('no-branch')
+      if (cart.length === 0) throw new Error('empty')
+      const preTaxRate = 1 + SAUDI_VAT_RATE
+      const orderRes = await ordersApi.createOrder(branchId, { tenantId, currency: 'SAR', taxRate: SAUDI_VAT_RATE })
+      const orderId = orderRes.data.id
+      await Promise.all(
+        cart.map((item) =>
+          ordersApi.addLine(branchId, orderId, {
+            variantId: item.variantId,
+            productName: item.productName,
+            variantName: item.variantName,
+            unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
+            costPrice: item.costPrice,
+            quantity: item.quantity,
+          }),
+        ),
+      )
+      await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: cartTotal })
+      return orderId
+    },
+    onSuccess: (orderId) => {
+      if (tenantId) {
+        pushKitchenTicket(tenantId, {
+          ticketNumber: ticketCounter,
+          tableNumber,
+          orderType,
+          items: cart.map((i) => ({ productName: i.productName, variantName: i.variantName, quantity: i.quantity, notes: i.notes })),
+        })
+      }
+      if (branchId && tenantId) {
+        restaurantApi.createOrder(branchId, {
+          tenantId,
+          tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
+          items: cart.map((i) => ({ menuItemId: i.variantId, itemName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, notes: i.notes || undefined })),
+        }).catch(() => {})
+      }
+      setCustomerReceipt({
+        orderId,
+        items: [...cart],
+        grandTotal: cartTotal,
+        tax: vatOf(cartTotal),
+        subtotal: Math.round((cartTotal - vatOf(cartTotal)) * 100) / 100,
+        payMode: payModeRef.current,
+        tableNumber,
+        orderType,
+        completedAt: new Date().toISOString(),
+      })
+      setTicketCounter((n) => n + 1)
+      setCart([])
+      setTableNumber(null)
+      setAiCashierActive(false)
+      toast.success('تم إتمام الطلب عبر كاشير AI')
+    },
+    onError: () => toast.error(t.pos.paymentFailed),
+  })
+
+  const handleAiCompleteOrder = useCallback((paymentMethod: 'Cash' | 'Card') => {
+    payModeRef.current = paymentMethod
+    aiCheckout.mutate(paymentMethod)
+  }, [aiCheckout])
 
   // ── Gaming mutations ───────────────────────────────────────────────────────
 
@@ -881,7 +791,7 @@ export function CafePosPage() {
       return gamingApi.startSession(branchId, form.stationId, {
         playerName: form.playerName,
         durationMinutes: form.durationMinutes,
-        ratePerHour: canManage && form.hourlyRate !== form.stationRate ? form.hourlyRate : undefined,
+        ratePerHour: form.hourlyRate,
         packageId: form.packageId,
       })
     },
@@ -890,7 +800,7 @@ export function CafePosPage() {
       void refetchStations()
       toast.success('تم بدء جلسة الألعاب')
     },
-    onError: (err) => toast.error('فشل في بدء الجلسة', apiErrorMessage(err)),
+    onError: () => toast.error('فشل في بدء الجلسة'),
   })
 
   const endSessionMut = useMutation({
@@ -938,8 +848,8 @@ export function CafePosPage() {
     if (searchTerm) toast.error('لا يوجد منتج مطابق', productSearch)
   }
 
-  const lastCartLine = () =>
-    cart.some((i) => i.lineKey === lastLineRef.current) ? lastLineRef.current : cart[cart.length - 1]?.lineKey
+  const lastCartVariant = () =>
+    cart.some((i) => i.variantId === lastVariantRef.current) ? lastVariantRef.current : cart[cart.length - 1]?.variantId
 
   const shortcutHints = [
     { keys: ['F2', '/'], label: 'البحث عن منتج' },
@@ -961,8 +871,8 @@ export function CafePosPage() {
         window.setTimeout(() => searchInputRef.current?.focus(), 0)
       },
     },
-    { keys: ['+', '='], label: 'inc', run: () => { const k = lastCartLine(); if (k) updateQty(k, 1) } },
-    { keys: ['-'], label: 'dec', run: () => { const k = lastCartLine(); if (k) updateQty(k, -1) } },
+    { keys: ['+', '='], label: 'inc', run: () => { const v = lastCartVariant(); if (v) updateQty(v, 1) } },
+    { keys: ['-'], label: 'dec', run: () => { const v = lastCartVariant(); if (v) updateQty(v, -1) } },
     { keys: ['F5'], label: 'cash', allowInInputs: true, run: () => setPayMode('Cash') },
     { keys: ['F6'], label: 'card', allowInInputs: true, run: () => setPayMode('Card') },
     { keys: ['F7'], label: 'split', allowInInputs: true, run: () => setPayMode('Split') },
@@ -973,12 +883,11 @@ export function CafePosPage() {
       run: () => {
         if (!canCheckout) {
           if (cart.length === 0) toast.error('السلة فارغة')
-          else if (discountOverCap) toast.error(`أقصى خصم للكاشير ${discountCap}٪`)
           else if (cashShort) toast.error('المبلغ المستلم أقل من الإجمالي')
           else toast.error('تحقق من مبالغ الدفع المقسّم')
           return
         }
-        if (!checkout.isPending) checkout.mutate({ mode: payMode })
+        if (!checkout.isPending) checkout.mutate()
       },
     },
     { keys: ['F8'], label: 'clear', allowInInputs: true, run: () => { if (cart.length > 0) setConfirmClearCart(true) } },
@@ -988,7 +897,7 @@ export function CafePosPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" style={CAFE_ACCENT}>
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" dir="rtl" style={CAFE_ACCENT}>
       <OfflineBanner />
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
       <ConfirmModal
@@ -997,9 +906,7 @@ export function CafePosPage() {
         onConfirm={() => {
           setCart([])
           setConfirmClearCart(false)
-          lastLineRef.current = null
-          setDiscountInput('')
-          setShowDiscount(false)
+          lastVariantRef.current = null
         }}
         title="تفريغ السلة"
         message="سيتم حذف كل الأصناف من السلة. هل تريد المتابعة؟"
@@ -1013,16 +920,6 @@ export function CafePosPage() {
           <h1 className="text-base font-bold text-fg">{t.pos.title}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {lastKitchenTicket && (
-            <button
-              onClick={() => setShowKitchenTicket(true)}
-              title={`إعادة طباعة تذكرة المطبخ #${lastKitchenTicket.ticketNo}`}
-              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
-            >
-              <ChefHat className="h-4 w-4 text-brand-strong" />
-              <span className="tabular-nums" dir="ltr">#{lastKitchenTicket.ticketNo}</span>
-            </button>
-          )}
           {aiCashierAvailable && (
             <button
               onClick={() => setAiCashierActive((v) => !v)}
@@ -1051,7 +948,7 @@ export function CafePosPage() {
         </div>
       </div>
 
-      <ShiftGate onOpenShift={() => setShowOpenShift(true)} onCloseShift={() => setShowCloseShift(true)}>
+      <ShiftGate onOpenShift={() => setShowOpenShift(true)}>
         <div className="flex flex-1 overflow-hidden">
           {/* ── Cart sidebar (appears RIGHT in RTL) ── */}
           <aside className="flex w-72 flex-shrink-0 flex-col border-l border-border bg-surface">
@@ -1120,7 +1017,7 @@ export function CafePosPage() {
               ) : (
                 cart.map((item) => (
                   <div
-                    key={item.lineKey}
+                    key={item.variantId}
                     className="rounded-xl border border-border bg-surface-2 p-3"
                   >
                     <div className="flex items-start gap-2">
@@ -1137,20 +1034,20 @@ export function CafePosPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => updateQty(item.lineKey, -1)}
+                          onClick={() => updateQty(item.variantId, -1)}
                           className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className="w-5 text-center text-sm font-bold tabular-nums">{item.quantity}</span>
                         <button
-                          onClick={() => updateQty(item.lineKey, 1)}
+                          onClick={() => updateQty(item.variantId, 1)}
                           className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                         <button
-                          onClick={() => removeItem(item.lineKey)}
+                          onClick={() => removeItem(item.variantId)}
                           className="flex h-6 w-6 items-center justify-center rounded-lg text-danger hover:bg-danger/10 dark:hover:bg-danger/15"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -1159,21 +1056,20 @@ export function CafePosPage() {
                     </div>
 
                     {/* Per-item notes */}
-                    {editingNoteId === item.lineKey ? (
+                    {editingNoteId === item.variantId ? (
                       <input
                         type="text"
                         value={item.notes}
-                        maxLength={200}
-                        onChange={(e) => updateNote(item.lineKey, e.target.value)}
-                        onBlur={finishNote}
-                        onKeyDown={(e) => e.key === 'Enter' && finishNote()}
+                        onChange={(e) => updateNote(item.variantId, e.target.value)}
+                        onBlur={() => setEditingNoteId(null)}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingNoteId(null)}
                         autoFocus
                         placeholder="ملاحظة للمطبخ..."
                         className="mt-1.5 w-full rounded-lg border border-brand/40 bg-brand-soft px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-brand/40"
                       />
                     ) : (
                       <button
-                        onClick={() => setEditingNoteId(item.lineKey)}
+                        onClick={() => setEditingNoteId(item.variantId)}
                         className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-brand-ink transition-colors"
                       >
                         <MessageSquare className="h-3 w-3" />
@@ -1196,95 +1092,10 @@ export function CafePosPage() {
                   redeemPoints={appliedPoints}
                   onRedeemPointsChange={setRedeemPoints}
                   maxRedeemable={maxRedeemable}
-                  payable={afterDiscount}
+                  payable={grandTotal}
                   rules={loyaltyRules}
                 />
-                {showDiscount || discountInput ? (
-                  <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="flex overflow-hidden rounded-lg border border-border bg-surface">
-                        {(['Percentage', 'Fixed'] as DiscountMode[]).map((m) => (
-                          <button
-                            key={m}
-                            onClick={() => setDiscountMode(m)}
-                            className={cn(
-                              'px-2.5 py-1 text-xs font-semibold transition-colors',
-                              discountMode === m ? 'bg-brand text-brand-fg' : 'text-muted hover:bg-surface-2',
-                            )}
-                          >
-                            {m === 'Percentage' ? '٪' : 'ر.س'}
-                          </button>
-                        ))}
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        step={discountMode === 'Percentage' ? '1' : '0.5'}
-                        max={discountMode === 'Percentage' ? 100 : undefined}
-                        inputMode="decimal"
-                        autoFocus={!discountInput}
-                        placeholder={discountMode === 'Percentage' ? 'نسبة الخصم' : 'مبلغ الخصم'}
-                        value={discountInput}
-                        onChange={(e) => setDiscountInput(e.target.value)}
-                        aria-label="قيمة الخصم"
-                        className="w-full min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm tabular-nums text-fg outline-none focus:border-brand"
-                      />
-                      <button
-                        onClick={() => { setDiscountInput(''); setShowDiscount(false) }}
-                        title="إلغاء الخصم"
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-fg"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    {needsPin ? (
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-medium text-warning">
-                          الخصم أكبر من حد الكاشير ({discountCap}٪) — رمز المدير
-                        </span>
-                        <input
-                          type="password"
-                          inputMode="numeric"
-                          autoComplete="off"
-                          maxLength={8}
-                          value={approvalPin}
-                          onChange={(e) => setApprovalPin(e.target.value.replace(/\D/g, ''))}
-                          placeholder="••••"
-                          aria-label="رمز موافقة المدير"
-                          className="input-3d w-full py-1.5 text-sm tabular-nums"
-                        />
-                      </label>
-                    ) : discountOverCap ? (
-                      <p className="text-[11px] font-medium text-danger">
-                        أقصى خصم للكاشير {discountCap}٪ — الأعلى يحتاج المدير
-                      </p>
-                    ) : !isManager ? (
-                      <p className="text-[11px] text-muted">حتى {discountCap}٪ من الفاتورة</p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowDiscount(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-brand-ink"
-                  >
-                    <Percent className="h-3 w-3" />
-                    إضافة خصم
-                  </button>
-                )}
-                {/* Discounts come off the listed prices first; net and VAT below are of what is left, as on the receipt. */}
                 <div className="space-y-1 text-sm">
-                  {discountGross > 0 && (
-                    <div className="flex justify-between text-success">
-                      <span>الخصم{discountMode === 'Percentage' ? ` ${Math.min(discountRaw, 100).toLocaleString('ar-SA')}٪` : ''}</span>
-                      <span className="tabular-nums">−{formatCurrency(discountGross)}</span>
-                    </div>
-                  )}
-                  {appliedPoints > 0 && (
-                    <div className="flex justify-between text-success">
-                      <span>خصم النقاط</span>
-                      <span className="tabular-nums">−{formatCurrency(loyaltyDiscount)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between text-muted">
                     <span>{t.pos.subtotal}</span>
                     <span className="tabular-nums">{formatCurrency(subtotal)}</span>
@@ -1293,6 +1104,12 @@ export function CafePosPage() {
                     <span>{t.pos.tax}</span>
                     <span className="tabular-nums">{formatCurrency(tax)}</span>
                   </div>
+                  {appliedPoints > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>خصم النقاط</span>
+                      <span className="tabular-nums">−{formatCurrency(loyaltyDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-base font-bold text-fg">
                     <span>{t.pos.total}</span>
                     <span className="tabular-nums">{formatCurrency(grandTotal)}</span>
@@ -1375,7 +1192,7 @@ export function CafePosPage() {
                 )}
 
                 <button
-                  onClick={() => checkout.mutate({ mode: payMode })}
+                  onClick={() => checkout.mutate()}
                   disabled={checkout.isPending || !canCheckout}
                   className="bg-brand w-full rounded-xl py-3 text-sm font-bold text-brand-fg transition-all disabled:opacity-50"
                 >
@@ -1540,7 +1357,6 @@ export function CafePosPage() {
                               stationId: station.id,
                               stationName: station.name,
                               stationTypeKey: station.type,
-                              stationRate: station.hourlyRate,
                               hourlyRate: station.hourlyRate,
                               playerName: '',
                               durationMinutes: 60,
@@ -1669,14 +1485,17 @@ export function CafePosPage() {
 
       {/* ── Table Picker Modal ── */}
       {showTablePicker && (
-        <OverlayDialog
-          onClose={() => setShowTablePicker(false)}
-          labelledBy="cafe-table-picker-title"
-          backdropClassName="bg-black/50"
-          panelClassName="w-72 rounded-2xl bg-surface shadow-2xl"
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowTablePicker(false)}
+          dir="rtl"
         >
+          <div
+            className="w-72 rounded-2xl bg-surface shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h3 id="cafe-table-picker-title" className="font-bold text-fg">اختر طاولة</h3>
+              <h3 className="font-bold text-fg">اختر طاولة</h3>
               <button onClick={() => setShowTablePicker(false)} className="text-muted hover:text-fg">
                 <X className="h-4 w-4" />
               </button>
@@ -1688,7 +1507,8 @@ export function CafePosPage() {
                 setShowTablePicker(false)
               }}
             />
-        </OverlayDialog>
+          </div>
+        </div>
       )}
 
       {/* ── Shift Modals ── */}
@@ -1699,30 +1519,22 @@ export function CafePosPage() {
 
       {/* ── Customer Receipt (shown after checkout) ── */}
       {customerReceipt && (
-        <CustomerReceiptModal
-          receipt={customerReceipt}
-          onClose={() => setCustomerReceipt(null)}
-          onKitchenTicket={lastKitchenTicket ? () => { setCustomerReceipt(null); setShowKitchenTicket(true) } : undefined}
-        />
+        <CustomerReceiptModal receipt={customerReceipt} onClose={() => setCustomerReceipt(null)} />
       )}
 
-      {/* ── Kitchen Ticket: a paper copy of the last sale's ticket for kitchens without a screen ── */}
-      {showKitchenTicket && lastKitchenTicket && !customerReceipt && (
-        <KitchenTicketModal ticket={lastKitchenTicket} onClose={() => setShowKitchenTicket(false)} />
+      {/* ── Kitchen Ticket (for kitchen display only) ── */}
+      {kitchenTicket && !customerReceipt && (
+        <KitchenTicketModal ticket={kitchenTicket} onClose={() => setKitchenTicket(null)} />
       )}
 
       {/* ── Start Gaming Session Modal ── */}
       {startSessionForm && (
-        <OverlayDialog
-          onClose={() => setStartSessionForm(null)}
-          labelledBy="cafe-start-session-title"
-          closeOnBackdrop={false}
-          panelClassName="w-80 rounded-2xl bg-surface shadow-2xl"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
+          <div className="w-80 rounded-2xl bg-surface shadow-2xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{STATION_ICON[startSessionForm.stationTypeKey] ?? '🎮'}</span>
-                <h3 id="cafe-start-session-title" className="font-bold text-fg">{startSessionForm.stationName}</h3>
+                <h3 className="font-bold text-fg">{startSessionForm.stationName}</h3>
               </div>
               <button onClick={() => setStartSessionForm(null)} className="text-muted hover:text-fg">
                 <X className="h-4 w-4" />
@@ -1784,7 +1596,6 @@ export function CafePosPage() {
                 <label className="mb-1.5 block text-sm font-semibold text-fg">
                   {startSessionForm.packageId ? 'سعر الساعة للوقت الإضافي (ر.س)' : 'السعر / ساعة (ر.س)'}
                 </label>
-                {canManage ? (
                 <input
                   type="number"
                   min="0"
@@ -1793,11 +1604,6 @@ export function CafePosPage() {
                   onChange={(e) => setStartSessionForm(f => f && { ...f, hourlyRate: parseFloat(e.target.value) || 0 })}
                   className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm tabular-nums outline-none focus:border-brand text-fg"
                 />
-                ) : (
-                <div className="w-full rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold tabular-nums text-fg">
-                  {formatCurrency(startSessionForm.stationRate)}
-                </div>
-                )}
               </div>
               <div className="rounded-xl bg-brand-soft py-3 text-center">
                 <p className="text-xs text-muted">الإجمالي المتوقع</p>
@@ -1828,17 +1634,14 @@ export function CafePosPage() {
                 إلغاء
               </button>
             </div>
-        </OverlayDialog>
+          </div>
+        </div>
       )}
 
       {/* ── Gaming Bill Modal ── */}
       {gamingBill && (
-        <OverlayDialog
-          onClose={closeGamingBill}
-          label="فاتورة جلسة ألعاب"
-          closeOnBackdrop={false}
-          panelClassName="w-80 rounded-2xl bg-surface shadow-2xl"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
+          <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
             <div id="gaming-bill-print" className="p-5">
               <div className="mb-4 border-b border-dashed border-border pb-4 text-center">
                 <div className="mb-1 text-3xl">{STATION_ICON[gamingBill.stationType] ?? '🎮'}</div>
@@ -1900,14 +1703,18 @@ export function CafePosPage() {
                   طباعة
                 </button>
                 <button
-                  onClick={closeGamingBill}
+                  onClick={() => {
+                    if (!gamingBill.paidAt) toast.warning('الجلسة غير مدفوعة', 'ستظهر كغير محصّلة في الإقفال اليومي')
+                    setGamingBill(null)
+                  }}
                   className="flex flex-1 items-center justify-center rounded-xl py-2 text-sm text-muted hover:bg-surface-2 hover:text-fg transition-colors"
                 >
                   {gamingBill.paidAt ? 'إغلاق' : 'لاحقاً'}
                 </button>
               </div>
             </div>
-        </OverlayDialog>
+          </div>
+        </div>
       )}
 
       {/* ── AI Cashier Agent overlay ── */}
@@ -1915,10 +1722,7 @@ export function CafePosPage() {
         <AiCashierAgent
           branchId={branchId}
           allProducts={allProducts}
-          getCart={getAiCartSnapshot}
           onAddVariant={addVariantById}
-          onSetQuantity={setVariantQtyById}
-          onRemoveVariant={removeVariantById}
           onCompleteOrder={handleAiCompleteOrder}
           onDeactivate={() => setAiCashierActive(false)}
         />

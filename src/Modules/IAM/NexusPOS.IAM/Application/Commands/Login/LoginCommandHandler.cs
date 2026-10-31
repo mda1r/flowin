@@ -54,17 +54,12 @@ internal sealed class LoginCommandHandler(
             return IamErrors.InvalidCredentials;
         }
 
-        TenantContext? tenantCtx = await tenantContextResolver.ResolveAsync(user.TenantId, user.Email.Value, cancellationToken);
-        if (TenantAccessPolicy.IsBlocked(tenantCtx, user.Roles))
-        {
-            return IamErrors.TenantSuspended;
-        }
-
         int refreshExpiryDays = configuration.GetValue("Jwt:RefreshTokenExpiryDays", 7);
         RefreshToken refreshToken = user.CreateRefreshToken(refreshExpiryDays, request.DeviceInfo);
         dbContext.RefreshTokens.Add(refreshToken);  // explicitly mark as Added before DetectChanges runs
         user.RecordSuccessfulLogin();
 
+        TenantContext? tenantCtx = await tenantContextResolver.ResolveAsync(user.TenantId, user.Email.Value, cancellationToken);
         Guid? tenantId = tenantCtx?.TenantId ?? configuration.GetValue<Guid?>("Demo:TenantId");
         Guid? branchId = tenantCtx?.BranchId ?? configuration.GetValue<Guid?>("Demo:BranchId");
         string? businessType = tenantCtx?.BusinessType ?? configuration.GetValue<string?>("Demo:BusinessType");

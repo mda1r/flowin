@@ -10,7 +10,6 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
 import { formatCurrency } from '@/lib/utils'
 import type { LoyaltySettings } from '@/types/api'
-import { intlLocale } from '@/lib/locale'
 
 type Draft = Record<Exclude<keyof LoyaltySettings, 'enabled'>, string> & { enabled: boolean }
 
@@ -132,17 +131,17 @@ export function LoyaltySettingsModal({ open, onClose }: { open: boolean; onClose
             <p className="mb-1 text-xs font-semibold text-brand-ink">مثال</p>
             <p>
               عميل دفع {formatCurrency(100)} يكسب{' '}
-              <span className="font-semibold tabular-nums">{pointsEarned(100, rules).toLocaleString(intlLocale())}</span> نقطة.
+              <span className="font-semibold tabular-nums">{pointsEarned(100, rules).toLocaleString('ar-SA')}</span> نقطة.
             </p>
             <p>
-              {rules.redeemPoints.toLocaleString(intlLocale())} نقطة تخصم{' '}
+              {rules.redeemPoints.toLocaleString('ar-SA')} نقطة تخصم{' '}
               <span className="font-semibold tabular-nums">{formatCurrency(pointsValue(rules.redeemPoints, rules))}</span> من الفاتورة
               {rules.minRedeemPoints > 0
-                ? `، ويبدأ الاستبدال بعد ${rules.minRedeemPoints.toLocaleString(intlLocale())} نقطة.`
+                ? `، ويبدأ الاستبدال بعد ${rules.minRedeemPoints.toLocaleString('ar-SA')} نقطة.`
                 : '، ويقدر يستبدل أي رصيد.'}
             </p>
             <p className="mt-1 text-xs text-muted">
-              يعني العميل يسترجع تقريباً {((pointsValue(pointsEarned(100, rules), rules) / 100) * 100).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}% من مشترياته.
+              يعني العميل يسترجع تقريباً {((pointsValue(pointsEarned(100, rules), rules) / 100) * 100).toLocaleString('ar-SA', { maximumFractionDigits: 1 })}% من مشترياته.
             </p>
           </div>
         ) : null}

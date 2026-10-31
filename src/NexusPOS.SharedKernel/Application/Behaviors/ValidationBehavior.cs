@@ -31,11 +31,9 @@ public sealed class ValidationBehavior<TRequest, TResponse>
         var validationResults = await Task.WhenAll(
             _validators.Select(v => v.ValidateAsync(context, cancellationToken)));
 
-        // Two validators can flag the same field with the same text; send it once.
         var failures = validationResults
             .SelectMany(r => r.Errors)
             .Where(f => f is not null)
-            .DistinctBy(f => (f.PropertyName, f.ErrorMessage))
             .ToList();
 
         if (failures.Count == 0)

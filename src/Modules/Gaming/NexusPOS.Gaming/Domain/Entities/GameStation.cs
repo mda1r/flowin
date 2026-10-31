@@ -78,52 +78,11 @@ public sealed class GameStation : AggregateRoot<GameStationId>
         return Result.Success;
     }
 
-    // A running session must be ended (and billed) first, otherwise it would be stranded on a station nobody can use.
     public ErrorOr<Success> SetMaintenance()
     {
-        if (Status == StationStatus.InUse)
-        {
-            return GamingErrors.StationInUse;
-        }
-
         Status = StationStatus.Maintenance;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
-    }
-
-    // Back in service after maintenance. A session left active from before the fix puts the station back
-    // to InUse, so it can be ended and billed instead of being hidden behind a free station.
-    public ErrorOr<Success> ReturnToService(bool hasActiveSession = false)
-    {
-        if (Status != StationStatus.Maintenance)
-        {
-            return GamingErrors.StationNotInMaintenance;
-        }
-
-        Status = hasActiveSession ? StationStatus.InUse : StationStatus.Available;
-        UpdatedAt = DateTime.UtcNow;
-        return Result.Success;
-    }
-
-    // The station's own rate unless an owner or manager set another one for this session.
-    public ErrorOr<decimal> ResolveSessionRate(decimal? requestedRate, bool canOverrideRate)
-    {
-        if (requestedRate is not decimal rate || rate == HourlyRate)
-        {
-            return HourlyRate;
-        }
-
-        if (!canOverrideRate)
-        {
-            return GamingErrors.RateOverrideNotAllowed;
-        }
-
-        if (rate <= 0)
-        {
-            return GamingErrors.InvalidHourlyRate;
-        }
-
-        return rate;
     }
 
     public void Deactivate()

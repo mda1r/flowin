@@ -15,21 +15,12 @@ internal sealed class CreateStockMaterialCommandHandler(InventoryDbContext db)
         CancellationToken cancellationToken)
     {
         string upperCode = request.Code.Trim().ToUpperInvariant();
-        bool? existingIsActive = await db.StockMaterials
-            .Where(m => m.TenantId == request.TenantId && m.Code == upperCode)
-            .Select(m => (bool?)m.IsActive)
-            .FirstOrDefaultAsync(cancellationToken);
+        bool codeExists = await db.StockMaterials
+            .AnyAsync(m => m.TenantId == request.TenantId && m.Code == upperCode, cancellationToken);
 
-        if (existingIsActive == false)
+        if (codeExists)
         {
-            return Error.Conflict(
-                "Inventory.MaterialCodeArchived",
-                "هذا الكود لمادة مؤرشفة. استرجعها من الأرشيف بدلاً من إضافتها من جديد.");
-        }
-
-        if (existingIsActive == true)
-        {
-            return Error.Conflict("Inventory.MaterialCodeExists", "يوجد مادة أخرى بنفس الكود");
+            return Error.Conflict("Inventory.MaterialCodeExists", "A stock material with this code already exists.");
         }
 
         StockMaterial material = StockMaterial.Create(

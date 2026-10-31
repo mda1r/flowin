@@ -11,26 +11,15 @@ namespace NexusPOS.POS.Application.Queries.GetActivityLogs;
 internal sealed class GetActivityLogsQueryHandler(PosDbContext dbContext)
     : IQueryHandler<GetActivityLogsQuery, IReadOnlyList<ActivityLogResponse>>
 {
-    internal const int MaxPageSize = 500;
-    internal const int DefaultPageSize = 200;
-
     public async Task<ErrorOr<IReadOnlyList<ActivityLogResponse>>> Handle(
         GetActivityLogsQuery request,
         CancellationToken cancellationToken)
     {
-        List<ActivityLog> logs = await Apply(dbContext.ActivityLogs.AsNoTracking(), request)
-            .ToListAsync(cancellationToken);
+        IQueryable<ActivityLog> query = dbContext.ActivityLogs.AsNoTracking();
 
-        return logs.Select(LogActivityCommandHandler.ToResponse).ToList();
-    }
-
-    /// <summary>Filters, orders (newest first) and pages the log rows.</summary>
-    internal static IQueryable<ActivityLog> Apply(IQueryable<ActivityLog> query, GetActivityLogsQuery request)
-    {
         if (request.BranchId.HasValue)
         {
-            // Tenant-wide entries (user management, settings) carry no branch; show them in every branch.
-            query = query.Where(l => l.BranchId == request.BranchId || l.BranchId == null);
+            query = query.Where(l => l.BranchId == request.BranchId);
         }
 
         if (!string.IsNullOrEmpty(request.Category))
@@ -48,13 +37,11 @@ internal sealed class GetActivityLogsQueryHandler(PosDbContext dbContext)
             query = query.Where(l => l.OccurredAt <= request.To.Value);
         }
 
-        int pageSize = request.PageSize > 0 ? Math.Min(request.PageSize, MaxPageSize) : DefaultPageSize;
-
-        // Id breaks timestamp ties (entries written in one transaction) so offset pages never overlap.
-        return query
+        List<ActivityLog> logs = await query
             .OrderByDescending(l => l.OccurredAt)
-            .ThenByDescending(l => l.Id)
-            .Skip(Math.Max(request.Skip, 0))
-            .Take(pageSize);
+            .Take(request.PageSize > 0 ? request.PageSize : 200)
+            .ToListAsync(cancellationToken);
+
+        return logs.Select(LogActivityCommandHandler.ToResponse).ToList();
     }
 }

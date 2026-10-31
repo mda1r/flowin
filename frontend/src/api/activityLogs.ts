@@ -16,6 +16,5 @@ export const activityLogsApi = {
     from?: string
     to?: string
     pageSize?: number
-    skip?: number
   }) => apiClient.get<ActivityLogResponse[]>('/api/v1/activity-logs', { params }),
 }

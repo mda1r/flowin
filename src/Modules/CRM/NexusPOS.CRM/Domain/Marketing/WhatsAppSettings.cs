@@ -14,12 +14,6 @@ public sealed class WhatsAppSettings
     public string LanguageCode { get; private set; } = "ar";
     public bool HasImageHeader { get; private set; }
     public bool IncludeNameVariable { get; private set; }
-
-    // Optional (WABA ID, shown next to the phone number ID in Meta): lets the connection check read the template.
-    public string BusinessAccountId { get; private set; } = string.Empty;
-
-    // The template's body as Meta returned it on the last successful check, for the campaign preview.
-    public string? TemplateBody { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
     private WhatsAppSettings() { }
@@ -28,13 +22,8 @@ public sealed class WhatsAppSettings
 
     public void Update(
         string phoneNumberId, string? accessToken, string templateName, string languageCode,
-        bool hasImageHeader, bool includeNameVariable, string? businessAccountId = null)
+        bool hasImageHeader, bool includeNameVariable)
     {
-        if (TemplateName != templateName.Trim() || LanguageCode != languageCode.Trim())
-        {
-            TemplateBody = null;
-        }
-
         PhoneNumberId = phoneNumberId.Trim();
         if (!string.IsNullOrWhiteSpace(accessToken))
         {
@@ -45,11 +34,8 @@ public sealed class WhatsAppSettings
         LanguageCode = languageCode.Trim();
         HasImageHeader = hasImageHeader;
         IncludeNameVariable = includeNameVariable;
-        BusinessAccountId = businessAccountId?.Trim() ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
     }
-
-    public void RememberTemplateBody(string? body) => TemplateBody = body is { Length: > 1100 } ? body[..1100] : body;
 
     public bool IsConfigured =>
         PhoneNumberId.Length > 0 && AccessToken.Length > 0 && TemplateName.Length > 0 && LanguageCode.Length > 0;

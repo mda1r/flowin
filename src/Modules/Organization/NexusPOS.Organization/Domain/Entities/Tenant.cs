@@ -14,7 +14,6 @@ public sealed class Tenant : AggregateRoot<TenantId>
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? SuspendedAt { get; private set; }
-    public string? SuspensionReason { get; private set; }
     public string? LogoUrl { get; private set; }
     public string? PhoneNumber { get; private set; }
     public Address? Address { get; private set; }
@@ -73,11 +72,10 @@ public sealed class Tenant : AggregateRoot<TenantId>
         Plan = newPlan;
     }
 
-    public void Suspend(string? reason = null)
+    public void Suspend()
     {
         IsActive = false;
         SuspendedAt = DateTime.UtcNow;
-        SuspensionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         RaiseDomainEvent(new TenantSuspendedDomainEvent(Id.Value, Name));
     }
 
@@ -85,7 +83,6 @@ public sealed class Tenant : AggregateRoot<TenantId>
     {
         IsActive = true;
         SuspendedAt = null;
-        SuspensionReason = null;
     }
 
     public static Tenant CreateWithId(

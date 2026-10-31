@@ -78,23 +78,14 @@ public sealed class RentalContract : AggregateRoot<RentalContractId>
         return contract;
     }
 
-    /// <summary>Signed and cancelled contracts are final and can no longer be edited.</summary>
-    public bool IsLocked => Status is ContractStatus.Executed or ContractStatus.Cancelled;
-
-    public ErrorOr<Success> UpdateClauses(IEnumerable<ContractClause> clauses)
+    public void UpdateClauses(IEnumerable<ContractClause> clauses)
     {
-        if (IsLocked)
-        {
-            return HotelErrors.ContractLocked;
-        }
-
         _clauses.Clear();
         _clauses.AddRange(clauses.OrderBy(c => c.Order));
         UpdatedAt = DateTime.UtcNow;
-        return Result.Success;
     }
 
-    public ErrorOr<Success> UpdateDetails(
+    public void UpdateDetails(
         string tenantName,
         string tenantNationalId,
         string tenantPhone,
@@ -105,11 +96,6 @@ public sealed class RentalContract : AggregateRoot<RentalContractId>
         string landlordName,
         string? notes)
     {
-        if (IsLocked)
-        {
-            return HotelErrors.ContractLocked;
-        }
-
         TenantName = tenantName.Trim();
         TenantNationalId = tenantNationalId.Trim();
         TenantPhone = tenantPhone.Trim();
@@ -120,7 +106,6 @@ public sealed class RentalContract : AggregateRoot<RentalContractId>
         LandlordName = landlordName.Trim();
         Notes = notes?.Trim();
         UpdatedAt = DateTime.UtcNow;
-        return Result.Success;
     }
 
     public ErrorOr<Success> Activate()
@@ -130,32 +115,16 @@ public sealed class RentalContract : AggregateRoot<RentalContractId>
             return HotelErrors.ContractCancelled;
         }
 
-        if (Status == ContractStatus.Executed)
-        {
-            return HotelErrors.ContractAlreadyExecuted;
-        }
-
-        if (Status == ContractStatus.Active)
-        {
-            return HotelErrors.ContractAlreadyActive;
-        }
-
         Status = ContractStatus.Active;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
     }
 
-    // A draft can be signed directly; activation is optional.
     public ErrorOr<Success> Sign()
     {
         if (Status == ContractStatus.Cancelled)
         {
             return HotelErrors.ContractCancelled;
-        }
-
-        if (Status == ContractStatus.Executed)
-        {
-            return HotelErrors.ContractAlreadyExecuted;
         }
 
         Status = ContractStatus.Executed;
@@ -169,11 +138,6 @@ public sealed class RentalContract : AggregateRoot<RentalContractId>
         if (Status == ContractStatus.Executed)
         {
             return HotelErrors.ContractAlreadySigned;
-        }
-
-        if (Status == ContractStatus.Cancelled)
-        {
-            return HotelErrors.ContractCancelled;
         }
 
         Status = ContractStatus.Cancelled;

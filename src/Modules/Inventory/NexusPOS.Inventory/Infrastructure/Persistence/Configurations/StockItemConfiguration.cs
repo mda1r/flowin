@@ -49,10 +49,6 @@ internal sealed class StockItemConfiguration : IEntityTypeConfiguration<StockIte
             .HasColumnName("notify_days_before_expiry")
             .HasDefaultValue(7);
 
-        builder.Property(s => s.IsArchived)
-            .HasColumnName("is_archived")
-            .HasDefaultValue(false);
-
         builder.Property(s => s.CreatedAt)
             .HasColumnName("created_at");
 

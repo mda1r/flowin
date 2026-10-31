@@ -30,8 +30,7 @@ public sealed record GameSessionBillResponse(
     DateTime? PaidAt = null,
     string? PackageName = null,
     decimal? PackagePrice = null,
-    decimal OvertimeMinutes = 0m,
-    long? InvoiceNumber = null);
+    decimal OvertimeMinutes = 0m);
 
 public sealed record GamingPackageResponse(
     Guid Id, string Name, int DurationMinutes, decimal Price, string? StationType);

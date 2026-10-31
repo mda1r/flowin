@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Inventory.Domain.Entities;
-using NexusPOS.Inventory.Domain.Enums;
 using NexusPOS.Inventory.Domain.Repositories;
 using NexusPOS.Inventory.Domain.ValueObjects;
 
@@ -21,10 +20,6 @@ internal sealed class StockCountRepository(InventoryDbContext dbContext) : IStoc
             .Where(s => s.BranchId == branchId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
-
-    public Task<bool> HasOpenSessionAsync(Guid branchId, CancellationToken cancellationToken = default) =>
-        dbContext.StockCountSessions
-            .AnyAsync(s => s.BranchId == branchId && s.Status == StockCountStatus.InProgress, cancellationToken);
 
     public void Add(StockCountSession session) => dbContext.StockCountSessions.Add(session);
 

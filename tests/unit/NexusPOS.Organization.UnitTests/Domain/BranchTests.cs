@@ -110,27 +110,4 @@ public sealed class BranchTests
 
         branch.CreatedAt.Kind.Should().Be(DateTimeKind.Utc);
     }
-
-    [Fact]
-    public void Update_BlankContacts_StoredAsNull()
-    {
-        Branch branch = Branch.Create(_someTenantId, "Store", BranchType.Retail);
-
-        branch.Update("Store", BranchType.Retail, null, "  ", "");
-
-        branch.PhoneNumber.Should().BeNull();
-        branch.Email.Should().BeNull();
-    }
-
-    [Fact]
-    public void MarkAsMain_ThenUnmark_TogglesFlag()
-    {
-        Branch branch = Branch.Create(_someTenantId, "Store", BranchType.Retail);
-
-        branch.MarkAsMain();
-        branch.IsMainBranch.Should().BeTrue();
-
-        branch.UnmarkAsMain();
-        branch.IsMainBranch.Should().BeFalse();
-    }
 }

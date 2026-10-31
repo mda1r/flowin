@@ -10,7 +10,4 @@
     <PackageReference Include="Dapper" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
   </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="NexusPOS.Hotel.UnitTests" />
-  </ItemGroup>
 </Project>

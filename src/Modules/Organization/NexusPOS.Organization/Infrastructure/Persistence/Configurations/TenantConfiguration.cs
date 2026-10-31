@@ -54,10 +54,6 @@ internal sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.SuspendedAt)
             .HasColumnName("suspended_at");
 
-        builder.Property(t => t.SuspensionReason)
-            .HasColumnName("suspension_reason")
-            .HasMaxLength(512);
-
         builder.Property(t => t.Currency)
             .HasColumnName("currency")
             .HasMaxLength(3)

@@ -36,6 +36,6 @@ internal sealed class TenantContextResolver(OrganizationDbContext db) : ITenantC
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.TenantId == tenant.Id && b.IsMainBranch, ct);
 
-        return new TenantContext(tenant.Id.Value, branch?.Id.Value, tenant.BusinessType.ToString(), tenant.IsActive);
+        return new TenantContext(tenant.Id.Value, branch?.Id.Value, tenant.BusinessType.ToString());
     }
 }

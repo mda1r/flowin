@@ -13,5 +13,4 @@ public sealed record PurchaseOrderResponse(
     string? Notes,
     DateTime CreatedAt,
     DateTime? ReceivedAt,
-    IReadOnlyList<PurchaseOrderLineResponse> Lines,
-    string? SupplierName = null);
+    IReadOnlyList<PurchaseOrderLineResponse> Lines);

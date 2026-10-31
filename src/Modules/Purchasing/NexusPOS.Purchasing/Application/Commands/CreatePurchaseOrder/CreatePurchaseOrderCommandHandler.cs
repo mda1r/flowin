@@ -19,17 +19,12 @@ internal sealed class CreatePurchaseOrderCommandHandler(
         CreatePurchaseOrderCommand request,
         CancellationToken cancellationToken)
     {
-        Supplier? supplier = await supplierRepository.FindByIdAsync(
-            new SupplierId(request.SupplierId), cancellationToken);
+        bool supplierExists = (await supplierRepository.FindByIdAsync(
+            new SupplierId(request.SupplierId), cancellationToken)) is not null;
 
-        if (supplier is null || supplier.TenantId != request.TenantId)
+        if (!supplierExists)
         {
             return PurchasingErrors.SupplierNotFound;
-        }
-
-        if (!supplier.IsActive)
-        {
-            return PurchasingErrors.SupplierInactive;
         }
 
         PurchaseOrder order = PurchaseOrder.Create(
@@ -42,6 +37,6 @@ internal sealed class CreatePurchaseOrderCommandHandler(
         purchaseOrderRepository.Add(order);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return PurchasingMapper.ToResponse(order, supplier.Name);
+        return PurchasingMapper.ToResponse(order);
     }
 }

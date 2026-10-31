@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NexusPOS.POS.Domain.Repositories;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.POS.Infrastructure.Persistence.Repositories;
-using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.POS;
@@ -25,7 +24,6 @@ public static class PosServiceExtensions
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<PosDbContext>());
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IOrderNumberSequence, OrderNumberSequence>();
-        services.AddScoped<IExternalSaleInvoices, ExternalSaleInvoices>();
         services.AddScoped<IReturnOrderRepository, ReturnOrderRepository>();
         services.AddScoped<IShiftRepository, ShiftRepository>();
 

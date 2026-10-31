@@ -5,13 +5,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Purchasing.Application.Commands.CreateSupplier;
 using NexusPOS.Purchasing.Application.Commands.DeactivateSupplier;
-using NexusPOS.Purchasing.Application.Commands.ReactivateSupplier;
 using NexusPOS.Purchasing.Application.Commands.UpdateSupplier;
 using NexusPOS.Purchasing.Application.Common;
 using NexusPOS.Purchasing.Application.Queries.GetSupplier;
 using NexusPOS.Purchasing.Application.Queries.ListSuppliers;
-using NexusPOS.SharedKernel.Application;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Purchasing.Presentation;
 
@@ -27,10 +24,9 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
         Guid tenantId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
-        ListSuppliersQuery query = new(tenantId, Paging.Page(page), Paging.Size(pageSize), includeInactive);
+        ListSuppliersQuery query = new(tenantId, page, pageSize);
         ErrorOr<IReadOnlyList<SupplierResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -46,7 +42,6 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(SupplierResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -63,7 +58,6 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
     }
 
     [HttpPut("{supplierId:guid}")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(SupplierResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -79,7 +73,6 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("{supplierId:guid}")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(SupplierResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateSupplier(Guid tenantId, Guid supplierId, CancellationToken cancellationToken)
@@ -89,18 +82,18 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    [HttpPost("{supplierId:guid}/reactivate")]
-    [Authorize(Policy = "OwnerOrManager")]
-    [ProducesResponseType(typeof(SupplierResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ReactivateSupplier(Guid tenantId, Guid supplierId, CancellationToken cancellationToken)
+    private IActionResult MapErrorsToResult(List<Error> errors)
     {
-        ReactivateSupplierCommand command = new(supplierId, tenantId);
-        ErrorOr<SupplierResponse> result = await mediator.Send(command, cancellationToken);
-        return result.Match(Ok, MapErrorsToResult);
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
     }
-
-    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateSupplierRequest(

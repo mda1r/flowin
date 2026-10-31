@@ -5,10 +5,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="NexusPOS.Tax.UnitTests" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="../../../NexusPOS.SharedKernel/NexusPOS.SharedKernel.csproj" />
     <ProjectReference Include="../../Organization/NexusPOS.Organization/NexusPOS.Organization.csproj" />
   </ItemGroup>

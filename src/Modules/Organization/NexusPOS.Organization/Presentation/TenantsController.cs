@@ -8,7 +8,6 @@ using NexusPOS.Organization.Application.Commands.UpdateTenantProfile;
 using NexusPOS.Organization.Application.Common;
 using NexusPOS.Organization.Application.Queries.GetTenantById;
 using NexusPOS.Organization.Presentation.Requests;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Organization.Presentation;
 
@@ -18,9 +17,9 @@ namespace NexusPOS.Organization.Presentation;
 [Authorize]
 public sealed class TenantsController(ISender mediator) : ControllerBase
 {
-    /// <summary>Create a new tenant (system-level operation). Shops sign up through /api/v1/auth/register.</summary>
+    /// <summary>Create a new tenant (system-level operation).</summary>
     [HttpPost]
-    [Authorize(Policy = "SuperAdmin")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -38,37 +37,36 @@ public sealed class TenantsController(ISender mediator) : ControllerBase
         ErrorOr<TenantResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(
-            tenant => CreatedAtAction(nameof(GetTenant), new { tenantId = tenant.Id }, tenant),
+            tenant => CreatedAtAction(nameof(GetTenant), new { id = tenant.Id }, tenant),
             MapErrorsToResult);
     }
 
-    /// <summary>Get a tenant by ID. The {tenantId} route value is checked against the caller's tenant claim.</summary>
-    [HttpGet("{tenantId:guid}")]
+    /// <summary>Get a tenant by ID.</summary>
+    [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetTenant(
-        Guid tenantId,
+        Guid id,
         CancellationToken cancellationToken)
     {
-        GetTenantByIdQuery query = new(tenantId);
+        GetTenantByIdQuery query = new(id);
         ErrorOr<TenantResponse> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
     }
 
     /// <summary>Update a tenant's profile information.</summary>
-    [HttpPut("{tenantId:guid}/profile")]
-    [Authorize(Policy = "OwnerOrManager")]
+    [HttpPut("{id:guid}/profile")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> UpdateProfile(
-        Guid tenantId,
+        Guid id,
         [FromBody] UpdateTenantProfileRequest request,
         CancellationToken cancellationToken)
     {
         UpdateTenantProfileCommand command = new(
-            tenantId,
+            id,
             request.Name,
             request.Currency,
             request.TimeZone,
@@ -81,5 +79,30 @@ public sealed class TenantsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
+    private IActionResult MapErrorsToResult(List<Error> errors)
+    {
+        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
+        {
+            ValidationProblemDetails problemDetails = new();
+            foreach (Error error in errors)
+            {
+                problemDetails.Errors[error.Code] = [error.Description];
+            }
+
+            return ValidationProblem(problemDetails);
+        }
+
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+    }
 }

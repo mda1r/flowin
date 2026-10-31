@@ -24,9 +24,7 @@ public sealed record CampaignResponse(
     int Total,
     int Sent,
     int Failed,
-    IReadOnlyList<CampaignRecipientResponse>? Recipients,
-    Guid? SendingRunnerId,
-    bool BatchInProgress);
+    IReadOnlyList<CampaignRecipientResponse>? Recipients);
 
 public sealed record WhatsAppSettingsResponse(
     bool Configured,
@@ -35,15 +33,7 @@ public sealed record WhatsAppSettingsResponse(
     string TemplateName,
     string LanguageCode,
     bool HasImageHeader,
-    bool IncludeNameVariable,
-    string BusinessAccountId,
-    string? TemplateBody);
-
-public sealed record WhatsAppCheckItemResponse(string Label, string Status, string Detail);
-
-public sealed record WhatsAppCheckResponse(bool Ok, string? DisplayPhoneNumber, string? TemplateBody, IReadOnlyList<WhatsAppCheckItemResponse> Items);
-
-public sealed record WhatsAppTestResponse(string Phone, string? MessageId);
+    bool IncludeNameVariable);
 
 internal static class MarketingMapper
 {
@@ -61,12 +51,9 @@ internal static class MarketingMapper
         withRecipients
             ? [.. c.Recipients.OrderBy(r => r.Name).Select(r =>
                 new CampaignRecipientResponse(r.Id, r.CustomerId, r.Name, r.Phone, r.Status, r.Error, r.SentAt))]
-            : null,
-        c.ActiveRunner(DateTime.UtcNow),
-        c.BatchInProgress(DateTime.UtcNow));
+            : null);
 
     public static WhatsAppSettingsResponse ToResponse(WhatsAppSettings? s) => s is null
-        ? new(false, string.Empty, null, string.Empty, "ar", false, false, string.Empty, null)
-        : new(s.IsConfigured, s.PhoneNumberId, s.TokenHint, s.TemplateName, s.LanguageCode, s.HasImageHeader, s.IncludeNameVariable,
-            s.BusinessAccountId, s.TemplateBody);
+        ? new(false, string.Empty, null, string.Empty, "ar", false, false)
+        : new(s.IsConfigured, s.PhoneNumberId, s.TokenHint, s.TemplateName, s.LanguageCode, s.HasImageHeader, s.IncludeNameVariable);
 }

@@ -23,6 +23,10 @@ internal sealed class GetStockItemQueryHandler(IStockItemRepository stockItemRep
             return InventoryErrors.StockItemNotFound;
         }
 
-        return StockItemResponse.From(stockItem);
+        return new StockItemResponse(
+            stockItem.Id.Value, stockItem.VariantId, stockItem.BranchId,
+            stockItem.Quantity, stockItem.ReorderPoint, stockItem.ReorderQuantity,
+            stockItem.Quantity <= stockItem.ReorderPoint && stockItem.ReorderPoint > 0,
+            stockItem.UpdatedAt, stockItem.ExpiryDate, stockItem.NotifyDaysBeforeExpiry);
     }
 }

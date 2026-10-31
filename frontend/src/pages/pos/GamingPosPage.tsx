@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { OverlayDialog } from '@/components/ui/Modal'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Gamepad2, Timer, X, Zap } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -118,7 +117,7 @@ export function GamingPosPage() {
   void renderKey
 
   return (
-    <div className="flex h-[calc(100vh-0px)] flex-col" style={GAMING_ACCENT}>
+    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={GAMING_ACCENT}>
       <PageHeader title="نقطة البيع — الألعاب" />
 
       {/* Stats bar */}
@@ -274,18 +273,15 @@ export function GamingPosPage() {
 
       {/* Start session modal */}
       {startStation && (
-        <OverlayDialog
-          onClose={closeStart}
-          labelledBy="gaming-start-title"
-          className="scene-3d"
-          style={GAMING_ACCENT}
-          backdropClassName="bg-black/60 backdrop-blur-sm"
-          panelClassName="glass-panel animate-float-up p-6"
-          panelStyle={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
-        >
+        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={GAMING_ACCENT}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeStart} />
+          <div
+            className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6"
+            style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, transparent)' }}
+          >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 id="gaming-start-title" className="text-base font-semibold">{t.gaming.startSession}</h2>
+                <h2 className="text-base font-semibold">{t.gaming.startSession}</h2>
                 <p className="text-xs text-muted">
                   {startStation.name} — {stationTypeLabel(startStation.type)}
                 </p>
@@ -363,21 +359,19 @@ export function GamingPosPage() {
                 {t.gaming.startSession}
               </Button>
             </div>
-        </OverlayDialog>
+          </div>
+        </div>
       )}
 
       {/* Bill modal — dark glass with purple accent */}
       {bill && (
-        <OverlayDialog
-          onClose={closeBill}
-          labelledBy="gaming-bill-title"
-          className="scene-3d"
-          style={GAMING_ACCENT}
-          backdropClassName="bg-black/60 backdrop-blur-sm"
-          panelClassName="glass-panel animate-float-up p-6"
-          panelStyle={{ borderColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' }}
-        >
-            <h2 id="gaming-bill-title" className="mb-4 text-base font-semibold">{t.gaming.bill}</h2>
+        <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={GAMING_ACCENT}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeBill} />
+          <div
+            className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6"
+            style={{ borderColor: 'color-mix(in srgb, var(--accent) 45%, transparent)' }}
+          >
+            <h2 className="mb-4 text-base font-semibold">{t.gaming.bill}</h2>
 
             <div className="mb-4 space-y-2 text-sm">
               <div className="flex justify-between">
@@ -418,7 +412,8 @@ export function GamingPosPage() {
             >
               {t.common.confirm}
             </Button>
-        </OverlayDialog>
+          </div>
+        </div>
       )}
     </div>
   )

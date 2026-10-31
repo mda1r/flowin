@@ -1,8 +1,6 @@
 using ErrorOr;
-using Microsoft.EntityFrameworkCore;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.Tax.Application.Common;
-using NexusPOS.Tax.Domain;
 using NexusPOS.Tax.Domain.Entities;
 using NexusPOS.Tax.Infrastructure.Persistence;
 
@@ -15,25 +13,6 @@ internal sealed class RecordExpenseInvoiceCommandHandler(TaxConfigDbContext db)
         RecordExpenseInvoiceCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.PeriodId is Guid periodId)
-        {
-            // The period id comes from the request body, so it must belong to the caller's tenant and still be open.
-            string? status = await db.TaxPeriods
-                .Where(p => p.Id == periodId && p.TenantId == request.TenantId)
-                .Select(p => p.Status)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (status is null)
-            {
-                return TaxErrors.PeriodNotFound;
-            }
-
-            if (status == TaxPeriodStatus.Closed)
-            {
-                return TaxErrors.PeriodClosed;
-            }
-        }
-
         TaxExpenseInvoice invoice = TaxExpenseInvoice.Create(
             request.TenantId,
             request.PeriodId,
@@ -60,7 +39,7 @@ internal sealed class RecordExpenseInvoiceCommandHandler(TaxConfigDbContext db)
             request.TaxRate,
             request.InvoiceDate,
             invoice.Id,
-            LedgerReferenceType.ExpenseInvoice);
+            "TaxExpenseInvoice");
 
         db.TaxLedgerEntries.Add(ledgerEntry);
         await db.SaveChangesAsync(cancellationToken);

@@ -17,9 +17,6 @@ export function normalizePhoneForWhatsApp(input: string): string | null {
 export interface ReceiptMessage {
   storeName: string
   invoiceNo: string
-  /** Credit notes say so and name the invoice they refer to. */
-  kind?: 'invoice' | 'credit'
-  reference?: string
   date: string
   items: { name: string; quantity: number; total: number }[]
   discount?: number
@@ -37,8 +34,7 @@ const MAX_ITEMS = 25
 export function buildReceiptMessage(r: ReceiptMessage): string {
   const lines = [
     `*${r.storeName}*`,
-    r.kind === 'credit' ? `إشعار دائن رقم ${r.invoiceNo}` : `فاتورة رقم ${r.invoiceNo}`,
-    ...(r.reference ? [`مرجع الفاتورة ${r.reference}`] : []),
+    `فاتورة رقم ${r.invoiceNo}`,
     r.date,
     '',
     ...r.items.slice(0, MAX_ITEMS).map((i) => `• ${i.name} × ${i.quantity}: ${sar(i.total)}`),
@@ -46,7 +42,7 @@ export function buildReceiptMessage(r: ReceiptMessage): string {
     '',
   ]
   if (r.discount) lines.push(`الخصم: −${sar(r.discount)}`)
-  lines.push(`${r.vatIncluded ? 'منها ضريبة القيمة المضافة' : 'ضريبة القيمة المضافة'}: ${sar(r.vat)}`, r.kind === 'credit' ? `*المبلغ المسترد: ${sar(r.total)}*` : `*الإجمالي: ${sar(r.total)}*`, `${r.kind === 'credit' ? 'الاسترداد' : 'الدفع'}: ${r.payment}`, '', 'شكراً لزيارتكم')
+  lines.push(`${r.vatIncluded ? 'منها ضريبة القيمة المضافة' : 'ضريبة القيمة المضافة'}: ${sar(r.vat)}`, `*الإجمالي: ${sar(r.total)}*`, `الدفع: ${r.payment}`, '', 'شكراً لزيارتكم')
   return lines.join('\n')
 }
 

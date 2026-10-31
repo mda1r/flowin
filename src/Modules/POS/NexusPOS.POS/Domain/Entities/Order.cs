@@ -3,7 +3,6 @@ using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
-using NexusPOS.SharedKernel.Domain.Events;
 using NexusPOS.SharedKernel.Domain.ValueObjects;
 
 namespace NexusPOS.POS.Domain.Entities;
@@ -50,20 +49,9 @@ public sealed class Order : AggregateRoot<OrderId>
 
     public void AssignNumber(long number)
     {
-        if (Number is not null || Status == OrderStatus.Cancelled)
+        if (Number is null && Status == OrderStatus.Open)
         {
-            return;
-        }
-
-        Number = number;
-
-        // A sale numbered after it completes (so one that fails a check never takes a number) still
-        // publishes its completion with the number on it.
-        List<IDomainEvent> pending = [.. DomainEvents];
-        ClearDomainEvents();
-        foreach (IDomainEvent domainEvent in pending)
-        {
-            RaiseDomainEvent(domainEvent is OrderCompletedDomainEvent completed ? completed with { Number = number } : domainEvent);
+            Number = number;
         }
     }
 
@@ -113,8 +101,7 @@ public sealed class Order : AggregateRoot<OrderId>
         decimal unitPriceAmount,
         decimal costPrice,
         decimal quantity,
-        Discount? lineDiscount = null,
-        string? notes = null)
+        Discount? lineDiscount = null)
     {
         if (Status != OrderStatus.Open)
         {
@@ -126,9 +113,7 @@ public sealed class Order : AggregateRoot<OrderId>
             return PosErrors.InvalidQuantity;
         }
 
-        // The same item with different notes (one latte with oat milk, one without) stays on its own line.
-        string? normalizedNotes = OrderLine.NormalizeNotes(notes);
-        OrderLine? existing = Lines.Find(l => l.VariantId == variantId && l.Notes == normalizedNotes);
+        OrderLine? existing = Lines.Find(l => l.VariantId == variantId);
         if (existing is not null)
         {
             existing.UpdateQuantity(existing.Quantity + quantity);
@@ -138,7 +123,7 @@ public sealed class Order : AggregateRoot<OrderId>
         }
 
         Money unitPrice = Money.Of(unitPriceAmount, Currency);
-        OrderLine line = OrderLine.Create(variantId, productName, variantName, unitPrice, costPrice, quantity, lineDiscount, normalizedNotes);
+        OrderLine line = OrderLine.Create(variantId, productName, variantName, unitPrice, costPrice, quantity, lineDiscount);
         Lines.Add(line);
         RecalculateTotals();
         UpdatedAt = DateTime.UtcNow;
@@ -215,10 +200,7 @@ public sealed class Order : AggregateRoot<OrderId>
         return Result.Success;
     }
 
-    // completedAt is when the sale really happened (a till that was offline); defaults to now.
-    // CreatedAt stays the time the server received it.
-    public ErrorOr<Success> Complete(
-        Enums.PaymentMethod method, decimal amountTendered, decimal? cashAmount = null, decimal? cardAmount = null, DateTime? completedAt = null)
+    public ErrorOr<Success> Complete(Enums.PaymentMethod method, decimal amountTendered, decimal? cashAmount = null, decimal? cardAmount = null)
     {
         if (Status != OrderStatus.Open)
         {
@@ -244,7 +226,7 @@ public sealed class Order : AggregateRoot<OrderId>
             SplitCash = cashAmount;
             SplitCard = cardAmount;
         }
-        CompletedAt = completedAt ?? DateTime.UtcNow;
+        CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
         var lineItems = Lines
@@ -253,7 +235,7 @@ public sealed class Order : AggregateRoot<OrderId>
         RaiseDomainEvent(new OrderCompletedDomainEvent(
             Id.Value, TenantId, BranchId,
             SubtotalAmount, DiscountAmount, TaxAmount, TotalAmount, Currency, method, lineItems,
-            CustomerId, LoyaltyPointsRedeemed, Source, Number, CompletedAt));
+            CustomerId, LoyaltyPointsRedeemed, Source, Number));
         return Result.Success;
     }
 
@@ -271,22 +253,6 @@ public sealed class Order : AggregateRoot<OrderId>
         RaiseDomainEvent(new OrderCancelledDomainEvent(Id.Value, TenantId, BranchId, reason));
         return Result.Success;
     }
-
-    // What one unit of a line actually cost before VAT: its share of the line total (after the line discount),
-    // less its pro-rata slice of the order and loyalty discounts. Refunds use this, never the list price.
-    public decimal NetUnitPaid(OrderLine line)
-    {
-        if (line.Quantity <= 0 || SubtotalAmount <= 0)
-        {
-            return 0m;
-        }
-
-        decimal paidShare = Math.Max(SubtotalAmount - DiscountAmount, 0m) / SubtotalAmount;
-        return line.LineTotal / line.Quantity * paidShare;
-    }
-
-    // The same unit with VAT, as the customer paid it and as the till shows it on a return.
-    public decimal GrossUnitPaid(OrderLine line) => Math.Round(NetUnitPaid(line) * (1 + TaxRate), 4);
 
     private void RecalculateTotals()
     {

@@ -15,6 +15,7 @@ export const stockCountApi = {
       periodStart: string
       periodEnd: string
       notes?: string
+      items: { stockItemId: string; variantId: string; systemQuantity: number; unitCost: number }[]
     },
   ) =>
     apiClient.post<StockCountSessionResponse>(`/api/v1/branches/${branchId}/stock-counts`, data),
@@ -33,10 +34,5 @@ export const stockCountApi = {
     apiClient.post<StockCountSessionResponse>(
       `/api/v1/branches/${branchId}/stock-counts/${sessionId}/complete`,
       { autoAdjust },
-    ),
-
-  cancelSession: (branchId: string, sessionId: string) =>
-    apiClient.post<StockCountSessionResponse>(
-      `/api/v1/branches/${branchId}/stock-counts/${sessionId}/cancel`,
     ),
 }

@@ -22,7 +22,7 @@ internal sealed class GetVatReturnDataQueryHandler(TaxConfigDbContext db)
 
         if (period is null)
         {
-            return Error.NotFound("TaxPeriod.NotFound", "الفترة الضريبية غير موجودة");
+            return Error.NotFound("TaxPeriod.NotFound", "Tax period not found.");
         }
 
         List<TaxLedgerEntry> entries = await db.TaxLedgerEntries
@@ -60,11 +60,6 @@ internal sealed class GetVatReturnDataQueryHandler(TaxConfigDbContext db)
         decimal box6InputVat = standardPurchases.Sum(e => e.TaxAmount);
         decimal box7ZeroRatedPurchases = zeroRatedPurchases.Sum(e => e.BaseAmount);
 
-        // Totals take every entry, so VAT at an unexpected rate (flagged by the anomaly scan) still counts
-        // towards what is payable and matches the overview.
-        decimal box9TotalOutputVat = entries.Where(e => e.EntryType == LedgerEntryType.Output).Sum(e => e.TaxAmount);
-        decimal box10TotalInputVat = entries.Where(e => e.EntryType == LedgerEntryType.Input).Sum(e => e.TaxAmount);
-
         return new VatReturnResponse(
             period.Id,
             period.StartDate,
@@ -77,9 +72,9 @@ internal sealed class GetVatReturnDataQueryHandler(TaxConfigDbContext db)
             box6InputVat,
             box7ZeroRatedPurchases,
             0m, // Box 8: Exempt purchases
-            box9TotalOutputVat, // Box 9: Total output VAT
-            box10TotalInputVat, // Box 10: Total input VAT (claimable)
-            box9TotalOutputVat - box10TotalInputVat, // Box 11: Net VAT due
+            box1OutputVat, // Box 9: Total output VAT
+            box6InputVat,  // Box 10: Total input VAT (claimable)
+            box1OutputVat - box6InputVat, // Box 11: Net VAT due
             period.Status);
     }
 }

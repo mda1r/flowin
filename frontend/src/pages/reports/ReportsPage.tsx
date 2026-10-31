@@ -13,34 +13,18 @@ import {
   Calendar,
   AlertTriangle,
   RotateCcw,
-  Wallet,
-  Download,
-  Printer,
-  Lock,
+  TrendingDown,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { Modal } from '@/components/ui/Modal'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { toast } from '@/components/ui/Toast'
-import { localDaysToUtcRange } from '@/lib/dates'
 import { cn, formatCurrency } from '@/lib/utils'
-import { downloadCsv } from '@/lib/csv'
-import { invoiceNo } from '@/lib/invoiceNumber'
-import { printElement } from '@/lib/print'
-import { useSellerIdentity } from '@/lib/receipt'
 import { useAuthStore } from '@/stores/authStore'
 import { salesApi } from '@/api/sales'
 import { ordersApi } from '@/api/orders'
 import { useI18n } from '@/i18n'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 import { ReportsCharts } from './ReportsCharts'
-import { orderNet, returnNet, returnVat, summarize, type ReportSummary } from './reportMath'
-
-// Reports show cost and profit, which most owners keep from cashiers.
-const REPORT_ROLES = ['Owner', 'Manager', 'Accountant']
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 
@@ -97,6 +81,13 @@ interface ProductStat {
 }
 
 function computeStats(orders: OrderResponse[]) {
+  const totalRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
+  const totalTax = orders.reduce((s, o) => s + o.taxAmount, 0)
+  const totalSubtotal = orders.reduce((s, o) => s + o.subtotalAmount, 0)
+  const totalCogs = orders.reduce((s, o) => s + o.lines.reduce((ls, l) => ls + (l.costPrice ?? 0) * l.quantity, 0), 0)
+  const totalOrders = orders.length
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
+
   const byPayment: Record<string, number> = {}
   for (const o of orders) {
     if (o.paymentMethod === 'Split') {
@@ -120,11 +111,8 @@ function computeStats(orders: OrderResponse[]) {
     .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
     .slice(0, 10)
 
-  return { byPayment, topProducts }
+  return { totalRevenue, totalTax, totalSubtotal, totalCogs, totalOrders, avgOrder, byPayment, topProducts }
 }
-
-const timeOf = (iso: string) =>
-  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -156,15 +144,16 @@ function KpiCard({ title, value, sub, icon, iconWrap, accent }: {
 
 // ── VAT Report Section ─────────────────────────────────────────────────────────
 
-function VatReportSection({ dateFrom, dateTo, summary }: {
+function VatReportSection({ dateFrom, dateTo, totalTax, totalSubtotal, totalOrders }: {
   dateFrom: string
   dateTo: string
-  summary: ReportSummary
+  totalTax: number
+  totalSubtotal: number
+  totalOrders: number
 }) {
   const { t } = useI18n()
-  // The tax base and VAT are both net of returns, so the rate reconciles with what was charged.
-  const taxBase = summary.netSales
-  const taxRate = taxBase > 0 && summary.netVat > 0 ? ((summary.netVat / taxBase) * 100).toFixed(0) : '15'
+  const taxBase = totalSubtotal
+  const taxRate = totalSubtotal > 0 && totalTax > 0 ? ((totalTax / totalSubtotal) * 100).toFixed(0) : '15'
   const quarterLabel = getQuarterLabel(t.reports.quarter)
 
   return (
@@ -184,7 +173,7 @@ function VatReportSection({ dateFrom, dateTo, summary }: {
 
           <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl bg-surface p-4 shadow-sm">
-              <p className="text-xs font-medium text-muted">{t.reports.netSales}</p>
+              <p className="text-xs font-medium text-muted">{t.reports.totalRevenue}</p>
               <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{formatCurrency(taxBase)}</p>
             </div>
             <div className="rounded-xl bg-surface p-4 shadow-sm">
@@ -192,17 +181,12 @@ function VatReportSection({ dateFrom, dateTo, summary }: {
               <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{taxRate}%</p>
             </div>
             <div className="rounded-xl bg-warning/10 p-4 dark:bg-warning/15 shadow-sm">
-              <p className="text-xs font-medium text-warning">{t.reports.netVat}</p>
-              <p className="mt-1.5 text-lg font-bold tabular-nums text-warning">{formatCurrency(summary.netVat)}</p>
-              {summary.returns.vat > 0 && (
-                <p className="mt-0.5 text-[11px] tabular-nums text-muted">
-                  {formatCurrency(summary.outputVat)} − {formatCurrency(summary.returns.vat)}
-                </p>
-              )}
+              <p className="text-xs font-medium text-warning">{t.reports.totalVat}</p>
+              <p className="mt-1.5 text-lg font-bold tabular-nums text-warning">{formatCurrency(totalTax)}</p>
             </div>
             <div className="rounded-xl bg-surface p-4 shadow-sm">
               <p className="text-xs font-medium text-muted">{t.reports.totalOrders}</p>
-              <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{summary.orders}</p>
+              <p className="mt-1.5 text-lg font-bold tabular-nums text-fg">{totalOrders}</p>
             </div>
           </div>
 
@@ -216,85 +200,11 @@ function VatReportSection({ dateFrom, dateTo, summary }: {
   )
 }
 
-// ── Printable VAT summary ──────────────────────────────────────────────────────
-
-function VatSummarySlip({ id, dateFrom, dateTo, summary }: {
-  id: string
-  dateFrom: string
-  dateTo: string
-  summary: ReportSummary
-}) {
-  const { t } = useI18n()
-  const { sellerName, vatNumber } = useSellerIdentity()
-  const rows: { label: string; value: number; minus?: boolean; strong?: boolean }[] = [
-    { label: t.reports.salesExVat,   value: summary.sales },
-    { label: t.reports.returnsExVat, value: summary.returns.net, minus: true },
-    { label: t.reports.netSales,     value: summary.netSales, strong: true },
-    { label: t.reports.outputVat,    value: summary.outputVat },
-    { label: t.reports.returnsVat,   value: summary.returns.vat, minus: true },
-  ]
-
-  return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <div id={id} className="receipt-paper">
-        <div className="receipt-center">
-          {sellerName && <div className="receipt-store">{sellerName}</div>}
-          {vatNumber && <div className="receipt-small">{t.reports.vatNumber}: <span dir="ltr">{vatNumber}</span></div>}
-          <div className="receipt-title mt-1">{t.reports.vatReport}</div>
-          <div className="receipt-small">
-            {t.reports.period}: <span dir="ltr">{dateFrom} – {dateTo}</span>
-          </div>
-        </div>
-        <hr className="receipt-rule" />
-        <div className="receipt-totals">
-          <div className="receipt-row"><span>{t.reports.invoiceCount}</span><span className="tabular-nums">{summary.orders}</span></div>
-          <div className="receipt-row"><span>{t.reports.returnCount}</span><span className="tabular-nums">{summary.returns.count}</span></div>
-        </div>
-        <hr className="receipt-rule" />
-        <div className="receipt-totals">
-          {rows.map((r) => (
-            <div key={r.label} className={cn('receipt-row', r.strong && 'font-bold')}>
-              <span>{r.label}</span>
-              <span className="tabular-nums">{r.minus && r.value > 0 ? '− ' : ''}{formatCurrency(r.value)}</span>
-            </div>
-          ))}
-          <div className="receipt-row receipt-total">
-            <span>{t.reports.netVat}</span>
-            <span className="tabular-nums">{formatCurrency(summary.netVat)}</span>
-          </div>
-        </div>
-        <hr className="receipt-rule" />
-        <div className="receipt-small receipt-center">
-          {t.reports.printedAt}: <span dir="ltr">{new Date().toLocaleString('en-GB', { hour12: false })}</span>
-        </div>
-        <div className="receipt-small receipt-center mt-1">{t.reports.vatDisclaimer}</div>
-      </div>
-    </div>
-  )
-}
-
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export function ReportsPage() {
-  const role = useAuthStore((s) => s.user?.role)
-  const { t } = useI18n()
-
-  if (!role || !REPORT_ROLES.includes(role)) {
-    return (
-      <div className="page-fade min-h-full p-6">
-        <Card>
-          <EmptyState icon={<Lock />} title={t.reports.notAllowed} description={t.reports.notAllowedHint} />
-        </Card>
-      </div>
-    )
-  }
-  return <ReportsContent />
-}
-
-function ReportsContent() {
   const { branchId } = useAuthStore()
   const { t } = useI18n()
-  const [vatOpen, setVatOpen] = useState(false)
   const [period, setPeriod] = useState<Period>('month')
   const [customFrom, setCustomFrom] = useState(localDateStr(new Date()))
   const [customTo, setCustomTo] = useState(localDateStr(new Date()))
@@ -321,21 +231,17 @@ function ReportsContent() {
     [period, customFrom, customTo],
   )
 
-  const { data: rawOrders, isLoading: ordersLoading, isError: ordersError } = useQuery({
+  const { data: rawOrders, isLoading, isError } = useQuery({
     queryKey: ['reports', branchId, dateFrom, dateTo],
     queryFn: () => salesApi.listAllCompletedOrders(branchId!, dateFrom, dateTo).then((data) => ({ data })),
     enabled: !!branchId,
   })
 
-  const { data: rawReturns, isLoading: returnsLoading, isError: returnsError } = useQuery({
-    queryKey: ['reports-returns', branchId, dateFrom, dateTo],
-    queryFn: () => ordersApi.listReturns(branchId!, localDaysToUtcRange(dateFrom, dateTo)),
+  const { data: rawReturns } = useQuery({
+    queryKey: ['reports-returns', branchId],
+    queryFn: () => ordersApi.listReturns(branchId!),
     enabled: !!branchId,
   })
-
-  // Returns are credit notes on these figures, so nothing is shown, exported or printed without them.
-  const isLoading = ordersLoading || returnsLoading
-  const isError = ordersError || returnsError
 
   const orders = useMemo<OrderResponse[]>(() => {
     const raw = rawOrders?.data
@@ -356,51 +262,12 @@ function ReportsContent() {
     })
   }, [rawReturns, dateFrom, dateTo])
 
-  const summary = useMemo(() => summarize(orders, returns), [orders, returns])
+  const returnStats = useMemo(() => ({
+    count: returns.length,
+    total: returns.reduce((s, r) => s + r.refundAmount, 0),
+  }), [returns])
+
   const stats = useMemo(() => computeStats(orders), [orders])
-
-  // One sheet for the accountant: the period's invoices, then its returns as negative credit notes.
-  const exportCsv = () => {
-    if (orders.length === 0 && returns.length === 0) {
-      toast.info(t.reports.nothingToExport)
-      return
-    }
-    const c = t.reports.csv
-    const byId = new Map(orders.map((o) => [o.id, o]))
-    const money = (v: number) => v.toFixed(2)
-    const atOf = (o: OrderResponse) => o.completedAt ?? o.createdAt
-
-    const rows: (string | number)[][] = [...orders]
-      .sort((a, b) => atOf(a).localeCompare(atOf(b)))
-      .map((o) => [
-        c.invoice,
-        invoiceNo(o),
-        new Date(atOf(o)).toLocaleDateString('en-CA'),
-        timeOf(atOf(o)),
-        PAYMENT_LABELS[o.paymentMethod ?? '']?.label ?? o.paymentMethod ?? '',
-        money(orderNet(o)),
-        money(o.taxAmount),
-        money(o.totalAmount),
-      ])
-    for (const r of [...returns].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
-      rows.push([
-        c.creditNote,
-        invoiceNo(byId.get(r.originalOrderId) ?? { id: r.originalOrderId }),
-        new Date(r.createdAt).toLocaleDateString('en-CA'),
-        timeOf(r.createdAt),
-        r.refundMethod === 'StoreCredit' ? c.storeCredit : PAYMENT_LABELS[r.refundMethod]?.label ?? r.refundMethod,
-        money(-returnNet(r)),
-        money(-returnVat(r)),
-        money(-r.refundAmount),
-      ])
-    }
-
-    downloadCsv(
-      `sales-${dateFrom}_${dateTo}.csv`,
-      [c.type, c.invoiceNo, c.date, c.time, c.payment, c.net, c.vat, c.total],
-      rows,
-    )
-  }
 
   const periodLabel = (() => {
     const p = PERIODS.find((x) => x.key === period)!
@@ -415,18 +282,6 @@ function ReportsContent() {
         <PageHeader
           title={t.reports.title}
           description={periodLabel}
-          action={
-            <>
-              <Button variant="secondary" size="sm" onClick={exportCsv} disabled={isLoading || isError}>
-                <Download className="h-4 w-4" />
-                {t.reports.exportCsv}
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setVatOpen(true)} disabled={isLoading || isError}>
-                <Printer className="h-4 w-4" />
-                {t.reports.printVat}
-              </Button>
-            </>
-          }
         />
 
         {/* ── Period tabs ── */}
@@ -479,31 +334,29 @@ function ReportsContent() {
           </div>
         ) : isError ? (
           <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger dark:border-danger/60 dark:bg-danger/15">
-            {ordersError ? t.common.noData : t.reports.returnsFailed}
+            {t.common.noData}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <KpiCard
-                title={t.reports.netSales}
-                value={formatCurrency(summary.netSales)}
-                sub={t.reports.netSalesHint}
-                icon={<ShoppingCart className="h-5 w-5 text-brand-strong" />}
-                iconWrap="bg-brand-soft text-brand-strong"
-                accent="rgb(var(--brand))"
-              />
-              <KpiCard
-                title={t.reports.grossProfit}
-                value={formatCurrency(summary.grossProfit)}
-                sub={t.reports.margin.replace('{n}', summary.margin.toFixed(0))}
+                title={t.sales.netRevenue}
+                value={formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total)}
+                sub={String(stats.totalOrders)}
                 icon={<DollarSign className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
               <KpiCard
+                title={t.reports.totalOrders}
+                value={String(stats.totalOrders)}
+                icon={<ShoppingCart className="h-5 w-5 text-brand-strong" />}
+                iconWrap="bg-brand-soft text-brand-strong"
+                accent="rgb(var(--brand))"
+              />
+              <KpiCard
                 title={t.reports.avgOrderValue}
-                value={formatCurrency(summary.avgOrder)}
-                sub={`${summary.orders} · ${t.reports.totalOrders}`}
+                value={formatCurrency(stats.avgOrder)}
                 icon={<TrendingUp className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
@@ -511,39 +364,45 @@ function ReportsContent() {
             </div>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               <KpiCard
-                title={t.reports.netVat}
-                value={formatCurrency(summary.netVat)}
-                sub={t.reports.netVatHint}
+                title={t.reports.totalVat}
+                value={formatCurrency(stats.totalTax)}
+                sub={t.reports.vatSummary}
                 icon={<Receipt className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
               <KpiCard
                 title={t.sales.returns}
-                value={String(summary.returns.count)}
-                sub={summary.returns.count > 0 ? formatCurrency(summary.returns.refund) : t.common.noData}
+                value={String(returnStats.count)}
+                sub={returnStats.count > 0 ? formatCurrency(returnStats.total) : t.common.noData}
                 icon={<RotateCcw className="h-5 w-5 text-danger" />}
                 iconWrap="bg-danger/10 dark:bg-danger/15"
                 accent="rgb(var(--danger))"
               />
               <KpiCard
-                title={t.reports.collected}
-                value={formatCurrency(summary.collected)}
-                icon={<Wallet className="h-5 w-5 text-brand-strong" />}
+                title={t.reports.totalRevenue}
+                value={formatCurrency(stats.totalRevenue)}
+                icon={<TrendingDown className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
               />
             </div>
 
             {/* ── Charts ── */}
-            <ReportsCharts orders={orders} summary={summary} />
+            <ReportsCharts
+              orders={orders}
+              stats={{ totalSubtotal: stats.totalSubtotal, totalTax: stats.totalTax, totalCogs: stats.totalCogs }}
+              returnTotal={returnStats.total}
+            />
 
             {/* ── VAT Report (shown for quarter and year) ── */}
             {(period === 'quarter' || period === 'year') && (
               <VatReportSection
                 dateFrom={dateFrom}
                 dateTo={dateTo}
-                summary={summary}
+                totalTax={stats.totalTax}
+                totalSubtotal={stats.totalSubtotal}
+                totalOrders={stats.totalOrders}
               />
             )}
 
@@ -572,7 +431,7 @@ function ReportsContent() {
                   ) : (
                     <div className="divide-y divide-border">
                       {stats.topProducts.map((p, i) => {
-                        const pct = summary.sales > 0 ? Math.min(100, (p.revenue / summary.sales) * 100) : 0
+                        const pct = stats.totalRevenue > 0 ? (p.revenue / stats.totalRevenue) * 100 : 0
                         return (
                           <div key={i} className="flex items-center gap-4 px-6 py-3.5">
                             <span className="w-5 shrink-0 text-right text-xs font-bold tabular-nums text-muted/50">
@@ -619,7 +478,7 @@ function ReportsContent() {
                         .sort(([, a], [, b]) => b - a)
                         .map(([method, amount]) => {
                           const meta = PAYMENT_LABELS[method]
-                          const pct = summary.collected > 0 ? (amount / summary.collected) * 100 : 0
+                          const pct = stats.totalRevenue > 0 ? (amount / stats.totalRevenue) * 100 : 0
                           return (
                             <div key={method} className="space-y-1.5">
                               <div className="flex items-center justify-between">
@@ -651,16 +510,15 @@ function ReportsContent() {
                     className="border-b px-6 py-4"
                     style={{ borderColor: 'var(--card-border)' }}
                   >
-                    <h2 className="text-sm font-semibold text-fg">{t.reports.profitSummary}</h2>
+                    <h2 className="text-sm font-semibold text-fg">{t.reports.vatSummary}</h2>
                   </div>
                   <div className="divide-y divide-border p-0">
                     {[
-                      { label: t.reports.salesExVat,   value: formatCurrency(summary.sales) },
-                      { label: t.reports.returnsExVat, value: summary.returns.net > 0 ? `- ${formatCurrency(summary.returns.net)}` : formatCurrency(0), red: summary.returns.net > 0 },
-                      { label: t.reports.netSales,     value: formatCurrency(summary.netSales), bold: true },
-                      { label: t.reports.costOfGoods,  value: `- ${formatCurrency(summary.netCogs)}`, red: true },
-                      { label: t.reports.grossProfit,  value: formatCurrency(summary.grossProfit), bold: true },
-                      { label: t.reports.netVat,       value: formatCurrency(summary.netVat) },
+                      { label: t.reports.totalRevenue,  value: formatCurrency(stats.totalSubtotal) },
+                      { label: t.reports.totalVat,      value: `- ${formatCurrency(stats.totalTax)}`, red: true },
+                      { label: 'تكلفة المنتجات',        value: `- ${formatCurrency(stats.totalCogs)}`, red: true },
+                      { label: t.sales.returns,         value: returnStats.total > 0 ? `- ${formatCurrency(returnStats.total)}` : formatCurrency(0), red: returnStats.total > 0 },
+                      { label: t.sales.netRevenue,      value: formatCurrency(stats.totalSubtotal - stats.totalCogs - returnStats.total), bold: true },
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between px-6 py-3">
                         <span className="text-sm text-muted">{row.label}</span>
@@ -679,24 +537,6 @@ function ReportsContent() {
           </>
         )}
       </div>
-
-      <Modal
-        open={vatOpen}
-        onClose={() => setVatOpen(false)}
-        title={t.reports.printVat}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setVatOpen(false)}>{t.common.close}</Button>
-            <Button onClick={() => printElement(document.getElementById('vat-summary-print'))}>
-              <Printer className="h-4 w-4" />
-              {t.common.print}
-            </Button>
-          </>
-        }
-      >
-        <VatSummarySlip id="vat-summary-print" dateFrom={dateFrom} dateTo={dateTo} summary={summary} />
-      </Modal>
     </div>
   )
 }

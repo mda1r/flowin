@@ -16,14 +16,14 @@ public sealed class Sku : ValueObject
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return Error.Validation("Catalog.Sku.Empty", "رمز SKU مطلوب");
+            return Error.Validation("Catalog.Sku.Empty", "SKU must not be empty.");
         }
 
         string normalized = value.Trim().ToUpperInvariant();
 
         if (normalized.Length > 64)
         {
-            return Error.Validation("Catalog.Sku.TooLong", "رمز SKU يجب ألا يتجاوز 64 حرفاً");
+            return Error.Validation("Catalog.Sku.TooLong", "SKU must not exceed 64 characters.");
         }
 
         return new Sku(normalized);

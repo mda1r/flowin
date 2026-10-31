@@ -4,8 +4,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NexusPOS.SharedKernel.Application;
-using NexusPOS.SharedKernel.Presentation;
 using NexusPOS.SuperAdmin.Application.Commands.ActivateTenant;
 using NexusPOS.SuperAdmin.Application.Commands.CreateBrand;
 using NexusPOS.SuperAdmin.Application.Commands.CreateSubscription;
@@ -15,7 +13,6 @@ using NexusPOS.SuperAdmin.Application.Commands.CreateTenantAndLinkToBrand;
 using NexusPOS.SuperAdmin.Application.Commands.DeleteTenant;
 using NexusPOS.SuperAdmin.Application.Commands.LinkTenantToBrand;
 using NexusPOS.SuperAdmin.Application.Commands.MoveTenantBetweenBrands;
-using NexusPOS.SuperAdmin.Application.Commands.RenewSubscription;
 using NexusPOS.SuperAdmin.Application.Commands.SuspendTenant;
 using NexusPOS.SuperAdmin.Application.Commands.UnlinkTenantFromBrand;
 using NexusPOS.SuperAdmin.Application.Commands.UpdateBrand;
@@ -130,21 +127,6 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
             MapErrors);
     }
 
-    /// <summary>تجديد الاشتراك الحالي للمستأجر بعدد من الأشهر على نفس الخطة</summary>
-    [HttpPost("tenants/{id:guid}/subscriptions/renew")]
-    [ProducesResponseType(typeof(TenantSubscriptionResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> RenewSubscription(
-        Guid id,
-        [FromBody] RenewSubscriptionRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(new RenewSubscriptionCommand(id, request.Months, request.SubscriptionId), cancellationToken);
-        return result.Match(Ok, MapErrors);
-    }
-
     /// <summary>تعليق حساب المستأجر</summary>
     [HttpPost("tenants/{id:guid}/suspend")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -236,7 +218,7 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await mediator.Send(new ListBrandsQuery(status, search, Paging.Page(page), Paging.Size(pageSize)), cancellationToken);
+        var result = await mediator.Send(new ListBrandsQuery(status, search, page, pageSize), cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 
@@ -417,5 +399,30 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
 
     // ──────────────────────── Error Mapping ──────────────────────────────────
 
-    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
+    private IActionResult MapErrors(List<Error> errors)
+    {
+        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
+        {
+            ValidationProblemDetails pd = new();
+            foreach (Error error in errors)
+            {
+                pd.Errors[error.Code] = [error.Description];
+            }
+
+            return ValidationProblem(pd);
+        }
+
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+    }
 }

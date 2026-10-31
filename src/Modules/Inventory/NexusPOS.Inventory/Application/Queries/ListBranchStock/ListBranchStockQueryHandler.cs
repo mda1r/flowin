@@ -15,9 +15,13 @@ internal sealed class ListBranchStockQueryHandler(IStockItemRepository stockItem
     {
         IReadOnlyList<StockItem> items = request.LowStockOnly
             ? await stockItemRepository.FindLowStockAsync(request.BranchId, cancellationToken)
-            : await stockItemRepository.FindByBranchAsync(request.BranchId, request.IncludeArchived, cancellationToken);
+            : await stockItemRepository.FindByBranchAsync(request.BranchId, cancellationToken);
 
-        IReadOnlyList<StockItemResponse> responses = [.. items.Select(StockItemResponse.From)];
+        IReadOnlyList<StockItemResponse> responses = items.Select(s => new StockItemResponse(
+            s.Id.Value, s.VariantId, s.BranchId,
+            s.Quantity, s.ReorderPoint, s.ReorderQuantity,
+            s.Quantity <= s.ReorderPoint && s.ReorderPoint > 0,
+            s.UpdatedAt, s.ExpiryDate, s.NotifyDaysBeforeExpiry)).ToList();
 
         return ErrorOrFactory.From(responses);
     }

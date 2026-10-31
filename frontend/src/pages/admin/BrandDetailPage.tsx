@@ -23,7 +23,6 @@ import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
 import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { intlLocale } from '@/lib/locale'
 
 type Tab = 'overview' | 'members' | 'tax' | 'activity'
 
@@ -343,11 +342,11 @@ function MembersTab({ brandId, members }: MembersTabProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-xs font-medium text-muted">
-                <th className="px-4 py-3 text-start">{t.admin.brands.tenantId}</th>
-                <th className="px-4 py-3 text-start">{t.admin.tenants.businessType}</th>
-                <th className="px-4 py-3 text-start">{t.admin.brands.branchCode}</th>
-                <th className="px-4 py-3 text-start">{t.admin.brands.status}</th>
-                <th className="px-4 py-3 text-start">{t.admin.brands.linkedAt}</th>
+                <th className="px-4 py-3 text-right">Tenant</th>
+                <th className="px-4 py-3 text-right">Type</th>
+                <th className="px-4 py-3 text-right">Branch Code</th>
+                <th className="px-4 py-3 text-right">Status</th>
+                <th className="px-4 py-3 text-right">Linked</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -366,9 +365,9 @@ function MembersTab({ brandId, members }: MembersTabProps) {
                     <StatusBadge status={m.membershipStatus} />
                   </td>
                   <td className="px-4 py-3 text-xs text-muted">
-                    {new Date(m.linkedAt).toLocaleDateString(intlLocale())}
+                    {new Date(m.linkedAt).toLocaleDateString('ar-SA')}
                   </td>
-                  <td className="px-4 py-3 text-end">
+                  <td className="px-4 py-3 text-right">
                     {m.membershipStatus === 'Active' && (
                       <button
                         onClick={() => setUnlinkId(m.membershipId)}
@@ -470,7 +469,7 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
             </div>
             <div className="p-2">
               {scope.members.length === 0 ? (
-                <p className="px-2 py-3 text-xs text-muted text-center">{t.admin.brands.noScopeMembers}</p>
+                <p className="px-2 py-3 text-xs text-muted text-center">No members in this scope</p>
               ) : (
                 <table className="w-full text-xs">
                   <tbody className="divide-y divide-border">
@@ -478,10 +477,10 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
                       <tr key={m.membershipId} className="hover:bg-surface-2/40">
                         <td className="px-2 py-2 text-muted">{m.tenantName}</td>
                         <td className="px-2 py-2 text-muted" dir="ltr">
-                          {t.common.from} {m.effectiveFrom}
+                          From {m.effectiveFrom}
                           {m.effectiveTo ? ` → ${m.effectiveTo}` : ''}
                         </td>
-                        <td className="px-2 py-2 text-end">
+                        <td className="px-2 py-2 text-right">
                           {!m.effectiveTo && (
                             <button
                               onClick={() => setRemoveId(m.membershipId)}
@@ -602,7 +601,7 @@ export function BrandDetailPage() {
           <div>
             <p className="text-xs text-muted">{t.admin.brands.createdAt}</p>
             <p className="mt-0.5 text-sm font-medium text-fg">
-              {new Date(brand.createdAt).toLocaleDateString(intlLocale())}
+              {new Date(brand.createdAt).toLocaleDateString('ar-SA')}
             </p>
           </div>
         </div>

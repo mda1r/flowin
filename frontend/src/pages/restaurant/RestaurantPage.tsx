@@ -4,34 +4,34 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  Plus, Minus, Trash2, CreditCard, Banknote, X,
+  Plus, Minus, Trash2, CreditCard, Banknote, X, QrCode,
   Tag, ChefHat, ToggleLeft, ToggleRight,
-  ExternalLink, FlaskConical, Ban,
+  ExternalLink, FlaskConical,
 } from 'lucide-react'
 import { RecipeModal } from '@/pages/catalog/RecipeModal'
 import { recipesApi } from '@/api/recipes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
-import { Modal, ConfirmModal } from '@/components/ui/Modal'
+import { Modal } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
-import { RestaurantReceiptModal } from '@/components/restaurant/RestaurantReceiptModal'
-import { restaurantApi, type OrderItemInput } from '@/api/restaurant'
+import { restaurantApi } from '@/api/restaurant'
+import { zatcaApi } from '@/api/zatca'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
-import { SAUDI_VAT_RATE } from '@/lib/zatca'
+import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
 import { marginPercent } from '@/lib/pricing'
-import { restaurantErrorMessage } from '@/lib/restaurantErrors'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import type {
   MenuItemResponse,
   MenuCategory,
   RestaurantOrderResponse,
-  RestaurantOrderStatus,
   ValidateDiscountCodeResponse,
 } from '@/types/api'
+import { ZatcaQr } from '@/components/pos/ZatcaQr'
+import { printElement } from '@/lib/print'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -49,8 +49,6 @@ const CATEGORY_LABELS: Record<MenuCategory, string> = {
 
 const CATEGORY_LIST: MenuCategory[] = ['Starters', 'Mains', 'Sides', 'Beverages', 'Desserts', 'Specials']
 
-const CANCEL_REASONS = ['طلب خاطئ', 'العميل غادر', 'طلب مكرر']
-
 // ── Cart types ────────────────────────────────────────────────────────────────
 
 interface CartItem {
@@ -61,58 +59,19 @@ interface CartItem {
   notes?: string
 }
 
-// What the table owes across all its open orders. Menu prices include VAT, so the VAT is a share of the total.
-interface TableBill {
-  tableNumber: number
-  orderCount: number
-  subTotal: number
-  discountAmount: number
-  taxAmount: number
-  total: number
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-const r2 = (v: number) => Math.round(v * 100) / 100
-// Order totals keep four decimals; a payment rounded up to the halala always covers them.
-const toHalala = (v: number) => Math.ceil(v * 100 - 1e-6) / 100
-
-// Open restaurant orders of a table. Cafe kitchen copies were paid at the cafe till and are not a table's bill.
-function openTableOrders(tableNumber: number, orders: RestaurantOrderResponse[]) {
-  return orders.filter(
-    (o) => o.tableNumber === tableNumber && !o.kitchenOnly && !['Paid', 'Cancelled'].includes(o.status),
-  )
-}
 
 function getTableColor(
   tableNumber: number,
   orders: RestaurantOrderResponse[],
 ): 'empty' | 'busy' | 'ready' {
-  const tableOrders = openTableOrders(tableNumber, orders)
+  const tableOrders = orders.filter(
+    (o) => o.tableNumber === tableNumber &&
+      !['Paid', 'Cancelled'].includes(o.status),
+  )
   if (tableOrders.length === 0) return 'empty'
   if (tableOrders.some((o) => o.status === 'Ready' || o.status === 'Served')) return 'ready'
   return 'busy'
-}
-
-const STATUS_LABEL: Partial<Record<RestaurantOrderStatus, string>> = {
-  Pending: 'قيد الانتظار',
-  InKitchen: 'في المطبخ',
-  Ready: 'جاهز',
-  Served: 'تم التقديم',
-}
-
-function OrderStatusBadge({ status }: { status: RestaurantOrderStatus }) {
-  return (
-    <span className={cn(
-      'inline-block rounded-full px-2 py-0.5 text-xs font-medium',
-      status === 'Pending' && 'bg-warning/10 text-warning',
-      status === 'InKitchen' && 'bg-info/10 text-info',
-      status === 'Ready' && 'bg-success/10 text-success',
-      status === 'Served' && 'bg-brand-soft text-brand-ink dark:bg-brand/20',
-    )}>
-      {STATUS_LABEL[status] ?? status}
-    </span>
-  )
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -121,11 +80,8 @@ type Tab = 'cashier' | 'manager'
 
 export function RestaurantPage() {
   const [activeTab, setActiveTab] = useState<Tab>('cashier')
-  const { branchId, user } = useAuthStore()
+  const { branchId } = useAuthStore()
   const { t } = useI18n()
-  // Menu, discount codes and voids are for owners and managers; the server enforces the same.
-  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
-  const tab: Tab = canManage ? activeTab : 'cashier'
 
   return (
     <div className="flex h-[calc(100vh-0px)] flex-col" dir="rtl">
@@ -142,37 +98,36 @@ export function RestaurantPage() {
               <ExternalLink className="h-4 w-4" />
               عرض المطبخ
             </a>
-            {canManage && (
-              <div className="flex rounded-lg border border-border overflow-hidden">
-                {([['cashier', 'الكاشير'], ['manager', 'الإدارة']] as [Tab, string][]).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={cn(
-                      'px-4 py-1.5 text-sm font-medium transition-colors',
-                      tab === key
-                        ? 'bg-brand text-brand-fg'
-                        : 'text-muted hover:bg-surface-2',
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              {([['cashier', 'الكاشير'], ['manager', 'الإدارة']] as [Tab, string][]).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'px-4 py-1.5 text-sm font-medium transition-colors',
+                    activeTab === tab
+                      ? 'bg-brand text-brand-fg'
+                      : 'text-muted hover:bg-surface-2',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
 
-      {tab === 'cashier' && branchId && <CashierView branchId={branchId} canManage={canManage} />}
-      {tab === 'manager' && branchId && <ManagerView branchId={branchId} />}
+      {activeTab === 'cashier' && branchId && <CashierView branchId={branchId} />}
+      {activeTab === 'manager' && branchId && <ManagerView branchId={branchId} />}
     </div>
   )
 }
 
 // ── Cashier View ──────────────────────────────────────────────────────────────
 
-function CashierView({ branchId, canManage }: { branchId: string; canManage: boolean }) {
+function CashierView({ branchId }: { branchId: string }) {
+  const { tenantId } = useAuthStore()
   const qc = useQueryClient()
   const { t } = useI18n()
 
@@ -185,10 +140,7 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
   const [showPayment, setShowPayment] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card'>('Cash')
   const [amountTendered, setAmountTendered] = useState('')
-  const [paidOrders, setPaidOrders] = useState<RestaurantOrderResponse[] | null>(null)
-  const [cancelTarget, setCancelTarget] = useState<RestaurantOrderResponse | null>(null)
-  // A voided line has already reached the kitchen and cannot be brought back, so it is confirmed first.
-  const [voidTarget, setVoidTarget] = useState<{ orderId: string; itemId: string; label: string } | null>(null)
+  const [completedOrder, setCompletedOrder] = useState<RestaurantOrderResponse | null>(null)
 
   const { data: menuData } = useQuery({
     queryKey: ['menu-items', branchId],
@@ -204,27 +156,11 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
   })
 
   const menuItems = menuData?.data ?? []
-  // Cafe kitchen tickets were paid at the cafe till; they belong on the kitchen screen, not the open tables.
-  const orders = (ordersData?.data ?? []).filter((o) => !o.kitchenOnly)
-  const refreshOrders = () => qc.invalidateQueries({ queryKey: ['restaurant-orders', branchId] })
+  const orders = ordersData?.data ?? []
 
   const filteredItems = selectedCategory
     ? menuItems.filter((i) => i.category === selectedCategory && i.isAvailable)
     : menuItems.filter((i) => i.isAvailable)
-
-  // Every open order of the table makes one bill; new rounds join the latest one.
-  const tableOrders = selectedTable ? openTableOrders(selectedTable, orders) : []
-  const openOrder = tableOrders.length > 0 ? tableOrders[tableOrders.length - 1] : null
-  const bill: TableBill | null = selectedTable && tableOrders.length > 0
-    ? {
-        tableNumber: selectedTable,
-        orderCount: tableOrders.length,
-        subTotal: r2(tableOrders.reduce((s, o) => s + o.subTotal, 0)),
-        discountAmount: r2(tableOrders.reduce((s, o) => s + o.discountAmount, 0)),
-        taxAmount: r2(tableOrders.reduce((s, o) => s + o.taxAmount, 0)),
-        total: toHalala(tableOrders.reduce((s, o) => s + o.total, 0)),
-      }
-    : null
 
   // ── Cart logic ────────────────────────────────────────────────────────────
 
@@ -268,9 +204,7 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
   // ── Totals ────────────────────────────────────────────────────────────────
 
   const subTotal = cart.reduce((s, c) => s + c.unitPrice * c.quantity, 0)
-  // A discount code is applied when the table's order is opened; later rounds join that order as they are.
-  const canDiscount = !openOrder
-  const discountAmount = canDiscount && discount?.isValid ? (discount.discountAmount ?? 0) : 0
+  const discountAmount = discount?.isValid ? (discount.discountAmount ?? 0) : 0
   // Menu prices include VAT: the customer pays the listed price less any discount.
   const total = Math.round((subTotal - discountAmount) * 100) / 100
   const taxAmount = Math.round((total * VAT / (1 + VAT)) * 100) / 100
@@ -278,9 +212,11 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
   // ── Discount validation ───────────────────────────────────────────────────
 
   const validateDiscount = useCallback(async () => {
-    if (!discountInput.trim()) return
+    if (!discountInput.trim() || !tenantId) return
     try {
-      const { data } = await restaurantApi.validateDiscountCode(branchId, discountInput.trim(), subTotal)
+      const { data } = await restaurantApi.validateDiscountCode(
+        branchId, tenantId, discountInput.trim(), subTotal,
+      )
       setDiscount(data)
       if (data.isValid) {
         toast.success('تم تطبيق الخصم', `خصم ${formatCurrency(data.discountAmount)}`)
@@ -290,103 +226,77 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
     } catch {
       toast.error('خطأ', 'تعذر التحقق من رمز الخصم')
     }
-  }, [discountInput, branchId, subTotal])
+  }, [discountInput, branchId, tenantId, subTotal])
 
   // ── Send to kitchen ────────────────────────────────────────────────────────
-  // One call each way: a new order is opened and sent together, and a later round joins the open order,
-  // so retrying after a failure never leaves a stray order on the table.
 
   const sendToKitchenMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedTable) throw new Error('No table selected')
+      if (!selectedTable || !tenantId) throw new Error('No table selected')
       if (cart.length === 0) throw new Error('Cart empty')
-      const items: OrderItemInput[] = cart.map((c) => ({
-        menuItemId: c.menuItemId,
-        quantity: c.quantity,
-        notes: c.notes,
-      }))
 
-      if (openOrder) {
-        const { data } = await restaurantApi.addItems(branchId, openOrder.id, items)
-        return data
-      }
-
-      const { data } = await restaurantApi.createOrder(branchId, {
+      const { data: order } = await restaurantApi.createOrder(branchId, {
+        tenantId,
         tableNumber: selectedTable,
-        items,
+        items: cart.map((c) => ({
+          menuItemId: c.menuItemId,
+          itemName: c.itemName,
+          quantity: c.quantity,
+          unitPrice: c.unitPrice,
+          notes: c.notes,
+        })),
         notes: notes || undefined,
         discountCode: discount?.isValid ? discountInput.trim() : undefined,
-        sendToKitchen: true,
       })
-      return data
+
+      await restaurantApi.sendToKitchen(branchId, order.id)
+      return order
     },
     onSuccess: () => {
-      void refreshOrders()
+      qc.invalidateQueries({ queryKey: ['restaurant-orders', branchId] })
       clearCart()
       toast.success('تم الإرسال للمطبخ', `الطاولة ${selectedTable}`)
     },
-    onError: (e) => {
-      void refreshOrders()
-      toast.error('فشل الإرسال', restaurantErrorMessage(e, 'يرجى المحاولة مرة أخرى'))
-    },
+    onError: () => toast.error('فشل الإرسال', 'يرجى المحاولة مرة أخرى'),
   })
 
   // ── Pay ───────────────────────────────────────────────────────────────────
 
   const payMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedTable || !bill) throw new Error('No active order')
-      const tendered = paymentMethod === 'Cash'
-        ? Math.max(parseFloat(amountTendered) || 0, bill.total)
-        : bill.total
-      const { data } = await restaurantApi.payTable(branchId, {
-        tableNumber: selectedTable,
-        orderIds: tableOrders.map((o) => o.id),
+      if (!selectedTable || !tenantId) throw new Error()
+      const tableActiveOrders = orders.filter(
+        (o) => o.tableNumber === selectedTable && !['Paid', 'Cancelled'].includes(o.status),
+      )
+      if (tableActiveOrders.length === 0) throw new Error('No active order')
+      const order = tableActiveOrders[0]
+
+      const tendered = paymentMethod === 'Cash' ? (parseFloat(amountTendered) || order.total) : order.total
+      const { data: paid } = await restaurantApi.payOrder(branchId, order.id, {
         paymentMethod,
         amountTendered: tendered,
       })
-      return data
+      return paid
     },
-    onSuccess: (paid) => {
-      setPaidOrders(paid)
-      void refreshOrders()
+    onSuccess: (order) => {
+      setCompletedOrder(order)
+      qc.invalidateQueries({ queryKey: ['restaurant-orders', branchId] })
       setShowPayment(false)
-      toast.success('تمت عملية الدفع', `الطاولة ${selectedTable}`)
+      toast.success('تمت عملية الدفع', 'تم معالجة الطلب بنجاح')
     },
-    onError: (e) => {
-      void refreshOrders()
-      toast.error('فشلت عملية الدفع', restaurantErrorMessage(e, 'يرجى المحاولة مرة أخرى'))
-    },
+    onError: () => toast.error('فشلت عملية الدفع', 'يرجى المحاولة مرة أخرى'),
   })
 
-  // ── Manager: void a line or cancel an order ───────────────────────────────
-
-  const removeItemMutation = useMutation({
-    mutationFn: ({ orderId, itemId }: { orderId: string; itemId: string }) =>
-      restaurantApi.removeItem(branchId, orderId, itemId),
-    onSuccess: () => {
-      void refreshOrders()
-      setVoidTarget(null)
-      toast.success('حُذف الصنف من الطلب')
-    },
-    onError: (e) => toast.error('تعذّر حذف الصنف', restaurantErrorMessage(e)),
-  })
-
-  const cancelMutation = useMutation({
-    mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) =>
-      restaurantApi.cancelOrder(branchId, orderId, reason),
-    onSuccess: () => {
-      void refreshOrders()
-      setCancelTarget(null)
-      toast.success('أُلغي الطلب')
-    },
-    onError: (e) => toast.error('تعذّر إلغاء الطلب', restaurantErrorMessage(e)),
-  })
+  const tableOrder = selectedTable
+    ? orders.find(
+        (o) => o.tableNumber === selectedTable && !['Paid', 'Cancelled'].includes(o.status),
+      ) ?? null
+    : null
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Start: Table grid + Menu */}
-      <div className="flex flex-1 flex-col overflow-hidden border-e border-border">
+      {/* Left: Table grid + Menu */}
+      <div className="flex flex-1 flex-col overflow-hidden border-l border-border">
         {/* Table grid */}
         <div className="border-b border-border p-4">
           <p className="mb-3 text-sm font-semibold text-fg">{t.restaurant.selectTable}</p>
@@ -462,7 +372,7 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
                   <button
                     key={item.id}
                     onClick={() => addToCart(item)}
-                    className="flex flex-col rounded-xl border border-border bg-surface p-3 text-start transition-all hover:border-info/30 hover:shadow-sm active:scale-[0.98]"
+                    className="flex flex-col rounded-xl border border-border bg-surface p-3 text-right transition-all hover:border-info/30 hover:shadow-sm active:scale-[0.98]"
                   >
                     <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 dark:bg-warning/15">
                       <span className="text-lg">🍽️</span>
@@ -498,136 +408,104 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
         )}
       </div>
 
-      {/* End: Order panel */}
+      {/* Right: Order panel */}
       <div className="flex w-80 flex-col bg-surface">
         <div className="border-b border-border px-4 py-3">
           <h2 className="font-semibold text-fg">
             {selectedTable ? t.restaurant.orderFor.replace('{n}', String(selectedTable)) : 'الطلب الحالي'}
           </h2>
-          {tableOrders.length === 1 && <div className="mt-1"><OrderStatusBadge status={tableOrders[0].status} /></div>}
-          {tableOrders.length > 1 && (
-            <p className="mt-1 text-xs text-muted">{tableOrders.length} طلبات مفتوحة · فاتورة واحدة</p>
+          {tableOrder && (
+            <span className={cn(
+              'mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium',
+              tableOrder.status === 'Pending' && 'bg-warning/10 text-warning',
+              tableOrder.status === 'InKitchen' && 'bg-info/10 text-info',
+              tableOrder.status === 'Ready' && 'bg-success/10 text-success',
+              tableOrder.status === 'Served' && 'bg-brand-soft text-brand-ink dark:bg-brand/20',
+            )}>
+              {tableOrder.status === 'Pending' && 'قيد الانتظار'}
+              {tableOrder.status === 'InKitchen' && 'في المطبخ'}
+              {tableOrder.status === 'Ready' && t.kitchen.ready}
+              {tableOrder.status === 'Served' && 'تم التقديم'}
+            </span>
           )}
         </div>
 
-        {/* What the table already sent: always shown, so the cashier sees it while adding a round */}
-        {tableOrders.length > 0 && (
-          <div className={cn('overflow-y-auto border-b border-border p-4', cart.length > 0 ? 'max-h-48' : 'max-h-[45%]')}>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-medium text-muted">المُرسل للمطبخ</p>
-              {bill && <p className="text-xs font-semibold tabular-nums text-fg">{formatCurrency(bill.total)}</p>}
-            </div>
-            <div className="space-y-3">
-              {tableOrders.map((order, idx) => (
-                <div key={order.id}>
-                  {(tableOrders.length > 1 || canManage) && (
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      {tableOrders.length > 1
-                        ? <span className="flex items-center gap-2 text-xs text-muted">طلب {idx + 1} <OrderStatusBadge status={order.status} /></span>
-                        : <span />}
-                      {canManage && (
-                        <button
-                          onClick={() => setCancelTarget(order)}
-                          className="flex items-center gap-1 text-xs text-muted hover:text-danger"
-                        >
-                          <Ban className="h-3 w-3" />
-                          إلغاء الطلب
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  <ul className="space-y-1">
-                    {order.items.map((item) => (
-                      <li key={item.id} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="min-w-0 flex-1 truncate text-fg">
-                          {item.itemName} × {item.quantity}
-                        </span>
-                        <span className={cn(
-                          'shrink-0 text-xs',
-                          item.status === 'Ready' ? 'text-success' :
-                          item.status === 'Preparing' ? 'text-info' : 'text-muted',
-                        )}>
-                          {item.status === 'Ready' ? t.kitchen.ready :
-                           item.status === 'Preparing' ? t.kitchen.preparing : 'انتظار'}
-                        </span>
-                        {canManage && item.status !== 'Ready' && order.items.length > 1 && (
-                          <button
-                            onClick={() => setVoidTarget({
-                              orderId: order.id,
-                              itemId: item.id,
-                              label: `${item.itemName} × ${item.quantity}`,
-                            })}
-                            disabled={removeItemMutation.isPending}
-                            className="shrink-0 rounded-md p-1 text-muted/50 hover:bg-surface-2 hover:text-danger disabled:opacity-40"
-                            aria-label={`حذف ${item.itemName}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+        {/* Current active order for the table */}
+        {tableOrder && cart.length === 0 && (
+          <div className="border-b border-border p-4">
+            <p className="mb-2 text-xs font-medium text-muted">الطلب الحالي</p>
+            <ul className="space-y-1">
+              {tableOrder.items.map((item) => (
+                <li key={item.id} className="flex justify-between text-sm">
+                  <span className="text-fg">
+                    {item.itemName} × {item.quantity}
+                  </span>
+                  <span className={cn(
+                    'text-xs',
+                    item.status === 'Ready' ? 'text-success' :
+                    item.status === 'Preparing' ? 'text-info' : 'text-muted',
+                  )}>
+                    {item.status === 'Ready' ? t.kitchen.ready :
+                     item.status === 'Preparing' ? t.kitchen.preparing : 'انتظار'}
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 
-        {/* Cart items: the next round */}
+        {/* Cart items */}
         <div className="flex-1 overflow-y-auto">
           {cart.length === 0 ? (
             <p className="mt-16 text-center text-sm text-muted">
-              {!selectedTable ? 'اختر طاولة أولاً' : openOrder ? 'أضف أصنافاً لجولة جديدة' : 'أضف أصنافاً للطلب'}
+              {selectedTable ? 'أضف أصنافاً للطلب' : 'اختر طاولة أولاً'}
             </p>
           ) : (
-            <>
-              {openOrder && <p className="px-4 pt-3 text-xs font-medium text-muted">جولة جديدة</p>}
-              <ul className="divide-y divide-border">
-                {cart.map((item) => (
-                  <li key={item.menuItemId} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm font-medium text-fg">
-                          {item.itemName}
-                        </p>
-                        <p className="text-xs text-muted">
-                          {formatCurrency(item.unitPrice)} للوحدة
-                        </p>
-                      </div>
-                      <button onClick={() => removeFromCart(item.menuItemId)}
-                        className="text-muted/50 hover:text-danger">
-                        <Trash2 className="h-3.5 w-3.5" />
+            <ul className="divide-y divide-border">
+              {cart.map((item) => (
+                <li key={item.menuItemId} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-medium text-fg">
+                        {item.itemName}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {formatCurrency(item.unitPrice)} للوحدة
+                      </p>
+                    </div>
+                    <button onClick={() => removeFromCart(item.menuItemId)}
+                      className="text-muted/50 hover:text-danger">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => updateQty(item.menuItemId, item.quantity - 1)}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-2"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQty(item.menuItemId, item.quantity + 1)}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-2"
+                      >
+                        <Plus className="h-3 w-3" />
                       </button>
                     </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => updateQty(item.menuItemId, item.quantity - 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-2"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQty(item.menuItemId, item.quantity + 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted hover:bg-surface-2"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                      </div>
-                      <span className="text-sm font-semibold text-fg">
-                        {formatCurrency(item.unitPrice * item.quantity)}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
+                    <span className="text-sm font-semibold text-fg">
+                      {formatCurrency(item.unitPrice * item.quantity)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
-        {/* Discount code: applied when the table's order is opened */}
-        {cart.length > 0 && canDiscount && (
+        {/* Discount code */}
+        {cart.length > 0 && (
           <div className="border-t border-border px-4 py-3">
             <div className="flex gap-2">
               <input
@@ -680,40 +558,34 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
                 <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2">
-                <span className="font-medium text-fg">{openOrder ? 'الجولة الجديدة' : t.restaurant.total}</span>
+                <span className="font-medium text-fg">{t.restaurant.total}</span>
                 <span className="text-xl font-bold text-fg">
                   {formatCurrency(total)}
                 </span>
               </div>
-              {bill && (
-                <div className="flex justify-between text-xs text-muted">
-                  <span>مع المُرسل سابقاً</span>
-                  <span className="tabular-nums">{formatCurrency(r2(bill.total + total))}</span>
-                </div>
-              )}
             </div>
           )}
 
-          {bill && cart.length === 0 && (
+          {tableOrder && cart.length === 0 && (
             <div className="mb-3 space-y-1 text-sm">
               <div className="flex justify-between text-muted">
                 <span>{t.restaurant.subtotal}</span>
-                <span className="tabular-nums">{formatCurrency(bill.subTotal)}</span>
+                <span className="tabular-nums">{formatCurrency(tableOrder.subTotal)}</span>
               </div>
-              {bill.discountAmount > 0 && (
+              {tableOrder.discountAmount > 0 && (
                 <div className="flex justify-between text-success">
                   <span>{t.restaurant.discount}</span>
-                  <span className="tabular-nums">- {formatCurrency(bill.discountAmount)}</span>
+                  <span className="tabular-nums">- {formatCurrency(tableOrder.discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-muted">
                 <span>{t.restaurant.tax}</span>
-                <span className="tabular-nums">{formatCurrency(bill.taxAmount)}</span>
+                <span className="tabular-nums">{formatCurrency(tableOrder.taxAmount)}</span>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <span className="font-medium text-fg">{t.restaurant.total}</span>
                 <span className="text-xl font-bold text-fg">
-                  {formatCurrency(bill.total)}
+                  {formatCurrency(tableOrder.total)}
                 </span>
               </div>
             </div>
@@ -745,7 +617,7 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
               </Button>
             )}
 
-            {bill && cart.length === 0 && (
+            {tableOrder && cart.length === 0 && !['Paid', 'Cancelled'].includes(tableOrder.status) && (
               <Button
                 variant="primary"
                 size="sm"
@@ -761,9 +633,9 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
       </div>
 
       {/* Payment modal */}
-      {showPayment && bill && (
+      {showPayment && tableOrder && (
         <PaymentModal
-          bill={bill}
+          order={tableOrder}
           paymentMethod={paymentMethod}
           setPaymentMethod={setPaymentMethod}
           amountTendered={amountTendered}
@@ -774,32 +646,11 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
         />
       )}
 
-      {cancelTarget && (
-        <CancelOrderModal
-          order={cancelTarget}
-          onClose={() => setCancelTarget(null)}
-          onConfirm={(reason) => cancelMutation.mutate({ orderId: cancelTarget.id, reason })}
-          isPending={cancelMutation.isPending}
-        />
-      )}
-
-      <ConfirmModal
-        open={!!voidTarget}
-        onClose={() => setVoidTarget(null)}
-        onConfirm={() => voidTarget && removeItemMutation.mutate({ orderId: voidTarget.orderId, itemId: voidTarget.itemId })}
-        title="حذف الصنف؟"
-        message={`${voidTarget?.label ?? ''} سيُحذف من طلب الطاولة`}
-        confirmLabel="حذف"
-        confirmVariant="danger"
-        loading={removeItemMutation.isPending}
-      />
-
       {/* ZATCA Receipt */}
-      {paidOrders && paidOrders.length > 0 && (
+      {completedOrder && (
         <RestaurantReceiptModal
-          orders={paidOrders}
-          label={`${t.restaurant.table} ${paidOrders[0].tableNumber}`}
-          onClose={() => setPaidOrders(null)}
+          order={completedOrder}
+          onClose={() => setCompletedOrder(null)}
         />
       )}
     </div>
@@ -809,7 +660,7 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
 // ── Payment Modal ─────────────────────────────────────────────────────────────
 
 function PaymentModal({
-  bill,
+  order,
   paymentMethod,
   setPaymentMethod,
   amountTendered,
@@ -818,7 +669,7 @@ function PaymentModal({
   onConfirm,
   isPending,
 }: {
-  bill: TableBill
+  order: RestaurantOrderResponse
   paymentMethod: 'Cash' | 'Card'
   setPaymentMethod: (m: 'Cash' | 'Card') => void
   amountTendered: string
@@ -828,31 +679,28 @@ function PaymentModal({
   isPending: boolean
 }) {
   const { t } = useI18n()
-  const total = bill.total
+  const total = order.total
   const tendered = parseFloat(amountTendered) || 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
-        <h2 className="mb-1 text-lg font-semibold">{t.restaurant.pay} — {t.restaurant.table} {bill.tableNumber}</h2>
-        {bill.orderCount > 1 && (
-          <p className="mb-2 text-xs text-muted">تشمل {bill.orderCount} طلبات على الطاولة</p>
-        )}
+        <h2 className="mb-1 text-lg font-semibold">{t.restaurant.pay} — {t.restaurant.table} {order.tableNumber}</h2>
         <div className="mb-4 space-y-1 text-sm">
           <div className="flex justify-between text-muted">
             <span>{t.restaurant.subtotal}</span>
-            <span>{formatCurrency(bill.subTotal)}</span>
+            <span>{formatCurrency(order.subTotal)}</span>
           </div>
-          {bill.discountAmount > 0 && (
+          {order.discountAmount > 0 && (
             <div className="flex justify-between text-success">
               <span>{t.restaurant.discount}</span>
-              <span>- {formatCurrency(bill.discountAmount)}</span>
+              <span>- {formatCurrency(order.discountAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-muted">
             <span>{t.restaurant.tax}</span>
-            <span>{formatCurrency(bill.taxAmount)}</span>
+            <span>{formatCurrency(order.taxAmount)}</span>
           </div>
         </div>
         <div className="mb-6 rounded-xl bg-surface-2 p-4">
@@ -916,66 +764,79 @@ function PaymentModal({
   )
 }
 
-// ── Cancel Order Modal ────────────────────────────────────────────────────────
+// ── Receipt Modal ─────────────────────────────────────────────────────────────
 
-function CancelOrderModal({
+function RestaurantReceiptModal({
   order,
   onClose,
-  onConfirm,
-  isPending,
 }: {
   order: RestaurantOrderResponse
   onClose: () => void
-  onConfirm: (reason: string) => void
-  isPending: boolean
 }) {
   const { t } = useI18n()
-  const [reason, setReason] = useState('')
-  const trimmed = reason.trim()
+  const { data: zatcaSettings } = useQuery({
+    queryKey: ['zatca-settings'],
+    queryFn: () => zatcaApi.getSettings(),
+    staleTime: 60_000,
+  })
+  const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
+
+  const qrCode = generateZatcaQr({
+    sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
+    vatNumber,
+    timestamp: order.paidAt ?? order.createdAt,
+    totalWithVat: order.total,
+    vatAmount: order.taxAmount,
+  })
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title={`إلغاء طلب الطاولة ${order.tableNumber}`}
-      size="sm"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={isPending}>{t.common.back}</Button>
-          <Button variant="danger" onClick={() => onConfirm(trimmed)} loading={isPending} disabled={!trimmed}>
-            إلغاء الطلب
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-3" dir="rtl">
-        <p className="text-sm text-muted">
-          {order.items.length} أصناف بقيمة {formatCurrency(order.total)}. لا يمكن التراجع عن الإلغاء.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {CANCEL_REASONS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setReason(r)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                trimmed === r ? 'border-danger bg-danger/10 text-danger' : 'border-border text-muted hover:bg-surface-2',
-              )}
-            >
-              {r}
-            </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div data-print-area className="relative w-full max-w-sm rounded-2xl bg-surface p-6 shadow-2xl mx-4">
+        <div className="mb-4 text-center">
+          <h2 className="text-lg font-bold">فاتورة ضريبية</h2>
+          <p className="text-xs text-muted">طاولة {order.tableNumber}</p>
+          {vatNumber && <p className="text-xs text-muted mt-0.5">flowin — رقم ضريبة القيمة المضافة: {vatNumber}</p>}
+        </div>
+        <div className="mb-4 space-y-2 text-sm">
+          {order.items.map((item) => (
+            <div key={item.id} className="flex justify-between text-fg">
+              <span className="flex-1 truncate">{item.itemName} × {item.quantity}</span>
+              <span className="tabular-nums">{formatCurrency(item.lineTotal)}</span>
+            </div>
           ))}
         </div>
-        <Input
-          label="سبب الإلغاء"
-          value={reason}
-          maxLength={256}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="اكتب السبب"
-        />
+        <div className="mb-4 space-y-1 border-t border-border pt-3 text-sm">
+          <div className="flex justify-between text-muted">
+            <span>المجموع قبل الضريبة</span>
+            <span className="tabular-nums">{formatCurrency(order.subTotal)}</span>
+          </div>
+          {order.discountAmount > 0 && (
+            <div className="flex justify-between text-success">
+              <span>خصم {order.appliedDiscountCode}</span>
+              <span className="tabular-nums">- {formatCurrency(order.discountAmount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-muted">
+            <span>ضريبة القيمة المضافة 15%</span>
+            <span className="tabular-nums">{formatCurrency(order.taxAmount)}</span>
+          </div>
+          <div className="flex justify-between font-bold text-fg">
+            <span>الإجمالي</span>
+            <span className="tabular-nums">{formatCurrency(order.total)}</span>
+          </div>
+        </div>
+        <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-surface-2 p-4">
+          <QrCode className="h-5 w-5 text-muted" />
+          <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
+          <ZatcaQr value={qrCode} size={120} />
+        </div>
+        <div data-no-print className="flex gap-3">
+          <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.close}</Button>
+          <Button variant="primary" onClick={(e) => printElement(e.currentTarget.closest('[data-print-area]'))} className="flex-1">طباعة</Button>
+        </div>
       </div>
-    </Modal>
+    </div>
   )
 }
 
@@ -1019,7 +880,7 @@ function ManagerView({ branchId }: { branchId: string }) {
 
   const { data: discountsData } = useQuery({
     queryKey: ['discount-codes', tenantId],
-    queryFn: () => restaurantApi.listDiscountCodes(branchId),
+    queryFn: () => restaurantApi.listDiscountCodes(branchId, tenantId!),
     enabled: !!tenantId,
   })
 
@@ -1035,25 +896,13 @@ function ManagerView({ branchId }: { branchId: string }) {
     enabled: !!branchId,
   })
 
-  // The active list never holds paid orders; today's takings come from the orders paid since midnight.
-  const [dayStart] = useState(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  })
-  const { data: paidData } = useQuery({
-    queryKey: ['restaurant-orders', branchId, 'paid', dayStart.toISOString()],
-    queryFn: () => restaurantApi.listPaidOrders(
-      branchId, dayStart.toISOString(), new Date(dayStart.getTime() + 86_400_000).toISOString()),
-    enabled: !!branchId,
-  })
-
   const discounts = discountsData?.data ?? []
-  const orders = (ordersData?.data ?? []).filter((o) => !o.kitchenOnly)
+  const orders = ordersData?.data ?? []
   const menuItems = menuData?.data ?? []
-  const paidToday = (paidData?.data ?? []).filter((o) => !o.kitchenOnly)
 
-  const todayRevenue = paidToday.reduce((s, o) => s + o.total, 0)
+  const todayRevenue = orders
+    .filter((o) => o.status === 'Paid')
+    .reduce((s, o) => s + o.total, 0)
 
   const discountForm = useForm<DiscountFormData>({
     resolver: zodResolver(discountSchema),
@@ -1068,6 +917,7 @@ function ManagerView({ branchId }: { branchId: string }) {
   const createDiscountMutation = useMutation({
     mutationFn: (data: DiscountFormData) =>
       restaurantApi.createDiscountCode(branchId, {
+        tenantId: tenantId!,
         code: data.code,
         type: data.type,
         value: data.value,
@@ -1081,7 +931,7 @@ function ManagerView({ branchId }: { branchId: string }) {
       discountForm.reset()
       toast.success('تم إنشاء رمز الخصم')
     },
-    onError: (e) => toast.error('فشل إنشاء رمز الخصم', restaurantErrorMessage(e)),
+    onError: () => toast.error('فشل إنشاء رمز الخصم'),
   })
 
   const saveMenuMutation = useMutation({
@@ -1095,6 +945,7 @@ function ManagerView({ branchId }: { branchId: string }) {
             sortOrder: data.sortOrder,
           })
         : restaurantApi.createMenuItem(branchId, {
+            tenantId: tenantId!,
             name: data.name,
             description: data.description,
             category: data.category,
@@ -1109,14 +960,14 @@ function ManagerView({ branchId }: { branchId: string }) {
       menuForm.reset({ currency: 'SAR', category: 'Mains', sortOrder: 0 })
       toast.success(editingMenuItem ? 'تم تحديث الصنف' : 'تم إضافة الصنف')
     },
-    onError: (e) => toast.error('فشل حفظ الصنف', restaurantErrorMessage(e)),
+    onError: () => toast.error('فشل حفظ الصنف'),
   })
 
   const toggleAvailabilityMutation = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
       restaurantApi.setAvailability(branchId, id, { isAvailable }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['menu-items', branchId] }),
-    onError: (e) => toast.error('فشل تحديث التوفر', restaurantErrorMessage(e)),
+    onError: () => toast.error('فشل تحديث التوفر'),
   })
 
   const openEditMenuItem = (item: MenuItemResponse) => {
@@ -1157,7 +1008,7 @@ function ManagerView({ branchId }: { branchId: string }) {
         <Card className="p-4">
           <p className="text-sm text-muted">الطلبات المدفوعة</p>
           <p className="text-3xl font-bold text-fg">
-            {paidToday.length}
+            {orders.filter((o) => o.status === 'Paid').length}
           </p>
         </Card>
       </div>
@@ -1257,7 +1108,7 @@ function ManagerView({ branchId }: { branchId: string }) {
                   {dc.maxUses === 0 ? 'غير محدود' : `${dc.usedCount}/${dc.maxUses} استخدام`}
                 </p>
               </div>
-              <div className="text-end">
+              <div className="text-left">
                 <span className={cn(
                   'rounded-full px-2 py-0.5 text-xs font-medium',
                   dc.isActive && new Date(dc.expiryDate) > new Date()

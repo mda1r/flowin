@@ -1,37 +1,28 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, Printer, RotateCcw, X } from 'lucide-react'
-import { customersApi } from '@/api/customers'
-import { useAuthStore } from '@/stores/authStore'
+import { Printer, RotateCcw, X } from 'lucide-react'
 import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
-import { CreditNoteModal } from '@/components/pos/CreditNoteModal'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
-import { orderReceiptFigures, paymentLabel, refundLabel, refundState, returnNo } from '@/lib/orderReceipt'
+import { orderReceiptFigures, paymentLabel } from '@/lib/orderReceipt'
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { generateZatcaQr } from '@/lib/zatca'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
 import { formatCurrency } from '@/lib/utils'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
-import { intlLocale } from '@/lib/locale'
 
 /* A saved sale opened from the invoices list or a shift report: the store's receipt, printable at roll size,
-   and shareable on WhatsApp. A refunded sale says so on the slip, and each return on it opens its own
-   credit note to print or send. */
+   and shareable on WhatsApp. A refunded sale says so on the slip and shows how much went back. */
 export function InvoiceReceiptModal({
   order,
-  returns = [],
+  refund,
   onClose,
 }: {
   order: OrderResponse
-  returns?: ReturnOrderResponse[]
+  refund?: ReturnOrderResponse
   onClose: () => void
 }) {
-  const { tenantId } = useAuthStore()
   const settings = useReceiptSettings()
   const { sellerName, vatNumber } = useSellerIdentity()
-  const [creditNote, setCreditNote] = useState<ReturnOrderResponse | null>(null)
   const figures = orderReceiptFigures(order)
   const number = invoiceNo(order)
   const issuedAt = order.completedAt ?? order.createdAt
@@ -42,19 +33,6 @@ export function InvoiceReceiptModal({
     totalWithVat: order.totalAmount,
     vatAmount: order.taxAmount,
   })
-
-  // The customer on the sale, so the reprint matches the original slip and WhatsApp is prefilled.
-  // A cashier without access to customers still gets the receipt, just without the name.
-  const { data: customer } = useQuery({
-    queryKey: ['customer', tenantId, order.customerId],
-    queryFn: async () => (await customersApi.get(tenantId!, order.customerId!)).data,
-    enabled: !!tenantId && !!order.customerId,
-    retry: false,
-    staleTime: 5 * 60_000,
-  })
-
-  const state = refundState(order, returns)
-  const refunded = returns.reduce((s, r) => s + r.refundAmount, 0)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl" role="dialog" aria-modal="true" aria-label={`فاتورة رقم ${number}`}>
@@ -78,50 +56,23 @@ export function InvoiceReceiptModal({
             {...figures}
             paymentLabel={paymentLabel(order.paymentMethod)}
             tendered={order.paymentMethod === 'Cash' ? order.amountTendered ?? undefined : undefined}
-            customer={customer ? { name: customer.name } : undefined}
-            badge={state !== 'none' ? (
-              <span className={`inline-flex items-center gap-1 ${state === 'full' ? 'text-danger' : 'text-warning'}`}>
+            badge={refund ? (
+              <span className="inline-flex items-center gap-1 text-danger">
                 <RotateCcw className="h-3.5 w-3.5" />
-                {state === 'full' ? 'مستردة' : 'مستردة جزئياً'} · {formatCurrency(refunded)}
+                مستردة · {formatCurrency(refund.refundAmount)}
               </span>
             ) : undefined}
             qr={qr}
           />
-
-          {returns.length > 0 && (
-            <div className="mt-4 space-y-1.5">
-              <p className="text-xs font-medium text-muted">إشعارات الاسترداد</p>
-              {returns.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => setCreditNote(r)}
-                  className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-start text-sm hover:bg-surface-2"
-                >
-                  <RotateCcw className="h-3.5 w-3.5 shrink-0 text-muted" />
-                  <span className="min-w-0 flex-1">
-                    <bdi dir="ltr" className="font-semibold tabular-nums text-fg">{returnNo(r)}</bdi>
-                    <span className="block text-xs text-muted">
-                      {new Date(r.createdAt).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · {refundLabel(r.refundMethod)}
-                    </span>
-                  </span>
-                  <span className="font-display font-semibold tabular-nums text-danger">{formatCurrency(r.refundAmount)}</span>
-                  <ChevronLeft className="h-4 w-4 shrink-0 text-muted" />
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <div className="space-y-3 border-t border-border p-4">
           <WhatsAppShare
-            key={customer?.id ?? 'none'}
-            defaultPhone={customer?.phone}
             message={buildReceiptMessage({
               storeName: sellerName || 'flowin',
               invoiceNo: number,
-              date: new Date(issuedAt).toLocaleString(intlLocale('ar'), { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(issuedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: figures.lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total })),
-              discount: (figures.discount ?? 0) + (figures.loyalty?.amount ?? 0) || undefined,
+              discount: figures.discount,
               vat: figures.tax,
               vatIncluded: true,
               total: figures.total,
@@ -137,10 +88,6 @@ export function InvoiceReceiptModal({
           </button>
         </div>
       </div>
-
-      {creditNote && (
-        <CreditNoteModal ret={creditNote} order={order} defaultPhone={customer?.phone} onClose={() => setCreditNote(null)} />
-      )}
     </div>
   )
 }

@@ -18,18 +18,18 @@ public sealed class Money : ValueObject
     {
         if (amount < 0)
         {
-            return Error.Validation("Catalog.Money.NegativeAmount", "المبلغ لا يمكن أن يكون سالباً");
+            return Error.Validation("Catalog.Money.NegativeAmount", "Amount must not be negative.");
         }
 
         if (string.IsNullOrWhiteSpace(currency))
         {
-            return Error.Validation("Catalog.Money.EmptyCurrency", "العملة مطلوبة");
+            return Error.Validation("Catalog.Money.EmptyCurrency", "Currency is required.");
         }
 
         string normalized = currency.Trim().ToUpperInvariant();
         if (normalized.Length != 3)
         {
-            return Error.Validation("Catalog.Money.InvalidCurrency", "رمز العملة يجب أن يكون 3 أحرف");
+            return Error.Validation("Catalog.Money.InvalidCurrency", "Currency must be a 3-letter ISO code.");
         }
 
         return new Money(amount, normalized);

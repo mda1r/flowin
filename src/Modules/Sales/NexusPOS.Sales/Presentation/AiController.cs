@@ -9,7 +9,6 @@ using NexusPOS.Sales.Application.Queries.GetAiInsights;
 // using NexusPOS.Sales.Application.Services; // moved to SharedKernel
 using NexusPOS.Sales.Presentation.Requests;
 using NexusPOS.SharedKernel.Application.Services;
-using NexusPOS.SharedKernel.Presentation;
 using System.Security.Claims;
 
 namespace NexusPOS.Sales.Presentation;
@@ -23,25 +22,13 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
     private Guid CurrentTenantId =>
         Guid.TryParse(User.FindFirstValue("tenant_id"), out Guid id) ? id : Guid.Empty;
 
-    /// <summary>ما يتاح للمستخدم الحالي: المساعد الذكي (للمالك والمدير فقط) وكاشير AI</summary>
-    [HttpGet("available")]
-    [ProducesResponseType(typeof(AiAvailabilityResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Available(CancellationToken cancellationToken)
-    {
-        IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        bool canSeeFinances = User.IsInRole("Owner") || User.IsInRole("Manager");
-        return Ok(new AiAvailabilityResponse(
-            Assistant: canSeeFinances && features.Contains("ai"),
-            Cashier: features.Contains("ai_cashier")));
-    }
-
     /// <summary>التحقق من توفر كاشير AI للمستأجر الحالي</summary>
     [HttpGet("cashier/available")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<IActionResult> CashierAvailable(CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        return Ok(new { available = features.Contains(PlanFeatures.AiCashier) });
+        return Ok(new { available = features.Contains("ai_cashier") });
     }
 
     /// <summary>كاشير AI - محادثة صوتية</summary>
@@ -54,7 +41,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        if (!features.Contains(PlanFeatures.AiCashier))
+        if (!features.Contains("ai_cashier"))
         {
             return StatusCode(StatusCodes.Status402PaymentRequired, new
             {
@@ -65,17 +52,15 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
 
         var command = new AiCashierCommand(
             branchId,
-            (request.Messages ?? []).Select(m => new ClaudeMessage(m.Role, m.Content)).ToList(),
-            (request.Cart ?? []).Select(l => new AiCashierCartLine(l.VariantId, l.Name, l.Quantity, l.LineTotal)).ToList(),
-            request.CartTotal);
+            request.Messages.Select(m => new ClaudeMessage(m.Role, m.Content)).ToList());
 
         ErrorOr<AiCashierResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 
+
     /// <summary>مساعد الذكاء الاصطناعي - محادثة</summary>
     [HttpPost("chat")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
     public async Task<IActionResult> Chat(
@@ -84,7 +69,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        if (!features.Contains(PlanFeatures.Ai))
+        if (!features.Contains("ai"))
         {
             return StatusCode(StatusCodes.Status402PaymentRequired, new { code = "feature_not_available", message = "ميزة الذكاء الاصطناعي غير مفعّلة لهذا الحساب." });
         }
@@ -96,7 +81,6 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
 
     /// <summary>رؤى الذكاء الاصطناعي عن المبيعات</summary>
     [HttpGet("insights")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(AiInsightsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
     public async Task<IActionResult> GetInsights(
@@ -104,7 +88,7 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         CancellationToken cancellationToken)
     {
         IReadOnlyList<string> features = await subscriptionChecker.GetFeaturesAsync(CurrentTenantId, cancellationToken);
-        if (!features.Contains(PlanFeatures.Ai))
+        if (!features.Contains("ai"))
         {
             return StatusCode(StatusCodes.Status402PaymentRequired, new { code = "feature_not_available", message = "ميزة الذكاء الاصطناعي غير مفعّلة لهذا الحساب." });
         }
@@ -113,7 +97,15 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         return result.Match(Ok, MapErrors);
     }
 
-    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
-}
+    private IActionResult MapErrors(List<Error> errors)
+    {
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            _ => StatusCodes.Status500InternalServerError,
+        };
 
-public sealed record AiAvailabilityResponse(bool Assistant, bool Cashier);
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+    }
+}

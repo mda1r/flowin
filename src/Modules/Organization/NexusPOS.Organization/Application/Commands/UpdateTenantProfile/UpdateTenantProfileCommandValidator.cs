@@ -7,15 +7,15 @@ internal sealed class UpdateTenantProfileCommandValidator : AbstractValidator<Up
     public UpdateTenantProfileCommandValidator()
     {
         RuleFor(x => x.TenantId)
-            .NotEmpty().WithMessage("المنشأة مطلوبة");
+            .NotEmpty().WithMessage("TenantId is required.");
 
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("اسم المنشأة مطلوب")
+            .NotEmpty().WithMessage("Tenant name is required.")
             .MaximumLength(256);
 
         RuleFor(x => x.Currency)
             .NotEmpty()
-            .Length(3).WithMessage("رمز العملة يجب أن يكون 3 أحرف، مثل SAR");
+            .Length(3).WithMessage("Currency must be a 3-letter ISO code.");
 
         RuleFor(x => x.TimeZone)
             .NotEmpty()
@@ -24,7 +24,7 @@ internal sealed class UpdateTenantProfileCommandValidator : AbstractValidator<Up
         RuleFor(x => x.LogoUrl)
             .MaximumLength(2048)
             .Must(url => url is null || Uri.TryCreate(url, UriKind.Absolute, out _))
-            .WithMessage("رابط الشعار غير صالح")
+            .WithMessage("LogoUrl must be a valid URL.")
             .When(x => x.LogoUrl is not null);
 
         RuleFor(x => x.PhoneNumber)

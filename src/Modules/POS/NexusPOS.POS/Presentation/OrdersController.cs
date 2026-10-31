@@ -19,8 +19,6 @@ using NexusPOS.POS.Application.Queries.ListReturns;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Presentation.Requests;
 using NexusPOS.SharedKernel.Application;
-using System.Security.Claims;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.POS.Presentation;
 
@@ -30,16 +28,7 @@ namespace NexusPOS.POS.Presentation;
 [Authorize]
 public sealed class OrdersController(ISender mediator) : ControllerBase
 {
-    private string? CurrentUserName
-    {
-        get
-        {
-            string full = $"{User.FindFirstValue("given_name")} {User.FindFirstValue("family_name")}".Trim();
-            return full.Length > 0 ? full : User.FindFirstValue(ClaimTypes.Email);
-        }
-    }
-
-    /// <summary>List orders for a branch; <c>number</c> finds one invoice by its number across all dates.</summary>
+    /// <summary>List orders for a branch.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<OrderResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListOrders(
@@ -49,11 +38,10 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         [FromQuery] DateTime? to = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
-        [FromQuery] long? number = null,
         CancellationToken cancellationToken = default)
     {
         ListOrdersQuery query = new(
-            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Paging.Page(page), Paging.Size(pageSize, 500), number);
+            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Math.Max(page, 1), Math.Clamp(pageSize, 1, 500));
         ErrorOr<IReadOnlyList<OrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -136,9 +124,7 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
     }
 
     /// <summary>Apply a discount to the order total.</summary>
-    /// <remarks>Owner or Manager only: cashiers discount through checkout, where the branch cap applies.</remarks>
     [HttpPost("{orderId:guid}/discount")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -184,13 +170,9 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         CheckoutOrderCommand command = new(
             tenantId, branchId, request.ClientReference, request.Currency, request.TaxRate, request.CustomerId,
             [.. (request.Lines ?? []).Select(l => new CheckoutOrderCommand.Line(
-                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity, l.DiscountType, l.DiscountValue, l.Notes))],
+                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity))],
             request.LoyaltyPoints, request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount,
-            UtcDates.AsUtc(request.OfflineCreatedAt), request.DiscountType, request.DiscountValue, request.ApprovalPin,
-            ByOwnerOrManager: User.IsInRole("Owner") || User.IsInRole("Manager"),
-            UserId: Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId) ? userId : Guid.Empty,
-            UserName: CurrentUserName,
-            Kitchen: request.Kitchen is { } k ? new CheckoutOrderCommand.KitchenTicket(k.TableNumber, k.Takeaway) : null);
+            UtcDates.AsUtc(request.OfflineCreatedAt));
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -212,9 +194,8 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    /// <summary>Process a return for a completed order; refunds are for owners and managers only.</summary>
+    /// <summary>Process a return for a completed order.</summary>
     [HttpPost("{orderId:guid}/return")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ReturnOrderResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -228,12 +209,8 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             orderId,
             branchId,
             request.RefundMethod,
-            [.. (request.Lines ?? []).Select(l => new ReturnOrderLineInput(l.LineId, l.Quantity, l.Reason))],
-            request.RestockItems,
-            Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId) ? userId : null,
-            CurrentUserName,
-            request.Note,
-            request.ClientReference);
+            request.Lines.Select(l => new ReturnOrderLineInput(l.LineId, l.Quantity, l.Reason)).ToList(),
+            request.RestockItems);
 
         ErrorOr<ReturnOrderResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -242,18 +219,14 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
-    /// <summary>List returns for a branch, optionally within [from, to) (UTC).</summary>
+    /// <summary>List returns for a branch.</summary>
     [HttpGet("/api/v1/branches/{branchId:guid}/returns")]
     [ProducesResponseType(typeof(IReadOnlyList<ReturnOrderResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListReturns(
         Guid branchId,
-        [FromQuery] DateTime? from = null,
-        [FromQuery] DateTime? to = null,
-        [FromQuery] int limit = ListReturnsQuery.DefaultLimit,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        ListReturnsQuery query = new(
-            branchId, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Paging.Size(limit, ListReturnsQuery.MaxLimit));
+        ListReturnsQuery query = new(branchId);
         ErrorOr<IReadOnlyList<ReturnOrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -275,5 +248,28 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
+    private IActionResult MapErrorsToResult(List<Error> errors)
+    {
+        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
+        {
+            ValidationProblemDetails problemDetails = new();
+            foreach (Error error in errors)
+            {
+                problemDetails.Errors[error.Code] = [error.Description];
+            }
+
+            return ValidationProblem(problemDetails);
+        }
+
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+    }
 }

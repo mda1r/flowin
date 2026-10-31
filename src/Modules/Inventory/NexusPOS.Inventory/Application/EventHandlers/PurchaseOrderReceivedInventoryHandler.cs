@@ -7,7 +7,6 @@ using NexusPOS.Inventory.Domain.Enums;
 using NexusPOS.Inventory.Domain.Repositories;
 using NexusPOS.Inventory.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Domain.Events;
-using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Inventory.Application.EventHandlers;
 
@@ -17,7 +16,6 @@ namespace NexusPOS.Inventory.Application.EventHandlers;
 internal sealed class PurchaseOrderReceivedInventoryHandler(
     IStockItemRepository stockItemRepository,
     InventoryDbContext db,
-    ITenantContext tenantContext,
     ILogger<PurchaseOrderReceivedInventoryHandler> logger)
     : INotificationHandler<PurchaseOrderReceivedDomainEvent>
 {
@@ -47,12 +45,10 @@ internal sealed class PurchaseOrderReceivedInventoryHandler(
                 }
                 else
                 {
-                    // Delivered goods still count on an archived item, but it stays archived until a manager restores it.
                     stockItemRepository.Update(stock);
                 }
 
-                ErrorOr<Success> result = stock.Receive(
-                    group.Sum(i => i.Quantity), reference, note, userId: tenantContext.UserId);
+                ErrorOr<Success> result = stock.Receive(group.Sum(i => i.Quantity), reference, note);
                 if (result.IsError)
                 {
                     logger.LogWarning("Could not receive variant {VariantId} for purchase order {OrderId}: {Error}",

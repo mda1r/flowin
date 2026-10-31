@@ -7,10 +7,6 @@ namespace NexusPOS.Hotel.Domain.Entities;
 
 public sealed class Reservation : AggregateRoot<ReservationId>
 {
-    // Booked dates are the calendar days the user picked (stored as UTC midnight), so a check-out
-    // moment has to be read as a Saudi calendar day before it is compared with them.
-    private static readonly TimeZoneInfo _businessTimeZone = ResolveBusinessTimeZone();
-
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public Guid RoomId { get; private set; }
@@ -74,51 +70,14 @@ public sealed class Reservation : AggregateRoot<ReservationId>
         };
     }
 
-    /// <summary>
-    /// Checks the guest out. Leaving before the booked check-out date bills only the
-    /// nights actually stayed (minimum one); a late check-out keeps the booked nights.
-    /// </summary>
-    public ErrorOr<Success> Complete(DateTime checkedOutAt)
+    public ErrorOr<Success> Complete()
     {
         if (Status != ReservationStatus.Active)
         {
             return HotelErrors.ReservationNotActive;
-        }
-
-        DateTime leftOn = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(checkedOutAt, DateTimeKind.Utc), _businessTimeZone).Date;
-
-        if (leftOn < CheckOut.Date)
-        {
-            Nights = Math.Max(1, (leftOn - CheckIn.Date).Days);
-            TotalAmount = Nights * RatePerNight;
-            if (checkedOutAt > CheckIn)
-            {
-                CheckOut = checkedOutAt;
-            }
         }
 
         Status = ReservationStatus.CheckedOut;
-        UpdatedAt = DateTime.UtcNow;
-        return Result.Success;
-    }
-
-    /// <summary>Moves the check-out to a later date and re-prices the stay.</summary>
-    public ErrorOr<Success> Extend(DateTime newCheckOut)
-    {
-        if (Status != ReservationStatus.Active)
-        {
-            return HotelErrors.ReservationNotActive;
-        }
-
-        if (newCheckOut.Date <= CheckOut.Date)
-        {
-            return HotelErrors.InvalidExtendDate;
-        }
-
-        CheckOut = newCheckOut;
-        Nights = (newCheckOut.Date - CheckIn.Date).Days;
-        TotalAmount = Nights * RatePerNight;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
     }
@@ -133,18 +92,5 @@ public sealed class Reservation : AggregateRoot<ReservationId>
         Status = ReservationStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
-    }
-
-    private static TimeZoneInfo ResolveBusinessTimeZone()
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Riyadh");
-        }
-        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            // Saudi Arabia is UTC+3 all year (no daylight saving).
-            return TimeZoneInfo.CreateCustomTimeZone("Asia/Riyadh", TimeSpan.FromHours(3), "Riyadh", "Riyadh");
-        }
     }
 }

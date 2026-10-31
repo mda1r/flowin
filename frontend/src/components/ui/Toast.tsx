@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useI18n } from '@/i18n'
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -42,7 +41,6 @@ const variantBorder: Record<ToastVariant, string> = {
 }
 
 export function ToastProvider() {
-  const closeLabel = useI18n().t.common.close
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
@@ -67,7 +65,7 @@ export function ToastProvider() {
         <div
           key={t.id}
           className={cn(
-            'flex w-[calc(100vw-2rem)] max-w-sm sm:w-auto sm:min-w-72 items-start gap-3 rounded-xl border bg-surface px-4 py-3 shadow-lg animate-float-up',
+            'flex min-w-72 max-w-sm items-start gap-3 rounded-xl border bg-surface px-4 py-3 shadow-lg animate-float-up',
             variantBorder[t.variant],
           )}
         >
@@ -86,7 +84,7 @@ export function ToastProvider() {
             onClick={() =>
               setToasts((prev) => prev.filter((x) => x.id !== t.id))
             }
-            className="shrink-0 text-muted hover:text-fg" aria-label={closeLabel}
+            className="shrink-0 text-muted hover:text-fg" aria-label="إغلاق"
           >
             <X className="h-4 w-4" />
           </button>

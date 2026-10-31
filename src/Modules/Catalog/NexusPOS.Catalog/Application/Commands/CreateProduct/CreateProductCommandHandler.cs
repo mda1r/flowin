@@ -24,18 +24,10 @@ internal sealed class CreateProductCommandHandler(
             return skuResult.Errors;
         }
 
-        // Scans match on barcode or SKU, so a SKU may not equal another active variant's barcode either.
-        bool skuExists = await productRepository.ExistsBySkuAsync(skuResult.Value.Value, cancellationToken) ||
-            await productRepository.IsBarcodeTakenAsync(skuResult.Value.Value, cancellationToken: cancellationToken);
+        bool skuExists = await productRepository.ExistsBySkuAsync(skuResult.Value.Value, cancellationToken);
         if (skuExists)
         {
             return CatalogErrors.SkuAlreadyExists;
-        }
-
-        string? barcode = ProductVariant.NormalizeBarcode(request.Barcode);
-        if (barcode is not null && await productRepository.IsBarcodeTakenAsync(barcode, cancellationToken: cancellationToken))
-        {
-            return CatalogErrors.BarcodeAlreadyExists;
         }
 
         ErrorOr<Money> costResult = Money.Create(request.CostPrice, request.Currency);
@@ -68,7 +60,7 @@ internal sealed class CreateProductCommandHandler(
             request.VariantName,
             costResult.Value,
             salePriceResult.Value,
-            barcode,
+            request.Barcode,
             request.ExpiryDate);
 
         if (variantResult.IsError)

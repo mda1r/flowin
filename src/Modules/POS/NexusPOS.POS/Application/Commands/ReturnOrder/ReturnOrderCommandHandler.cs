@@ -1,16 +1,13 @@
 using ErrorOr;
-using Microsoft.EntityFrameworkCore;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Domain;
-using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Enums;
-using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.Repositories;
 using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
-using NexusPOS.SharedKernel.Domain;
 using OrderEntity = NexusPOS.POS.Domain.Entities.Order;
+using OrderLineEntity = NexusPOS.POS.Domain.Entities.OrderLine;
 using ReturnOrderEntity = NexusPOS.POS.Domain.Entities.ReturnOrder;
 
 namespace NexusPOS.POS.Application.Commands.ReturnOrder;
@@ -25,44 +22,6 @@ internal sealed class ReturnOrderCommandHandler(
         ReturnOrderCommand request,
         CancellationToken cancellationToken)
     {
-        // One return per sale at a time: a double-click or a retry waits here, then sees what the first one saved.
-        string lockKey = $"return:{request.OriginalOrderId}";
-        await dbContext.Database.OpenConnectionAsync(cancellationToken);
-        try
-        {
-            await dbContext.Database.ExecuteSqlAsync(
-                $"SELECT pg_advisory_lock(hashtextextended({lockKey}, 0))", cancellationToken);
-            try
-            {
-                return await ProcessAsync(request, cancellationToken);
-            }
-            finally
-            {
-                await dbContext.Database.ExecuteSqlAsync(
-                    $"SELECT pg_advisory_unlock(hashtextextended({lockKey}, 0))", CancellationToken.None);
-            }
-        }
-        finally
-        {
-            await dbContext.Database.CloseConnectionAsync();
-        }
-    }
-
-    private async Task<ErrorOr<ReturnOrderResponse>> ProcessAsync(
-        ReturnOrderCommand request,
-        CancellationToken cancellationToken)
-    {
-        if (request.ClientReference is Guid reference)
-        {
-            ReturnOrderEntity? replay = await returnOrderRepository.FindByClientReferenceAsync(reference, cancellationToken);
-            if (replay is not null)
-            {
-                return replay.OriginalOrderId == request.OriginalOrderId && replay.BranchId == request.BranchId
-                    ? ReturnOrderMapper.ToResponse(replay)
-                    : Error.Conflict("ReturnOrder.ReferenceInUse", "This return reference belongs to another sale.");
-            }
-        }
-
         OrderEntity? order = await orderRepository.FindByIdAsync(
             new OrderId(request.OriginalOrderId), cancellationToken);
 
@@ -71,23 +30,59 @@ internal sealed class ReturnOrderCommandHandler(
             return PosErrors.OrderNotFound;
         }
 
+        if (order.Status != OrderStatus.Completed)
+        {
+            return Error.Validation("ReturnOrder.OrderNotCompleted", "Only completed orders can be returned.");
+        }
+
+        // Aggregate quantities already returned for each line
         IReadOnlyList<ReturnOrderEntity> existingReturns = await returnOrderRepository
             .FindByOriginalOrderAsync(request.OriginalOrderId, cancellationToken);
 
-        Guid? shiftId = await FindShiftIdAsync(request.BranchId, request.UserId, cancellationToken);
+        Dictionary<Guid, decimal> alreadyReturned = existingReturns
+            .SelectMany(r => r.Lines)
+            .GroupBy(l => l.OriginalLineId)
+            .ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
+
+        // Build return line tuples by matching requested lineIds to the order lines
+        List<(Guid lineId, Guid variantId, string productName, string variantName, decimal quantity, decimal unitPrice, ReturnReason reason)> returnLines = [];
+
+        foreach (ReturnOrderLineInput lineInput in request.Lines)
+        {
+            OrderLineEntity? originalLine = order.Lines.FirstOrDefault(l => l.Id.Value == lineInput.LineId);
+            if (originalLine is null)
+            {
+                return PosErrors.OrderLineNotFound;
+            }
+
+            decimal previouslyReturned = alreadyReturned.GetValueOrDefault(lineInput.LineId, 0m);
+            decimal remainingReturnable = originalLine.Quantity - previouslyReturned;
+
+            if (lineInput.Quantity > remainingReturnable)
+            {
+                return Error.Validation("ReturnOrder.QuantityExceeded",
+                    $"Return quantity for line {lineInput.LineId} exceeds the remaining returnable quantity ({remainingReturnable}).");
+            }
+
+            returnLines.Add((
+                lineInput.LineId,
+                originalLine.VariantId,
+                originalLine.ProductName,
+                originalLine.VariantName,
+                lineInput.Quantity,
+                originalLine.UnitPrice.Amount,
+                lineInput.Reason));
+        }
 
         ErrorOr<ReturnOrderEntity> returnResult = ReturnOrderEntity.Create(
-            order,
-            existingReturns,
-            request.Lines.Select(l => (l.LineId, l.Quantity, l.Reason)),
+            request.OriginalOrderId,
+            order.TenantId,
+            request.BranchId,
+            order.Currency,
             request.RefundMethod,
+            returnLines,
             request.RestockItems,
-            request.UserId,
-            request.UserName,
-            shiftId,
-            request.Note,
-            request.ClientReference,
-            LoyaltyContext(order, existingReturns, request.Lines));
+            order.TaxRate);
 
         if (returnResult.IsError)
         {
@@ -97,55 +92,26 @@ internal sealed class ReturnOrderCommandHandler(
         returnOrderRepository.Add(returnResult.Value);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // Unit cost of each returned line, taken from the sale it came from.
-        Dictionary<Guid, decimal> lineCosts = order.Lines.ToDictionary(l => l.Id.Value, l => l.CostPrice);
-        return ReturnOrderMapper.ToResponse(returnResult.Value, lineCosts);
+        return MapToResponse(returnResult.Value);
     }
 
-    // What CRM needs to reverse the sale's loyalty points. The returned share is measured on the lines' net value
-    // (after line discounts), so a partial return takes back only its part of the points.
-    private static ReturnOrderCompletedDomainEvent.CustomerLoyalty? LoyaltyContext(
-        OrderEntity order,
-        IReadOnlyList<ReturnOrderEntity> existingReturns,
-        IEnumerable<ReturnOrderLineInput> returnLines)
-    {
-        if (order.CustomerId is not Guid customerId)
-        {
-            return null;
-        }
-
-        Dictionary<Guid, OrderLine> linesById = order.Lines.ToDictionary(l => l.Id.Value);
-        decimal NetValue(Guid lineId, decimal quantity)
-        {
-            return linesById.TryGetValue(lineId, out OrderLine? line) && line.Quantity > 0
-                ? line.LineTotal / line.Quantity * quantity
-                : 0m;
-        }
-
-        decimal returnedNet =
-            existingReturns.SelectMany(r => r.Lines).Sum(l => NetValue(l.OriginalLineId, l.Quantity)) +
-            returnLines.Sum(l => NetValue(l.LineId, l.Quantity));
-        decimal share = order.SubtotalAmount > 0 ? Math.Clamp(returnedNet / order.SubtotalAmount, 0m, 1m) : 1m;
-
-        return new ReturnOrderCompletedDomainEvent.CustomerLoyalty(
-            customerId,
-            order.TotalAmount,
-            order.LoyaltyPointsRedeemed,
-            LoyaltyRules.ValueOf(order.LoyaltyPointsRedeemed, order.LoyaltyPointValue),
-            share,
-            existingReturns.Sum(r => r.RefundAmount),
-            order.CompletedAt);
-    }
-
-    // The refund comes out of the drawer of whoever gives it, or else the branch's latest open shift.
-    private async Task<Guid?> FindShiftIdAsync(Guid branchId, Guid? userId, CancellationToken cancellationToken)
-    {
-        List<CashierShift> open = await dbContext.CashierShifts
-            .AsNoTracking()
-            .Where(s => s.BranchId == branchId && s.Status == ShiftStatus.Open)
-            .ToListAsync(cancellationToken);
-
-        CashierShift? shift = open.Find(s => s.UserId == userId) ?? open.MaxBy(s => s.OpenedAt);
-        return shift?.Id.Value;
-    }
+    private static ReturnOrderResponse MapToResponse(ReturnOrderEntity r) => new(
+        r.Id.Value,
+        r.OriginalOrderId,
+        r.TenantId,
+        r.BranchId,
+        r.Currency,
+        r.RefundAmount,
+        r.RefundMethod,
+        r.CreatedAt,
+        r.Lines.Select(l => new ReturnOrderLineResponse(
+            l.Id.Value,
+            l.OriginalLineId,
+            l.VariantId,
+            l.ProductName,
+            l.VariantName,
+            l.Quantity,
+            l.UnitPrice,
+            l.LineTotal,
+            l.Reason)).ToList());
 }

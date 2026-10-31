@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils'
-import { useI18n } from '@/i18n'
 
 interface Column<T> {
   key: string
@@ -23,10 +22,9 @@ export function Table<T>({
   data,
   keyExtractor,
   onRowClick,
-  emptyMessage,
+  emptyMessage = 'لا توجد بيانات',
   loading = false,
 }: TableProps<T>) {
-  const { t } = useI18n()
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm tabular-nums">
@@ -56,7 +54,7 @@ export function Table<T>({
           ) : data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="px-4 py-12 text-center text-muted">
-                {emptyMessage ?? t.common.noData}
+                {emptyMessage}
               </td>
             </tr>
           ) : (

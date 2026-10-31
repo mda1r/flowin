@@ -24,7 +24,7 @@ internal sealed class GetBrandDetailQueryHandler(
 
         if (brand is null)
         {
-            return Error.NotFound("Brand.NotFound", "العلامة التجارية غير موجودة");
+            return Error.NotFound("Brand.NotFound", "Brand not found");
         }
 
         var memberships = await orgDb.TenantBrandMemberships

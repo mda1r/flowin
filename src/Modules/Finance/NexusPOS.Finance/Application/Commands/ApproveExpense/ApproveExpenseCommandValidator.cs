@@ -8,5 +8,6 @@ internal sealed class ApproveExpenseCommandValidator : AbstractValidator<Approve
     {
         RuleFor(x => x.ExpenseId).NotEmpty();
         RuleFor(x => x.BranchId).NotEmpty();
+        RuleFor(x => x.ApprovedBy).NotEmpty();
     }
 }

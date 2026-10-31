@@ -16,14 +16,14 @@ public sealed class Email : ValueObject
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return Error.Validation("Email.Empty", "البريد الإلكتروني مطلوب");
+            return Error.Validation("Email.Empty", "Email cannot be empty.");
         }
 
         string trimmed = value.Trim().ToLowerInvariant();
 
         if (trimmed.Length > 256 || !trimmed.Contains('@'))
         {
-            return Error.Validation("Email.Invalid", "البريد الإلكتروني غير صالح");
+            return Error.Validation("Email.Invalid", $"'{value}' is not a valid email address.");
         }
 
         int atIndex = trimmed.IndexOf('@');
@@ -32,7 +32,7 @@ public sealed class Email : ValueObject
 
         if (local.Length == 0 || domain.Length < 3 || !domain.Contains('.'))
         {
-            return Error.Validation("Email.Invalid", "البريد الإلكتروني غير صالح");
+            return Error.Validation("Email.Invalid", $"'{value}' is not a valid email address.");
         }
 
         return new Email(trimmed);

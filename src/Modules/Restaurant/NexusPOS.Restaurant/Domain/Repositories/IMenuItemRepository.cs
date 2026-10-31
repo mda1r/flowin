@@ -7,7 +7,6 @@ namespace NexusPOS.Restaurant.Domain.Repositories;
 public interface IMenuItemRepository
 {
     Task<MenuItem?> FindByIdAsync(MenuItemId id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<MenuItem>> FindByIdsAsync(Guid branchId, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<MenuItem>> FindByBranchAsync(Guid branchId, MenuCategory? category, bool includeUnavailable, int page, int pageSize, CancellationToken cancellationToken = default);
     void Add(MenuItem menuItem);
     void Update(MenuItem menuItem);

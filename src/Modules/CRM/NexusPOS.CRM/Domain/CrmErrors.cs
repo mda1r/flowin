@@ -5,14 +5,14 @@ namespace NexusPOS.CRM.Domain;
 public static class CrmErrors
 {
     public static readonly Error CustomerNotFound =
-        Error.NotFound("Customer.NotFound", "العميل غير موجود");
+        Error.NotFound("Customer.NotFound", "Customer not found.");
 
     public static readonly Error CustomerEmailTaken =
-        Error.Conflict("Customer.EmailTaken", "يوجد عميل بنفس البريد الإلكتروني");
+        Error.Conflict("Customer.EmailTaken", "A customer with this email already exists.");
 
     public static readonly Error InsufficientLoyaltyPoints =
-        Error.Validation("Customer.InsufficientLoyaltyPoints", "نقاط العميل لا تكفي");
+        Error.Validation("Customer.InsufficientLoyaltyPoints", "Customer does not have enough loyalty points.");
 
     public static readonly Error InvalidLoyaltyPoints =
-        Error.Validation("Customer.InvalidLoyaltyPoints", "النقاط يجب أن تكون أكبر من صفر");
+        Error.Validation("Customer.InvalidLoyaltyPoints", "Loyalty points must be greater than zero.");
 }

@@ -9,6 +9,6 @@ internal sealed class CreateTaxPeriodCommandValidator : AbstractValidator<Create
         RuleFor(x => x.TenantId).NotEmpty();
         RuleFor(x => x.StartDate).NotEmpty();
         RuleFor(x => x.EndDate).NotEmpty().GreaterThan(x => x.StartDate)
-            .WithMessage("تاريخ النهاية يجب أن يكون بعد البداية");
+            .WithMessage("End date must be after start date");
     }
 }

@@ -1,5 +1,4 @@
-import { useRef, useState } from 'react'
-import { isAxiosError } from 'axios'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { TrendingUp, DollarSign, ShoppingCart, RotateCcw, PackageX, PackageCheck } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -15,19 +14,8 @@ import { toast } from '@/components/ui/Toast'
 import { useI18n } from '@/i18n'
 import type { OrderLineResponse, OrderResponse, RefundMethod, ReturnOrderResponse, ReturnReason } from '@/types/api'
 import { invoiceNo } from '@/lib/invoiceNumber'
-import { apiErrorMessage } from '@/lib/apiError'
-import { newClientReference } from '@/lib/offlineSales'
-import { CreditNoteModal } from '@/components/pos/CreditNoteModal'
 
 type DateRange = 'today' | 'week' | 'month' | 'year'
-
-// What one unit gives back, VAT included: the server sends it; older servers get the same sum worked out here.
-function refundUnitPrice(order: OrderResponse, line: OrderLineResponse) {
-  if (line.refundUnitPrice != null) return line.refundUnitPrice
-  if (line.quantity <= 0 || order.subtotalAmount <= 0) return 0
-  const paidShare = Math.max(order.subtotalAmount - order.discountAmount, 0) / order.subtotalAmount
-  return (line.lineTotal / line.quantity) * paidShare * (1 + (order.taxRate ?? 0))
-}
 
 interface ReturnLineState {
   lineId: string
@@ -41,13 +29,10 @@ function ReturnModal({
   order,
   existingReturns,
   onClose,
-  onReturned,
 }: {
   order: OrderResponse
   existingReturns: ReturnOrderResponse[]
   onClose: () => void
-  /** The return went through; the page then shows its credit note. */
-  onReturned: (ret: ReturnOrderResponse) => void
 }) {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
@@ -68,10 +53,6 @@ function ReturnModal({
 
   const [refundMethod, setRefundMethod] = useState<RefundMethod>('Cash')
   const [restockItems, setRestockItems] = useState(true)
-  const [note, setNote] = useState('')
-  // One reference per return: a retry after a dropped connection gives back the same return, never a second refund.
-  const [clientReference] = useState(newClientReference)
-  const submitting = useRef(false)
 
   // Calculate already-returned quantity per original line id
   const returnedQtyMap = new Map<string, number>()
@@ -101,57 +82,25 @@ function ReturnModal({
         .filter((s) => s.selected)
         .map((s) => ({ lineId: s.lineId, quantity: s.quantity, reason: s.reason }))
 
-      return ordersApi.returnOrder(branchId!, order.id, {
-        refundMethod,
-        lines,
-        restockItems,
-        note: note.trim() || undefined,
-        clientReference,
-      })
+      return ordersApi.returnOrder(branchId!, order.id, { refundMethod, lines, restockItems })
     },
-    onSuccess: ({ data }) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orders', branchId] })
       qc.invalidateQueries({ queryKey: ['returns', branchId] })
       toast.success(t.sales.returnSuccess)
-      onReturned(data)
+      onClose()
     },
-    onError: (err) => {
-      submitting.current = false
-      toast.error(returnErrorText(err))
-    },
+    onError: () => toast.error(t.sales.returnFailed),
   })
 
-  const returnErrorText = (err: unknown) => {
-    if (isAxiosError(err) && err.response?.status === 403) return t.sales.returnErrors.managerOnly
-    const data = isAxiosError(err) ? (err.response?.data as { errors?: Record<string, string[]> } | undefined) : undefined
-    const codes = Object.keys(data?.errors ?? {})
-    if (codes.includes('ReturnOrder.QuantityExceeded')) return t.sales.returnErrors.quantityExceeded
-    if (codes.includes('ReturnOrder.OrderNotCompleted')) return t.sales.returnErrors.notCompleted
-    if (codes.includes('ReturnOrder.DuplicateLine')) return t.sales.returnErrors.duplicateLine
-    return apiErrorMessage(err, t.sales.returnFailed)
-  }
-
-  const submit = () => {
-    // A second click before the first answer must not send a second refund.
-    if (submitting.current) return
-    submitting.current = true
-    returnMutation.mutate()
-  }
-
   const selectedLines = lineStates.filter((s) => s.selected)
-  // Same rules as the server: what each unit actually cost, never more than is still unrefunded on the bill,
-  // and the last units back settle the bill exactly.
-  const alreadyRefunded = existingReturns.reduce((sum, r) => sum + r.refundAmount, 0)
-  const refundable = Math.max(order.totalAmount - alreadyRefunded, 0)
-  const returnsEverything =
-    selectedLines.length > 0 && lineStates.every((s) => s.maxQuantity === 0 || (s.selected && s.quantity >= s.maxQuantity))
-  const linesRefund = selectedLines.reduce((sum, s) => {
-    const line = order.lines.find((l) => l.id === s.lineId)
-    return sum + (line ? refundUnitPrice(order, line) * s.quantity : 0)
-  }, 0)
-  const totalRefund = Math.round((returnsEverything ? refundable : Math.min(linesRefund, refundable)) * 100) / 100
-
-  const refundMethodLabel = (m: RefundMethod) => REFUND_METHODS.find((x) => x.value === m)?.label ?? m
+  const taxMultiplier = 1 + (order.taxRate ?? 0)
+  const totalRefund = Math.round(
+    selectedLines.reduce((sum, s) => {
+      const line = order.lines.find((l) => l.id === s.lineId)
+      return sum + (line ? line.unitPrice * s.quantity : 0)
+    }, 0) * taxMultiplier * 100
+  ) / 100
 
   const toggleLine = (lineId: string) => {
     setLineStates((prev) =>
@@ -175,14 +124,14 @@ function ReturnModal({
     <Modal
       open={!!order}
       onClose={onClose}
-      title={`${t.sales.returnOrder} — #${invoiceNo(order)}`}
+      title={`${t.sales.returnOrder} — ${order.id.slice(0, 8).toUpperCase()}`}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
           <Button
             loading={returnMutation.isPending}
-            disabled={selectedLines.length === 0 || returnMutation.isPending}
-            onClick={submit}
+            disabled={selectedLines.length === 0}
+            onClick={() => returnMutation.mutate()}
           >
             {t.sales.processReturn} · {formatCurrency(totalRefund)}
           </Button>
@@ -222,15 +171,14 @@ function ReturnModal({
                       </p>
                       {fullyReturned && (
                         <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning dark:bg-warning/15">
-                          {t.sales.returned}
+                          {t.sales.returnSuccess}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-muted">
-                      {line.variantName && <>{line.variantName} · </>}
-                      {formatCurrency(refundUnitPrice(order, line))} {t.sales.perUnit} × {line.quantity}
+                      {line.variantName} · {formatCurrency(line.unitPrice)} × {line.quantity}
                       {!fullyReturned && state.maxQuantity < line.quantity && (
-                        <span className="ms-1 text-warning">({state.maxQuantity})</span>
+                        <span className="mr-1 text-warning">({state.maxQuantity})</span>
                       )}
                     </p>
 
@@ -305,7 +253,7 @@ function ReturnModal({
               }`}
             >
               <PackageCheck className="h-4 w-4 shrink-0" />
-              <div className="text-start">
+              <div className="text-right">
                 <p className="font-medium">{t.sales.keepInStock}</p>
               </div>
             </button>
@@ -318,56 +266,19 @@ function ReturnModal({
               }`}
             >
               <PackageX className="h-4 w-4 shrink-0" />
-              <div className="text-start">
+              <div className="text-right">
                 <p className="font-medium">{t.sales.removeFromStock}</p>
               </div>
             </button>
           </div>
         </div>
 
-        {/* Note */}
-        <div>
-          <label htmlFor="return-note" className="mb-2 block text-sm font-semibold text-fg">{t.sales.returnNote}</label>
-          <textarea
-            id="return-note"
-            rows={2}
-            maxLength={500}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder={t.sales.returnNotePlaceholder}
-            className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted"
-          />
-        </div>
-
-        {/* Earlier returns on this invoice */}
-        {existingReturns.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-semibold text-fg">{t.sales.earlierReturns}</p>
-            <ul className="divide-y divide-border rounded-xl border border-border">
-              {existingReturns.map((r) => (
-                <li key={r.id} className="flex items-start justify-between gap-3 px-3 py-2 text-xs">
-                  <div className="min-w-0">
-                    <p className="text-fg">
-                      {formatDateTime(r.createdAt)} · {refundMethodLabel(r.refundMethod)}
-                    </p>
-                    <p className="text-muted">
-                      {t.sales.processedBy} {r.createdByName ?? '—'}
-                      {r.note && <> · {r.note}</>}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-medium tabular-nums text-danger">−{formatCurrency(r.refundAmount)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {/* Summary */}
         {selectedLines.length > 0 && (
           <div className="rounded-xl bg-surface-2 p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted">
-                {t.sales.refundTotal} ({selectedLines.length})
+                {t.sales.netRevenue} ({selectedLines.length})
               </span>
               <span className="text-lg font-bold text-fg">
                 {formatCurrency(totalRefund)}
@@ -383,11 +294,8 @@ function ReturnModal({
 export function SalesPage() {
   const [range, setRange] = useState<DateRange>('today')
   const [returnOrder, setReturnOrder] = useState<OrderResponse | null>(null)
-  const [creditNote, setCreditNote] = useState<{ ret: ReturnOrderResponse; order: OrderResponse } | null>(null)
-  const { branchId, user } = useAuthStore()
+  const { branchId } = useAuthStore()
   const { t } = useI18n()
-  // Refunds are for owners and managers; the server enforces the same rule.
-  const canRefund = user?.role === 'Owner' || user?.role === 'Manager'
 
   const from = (() => {
     const now = new Date()
@@ -410,8 +318,8 @@ export function SalesPage() {
   })
 
   const { data: returnsData } = useQuery({
-    queryKey: ['returns', branchId, 'sales', range],
-    queryFn: () => ordersApi.listReturns(branchId!, { from }),
+    queryKey: ['returns', branchId],
+    queryFn: () => ordersApi.listReturns(branchId!),
     enabled: !!branchId,
   })
 
@@ -438,17 +346,6 @@ export function SalesPage() {
   const totalRefunds = Array.from(returnsMap.values()).reduce((s, v) => s + v, 0)
   const netRevenue = totalRevenue - totalRefunds
   const avgOrder = items.length > 0 ? totalRevenue / items.length : 0
-
-  // Every refund on this period's invoices, newest first, with who gave it.
-  const ordersById = new Map(items.map((o) => [o.id, o]))
-  const periodReturns = returnsList
-    .filter((r) => orderIds.has(r.originalOrderId))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  const refundMethodLabels: Record<RefundMethod, string> = {
-    Cash: t.sales.refundMethods.cash,
-    Card: t.sales.refundMethods.card,
-    StoreCredit: t.sales.refundMethods.storeCredit,
-  }
 
   const ranges: { label: string; value: DateRange }[] = [
     { label: t.sales.today, value: 'today' },
@@ -612,7 +509,7 @@ export function SalesPage() {
                 key: 'actions',
                 header: '',
                 render: (r) =>
-                  canRefund && r.status === 'Completed' && (returnsMap.get(r.id) ?? 0) < r.totalAmount - 0.005 ? (
+                  r.status === 'Completed' ? (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -626,58 +523,6 @@ export function SalesPage() {
             ]}
           />
         </Card>
-
-        {/* Returns log */}
-        <Card>
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-fg">{t.sales.returnsLog}</h2>
-          </CardHeader>
-          <Table
-            data={periodReturns}
-            keyExtractor={(r) => r.id}
-            emptyMessage={t.sales.noReturns}
-            columns={[
-              {
-                key: 'invoice',
-                header: t.sales.orderId,
-                render: (r) => {
-                  const o = ordersById.get(r.originalOrderId)
-                  return (
-                    <span className="font-display text-sm font-semibold tabular-nums text-fg">
-                      <bdi dir="ltr">#{o ? invoiceNo(o) : r.originalOrderId.slice(0, 8).toUpperCase()}</bdi>
-                    </span>
-                  )
-                },
-              },
-              {
-                key: 'amount',
-                header: t.sales.amount,
-                render: (r) => <span className="font-medium tabular-nums text-danger">−{formatCurrency(r.refundAmount)}</span>,
-              },
-              {
-                key: 'method',
-                header: t.sales.refundMethod,
-                render: (r) => refundMethodLabels[r.refundMethod] ?? r.refundMethod,
-              },
-              {
-                key: 'by',
-                header: t.sales.processedBy,
-                render: (r) => r.createdByName ?? <span className="text-muted/50">—</span>,
-              },
-              {
-                key: 'note',
-                header: t.sales.returnNote,
-                render: (r) => r.note ? <span className="text-xs text-muted">{r.note}</span> : <span className="text-muted/50">—</span>,
-              },
-              {
-                key: 'createdAt',
-                header: t.sales.date,
-                className: 'whitespace-nowrap',
-                render: (r) => formatDateTime(r.createdAt),
-              },
-            ]}
-          />
-        </Card>
       </div>
 
       {returnOrder && (
@@ -686,14 +531,8 @@ export function SalesPage() {
           order={returnOrder}
           existingReturns={returnsList.filter((r) => r.originalOrderId === returnOrder.id)}
           onClose={() => setReturnOrder(null)}
-          onReturned={(ret) => {
-            setCreditNote({ ret, order: returnOrder })
-            setReturnOrder(null)
-          }}
         />
       )}
-
-      {creditNote && <CreditNoteModal ret={creditNote.ret} order={creditNote.order} onClose={() => setCreditNote(null)} />}
     </div>
   )
 }

@@ -5,43 +5,40 @@ namespace NexusPOS.POS.Domain;
 public static class PosErrors
 {
     public static readonly Error OrderNotFound =
-        Error.NotFound("POS.OrderNotFound", "الطلب غير موجود");
+        Error.NotFound("POS.OrderNotFound", "Order was not found.");
 
     public static readonly Error OrderNotOpen =
-        Error.Conflict("POS.OrderNotOpen", "الطلب غير مفتوح");
+        Error.Conflict("POS.OrderNotOpen", "Order is not in an open state.");
 
     public static readonly Error OrderLineNotFound =
-        Error.NotFound("POS.OrderLineNotFound", "البند غير موجود في الطلب");
+        Error.NotFound("POS.OrderLineNotFound", "Order line was not found.");
 
     public static readonly Error InvalidQuantity =
-        Error.Validation("POS.InvalidQuantity", "الكمية يجب أن تكون أكبر من صفر");
+        Error.Validation("POS.InvalidQuantity", "Quantity must be greater than zero.");
 
     public static readonly Error InvalidDiscountValue =
-        Error.Validation("POS.InvalidDiscountValue", "قيمة الخصم لا يمكن أن تكون سالبة");
+        Error.Validation("POS.InvalidDiscountValue", "Discount value must not be negative.");
 
     public static readonly Error DiscountPercentageExceedsHundred =
-        Error.Validation("POS.DiscountPercentageExceedsHundred", "نسبة الخصم لا يمكن أن تتجاوز 100%");
+        Error.Validation("POS.DiscountPercentageExceedsHundred", "Discount percentage cannot exceed 100%.");
 
     public static readonly Error InsufficientPayment =
-        Error.Validation("POS.InsufficientPayment", "المبلغ المدفوع أقل من إجمالي الطلب");
+        Error.Validation("POS.InsufficientPayment", "Payment amount is less than the order total.");
 
     public static readonly Error EmptyOrder =
-        Error.Validation("POS.EmptyOrder", "لا يمكن إتمام طلب فارغ");
+        Error.Validation("POS.EmptyOrder", "Cannot complete an order with no line items.");
 
     public static readonly Error DuplicateVariant =
-        Error.Conflict("POS.DuplicateVariant", "هذا الصنف مضاف للطلب مسبقاً");
-
-    public static readonly Error ClientReferenceInUse =
-        Error.Conflict("POS.ClientReferenceInUse", "رقم العملية مسجّل لفرع آخر.");
+        Error.Conflict("POS.DuplicateVariant", "This variant is already on the order.");
 
     public static readonly Error ShiftNotFound =
-        Error.NotFound("POS.ShiftNotFound", "الوردية غير موجودة");
+        Error.NotFound("POS.ShiftNotFound", "Shift was not found.");
 
     public static readonly Error ShiftNotOpen =
-        Error.Conflict("POS.ShiftNotOpen", "الوردية غير مفتوحة");
+        Error.Conflict("POS.ShiftNotOpen", "Shift is not in an open state.");
 
     public static readonly Error ShiftAlreadyOpen =
-        Error.Conflict("POS.ShiftAlreadyOpen", "لديك وردية مفتوحة مسبقاً");
+        Error.Conflict("POS.ShiftAlreadyOpen", "You already have an open shift.");
 
     public static readonly Error LoyaltyRequiresCustomer =
         Error.Validation("POS.LoyaltyRequiresCustomer", "اختر العميل أولاً لاستبدال النقاط.");
@@ -60,25 +57,4 @@ public static class PosErrors
 
     public static readonly Error InsufficientLoyaltyPoints =
         Error.Validation("POS.InsufficientLoyaltyPoints", "رصيد العميل من النقاط لا يكفي.");
-
-    public static Error DiscountNeedsManager(decimal cap) =>
-        Error.Forbidden("POS.DiscountNeedsManager", $"الخصم أكبر من حد الكاشير ({cap:0.##}%). اطلب من المدير تنفيذه.");
-
-    public static Error DiscountApprovalRequired(decimal cap) =>
-        Error.Forbidden("POS.DiscountApprovalRequired", $"الخصم أكبر من حد الكاشير ({cap:0.##}%). أدخل رمز المدير.");
-
-    public static readonly Error InvalidApprovalPin =
-        Error.Forbidden("POS.InvalidApprovalPin", "رمز المدير غير صحيح.");
-
-    public static readonly Error ApprovalPinLocked =
-        Error.Forbidden("POS.ApprovalPinLocked", "أُوقف رمز المدير مؤقتاً بعد محاولات خاطئة. حاول بعد ربع ساعة.");
-
-    public static readonly Error ApprovalPinNotSet =
-        Error.Forbidden("POS.ApprovalPinNotSet", "لم يُضبط رمز موافقة المدير لهذا الفرع.");
-
-    public static Error UnknownProduct(string name) =>
-        Error.Validation("POS.UnknownProduct", $"الصنف «{name}» غير موجود في الكتالوج.");
-
-    public static Error PriceBelowCatalog(string name) =>
-        Error.Validation("POS.PriceBelowCatalog", $"سعر «{name}» أقل من سعر الكتالوج. احذفه وأعد إضافته، أو استخدم الخصم.");
 }

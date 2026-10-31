@@ -23,7 +23,7 @@ internal sealed class AddTenantToTaxScopeCommandHandler(
 
         if (!scopeExists)
         {
-            return Error.NotFound("TaxScope.NotFound", "نطاق التسجيل الضريبي غير موجود أو غير نشط");
+            return Error.NotFound("TaxScope.NotFound", "Tax registration scope not found or inactive");
         }
 
         var tenant = await orgDb.Tenants
@@ -32,7 +32,7 @@ internal sealed class AddTenantToTaxScopeCommandHandler(
 
         if (tenant is null)
         {
-            return Error.NotFound("Tenant.NotFound", "المنشأة غير موجودة");
+            return Error.NotFound("Tenant.NotFound", "Tenant not found");
         }
 
         bool alreadyMember = await taxDb.TaxScopeMemberships
@@ -42,7 +42,7 @@ internal sealed class AddTenantToTaxScopeCommandHandler(
 
         if (alreadyMember)
         {
-            return Error.Conflict("TaxScope.AlreadyMember", "المنشأة ضمن هذا النطاق الضريبي مسبقاً");
+            return Error.Conflict("TaxScope.AlreadyMember", "Tenant is already an active member of this tax scope");
         }
 
         TaxScopeMembership membership = TaxScopeMembership.Create(

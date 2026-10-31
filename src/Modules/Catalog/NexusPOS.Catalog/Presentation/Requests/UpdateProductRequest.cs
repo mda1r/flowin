@@ -6,7 +6,7 @@ public sealed record UpdateProductRequest(
     string Name,
     string? Description,
     Guid? CategoryId,
-    TaxClass? TaxClass,
+    TaxClass TaxClass,
     bool TrackInventory,
     string? ImageUrl = null,
     UnitType UnitType = UnitType.Piece);

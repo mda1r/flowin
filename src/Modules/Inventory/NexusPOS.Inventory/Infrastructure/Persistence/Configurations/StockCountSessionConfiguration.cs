@@ -26,13 +26,6 @@ internal sealed class StockCountSessionConfiguration : IEntityTypeConfiguration<
         builder.Property(s => s.CreatedAt).HasColumnName("created_at");
         builder.Property(s => s.CompletedAt).HasColumnName("completed_at");
 
-        // Postgres' xmin system column (no new column) makes completing, cancelling and saving
-        // counts fail on a stale session instead of overwriting each other.
-        builder.Property<uint>("xmin")
-            .HasColumnName("xmin")
-            .HasColumnType("xid")
-            .IsRowVersion();
-
         builder.HasIndex(s => s.BranchId).HasDatabaseName("ix_stock_count_sessions_branch_id");
         builder.HasIndex(s => new { s.BranchId, s.CreatedAt }).HasDatabaseName("ix_stock_count_sessions_branch_date");
 

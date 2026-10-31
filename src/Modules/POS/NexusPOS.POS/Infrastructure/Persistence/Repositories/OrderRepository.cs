@@ -22,17 +22,11 @@ internal sealed class OrderRepository(PosDbContext dbContext) : IOrderRepository
         DateTime? dateTo,
         int page,
         int pageSize,
-        long? number = null,
         CancellationToken cancellationToken = default)
     {
         IQueryable<Order> query = dbContext.Orders
             .Include(o => o.Lines)
             .Where(o => o.BranchId == branchId);
-
-        if (number.HasValue)
-        {
-            query = query.Where(o => o.Number == number.Value);
-        }
 
         if (status.HasValue)
         {

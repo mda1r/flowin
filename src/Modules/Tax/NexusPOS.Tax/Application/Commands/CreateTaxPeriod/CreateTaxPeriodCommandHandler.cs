@@ -25,7 +25,7 @@ internal sealed class CreateTaxPeriodCommandHandler(TaxConfigDbContext db)
         {
             return Error.Conflict(
                 "TaxPeriod.Overlapping",
-                $"توجد فترة ضريبية مفتوحة ({conflict.StartDate:yyyy-MM-dd} – {conflict.EndDate:yyyy-MM-dd}) تتداخل مع هذه التواريخ، أغلقها أولاً");
+                $"An open tax period ({conflict.StartDate:d} – {conflict.EndDate:d}) already covers part of the requested date range. Close it first.");
         }
 
         TaxPeriod period = TaxPeriod.Create(

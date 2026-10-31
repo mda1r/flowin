@@ -37,10 +37,8 @@ public sealed class SalesSummary : AggregateRoot<SalesSummaryId>
         TotalTax += tax;
     }
 
-    // A refund takes back the money and the VAT inside it; the sale still counts as an order.
-    public void RecordReturn(decimal refundAmount, decimal refundTax = 0m)
+    public void RecordReturn(decimal refundAmount)
     {
         TotalRevenue -= refundAmount;
-        TotalTax -= refundTax;
     }
 }

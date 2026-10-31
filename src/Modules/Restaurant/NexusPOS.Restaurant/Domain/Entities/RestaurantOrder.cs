@@ -12,7 +12,6 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public int TableNumber { get; private set; }
-
     public RestaurantOrderStatus Status { get; private set; }
     public string? Notes { get; private set; }
     public string? AppliedDiscountCode { get; private set; }
@@ -27,24 +26,9 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public DateTime? ServedAt { get; private set; }
     public DateTime? PaidAt { get; private set; }
 
-    // A ticket mirrored from a cafe sale that was already paid at the cafe till: the kitchen prepares it,
-    // but it can never be paid here, so it never counts as revenue twice.
-    public bool KitchenOnly { get; private set; }
-
-    // The POS order the ticket came from (one ticket per order) and its invoice number, shown as the ticket number.
-    public Guid? SourceOrderId { get; private set; }
-    public long? TicketNumber { get; private set; }
-
-    public string? CancelReason { get; private set; }
-    public Guid? CancelledBy { get; private set; }
-    public DateTime? CancelledAt { get; private set; }
-
     public List<RestaurantOrderItem> Items { get; private set; } = [];
 
     public const decimal VatRate = 0.15m;
-
-    // Table number kept by takeaway orders, as at the restaurant till; 0 on a kitchen ticket means no table.
-    public const int TakeawayTable = 99;
 
     private RestaurantOrder() { }
 
@@ -55,8 +39,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         IEnumerable<(Guid MenuItemId, string ItemName, int Quantity, decimal UnitPrice, string? Notes)> itemsData,
         string? notes,
         string? discountCode,
-        decimal discountAmount,
-        Guid? id = null)
+        decimal discountAmount)
     {
         var items = itemsData.ToList();
         if (items.Count == 0)
@@ -69,141 +52,36 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
             return RestaurantErrors.InvalidTableNumber;
         }
 
+        // Menu prices include VAT, as on the cafe menu: the customer pays the listed price less any discount,
+        // and the VAT is the share of that total.
+        decimal subTotal = Math.Round(items.Sum(i => i.UnitPrice * i.Quantity), 4);
+        decimal effectiveDiscount = Math.Min(discountAmount, subTotal);
+        decimal total = Math.Round(subTotal - effectiveDiscount, 4);
+        decimal taxAmount = Math.Round(total * VatRate / (1 + VatRate), 4);
+
         RestaurantOrder order = new RestaurantOrder
         {
-            Id = new RestaurantOrderId(id ?? Guid.NewGuid()),
+            Id = new RestaurantOrderId(Guid.NewGuid()),
             TenantId = tenantId,
             BranchId = branchId,
             TableNumber = tableNumber,
             Status = RestaurantOrderStatus.Pending,
             Notes = notes?.Trim(),
             AppliedDiscountCode = discountCode?.Trim().ToUpperInvariant(),
-            DiscountAmount = discountAmount,
+            DiscountAmount = effectiveDiscount,
+            SubTotal = subTotal,
+            TaxAmount = taxAmount,
+            Total = total,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             Items = items.Select(i =>
                 RestaurantOrderItem.Create(i.MenuItemId, i.ItemName, i.Quantity, i.UnitPrice, i.Notes)).ToList(),
         };
-        order.RecalculateTotals();
 
         order.RaiseDomainEvent(new RestaurantOrderCreatedDomainEvent(
             order.Id.Value, tenantId, branchId, tableNumber));
 
         return order;
-    }
-
-    // Items carry no prices: the sale and its money live in POS, the kitchen only needs what to make.
-    public static ErrorOr<RestaurantOrder> CreateKitchenTicket(
-        Guid tenantId,
-        Guid branchId,
-        Guid sourceOrderId,
-        long? ticketNumber,
-        int? tableNumber,
-        bool takeaway,
-        IEnumerable<(Guid ItemId, string ItemName, int Quantity, string? Notes)> itemsData)
-    {
-        var items = itemsData.Where(i => i.Quantity > 0).ToList();
-        if (items.Count == 0)
-        {
-            return RestaurantErrors.EmptyOrder;
-        }
-
-        int table = takeaway ? TakeawayTable : tableNumber ?? 0;
-        if (table is < 0 or > TakeawayTable)
-        {
-            return RestaurantErrors.InvalidTableNumber;
-        }
-
-        RestaurantOrder order = new()
-        {
-            Id = new RestaurantOrderId(Guid.NewGuid()),
-            TenantId = tenantId,
-            BranchId = branchId,
-            TableNumber = table,
-            Status = RestaurantOrderStatus.Pending,
-            KitchenOnly = true,
-            SourceOrderId = sourceOrderId,
-            TicketNumber = ticketNumber,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            Items = [.. items.Select(i => RestaurantOrderItem.Create(i.ItemId, i.ItemName, i.Quantity, 0m, i.Notes))],
-        };
-
-        order.RaiseDomainEvent(new RestaurantOrderCreatedDomainEvent(order.Id.Value, tenantId, branchId, table));
-        return order;
-    }
-
-    // Menu prices include VAT, as on the cafe menu: the customer pays the listed price less any discount,
-    // and the VAT is the share of that total. The discount never exceeds what is left on the bill.
-    private void RecalculateTotals()
-    {
-        SubTotal = Math.Round(Items.Sum(i => i.UnitPrice * i.Quantity), 4);
-        DiscountAmount = Math.Min(DiscountAmount, SubTotal);
-        Total = Math.Round(SubTotal - DiscountAmount, 4);
-        TaxAmount = Math.Round(Total * VatRate / (1 + VatRate), 4);
-    }
-
-    // A further round for a table that already has an open order. Once the order has reached the kitchen,
-    // the new lines go there too, so a ready or served order is back in the kitchen until they are done.
-    public ErrorOr<IReadOnlyList<RestaurantOrderItem>> AddItems(
-        IEnumerable<(Guid MenuItemId, string ItemName, int Quantity, decimal UnitPrice, string? Notes)> itemsData)
-    {
-        if (Status is RestaurantOrderStatus.Paid or RestaurantOrderStatus.Cancelled || KitchenOnly)
-        {
-            return RestaurantErrors.OrderNotModifiable;
-        }
-
-        List<RestaurantOrderItem> added =
-        [
-            .. itemsData.Select(i => RestaurantOrderItem.Create(i.MenuItemId, i.ItemName, i.Quantity, i.UnitPrice, i.Notes)),
-        ];
-        if (added.Count == 0)
-        {
-            return RestaurantErrors.EmptyOrder;
-        }
-
-        Items.AddRange(added);
-        RecalculateTotals();
-        UpdatedAt = DateTime.UtcNow;
-
-        if (Status is RestaurantOrderStatus.Ready or RestaurantOrderStatus.Served)
-        {
-            Status = RestaurantOrderStatus.InKitchen;
-            RaiseDomainEvent(new OrderSentToKitchenDomainEvent(Id.Value, TenantId, BranchId, TableNumber));
-        }
-
-        return added;
-    }
-
-    // Voids one line the kitchen has not finished. A ready line has been cooked, and the last line can only
-    // go by cancelling the whole order, so a reason is recorded.
-    public ErrorOr<RestaurantOrderItem> RemoveItem(RestaurantOrderItemId itemId)
-    {
-        if (Status is RestaurantOrderStatus.Paid or RestaurantOrderStatus.Cancelled)
-        {
-            return RestaurantErrors.OrderNotModifiable;
-        }
-
-        RestaurantOrderItem? item = Items.Find(i => i.Id == itemId);
-        if (item is null)
-        {
-            return RestaurantErrors.OrderItemNotFound;
-        }
-
-        if (item.Status == OrderItemStatus.Ready)
-        {
-            return RestaurantErrors.OrderItemAlreadyReady;
-        }
-
-        if (Items.Count == 1)
-        {
-            return RestaurantErrors.LastOrderItem;
-        }
-
-        Items.Remove(item);
-        RecalculateTotals();
-        UpdatedAt = DateTime.UtcNow;
-        return item;
     }
 
     public ErrorOr<Success> SendToKitchen()
@@ -281,11 +159,6 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     // reuse catalog ids that the POS sale already deducted, so only genuine menu items count as recipe sales.
     public ErrorOr<Success> Pay(string paymentMethod, decimal amountTendered, IReadOnlySet<Guid> menuItemIds)
     {
-        if (KitchenOnly)
-        {
-            return RestaurantErrors.KitchenTicketNotPayable;
-        }
-
         if (Status == RestaurantOrderStatus.Paid)
         {
             return RestaurantErrors.OrderAlreadyPaid;
@@ -321,7 +194,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         return Result.Success;
     }
 
-    public ErrorOr<Success> Cancel(string reason, Guid? cancelledBy)
+    public ErrorOr<Success> Cancel()
     {
         if (Status == RestaurantOrderStatus.Paid)
         {
@@ -333,15 +206,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
             return RestaurantErrors.OrderAlreadyCancelled;
         }
 
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            return RestaurantErrors.CancelReasonRequired;
-        }
-
         Status = RestaurantOrderStatus.Cancelled;
-        CancelReason = reason.Trim();
-        CancelledBy = cancelledBy;
-        CancelledAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success;
     }

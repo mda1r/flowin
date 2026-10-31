@@ -171,9 +171,6 @@ internal static class InfrastructureServiceExtensions
             options.AddPolicy("OwnerOrManager", policy =>
                 policy.RequireClaim("tenant_id")
                       .RequireRole("Owner", "Manager"));
-            options.AddPolicy("OwnerManagerOrAccountant", policy =>
-                policy.RequireClaim("tenant_id")
-                      .RequireRole("Owner", "Manager", "Accountant"));
         });
 
         return services;

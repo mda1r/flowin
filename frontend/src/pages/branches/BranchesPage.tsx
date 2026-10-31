@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Pencil, Star, GitBranch, Power } from 'lucide-react'
+import { Plus, Pencil, Star, GitBranch } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -14,7 +14,6 @@ import { Card } from '@/components/ui/Card'
 import { branchesApi, type CreateBranchPayload } from '@/api/branches'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
-import { apiErrorMessage } from '@/lib/apiError'
 import type { BranchResponse, BranchType } from '@/types/api'
 import { useI18n } from '@/i18n'
 
@@ -42,14 +41,13 @@ export function BranchesPage() {
     Restaurant: t.branches.types.restaurant,
     Hotel:      t.branches.types.hotel,
     Gaming:     t.branches.types.gaming,
-    Warehouse:  t.branches.types.warehouse,
-    Office:     t.branches.types.office,
+    Warehouse:  'مستودع',
+    Office:     'مكتب',
   }
 
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<BranchResponse | null>(null)
   const [deactivating, setDeactivating] = useState<BranchResponse | null>(null)
-  const [promoting, setPromoting] = useState<BranchResponse | null>(null)
 
   const canManage = role === 'Owner' || role === 'Manager'
 
@@ -74,7 +72,8 @@ export function BranchesPage() {
       reset()
       toast.success(t.branches.created, '')
     },
-    onError: (err) => toast.error(t.branches.failed, apiErrorMessage(err)),
+    onError: (err: { response?: { data?: { detail?: string } } }) =>
+      toast.error(t.branches.failed, err?.response?.data?.detail ?? ''),
   })
 
   const updateMut = useMutation({
@@ -86,7 +85,8 @@ export function BranchesPage() {
       reset()
       toast.success(t.branches.updated, '')
     },
-    onError: (err) => toast.error(t.branches.failed, apiErrorMessage(err)),
+    onError: (err: { response?: { data?: { detail?: string } } }) =>
+      toast.error(t.branches.failed, err?.response?.data?.detail ?? ''),
   })
 
   const deactivateMut = useMutation({
@@ -94,28 +94,9 @@ export function BranchesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['branches', tenantId] })
       setDeactivating(null)
-      toast.success(t.branches.deactivated, '')
+      toast.success('تم تعطيل الفرع', '')
     },
-    onError: (err) => toast.error(t.branches.actionFailed, apiErrorMessage(err)),
-  })
-
-  const activateMut = useMutation({
-    mutationFn: (branchId: string) => branchesApi.activate(tenantId!, branchId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['branches', tenantId] })
-      toast.success(t.branches.activated, '')
-    },
-    onError: (err) => toast.error(t.branches.actionFailed, apiErrorMessage(err)),
-  })
-
-  const setMainMut = useMutation({
-    mutationFn: () => branchesApi.setMain(tenantId!, promoting!.id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['branches', tenantId] })
-      setPromoting(null)
-      toast.success(t.branches.mainChanged, '')
-    },
-    onError: (err) => toast.error(t.branches.actionFailed, apiErrorMessage(err)),
+    onError: () => toast.error(t.branches.failed, ''),
   })
 
   const openEdit = (branch: BranchResponse) => {
@@ -136,7 +117,7 @@ export function BranchesPage() {
     <div>
       <PageHeader
         title={t.branches.title}
-        description={t.branches.description}
+        description="إدارة فروع المنشأة"
         action={
           canManage ? (
             <Button onClick={() => { reset({ type: 'Retail' }); setShowCreate(true) }}>
@@ -240,37 +221,17 @@ export function BranchesPage() {
                           <button
                             onClick={() => openEdit(r)}
                             className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-info"
-                            title={t.common.edit}
+                            title="تعديل"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
                           {!r.isMainBranch && r.isActive && (
                             <button
-                              onClick={() => setPromoting(r)}
-                              className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-warning"
-                              title={t.branches.setMain}
-                            >
-                              <Star className="h-4 w-4" />
-                            </button>
-                          )}
-                          {!r.isMainBranch && r.isActive && (
-                            <button
                               onClick={() => setDeactivating(r)}
                               className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-danger"
-                              title={t.branches.deactivate}
+                              title="تعطيل"
                             >
-                              <span className="text-xs font-medium">{t.branches.deactivate}</span>
-                            </button>
-                          )}
-                          {!r.isActive && (
-                            <button
-                              onClick={() => activateMut.mutate(r.id)}
-                              disabled={activateMut.isPending}
-                              className="flex items-center gap-1 rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-success disabled:opacity-50"
-                              title={t.branches.activate}
-                            >
-                              <Power className="h-4 w-4" />
-                              <span className="text-xs font-medium">{t.branches.activate}</span>
+                              <span className="text-xs font-medium">تعطيل</span>
                             </button>
                           )}
                         </div>
@@ -325,24 +286,11 @@ export function BranchesPage() {
           open
           onClose={() => setDeactivating(null)}
           onConfirm={() => deactivateMut.mutate()}
-          title={t.branches.deactivateTitle}
-          message={t.branches.deactivateConfirm.replace('{name}', deactivating.name)}
-          confirmLabel={t.branches.deactivate}
+          title="تعطيل الفرع"
+          message={`هل أنت متأكد من تعطيل الفرع "${deactivating.name}"؟`}
+          confirmLabel="تعطيل"
           confirmVariant="danger"
           loading={deactivateMut.isPending}
-        />
-      )}
-
-      {/* Set main confirm */}
-      {promoting && (
-        <ConfirmModal
-          open
-          onClose={() => setPromoting(null)}
-          onConfirm={() => setMainMut.mutate()}
-          title={t.branches.setMainTitle}
-          message={t.branches.setMainConfirm.replace('{name}', promoting.name)}
-          confirmLabel={t.branches.setMain}
-          loading={setMainMut.isPending}
         />
       )}
     </div>
@@ -362,8 +310,8 @@ function BranchForm({
     Restaurant: t.branches.types.restaurant,
     Hotel:      t.branches.types.hotel,
     Gaming:     t.branches.types.gaming,
-    Warehouse:  t.branches.types.warehouse,
-    Office:     t.branches.types.office,
+    Warehouse:  'مستودع',
+    Office:     'مكتب',
   }
   return (
     <form className="space-y-4">

@@ -39,20 +39,10 @@ internal sealed class CreateBranchCommandHandler(
             return OrganizationErrors.BranchAlreadyExists;
         }
 
-        // Only one main branch per tenant: a new main branch takes the flag from the old one.
-        if (request.IsMainBranch)
-        {
-            IReadOnlyList<Branch> existing = await branchRepository.FindByTenantIdAsync(tenantId, cancellationToken);
-            foreach (Branch other in existing.Where(b => b.IsMainBranch))
-            {
-                other.UnmarkAsMain();
-            }
-        }
-
         Branch branch = Branch.Create(tenantId, request.Name, request.Type, request.IsMainBranch);
 
         Address? address = BuildAddress(request);
-        if (address is not null || !string.IsNullOrWhiteSpace(request.PhoneNumber) || !string.IsNullOrWhiteSpace(request.Email))
+        if (address is not null || request.PhoneNumber is not null || request.Email is not null)
         {
             branch.Update(request.Name, request.Type, address, request.PhoneNumber, request.Email);
         }
@@ -65,9 +55,9 @@ internal sealed class CreateBranchCommandHandler(
 
     private static Address? BuildAddress(CreateBranchCommand request)
     {
-        if (string.IsNullOrWhiteSpace(request.Street) && string.IsNullOrWhiteSpace(request.City) &&
-            string.IsNullOrWhiteSpace(request.State) && string.IsNullOrWhiteSpace(request.Country) &&
-            string.IsNullOrWhiteSpace(request.PostalCode))
+        if (request.Street is null && request.City is null &&
+            request.State is null && request.Country is null &&
+            request.PostalCode is null)
         {
             return null;
         }
@@ -75,9 +65,9 @@ internal sealed class CreateBranchCommandHandler(
         return Address.Create(
             request.Street ?? string.Empty,
             request.City ?? string.Empty,
-            string.IsNullOrWhiteSpace(request.State) ? null : request.State,
+            request.State,
             request.Country ?? string.Empty,
-            string.IsNullOrWhiteSpace(request.PostalCode) ? null : request.PostalCode);
+            request.PostalCode);
     }
 
     private static BranchResponse MapToResponse(Branch branch) => new(

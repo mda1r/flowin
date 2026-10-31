@@ -1,10 +1,6 @@
-using System.Globalization;
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
-using NexusPOS.IAM.Presentation;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -48,24 +44,13 @@ internal static class PresentationServiceExtensions
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.OnRejected = (context, _) =>
+            options.AddSlidingWindowLimiter("auth", limiterOptions =>
             {
-                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
-                {
-                    context.HttpContext.Response.Headers.RetryAfter =
-                        ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
-                }
-
-                return ValueTask.CompletedTask;
-            };
-
-            // Auth limits are partitioned per client IP; a single shared bucket let one busy minute
-            // across all shops lock every other cashier out of login and token refresh.
-            int trustedProxyHops = configuration.GetValue("RateLimit:TrustedProxyHops", 1);
-            IPNetwork[] knownProxies = AuthRateLimiting.ParseKnownProxies(configuration.GetSection("RateLimit:KnownProxies").Get<string[]>());
-            AddPerIpAuthPolicy(options, AuthRateLimiting.RegisterPolicy, configuration.GetValue("RateLimit:AuthEndpointsPerMinute", 10), trustedProxyHops, knownProxies);
-            AddPerIpAuthPolicy(options, AuthRateLimiting.LoginPolicy, configuration.GetValue("RateLimit:LoginPerMinute", 20), trustedProxyHops, knownProxies);
-            AddPerIpAuthPolicy(options, AuthRateLimiting.RefreshPolicy, configuration.GetValue("RateLimit:RefreshPerMinute", 120), trustedProxyHops, knownProxies);
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.SegmentsPerWindow = 6;
+                limiterOptions.PermitLimit = configuration.GetValue("RateLimit:AuthEndpointsPerMinute", 10);
+                limiterOptions.QueueLimit = 0;
+            });
 
             options.AddSlidingWindowLimiter("general", limiterOptions =>
             {
@@ -105,17 +90,6 @@ internal static class PresentationServiceExtensions
 
         return services;
     }
-
-    private static void AddPerIpAuthPolicy(RateLimiterOptions options, string policyName, int permitsPerMinute, int trustedProxyHops, IPNetwork[] knownProxies) =>
-        options.AddPolicy(policyName, context => RateLimitPartition.GetSlidingWindowLimiter(
-            AuthRateLimiting.ClientKey(context, trustedProxyHops, knownProxies),
-            _ => new SlidingWindowRateLimiterOptions
-            {
-                Window = TimeSpan.FromMinutes(1),
-                SegmentsPerWindow = 6,
-                PermitLimit = permitsPerMinute,
-                QueueLimit = 0,
-            }));
 
     internal static async Task ConfigurePipelineAsync(this WebApplication app)
     {

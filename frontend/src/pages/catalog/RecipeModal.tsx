@@ -9,7 +9,6 @@ import { toast } from '@/components/ui/Toast'
 import { recipesApi } from '@/api/recipes'
 import { stockMaterialApi } from '@/api/stockMaterial'
 import { useAuthStore } from '@/stores/authStore'
-import { useCanManageMaterials } from '@/hooks/useCanManageMaterials'
 import { apiErrorMessage } from '@/lib/apiError'
 import { marginPercent, netOfVat } from '@/lib/pricing'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -30,8 +29,6 @@ let nextKey = 1
 
 export function RecipeModal({ variant, onClose }: RecipeModalProps) {
   const { tenantId } = useAuthStore()
-  // Cashiers can look up a recipe and its cost; saving is Owner/Manager only on the server too.
-  const canEdit = useCanManageMaterials()
   const qc = useQueryClient()
   const [lines, setLines] = useState<DraftLine[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -48,11 +45,6 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
   })
   const materials: StockMaterialResponse[] = materialsQuery.data?.data ?? []
   const byId = useMemo(() => new Map(materials.map((m) => [m.id, m])), [materials])
-  // The materials list is active-only; a saved line whose material was archived keeps its name from the recipe.
-  const savedLines = useMemo(
-    () => new Map((recipeQuery.data?.data.lines ?? []).map((l) => [l.materialId, l])),
-    [recipeQuery.data],
-  )
 
   useEffect(() => {
     if (lines === null && recipeQuery.data) {
@@ -64,11 +56,10 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
 
   const draft = lines ?? []
   const used = new Set(draft.map((l) => l.materialId))
-  const lineCost = (l: DraftLine) =>
-    (parseFloat(l.quantity) || 0) * ((byId.get(l.materialId) ?? savedLines.get(l.materialId))?.costPerComponentUnit ?? 0)
+  const lineCost = (l: DraftLine) => (parseFloat(l.quantity) || 0) * (byId.get(l.materialId)?.costPerComponentUnit ?? 0)
   const totalCost = draft.reduce((sum, l) => sum + lineCost(l), 0)
   const margin = marginPercent(variant.salePrice, totalCost)
-  const valid = draft.every((l) => byId.has(l.materialId) && parseFloat(l.quantity) > 0)
+  const valid = draft.every((l) => l.materialId && parseFloat(l.quantity) > 0)
 
   const update = (key: number, patch: Partial<DraftLine>) => {
     setError(null)
@@ -104,8 +95,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
       title={`وصفة: ${variant.name}`}
       size="xl"
       footer={
-        materials.length > 0 &&
-        (canEdit ? (
+        materials.length > 0 && (
           <>
             <Button variant="secondary" onClick={onClose} disabled={save.isPending}>
               إلغاء
@@ -114,11 +104,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
               حفظ الوصفة
             </Button>
           </>
-        ) : (
-          <Button variant="secondary" onClick={onClose}>
-            إغلاق
-          </Button>
-        ))
+        )
       }
     >
       {loading ? (
@@ -141,9 +127,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
       ) : (
         <div className="space-y-5">
           <p className="text-sm text-muted">
-            {canEdit
-              ? 'حدّد المواد الداخلة في صنع قطعة واحدة. عند بيع المنتج تُخصم الكميات من مواد المخزون تلقائياً.'
-              : 'عرض فقط. تعديل الوصفة متاح للمالك والمدير.'}
+            حدّد المواد الداخلة في صنع قطعة واحدة. عند بيع المنتج تُخصم الكميات من مواد المخزون تلقائياً.
           </p>
 
           {error && (
@@ -161,27 +145,14 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
             <ul className="space-y-2">
               {draft.map((l) => {
                 const m = byId.get(l.materialId)
-                const archived = !m && l.materialId ? savedLines.get(l.materialId) : undefined
                 return (
-                  <li
-                    key={l.key}
-                    className={cn(
-                      'flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2.5',
-                      !archived && 'sm:flex-nowrap',
-                    )}
-                  >
+                  <li key={l.key} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-2.5 sm:flex-nowrap">
                     <select
                       className="input min-w-0 flex-1"
                       value={l.materialId}
                       onChange={(e) => update(l.key, { materialId: e.target.value })}
                       aria-label="المادة"
-                      disabled={!canEdit}
                     >
-                      {archived && (
-                        <option value={l.materialId} disabled>
-                          {archived.materialName} (مؤرشفة)
-                        </option>
-                      )}
                       {materials
                         .filter((mm) => mm.id === l.materialId || !used.has(mm.id))
                         .map((mm) => (
@@ -198,37 +169,31 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
                         min="0"
                         step="0.001"
                         placeholder="الكمية"
-                        aria-label={`الكمية بـ${m?.componentUnit ?? archived?.componentUnit ?? ''}`}
+                        aria-label={`الكمية بـ${m?.componentUnit ?? ''}`}
                         onChange={(e) => update(l.key, { quantity: e.target.value })}
-                        readOnly={!canEdit}
                       />
                       <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted">
-                        {m?.componentUnit ?? archived?.componentUnit}
+                        {m?.componentUnit}
                       </span>
                     </div>
                     <span className="w-24 shrink-0 text-end text-sm tabular-nums text-fg">
                       {lineCost(l).toFixed(2)} ر.س
                     </span>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() => setLines((ls) => (ls ?? []).filter((x) => x.key !== l.key))}
-                        className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                        aria-label={`إزالة ${m?.nameAr ?? archived?.materialName ?? 'المكوّن'}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    {archived && (
-                      <p className="w-full text-xs text-warning">هذه المادة مؤرشفة؛ استرجعها أو احذف السطر.</p>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setLines((ls) => (ls ?? []).filter((x) => x.key !== l.key))}
+                      className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                      aria-label={`إزالة ${m?.nameAr ?? 'المكوّن'}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </li>
                 )
               })}
             </ul>
           )}
 
-          {canEdit && materials.some((mm) => !used.has(mm.id)) && (
+          {used.size < materials.length && (
             <Button variant="secondary" size="sm" onClick={addLine}>
               <Plus className="h-4 w-4" />
               إضافة مكوّن
@@ -257,7 +222,7 @@ export function RecipeModal({ variant, onClose }: RecipeModalProps) {
               </dd>
             </div>
           </dl>
-          {draft.some((l) => byId.get(l.materialId)?.costPerComponentUnit === 0) && (
+          {draft.some((l) => (byId.get(l.materialId)?.costPerComponentUnit ?? 0) === 0) && (
             <p className="text-xs text-warning">
               بعض المواد تكلفتها صفر. استلم كمية بسعر الشراء من صفحة مواد المخزون لتظهر التكلفة الحقيقية.
             </p>

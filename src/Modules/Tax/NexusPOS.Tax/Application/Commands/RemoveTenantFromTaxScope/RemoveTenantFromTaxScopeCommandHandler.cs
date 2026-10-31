@@ -17,12 +17,12 @@ internal sealed class RemoveTenantFromTaxScopeCommandHandler(TaxConfigDbContext 
 
         if (membership is null)
         {
-            return Error.NotFound("TaxScopeMembership.NotFound", "عضوية النطاق الضريبي غير موجودة");
+            return Error.NotFound("TaxScopeMembership.NotFound", "Tax scope membership not found");
         }
 
         if (membership.EffectiveTo.HasValue)
         {
-            return Error.Conflict("TaxScopeMembership.AlreadyRemoved", "المنشأة أُزيلت من هذا النطاق مسبقاً");
+            return Error.Conflict("TaxScopeMembership.AlreadyRemoved", "Tenant has already been removed from this tax scope");
         }
 
         membership.Remove(request.ActorId, request.Reason);

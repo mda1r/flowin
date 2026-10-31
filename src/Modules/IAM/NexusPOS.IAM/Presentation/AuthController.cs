@@ -14,7 +14,6 @@ using NexusPOS.IAM.Application.Commands.Register;
 using NexusPOS.IAM.Application.Commands.UpdateProfile;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Presentation.Requests;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.IAM.Presentation;
 
@@ -26,7 +25,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     /// <summary>Register a new user account.</summary>
     [HttpPost("register")]
     [AllowAnonymous]
-    [EnableRateLimiting(AuthRateLimiting.RegisterPolicy)]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(RegisterResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -45,7 +44,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     /// <summary>Authenticate with email and password to obtain tokens.</summary>
     [HttpPost("login")]
     [AllowAnonymous]
-    [EnableRateLimiting(AuthRateLimiting.LoginPolicy)]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -62,7 +61,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     /// <summary>Exchange a refresh token for a new token pair.</summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    [EnableRateLimiting(AuthRateLimiting.RefreshPolicy)]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh(
@@ -88,7 +87,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         string? firstName = User.FindFirstValue(JwtRegisteredClaimNames.GivenName);
         string? lastName = User.FindFirstValue(JwtRegisteredClaimNames.FamilyName);
         // Users may have multiple roles; return the highest-privilege one
-        string[] priorityOrder = ["SuperAdmin", "Owner", "Manager", "Accountant", "Cashier", "Staff"];
+        string[] priorityOrder = ["SuperAdmin", "Owner", "Manager", "Staff"];
         IEnumerable<string> userRoles = User.FindAll(ClaimTypes.Role).Select(c => c.Value);
         string? role = priorityOrder.FirstOrDefault(r => userRoles.Contains(r));
         string? tenantId = User.FindFirstValue("tenant_id");
@@ -103,11 +102,9 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         return Ok(new CurrentUserResponse(id, email, firstName ?? string.Empty, lastName ?? string.Empty, role ?? "Staff", tenantId, branchId, businessType));
     }
 
-    /// <summary>Revoke this session (or every session of its user). The refresh token in the body is the
-    /// credential, so this still works after the short-lived access token has expired.</summary>
+    /// <summary>Revoke the current session or all sessions for the authenticated user.</summary>
     [HttpPost("logout")]
-    [AllowAnonymous]
-    [EnableRateLimiting(AuthRateLimiting.RefreshPolicy)]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Logout(
@@ -161,5 +158,33 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
+    private IActionResult MapErrorsToResult(List<Error> errors)
+    {
+        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
+        {
+            ValidationProblemDetails problemDetails = new();
+            foreach (Error error in errors)
+            {
+                problemDetails.Errors[error.Code] = [error.Description];
+            }
+
+            return ValidationProblem(problemDetails);
+        }
+
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
+        return Problem(
+            title: first.Code,
+            detail: first.Description,
+            statusCode: statusCode);
+    }
 }

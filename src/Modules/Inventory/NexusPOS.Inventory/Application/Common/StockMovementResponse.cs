@@ -10,12 +10,4 @@ public sealed record StockMovementResponse(
     decimal QuantityAfter,
     string? Reference,
     string? Notes,
-    DateTime OccurredAt,
-    Guid? UserId = null,
-    long? InvoiceNumber = null);
-
-public sealed record StockMovementsPageResponse(
-    IReadOnlyList<StockMovementResponse> Items,
-    int Page,
-    int PageSize,
-    int TotalCount);
+    DateTime OccurredAt);

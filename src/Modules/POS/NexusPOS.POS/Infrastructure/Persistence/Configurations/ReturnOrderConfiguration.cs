@@ -23,11 +23,6 @@ internal sealed class ReturnOrderConfiguration : IEntityTypeConfiguration<Return
         builder.Property(r => r.RefundAmount).HasColumnName("refund_amount").HasPrecision(18, 4);
         builder.Property(r => r.RefundMethod).HasColumnName("refund_method");
         builder.Property(r => r.CreatedAt).HasColumnName("created_at");
-        builder.Property(r => r.CreatedByUserId).HasColumnName("created_by_user_id");
-        builder.Property(r => r.CreatedByName).HasColumnName("created_by_name").HasMaxLength(200);
-        builder.Property(r => r.ShiftId).HasColumnName("shift_id");
-        builder.Property(r => r.Note).HasColumnName("note").HasMaxLength(500);
-        builder.Property(r => r.ClientReference).HasColumnName("client_reference");
 
         builder.HasMany(r => r.Lines)
             .WithOne()

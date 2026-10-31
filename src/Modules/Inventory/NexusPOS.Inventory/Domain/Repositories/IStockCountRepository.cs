@@ -7,7 +7,6 @@ public interface IStockCountRepository
 {
     Task<StockCountSession?> FindByIdAsync(StockCountSessionId id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StockCountSession>> FindByBranchAsync(Guid branchId, CancellationToken cancellationToken = default);
-    Task<bool> HasOpenSessionAsync(Guid branchId, CancellationToken cancellationToken = default);
     void Add(StockCountSession session);
     void Update(StockCountSession session);
 }

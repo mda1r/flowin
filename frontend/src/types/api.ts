@@ -136,14 +136,6 @@ export interface ShiftResponse {
   notes: string | null
   openedAt: string
   closedAt: string | null
-  // Digital wallets and anything that is neither cash nor card, so the three add up to totalSales.
-  totalDigitalSales: number
-  // Cash handed back on returns during the shift; it comes out of expectedCash.
-  totalCashRefunds: number
-  // Set when a manager closed the shift for the cashier.
-  closedByName: string | null
-  // Everything handed back on returns during the shift (cash, card and store credit).
-  totalRefunds?: number
 }
 
 export interface StockItemResponse {
@@ -157,22 +149,6 @@ export interface StockItemResponse {
   updatedAt: string
   expiryDate?: string
   notifyDaysBeforeExpiry: number
-  isArchived?: boolean
-}
-
-export type MovementType = 'Receive' | 'Sale' | 'Return' | 'TransferIn' | 'TransferOut' | 'Adjustment' | 'WriteOff'
-
-export interface StockMovementResponse {
-  id: string
-  type: MovementType
-  quantity: number
-  quantityBefore: number
-  quantityAfter: number
-  reference?: string | null
-  notes?: string | null
-  occurredAt: string
-  userId?: string | null
-  invoiceNumber?: number | null
 }
 
 export interface StockAlertItemResponse {
@@ -245,10 +221,6 @@ export interface OrderLineResponse {
   unitPrice: number
   costPrice: number
   lineTotal: number
-  // What the customer asked for on this item ("no sugar"), shown on the invoice and the kitchen ticket.
-  notes?: string | null
-  // What one unit gives back on a return, VAT included, after every discount on the sale.
-  refundUnitPrice?: number
 }
 
 export interface OrderResponse {
@@ -273,12 +245,7 @@ export interface OrderResponse {
   notes?: string
   createdAt: string
   completedAt?: string
-  // Set when the till rang the sale up offline; completedAt is then that time, not the sync time.
-  offlineCreatedAt?: string | null
   lines: OrderLineResponse[]
-  // Points spent on this sale and their pre-tax value; already part of discountAmount.
-  loyaltyPointsRedeemed?: number
-  loyaltyDiscountAmount?: number
   source?: 'Pos' | 'Gaming' | 'Restaurant'
 }
 
@@ -294,12 +261,9 @@ export interface ReturnOrderLineResponse {
   productName: string
   variantName: string
   quantity: number
-  // Pre-tax, like order lines; the refund adds VAT on top.
   unitPrice: number
   lineTotal: number
   reason: ReturnReason
-  // Unit cost of the original sale line (0 when unknown).
-  costPrice?: number
 }
 
 export interface ReturnOrderResponse {
@@ -308,31 +272,20 @@ export interface ReturnOrderResponse {
   tenantId: string
   branchId: string
   currency: string
-  // VAT included.
   refundAmount: number
-  // The refund split into its pre-tax part and the VAT given back.
-  netAmount?: number
-  taxAmount?: number
   refundMethod: RefundMethod
   createdAt: string
   lines: ReturnOrderLineResponse[]
-  createdByUserId?: string | null
-  createdByName?: string | null
-  shiftId?: string | null
-  note?: string | null
 }
 
 // ── Sales ────────────────────────────────────────────────────────────────────
 
-// One day of GET sales/summary/range. totalRevenue includes VAT; refunds reduce it and totalTax.
 export interface SalesSummaryResponse {
   branchId: string
-  summaryDate: string
-  currency: string
+  dateFrom: string
+  dateTo: string
   totalOrders: number
   totalRevenue: number
-  totalDiscounts: number
-  totalTax: number
   averageOrderValue: number
 }
 
@@ -374,7 +327,6 @@ export interface PurchaseOrderResponse {
   createdAt: string
   receivedAt?: string
   lines: PurchaseOrderLineResponse[]
-  supplierName?: string | null
 }
 
 // ── CRM ──────────────────────────────────────────────────────────────────────
@@ -406,15 +358,13 @@ export interface CustomerResponse {
 // ── Finance ──────────────────────────────────────────────────────────────────
 
 export type ExpenseStatus = 'Pending' | 'Approved' | 'Voided'
-// Must match NexusPOS.Finance.Domain.Enums.ExpenseCategory (sent as strings).
 export type ExpenseCategory =
   | 'Rent'
   | 'Utilities'
-  | 'Wages'
+  | 'Salaries'
   | 'Supplies'
-  | 'Equipment'
-  | 'Marketing'
   | 'Maintenance'
+  | 'Marketing'
   | 'Other'
 
 export interface ExpenseResponse {
@@ -427,20 +377,8 @@ export interface ExpenseResponse {
   description: string
   expenseDate: string
   status: ExpenseStatus
-  approvedBy?: string | null
-  voidReason?: string | null
   notes?: string
   createdAt: string
-}
-
-export interface ExpenseSummaryResponse {
-  dateFrom: string
-  dateTo: string
-  approved: { status: ExpenseStatus; count: number; total: number }
-  pending: { status: ExpenseStatus; count: number; total: number }
-  voided: { status: ExpenseStatus; count: number; total: number }
-  byCategory: { category: ExpenseCategory; count: number; total: number }[]
-  groups: { category: ExpenseCategory; status: ExpenseStatus; count: number; total: number }[]
 }
 
 // ── Restaurant ────────────────────────────────────────────────────────────────
@@ -509,12 +447,6 @@ export interface RestaurantOrderResponse {
   servedAt?: string
   paidAt?: string
   items: RestaurantOrderItemResponse[]
-  // A ticket for a sale already paid at the cafe till: the kitchen makes it, nobody settles it here.
-  kitchenOnly?: boolean
-  sourceOrderId?: string | null
-  ticketNumber?: number | null
-  cancelReason?: string
-  cancelledAt?: string
 }
 
 export interface DiscountCodeResponse {
@@ -618,8 +550,7 @@ export interface RentalContractResponse {
 
 // ── SuperAdmin ────────────────────────────────────────────────────────────────
 
-// Trial = starts in the future; Cancelled = replaced by a newer subscription before it began
-export type SubscriptionStatus = 'Trial' | 'Active' | 'Expired' | 'Suspended' | 'Cancelled'
+export type SubscriptionStatus = 'Trial' | 'Active' | 'Expired' | 'Suspended'
 
 export interface SubscriptionPlanResponse {
   id: string
@@ -662,14 +593,11 @@ export interface TenantWithSubscriptionResponse {
   activeSubscription?: TenantSubscriptionResponse
   businessType: BusinessType
   defaultPassword?: string
-  // End of the subscription chain: what a renewal extends (a pre-paid period after the live one).
-  renewableSubscription?: TenantSubscriptionResponse
 }
 
 export interface TenantDetailResponse extends TenantWithSubscriptionResponse {
   subscriptionHistory: TenantSubscriptionResponse[]
   aiEnabled: boolean
-  suspensionReason?: string
 }
 
 export interface CreateSubscriptionRequest {
@@ -707,12 +635,6 @@ export interface CreateUserRequest {
   firstName: string
   lastName: string
   password: string
-  role: string
-}
-
-export interface UpdateUserRequest {
-  firstName: string
-  lastName: string
   role: string
 }
 
@@ -786,8 +708,6 @@ export interface GameSessionBillResponse {
   packageName?: string
   packagePrice?: number
   overtimeMinutes?: number
-  /** The sequential number of the sale POS recorded; set once the session is paid. */
-  invoiceNumber?: number | null
 }
 
 export interface GamingPackageResponse {

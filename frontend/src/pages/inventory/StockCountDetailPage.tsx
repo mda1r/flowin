@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useParams, useNavigate, useBlocker } from '@tanstack/react-router'
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Save, CheckCircle, AlertTriangle, ClipboardList, XCircle, Info } from 'lucide-react'
+import { ArrowRight, Save, CheckCircle, AlertTriangle, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { stockCountApi } from '@/api/stockCounts'
@@ -9,9 +9,7 @@ import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
-import { apiErrorMessage } from '@/lib/apiError'
 import { useI18n } from '@/i18n'
-import { intlLocale } from '@/lib/locale'
 
 const STATUS_STYLES: Record<string, string> = {
   InProgress: 'bg-info/10 text-info border-info/30',
@@ -26,9 +24,6 @@ export function StockCountDetailPage() {
   const branchId = branchIdRaw ?? ''
   const queryClient = useQueryClient()
   const { t, lang } = useI18n()
-  // Staff can enter counts; completing, auto-adjusting and cancelling are for owners and managers.
-  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
-  const sessionKey = ['stock-count', branchId, sessionId]
 
   const TYPE_LABELS: Record<string, string> = {
     Daily: t.stockCount.daily,
@@ -46,10 +41,9 @@ export function StockCountDetailPage() {
   const [counts, setCounts] = useState<Record<string, string>>({})
   const [showComplete, setShowComplete] = useState(false)
   const [autoAdjust, setAutoAdjust] = useState(false)
-  const [showCancel, setShowCancel] = useState(false)
 
   const { data: session, isLoading } = useQuery({
-    queryKey: sessionKey,
+    queryKey: ['stock-count', branchId, sessionId],
     queryFn: () => stockCountApi.getSession(branchId, sessionId).then(r => r.data),
     enabled: !!branchId && !!sessionId,
   })
@@ -84,59 +78,25 @@ export function StockCountDetailPage() {
     setCounts(initial)
   }, [session?.id])
 
-  // The quantity on screen for an item: what was typed, otherwise what the server has.
-  const effectiveCount = useCallback((stockItemId: string, saved: number | null) => {
-    const raw = counts[stockItemId]
-    if (raw === undefined || raw.trim() === '') return saved
-    const n = Number(raw)
-    return Number.isFinite(n) ? Math.max(0, n) : saved
-  }, [counts])
-
-  // Typed quantities that differ from the saved ones; only these are sent.
-  const changedItems = useMemo(() => {
-    if (!session || session.status !== 'InProgress') return []
-    const changed: { stockItemId: string; countedQuantity: number }[] = []
-    for (const item of session.items) {
-      const value = effectiveCount(item.stockItemId, item.countedQuantity)
-      if (value != null && value !== item.countedQuantity) {
-        changed.push({ stockItemId: item.stockItemId, countedQuantity: value })
-      }
-    }
-    return changed
-  }, [session, effectiveCount])
-
-  // Progress and discrepancies from the numbers on screen, not the last save.
-  const localStats = useMemo(() => {
-    const items = session?.items ?? []
-    let counted = 0
-    let discrepancies = 0
-    for (const item of items) {
-      const value = effectiveCount(item.stockItemId, item.countedQuantity)
-      if (value == null) continue
-      counted++
-      if (value !== item.systemQuantity) discrepancies++
-    }
-    return { counted, discrepancies, uncounted: items.length - counted }
-  }, [session, effectiveCount])
-
   const saveMutation = useMutation({
-    mutationFn: () => stockCountApi.saveItems(branchId, sessionId, changedItems),
+    mutationFn: () => {
+      const items = Object.entries(counts)
+        .filter(([, v]) => v.trim() !== '')
+        .map(([stockItemId, v]) => ({
+          stockItemId,
+          countedQuantity: Number(v),
+        }))
+      return stockCountApi.saveItems(branchId, sessionId, items)
+    },
     onSuccess: res => {
       toast.success(t.stockCount.saveSuccess)
-      queryClient.setQueryData(sessionKey, res.data)
+      queryClient.setQueryData(['stock-count', branchId, sessionId], res.data)
     },
-    onError: err => toast.error(apiErrorMessage(err, t.stockCount.saveFailed)),
+    onError: () => toast.error(t.stockCount.saveFailed),
   })
 
   const completeMutation = useMutation({
-    // Save what is on screen first, so the count is completed (and stock adjusted) with it.
-    mutationFn: async () => {
-      if (changedItems.length > 0) {
-        const saved = await stockCountApi.saveItems(branchId, sessionId, changedItems)
-        queryClient.setQueryData(sessionKey, saved.data)
-      }
-      return stockCountApi.completeSession(branchId, sessionId, autoAdjust)
-    },
+    mutationFn: () => stockCountApi.completeSession(branchId, sessionId, autoAdjust),
     onSuccess: res => {
       logActivity(tenantId ?? '', {
         userId: user?.id ?? '',
@@ -148,45 +108,11 @@ export function StockCountDetailPage() {
         branchId: branchId ?? undefined,
       })
       toast.success(t.stockCount.completeSuccess)
-      queryClient.setQueryData(sessionKey, res.data)
+      queryClient.setQueryData(['stock-count', branchId, sessionId], res.data)
       queryClient.invalidateQueries({ queryKey: ['stock-counts', branchId] })
-      if (autoAdjust) {
-        queryClient.invalidateQueries({ queryKey: ['stock', branchId] })
-        queryClient.invalidateQueries({ queryKey: ['inventory-alerts', branchId] })
-      }
       setShowComplete(false)
     },
-    onError: err => toast.error(apiErrorMessage(err, t.stockCount.completeFailed)),
-  })
-
-  const cancelMutation = useMutation({
-    mutationFn: () => stockCountApi.cancelSession(branchId, sessionId),
-    onSuccess: res => {
-      logActivity(tenantId ?? '', {
-        userId: user?.id ?? '',
-        userName: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
-        userEmail: user?.email,
-        category: 'stock-count',
-        action: 'إلغاء الجرد',
-        details: `جلسة ${sessionId.slice(0, 8)}`,
-        branchId: branchId ?? undefined,
-      })
-      toast.success(t.stockCount.cancelSuccess)
-      queryClient.setQueryData(sessionKey, res.data)
-      queryClient.invalidateQueries({ queryKey: ['stock-counts', branchId] })
-      setShowCancel(false)
-    },
-    onError: err => toast.error(apiErrorMessage(err, t.stockCount.cancelFailed)),
-  })
-
-  // Warn before leaving the page (in-app or closing the tab) while counts are unsaved.
-  const isDirty = changedItems.length > 0 && !completeMutation.isPending && !cancelMutation.isPending
-  const alwaysBlock = useCallback(() => true, [])
-  const blocker = useBlocker({
-    shouldBlockFn: alwaysBlock,
-    enableBeforeUnload: true,
-    disabled: !isDirty,
-    withResolver: true,
+    onError: () => toast.error(t.stockCount.completeFailed),
   })
 
   if (isLoading) {
@@ -209,15 +135,15 @@ export function StockCountDetailPage() {
 
   const isActive = session.status === 'InProgress'
   const progress = session.totalItems > 0
-    ? Math.round((localStats.counted / session.totalItems) * 100)
+    ? Math.round((session.countedItems / session.totalItems) * 100)
     : 0
 
-  const locale = intlLocale(lang)
+  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-6" dir="rtl">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => void navigate({ to: '/stock-counts' })}
@@ -233,52 +159,28 @@ export function StockCountDetailPage() {
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {isActive && (
             <>
-              {changedItems.length > 0 && (
-                <span className="text-xs font-medium text-warning">
-                  {t.stockCount.unsavedCount.replace('{n}', String(changedItems.length))}
-                </span>
-              )}
               <Button
                 variant="secondary"
                 onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending || changedItems.length === 0}
+                disabled={saveMutation.isPending}
               >
                 <Save className="h-4 w-4" />
                 {saveMutation.isPending ? t.common.loading : t.stockCount.saveCounts}
               </Button>
-              {canManage && (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setShowCancel(true)}
-                    disabled={cancelMutation.isPending || completeMutation.isPending}
-                  >
-                    <XCircle className="h-4 w-4" />
-                    {t.stockCount.cancelCount}
-                  </Button>
-                  <Button
-                    onClick={() => setShowComplete(true)}
-                    disabled={completeMutation.isPending || cancelMutation.isPending}
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    {t.stockCount.complete}
-                  </Button>
-                </>
-              )}
+              <Button
+                onClick={() => setShowComplete(true)}
+                disabled={completeMutation.isPending}
+              >
+                <CheckCircle className="h-4 w-4" />
+                {t.stockCount.complete}
+              </Button>
             </>
           )}
         </div>
       </div>
-
-      {isActive && !canManage && (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-muted">
-          <Info className="h-4 w-4 shrink-0 text-info" />
-          {t.stockCount.managerOnly}
-        </div>
-      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -289,15 +191,15 @@ export function StockCountDetailPage() {
         />
         <SummaryCard
           label={t.stockCount.progress}
-          value={`${localStats.counted} / ${session.totalItems}`}
+          value={`${session.countedItems} / ${session.totalItems}`}
           sub={`${progress}%`}
           accent
         />
         <SummaryCard
           label={t.stockCount.discrepancies}
-          value={String(localStats.discrepancies)}
+          value={String(session.discrepancyCount)}
           sub={t.stockCount.discrepancies}
-          warn={localStats.discrepancies > 0}
+          warn={session.discrepancyCount > 0}
         />
         <SummaryCard
           label={t.stockCount.systemValue}
@@ -340,7 +242,7 @@ export function StockCountDetailPage() {
             {session.items.map(item => {
               const info = variantMap.get(item.variantId)
               const rawVal = counts[item.stockItemId]
-              const countedNum = effectiveCount(item.stockItemId, item.countedQuantity)
+              const countedNum = rawVal !== undefined && rawVal.trim() !== '' ? Number(rawVal) : item.countedQuantity
               const diff = countedNum != null ? countedNum - item.systemQuantity : null
               const hasDiscrepancy = diff != null && diff !== 0
               const isCounted = rawVal !== undefined || item.countedQuantity != null
@@ -430,35 +332,25 @@ export function StockCountDetailPage() {
       )}
 
       {/* Complete modal */}
-      <Modal open={showComplete && canManage} onClose={() => setShowComplete(false)} title={t.stockCount.complete}>
+      <Modal open={showComplete} onClose={() => setShowComplete(false)} title={t.stockCount.complete}>
         <div className="flex flex-col gap-5" dir="rtl">
-          <p className="text-sm text-fg">{t.stockCount.confirmComplete}</p>
-
-          {(localStats.discrepancies > 0 || localStats.uncounted > 0) && (
+          {session.discrepancyCount > 0 && (
             <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
-              <div className="flex flex-col gap-1 text-sm text-warning">
-                {localStats.discrepancies > 0 && (
-                  <span>{t.stockCount.discrepancyWarning.replace('{n}', String(localStats.discrepancies))}</span>
-                )}
-                {localStats.uncounted > 0 && (
-                  <span>{t.stockCount.uncountedWarning.replace('{n}', String(localStats.uncounted))}</span>
-                )}
+              <div className="text-sm text-warning">
+                {t.stockCount.confirmComplete}
               </div>
             </div>
           )}
 
-          <label className="flex cursor-pointer items-start gap-3">
+          <label className="flex cursor-pointer items-center gap-3">
             <input
               type="checkbox"
               checked={autoAdjust}
               onChange={e => setAutoAdjust(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-border accent-[rgb(var(--brand-ink))]"
+              className="h-4 w-4 rounded border-border accent-[rgb(var(--brand-ink))]"
             />
-            <span className="flex flex-col gap-0.5">
-              <span className="text-sm text-fg">{t.stockCount.autoAdjust}</span>
-              <span className="text-xs text-muted">{t.stockCount.adjustHint}</span>
-            </span>
+            <span className="text-sm text-fg">{t.stockCount.autoAdjust}</span>
           </label>
 
           <div className="flex justify-end gap-2 border-t border-border pt-3">
@@ -469,39 +361,6 @@ export function StockCountDetailPage() {
             >
               {completeMutation.isPending ? t.common.loading : t.stockCount.complete}
             </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Cancel modal */}
-      <Modal open={showCancel && canManage} onClose={() => setShowCancel(false)} title={t.stockCount.cancelCount} size="sm">
-        <div className="flex flex-col gap-5" dir="rtl">
-          <p className="text-sm text-fg">{t.stockCount.confirmCancel}</p>
-          <div className="flex justify-end gap-2 border-t border-border pt-3">
-            <Button variant="secondary" onClick={() => setShowCancel(false)}>{t.stockCount.keepCount}</Button>
-            <Button
-              variant="danger"
-              onClick={() => cancelMutation.mutate()}
-              disabled={cancelMutation.isPending}
-            >
-              {cancelMutation.isPending ? t.common.loading : t.stockCount.cancelCount}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Unsaved counts guard */}
-      <Modal
-        open={blocker.status === 'blocked'}
-        onClose={() => blocker.reset?.()}
-        title={t.stockCount.unsavedTitle}
-        size="sm"
-      >
-        <div className="flex flex-col gap-5" dir="rtl">
-          <p className="text-sm text-fg">{t.stockCount.unsavedMessage}</p>
-          <div className="flex justify-end gap-2 border-t border-border pt-3">
-            <Button variant="secondary" onClick={() => blocker.reset?.()}>{t.stockCount.stay}</Button>
-            <Button variant="danger" onClick={() => blocker.proceed?.()}>{t.stockCount.leaveWithoutSaving}</Button>
           </div>
         </div>
       </Modal>

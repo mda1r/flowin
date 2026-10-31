@@ -84,11 +84,6 @@ public sealed class StockCountSession : AggregateRoot<StockCountSessionId>
             return InventoryErrors.StockCountAlreadyCompleted;
         }
 
-        if (Status != StockCountStatus.InProgress)
-        {
-            return InventoryErrors.StockCountNotInProgress;
-        }
-
         Status = StockCountStatus.Cancelled;
         return Result.Success;
     }

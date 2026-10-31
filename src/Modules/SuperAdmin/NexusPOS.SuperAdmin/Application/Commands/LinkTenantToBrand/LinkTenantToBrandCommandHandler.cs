@@ -23,7 +23,7 @@ internal sealed class LinkTenantToBrandCommandHandler(
 
         if (!brandExists)
         {
-            return Error.NotFound("Brand.NotFound", "العلامة التجارية غير موجودة");
+            return Error.NotFound("Brand.NotFound", "Brand not found");
         }
 
         var tenant = await orgDb.Tenants
@@ -32,7 +32,7 @@ internal sealed class LinkTenantToBrandCommandHandler(
 
         if (tenant is null)
         {
-            return Error.NotFound("Tenant.NotFound", "المنشأة غير موجودة");
+            return Error.NotFound("Tenant.NotFound", "Tenant not found");
         }
 
         bool alreadyLinked = await orgDb.TenantBrandMemberships
@@ -40,7 +40,7 @@ internal sealed class LinkTenantToBrandCommandHandler(
 
         if (alreadyLinked)
         {
-            return Error.Conflict("Brand.TenantAlreadyLinked", "المنشأة مرتبطة بعلامة تجارية مسبقاً");
+            return Error.Conflict("Brand.TenantAlreadyLinked", "Tenant is already linked to a brand");
         }
 
         TenantBrandMembership membership = TenantBrandMembership.Create(

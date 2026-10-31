@@ -6,15 +6,12 @@ using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Catalog.Application.Commands.AddProductVariant;
 using NexusPOS.Catalog.Application.Commands.CreateProduct;
 using NexusPOS.Catalog.Application.Commands.DeactivateProduct;
-using NexusPOS.Catalog.Application.Commands.SetVariantActive;
 using NexusPOS.Catalog.Application.Commands.UpdateProduct;
 using NexusPOS.Catalog.Application.Commands.UpdateVariant;
 using NexusPOS.Catalog.Application.Common;
-using NexusPOS.Catalog.Application.Queries.GetProductByBarcode;
 using NexusPOS.Catalog.Application.Queries.GetProductById;
 using NexusPOS.Catalog.Application.Queries.ListProducts;
 using NexusPOS.Catalog.Presentation.Requests;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Catalog.Presentation;
 
@@ -30,22 +27,11 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
     public async Task<IActionResult> ListProducts(
         [FromQuery] Guid? categoryId,
         [FromQuery] string? search,
-        [FromQuery] int? limit,
         CancellationToken cancellationToken)
     {
-        ListProductsQuery query = new(categoryId, search, limit is int n ? Math.Clamp(n, 1, 500) : null);
+        ListProductsQuery query = new(categoryId, search);
         ErrorOr<IReadOnlyList<ProductResponse>> result = await mediator.Send(query, cancellationToken);
 
-        return result.Match(Ok, MapErrorsToResult);
-    }
-
-    /// <summary>Find the product whose active variant has exactly this barcode or SKU (scanner lookup).</summary>
-    [HttpGet("by-barcode")]
-    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetByBarcode([FromQuery] string? code, CancellationToken cancellationToken)
-    {
-        ErrorOr<ProductResponse> result = await mediator.Send(new GetProductByBarcodeQuery(code ?? string.Empty), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
@@ -63,7 +49,6 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Create a new product with an initial variant.</summary>
     [HttpPost]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -86,7 +71,6 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Update a product's name, description, category and pricing settings.</summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -104,12 +88,10 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    /// <summary>Update a variant's name, pricing, SKU and barcode (a null SKU or barcode keeps the current one).</summary>
+    /// <summary>Update a variant's name, pricing, and barcode.</summary>
     [HttpPatch("{id:guid}/variants/{variantId:guid}")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductVariantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateVariant(
         Guid id,
         Guid variantId,
@@ -117,26 +99,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken)
     {
         UpdateVariantCommand command = new(
-            id, variantId, request.Name, request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.Sku);
-
-        ErrorOr<ProductVariantResponse> result = await mediator.Send(command, cancellationToken);
-
-        return result.Match(Ok, MapErrorsToResult);
-    }
-
-    /// <summary>Activate or deactivate a single variant (the POS hides inactive variants).</summary>
-    [HttpPatch("{id:guid}/variants/{variantId:guid}/status")]
-    [Authorize(Policy = "OwnerOrManager")]
-    [ProducesResponseType(typeof(ProductVariantResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> SetVariantStatus(
-        Guid id,
-        Guid variantId,
-        [FromBody] SetVariantStatusRequest request,
-        CancellationToken cancellationToken)
-    {
-        SetVariantActiveCommand command = new(id, variantId, request.IsActive);
+            id, variantId, request.Name, request.CostPrice, request.SalePrice, request.Currency, request.Barcode);
 
         ErrorOr<ProductVariantResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -145,7 +108,6 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Add a variant (SKU) to an existing product.</summary>
     [HttpPost("{id:guid}/variants")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductVariantResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -167,7 +129,6 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Deactivate a product and all its variants.</summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateProduct(Guid id, CancellationToken cancellationToken)
@@ -178,5 +139,29 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
+    private IActionResult MapErrorsToResult(List<Error> errors)
+    {
+        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
+        {
+            ValidationProblemDetails problemDetails = new();
+            foreach (Error error in errors)
+            {
+                problemDetails.Errors[error.Code] = [error.Description];
+            }
+
+            return ValidationProblem(problemDetails);
+        }
+
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+    }
 }

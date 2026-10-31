@@ -9,6 +9,6 @@ internal sealed class CreateBrandCommandValidator : AbstractValidator<CreateBran
         RuleFor(x => x.NameAr).NotEmpty().MaximumLength(256);
         RuleFor(x => x.NameEn).NotEmpty().MaximumLength(256);
         RuleFor(x => x.Code).NotEmpty().MaximumLength(64)
-            .Matches("^[A-Z0-9_-]+$").WithMessage("رمز العلامة حروف إنجليزية كبيرة وأرقام فقط");
+            .Matches("^[A-Z0-9_-]+$").WithMessage("Brand code must be uppercase alphanumeric");
     }
 }

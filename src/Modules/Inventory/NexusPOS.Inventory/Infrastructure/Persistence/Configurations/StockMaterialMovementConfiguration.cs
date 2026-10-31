@@ -26,10 +26,9 @@ internal sealed class StockMaterialMovementConfiguration : IEntityTypeConfigurat
         builder.HasIndex(m => new { m.TenantId, m.MaterialId, m.CreatedAt })
             .HasDatabaseName("ix_stock_material_movements_material");
 
-        // Restrict: movements are the audit trail, so a material with history is archived, not deleted.
         builder.HasOne<StockMaterial>()
             .WithMany()
             .HasForeignKey(m => m.MaterialId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

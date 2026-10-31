@@ -7,9 +7,9 @@ using NexusPOS.SharedKernel.Application.Messaging;
 namespace NexusPOS.Inventory.Application.Commands.DeleteStockMaterial;
 
 internal sealed class DeleteStockMaterialCommandHandler(InventoryDbContext db)
-    : ICommandHandler<DeleteStockMaterialCommand, DeleteStockMaterialResponse>
+    : ICommandHandler<DeleteStockMaterialCommand>
 {
-    public async Task<ErrorOr<DeleteStockMaterialResponse>> Handle(
+    public async Task<ErrorOr<Success>> Handle(
         DeleteStockMaterialCommand request,
         CancellationToken cancellationToken)
     {
@@ -18,7 +18,7 @@ internal sealed class DeleteStockMaterialCommandHandler(InventoryDbContext db)
 
         if (material is null)
         {
-            return Error.NotFound("Inventory.MaterialNotFound", "المادة غير موجودة");
+            return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
         }
 
         int recipeUses = await db.RecipeLines
@@ -33,40 +33,9 @@ internal sealed class DeleteStockMaterialCommandHandler(InventoryDbContext db)
                 $"لا يمكن حذف المادة لأنها مستخدمة في وصفة {recipeUses} منتج. احذفها من الوصفات أولاً.");
         }
 
-        // Movements are the audit trail for supplier invoices and cost of goods, so a material
-        // with any history is archived; only one that never moved is removed outright.
-        bool hasMovements = await db.StockMaterialMovements
-            .AnyAsync(mv => mv.TenantId == request.TenantId && mv.MaterialId == material.Id, cancellationToken);
+        db.StockMaterials.Remove(material);
+        await db.SaveChangesAsync(cancellationToken);
 
-        if (hasMovements)
-        {
-            material.Deactivate();
-        }
-        else
-        {
-            db.StockMaterials.Remove(material);
-        }
-
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException) when (!hasMovements)
-        {
-            // A movement landed after the check and the RESTRICT key kept it, so archive instead.
-            db.Entry(material).State = EntityState.Unchanged;
-            bool movedSince = await db.StockMaterialMovements
-                .AnyAsync(mv => mv.TenantId == request.TenantId && mv.MaterialId == material.Id, cancellationToken);
-            if (!movedSince)
-            {
-                throw;
-            }
-
-            material.Deactivate();
-            await db.SaveChangesAsync(cancellationToken);
-            return new DeleteStockMaterialResponse(true);
-        }
-
-        return new DeleteStockMaterialResponse(hasMovements);
+        return Result.Success;
     }
 }

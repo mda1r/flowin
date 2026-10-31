@@ -14,9 +14,6 @@ public sealed class OrderLine : Entity<OrderLineId>
     public decimal Quantity { get; private set; }
     public Discount LineDiscount { get; private set; } = Discount.None();
 
-    // What the customer asked for on this item ("no sugar", "oat milk"); kept on the invoice and the kitchen ticket.
-    public string? Notes { get; private set; }
-
     public decimal LineSubtotal => UnitPrice.Amount * Quantity;
     public decimal LineDiscountAmount => LineDiscount.ComputeAmount(LineSubtotal);
     public decimal LineTotal => LineSubtotal - LineDiscountAmount;
@@ -31,8 +28,7 @@ public sealed class OrderLine : Entity<OrderLineId>
         Money unitPrice,
         decimal costPrice,
         decimal quantity,
-        Discount? lineDiscount = null,
-        string? notes = null)
+        Discount? lineDiscount = null)
     {
         return new OrderLine
         {
@@ -44,13 +40,8 @@ public sealed class OrderLine : Entity<OrderLineId>
             CostPrice = costPrice,
             Quantity = quantity,
             LineDiscount = lineDiscount ?? Discount.None(),
-            Notes = NormalizeNotes(notes),
         };
     }
-
-    // Blank notes mean none, so "" and null describe the same line.
-    internal static string? NormalizeNotes(string? notes) =>
-        string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
 
     internal void UpdateQuantity(decimal quantity)
     {

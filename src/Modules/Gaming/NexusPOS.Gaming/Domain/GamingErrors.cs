@@ -5,40 +5,28 @@ namespace NexusPOS.Gaming.Domain;
 public static class GamingErrors
 {
     public static readonly Error StationNotFound =
-        Error.NotFound("GameStation.NotFound", "الجهاز غير موجود");
+        Error.NotFound("GameStation.NotFound", "Game station not found.");
 
     public static readonly Error InvalidHourlyRate =
-        Error.Validation("GameStation.InvalidHourlyRate", "سعر الساعة يجب أن يكون أكبر من صفر");
+        Error.Validation("GameStation.InvalidHourlyRate", "Hourly rate must be greater than zero.");
 
     public static readonly Error StationNotAvailable =
-        Error.Conflict("GameStation.NotAvailable", "الجهاز غير متاح لبدء جلسة");
+        Error.Conflict("GameStation.NotAvailable", "Game station is not available to start a session.");
 
     public static readonly Error StationNotInUse =
-        Error.Conflict("GameStation.NotInUse", "الجهاز غير مشغول حالياً");
-
-    public static readonly Error StationInUse =
-        Error.Conflict("GameStation.InUse", "أنهِ الجلسة الجارية قبل تحويل الجهاز للصيانة.");
-
-    public static readonly Error StationNotInMaintenance =
-        Error.Conflict("GameStation.NotInMaintenance", "الجهاز ليس في الصيانة.");
-
-    public static readonly Error StationHasActiveSession =
-        Error.Conflict("GameStation.HasActiveSession", "على هذا الجهاز جلسة جارية بالفعل.");
-
-    public static readonly Error RateOverrideNotAllowed =
-        Error.Forbidden("GameSession.RateOverrideNotAllowed", "تغيير سعر الساعة للمالك أو المدير فقط.");
+        Error.Conflict("GameStation.NotInUse", "Game station is not currently in use.");
 
     public static readonly Error SessionNotFound =
-        Error.NotFound("GameSession.NotFound", "الجلسة غير موجودة");
+        Error.NotFound("GameSession.NotFound", "Game session not found.");
 
     public static readonly Error SessionNotActive =
-        Error.Conflict("GameSession.NotActive", "الجلسة غير نشطة");
+        Error.Conflict("GameSession.NotActive", "Game session is not currently active.");
 
     public static readonly Error NoActiveSession =
-        Error.Conflict("GameSession.NoActive", "لا توجد جلسة نشطة على هذا الجهاز");
+        Error.Conflict("GameSession.NoActive", "No active session found for this station.");
 
     public static readonly Error SessionNotCompleted =
-        Error.Conflict("GameSession.NotCompleted", "أنهِ الجلسة قبل الدفع");
+        Error.Conflict("GameSession.NotCompleted", "End the session before taking payment.");
 
     public static readonly Error SessionAlreadyPaid =
         Error.Conflict("GameSession.AlreadyPaid", "هذه الجلسة مدفوعة مسبقاً.");

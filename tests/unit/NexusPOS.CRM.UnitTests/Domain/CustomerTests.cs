@@ -153,65 +153,6 @@ public sealed class CustomerTests
         result.FirstError.Should().Be(CrmErrors.InvalidLoyaltyPoints);
     }
 
-    [Fact]
-    public void Create_WithBlankOptionalFields_StoresNull()
-    {
-        Customer customer = Customer.Create(_tenantId, "Walk-in", "", "  ", "", notes: " ");
-
-        customer.Email.Should().BeNull();
-        customer.Phone.Should().BeNull();
-        customer.Address.Should().BeNull();
-        customer.Notes.Should().BeNull();
-    }
-
-    [Fact]
-    public void UpdateProfile_WithBlankEmail_ClearsIt()
-    {
-        Customer customer = Customer.Create(_tenantId, "Jane", "jane@example.com");
-
-        customer.UpdateProfile("Jane", "   ", "0500000000", "", null, null);
-
-        customer.Email.Should().BeNull();
-        customer.Phone.Should().Be("0500000000");
-        customer.Address.Should().BeNull();
-    }
-
-    // ── TakeBackLoyaltyPoints ─────────────────────────────────────────────────
-
-    [Fact]
-    public void TakeBackLoyaltyPoints_WithinBalance_DeductsAll()
-    {
-        Customer customer = Customer.Create(_tenantId, "Jane");
-        customer.AddLoyaltyPoints(100);
-
-        int taken = customer.TakeBackLoyaltyPoints(40);
-
-        taken.Should().Be(40);
-        customer.LoyaltyPoints.Should().Be(60);
-    }
-
-    [Fact]
-    public void TakeBackLoyaltyPoints_MoreThanBalance_StopsAtZero()
-    {
-        Customer customer = Customer.Create(_tenantId, "Jane");
-        customer.AddLoyaltyPoints(30);
-
-        int taken = customer.TakeBackLoyaltyPoints(100);
-
-        taken.Should().Be(30);
-        customer.LoyaltyPoints.Should().Be(0);
-    }
-
-    [Fact]
-    public void TakeBackLoyaltyPoints_Negative_DoesNothing()
-    {
-        Customer customer = Customer.Create(_tenantId, "Jane");
-        customer.AddLoyaltyPoints(30);
-
-        customer.TakeBackLoyaltyPoints(-5).Should().Be(0);
-        customer.LoyaltyPoints.Should().Be(30);
-    }
-
     // ── Deactivate ────────────────────────────────────────────────────────────
 
     [Fact]

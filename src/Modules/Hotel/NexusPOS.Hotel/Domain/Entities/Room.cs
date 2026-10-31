@@ -90,11 +90,6 @@ public sealed class Room : AggregateRoot<RoomId>
 
     public ErrorOr<Success> OccupyRoom()
     {
-        if (!IsActive)
-        {
-            return HotelErrors.RoomInactive;
-        }
-
         if (Status == RoomStatus.Occupied)
         {
             return HotelErrors.RoomAlreadyOccupied;
@@ -123,18 +118,6 @@ public sealed class Room : AggregateRoot<RoomId>
         return Result.Success;
     }
 
-    /// <summary>Frees the room after a cancelled check-in; nobody stayed, so it stays clean.</summary>
-    public void ReleaseRoom()
-    {
-        if (Status != RoomStatus.Occupied)
-        {
-            return;
-        }
-
-        Status = RoomStatus.Available;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
     public void MarkClean()
     {
         CleaningStatus = CleaningStatus.Clean;
@@ -153,15 +136,9 @@ public sealed class Room : AggregateRoot<RoomId>
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public ErrorOr<Success> Deactivate()
+    public void Deactivate()
     {
-        if (Status == RoomStatus.Occupied)
-        {
-            return HotelErrors.RoomHasActiveReservation;
-        }
-
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
-        return Result.Success;
     }
 }

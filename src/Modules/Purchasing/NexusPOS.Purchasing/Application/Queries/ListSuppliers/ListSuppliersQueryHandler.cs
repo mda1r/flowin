@@ -13,7 +13,7 @@ internal sealed class ListSuppliersQueryHandler(ISupplierRepository supplierRepo
         CancellationToken cancellationToken)
     {
         IReadOnlyList<Domain.Entities.Supplier> suppliers = await supplierRepository.FindByTenantAsync(
-            request.TenantId, request.Page, request.PageSize, request.IncludeInactive, cancellationToken);
+            request.TenantId, request.Page, request.PageSize, cancellationToken);
 
         return suppliers.Select(PurchasingMapper.ToResponse).ToList();
     }

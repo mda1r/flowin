@@ -51,8 +51,8 @@ public sealed class Branch : AggregateRoot<BranchId>
         Name = name.Trim();
         Type = type;
         Address = address;
-        PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
-        Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
+        PhoneNumber = phoneNumber?.Trim();
+        Email = email?.Trim().ToLowerInvariant();
     }
 
     public void Deactivate()
@@ -64,17 +64,6 @@ public sealed class Branch : AggregateRoot<BranchId>
     public void Activate()
     {
         IsActive = true;
-    }
-
-    // Login resolves the tenant's default branch from this flag, so exactly one active branch should carry it.
-    public void MarkAsMain()
-    {
-        IsMainBranch = true;
-    }
-
-    public void UnmarkAsMain()
-    {
-        IsMainBranch = false;
     }
 
     public static Branch CreateWithId(

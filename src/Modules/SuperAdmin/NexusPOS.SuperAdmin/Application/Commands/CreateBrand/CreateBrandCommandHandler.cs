@@ -25,7 +25,7 @@ internal sealed class CreateBrandCommandHandler(
 
         if (codeTaken)
         {
-            return Error.Conflict("Brand.CodeTaken", $"رمز العلامة '{code}' مستخدم مسبقاً");
+            return Error.Conflict("Brand.CodeTaken", $"Brand code '{code}' is already in use");
         }
 
         Brand brand = Brand.Create(request.NameAr, request.NameEn, code, request.ActorId, request.Notes);

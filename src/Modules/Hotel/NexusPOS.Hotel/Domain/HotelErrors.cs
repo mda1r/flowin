@@ -6,70 +6,49 @@ public static class HotelErrors
 {
     // Room errors
     public static readonly Error RoomNotFound =
-        Error.NotFound("Room.NotFound", "الغرفة غير موجودة");
+        Error.NotFound("Room.NotFound", "Room not found.");
 
     public static readonly Error InvalidNightlyRate =
-        Error.Validation("Room.InvalidNightlyRate", "سعر الليلة يجب أن يكون أكبر من صفر");
+        Error.Validation("Room.InvalidNightlyRate", "Nightly rate must be greater than zero.");
 
     public static readonly Error InvalidCapacity =
-        Error.Validation("Room.InvalidCapacity", "سعة الغرفة يجب أن تكون أكبر من صفر");
+        Error.Validation("Room.InvalidCapacity", "Room capacity must be greater than zero.");
 
     public static readonly Error RoomNumberTaken =
-        Error.Conflict("Room.RoomNumberTaken", "يوجد غرفة بنفس الرقم في هذا الفرع");
+        Error.Conflict("Room.RoomNumberTaken", "A room with this number already exists in the branch.");
 
     public static readonly Error RoomStatusUnchanged =
-        Error.Conflict("Room.StatusUnchanged", "الغرفة على هذه الحالة مسبقاً");
+        Error.Conflict("Room.StatusUnchanged", "The room is already in the requested status.");
 
     public static readonly Error InvalidStatusTransition =
-        Error.Conflict("Room.InvalidStatusTransition", "لا يمكن جعل غرفة مشغولة متاحة مباشرة، سجّل المغادرة أولاً");
+        Error.Conflict("Room.InvalidStatusTransition", "An occupied room cannot be set directly to available.");
 
     public static readonly Error RoomAlreadyOccupied =
-        Error.Conflict("Room.AlreadyOccupied", "الغرفة مشغولة");
+        Error.Conflict("Room.AlreadyOccupied", "Room is already occupied.");
 
     public static readonly Error RoomUnderMaintenance =
-        Error.Conflict("Room.UnderMaintenance", "الغرفة تحت الصيانة ولا يمكن تسكينها");
+        Error.Conflict("Room.UnderMaintenance", "Room is under maintenance and cannot be checked into.");
 
     public static readonly Error RoomNotOccupied =
-        Error.Conflict("Room.NotOccupied", "الغرفة غير مشغولة");
-
-    public static readonly Error RoomHasActiveReservation =
-        Error.Conflict("Room.HasActiveReservation", "The room has an active reservation. Check the guest out or cancel the reservation first.");
-
-    public static readonly Error RoomOccupiedOnlyByCheckIn =
-        Error.Validation("Room.OccupiedOnlyByCheckIn", "A room becomes occupied only through check-in.");
-
-    public static readonly Error RoomInactive =
-        Error.Conflict("Room.Inactive", "This room has been deactivated.");
+        Error.Conflict("Room.NotOccupied", "Room is not currently occupied.");
 
     // Reservation errors
     public static readonly Error ReservationNotFound =
-        Error.NotFound("Reservation.NotFound", "الحجز غير موجود");
+        Error.NotFound("Reservation.NotFound", "Reservation not found.");
 
     public static readonly Error ReservationNotActive =
-        Error.Conflict("Reservation.NotActive", "الحجز غير نشط");
+        Error.Conflict("Reservation.NotActive", "Reservation is not in active status.");
 
     public static readonly Error InvalidCheckoutDate =
-        Error.Validation("Reservation.InvalidCheckoutDate", "تاريخ المغادرة يجب أن يكون بعد الوصول بليلة على الأقل");
-
-    public static readonly Error InvalidExtendDate =
-        Error.Validation("Reservation.InvalidExtendDate", "The new check-out date must be after the current check-out date.");
+        Error.Validation("Reservation.InvalidCheckoutDate", "Check-out date must be after check-in date (at least 1 night).");
 
     // Contract errors
     public static readonly Error ContractNotFound =
-        Error.NotFound("Contract.NotFound", "عقد الإيجار غير موجود");
+        Error.NotFound("Contract.NotFound", "Rental contract not found.");
 
     public static readonly Error ContractAlreadySigned =
-        Error.Conflict("Contract.AlreadySigned", "لا يمكن إلغاء عقد موقّع");
+        Error.Conflict("Contract.AlreadySigned", "A signed contract cannot be cancelled.");
 
     public static readonly Error ContractCancelled =
-        Error.Conflict("Contract.Cancelled", "هذا العقد ملغى");
-
-    public static readonly Error ContractAlreadyExecuted =
-        Error.Conflict("Contract.AlreadyExecuted", "هذا العقد موقّع مسبقاً");
-
-    public static readonly Error ContractAlreadyActive =
-        Error.Conflict("Contract.AlreadyActive", "هذا العقد مفعّل مسبقاً");
-
-    public static readonly Error ContractLocked =
-        Error.Conflict("Contract.Locked", "لا يمكن تعديل عقد موقّع أو ملغى");
+        Error.Conflict("Contract.Cancelled", "This contract has been cancelled.");
 }

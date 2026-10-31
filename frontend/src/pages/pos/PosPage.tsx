@@ -1,21 +1,19 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { isAxiosError } from 'axios'
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, ScanBarcode, Unlock, PauseCircle, PlayCircle, Clock, Percent, Tag, StickyNote } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, ScanBarcode, Unlock, PauseCircle, PlayCircle, Clock } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
-import { useCartStore, type CartDiscount } from '@/stores/cartStore'
+import { useCartStore } from '@/stores/cartStore'
 import { useHeldCartsStore } from '@/stores/heldCartsStore'
 import { useAuthStore } from '@/stores/authStore'
 import { catalogApi } from '@/api/catalog'
-import { ordersApi, posSettingsApi } from '@/api/orders'
+import { ordersApi } from '@/api/orders'
 import { zatcaApi } from '@/api/zatca'
 import { inventoryApi } from '@/api/inventory'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import type { ProductResponse, ProductVariantResponse, PaymentMethod, OrderResponse, CustomerResponse } from '@/types/api'
 import { RestaurantPosPage } from './RestaurantPosPage'
 import { HotelPosPage } from './HotelPosPage'
@@ -26,15 +24,12 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
-import { DiscountModal, DiscountRulesPanel } from '@/components/pos/DiscountModal'
-import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage } from '@/lib/offlineSales'
+import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
 import type { CheckoutPayload } from '@/api/orders'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
-import { ConfirmModal, Modal } from '@/components/ui/Modal'
+import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { maxRedeemablePoints, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
-import { cartTotals, netUnitPrice, roundDownAmount, serverDiscount } from '@/lib/cartTotals'
-import { cartScope } from '@/lib/safeStorage'
 import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { useReceiptSettings } from '@/lib/receipt'
@@ -67,16 +62,8 @@ const RETAIL_ACCENT: React.CSSProperties = {
 
 type PayMode = 'Cash' | 'Card' | 'Split'
 
-// The shelf shows one screenful; anything else is a search or a scan away.
-const GRID_LIMIT = 120
-
-const DEFAULT_POS_SETTINGS = { maxCashierDiscountPercent: 10, hasApprovalPin: false }
-
-const discountLabel = (d: CartDiscount) => (d.type === 'Percentage' ? `${d.value}%` : formatCurrency(d.value))
-
 function RetailPosPage() {
   const [search, setSearch] = useState('')
-  const debouncedSearch = useDebouncedValue(search.trim(), 250)
   const [payMode, setPayMode] = useState<PayMode>('Cash')
   const [amountTendered, setAmountTendered] = useState('')
   const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
@@ -89,12 +76,6 @@ function RetailPosPage() {
   const [confirmClearCart, setConfirmClearCart] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [showHeld, setShowHeld] = useState(false)
-  const [holdNoteOpen, setHoldNoteOpen] = useState(false)
-  const [holdNote, setHoldNote] = useState('')
-  const [confirmDismissId, setConfirmDismissId] = useState<string | null>(null)
-  // 'cart' for the whole bill, or the variant id of the line being discounted.
-  const [discountTarget, setDiscountTarget] = useState<string | null>(null)
-  const [approvalPin, setApprovalPin] = useState('')
   const [completedOrder, setCompletedOrder] = useState<OrderResponse | null>(null)
   const [completedPhone, setCompletedPhone] = useState<string | undefined>(undefined)
   const [completedOffline, setCompletedOffline] = useState(false)
@@ -102,56 +83,63 @@ function RetailPosPage() {
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showCloseShift, setShowCloseShift] = useState(false)
   const { shift } = useShift()
-  const {
-    lines, discount: cartDiscount, addLine, removeLine, updateQuantity, setLineDiscount, setDiscount, replace, clear, setScope,
-  } = useCartStore()
-  const { hold, restore, dismiss, carts: allHeldCarts } = useHeldCartsStore()
-  const { branchId, tenantId, user } = useAuthStore()
+  const { lines, addLine, removeLine, updateQuantity, subtotal, clear } = useCartStore()
+  const { hold, restore, carts: heldCarts } = useHeldCartsStore()
+  const { branchId, tenantId } = useAuthStore()
   const { t, lang } = useI18n()
 
-  // The cart and held carts are saved per store and branch, so a reload or re-login brings them back.
-  const scope = cartScope(tenantId, branchId)
-  useEffect(() => setScope(scope), [scope, setScope])
-  const heldCarts = scope ? allHeldCarts.filter((c) => c.scope === scope) : []
-  const isManager = user?.role === 'Owner' || user?.role === 'Manager'
-
-  const { data: posSettingsRes } = useQuery({
-    queryKey: ['pos-settings', branchId],
-    queryFn: () => posSettingsApi.get(branchId!),
-    enabled: !!branchId,
-    staleTime: 5 * 60_000,
-  })
-  const posSettings = posSettingsRes?.data ?? DEFAULT_POS_SETTINGS
-
-  // Shelf prices include VAT. Discounts come off first, then points pay for part of what is left.
-  const beforePoints = cartTotals(lines, cartDiscount)
-  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, beforePoints.beforeLoyalty, loyaltyRules) : 0
+  // أسعار المنتجات شاملة الضريبة — نستخرج الضريبة من الإجمالي
+  const cartTotal = subtotal()
+  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal, loyaltyRules) : 0
   const appliedPoints = Math.min(redeemPoints, maxRedeemable)
   const loyaltyDiscount = pointsValue(appliedPoints, loyaltyRules)
-  const totals = cartTotals(lines, cartDiscount, loyaltyDiscount)
-  // grossTotal is what the customer pays, after discounts and points.
-  const grossTotal = totals.total
-  const extractedTax = totals.tax
-  const preTaxAmount = totals.preTax
-  // What the cart discount comes off: the bill after line discounts, VAT included.
-  const cartBase = cartTotals(lines, null).beforeLoyalty
+  // grossTotal is what the customer pays, after any loyalty discount.
+  const grossTotal = Math.round((cartTotal - loyaltyDiscount) * 100) / 100
+  const extractedTax = Math.round(grossTotal * 0.15 / 1.15 * 100) / 100
+  const preTaxAmount = Math.round((grossTotal - extractedTax) * 100) / 100
 
-  // Past the branch cap a cashier needs the manager PIN, which only the server can check — so never offline.
-  // Offline before the branch rules ever loaded, the cap is unknown, so a cashier gives no discount at all.
-  const discountCap = posSettings.maxCashierDiscountPercent
-  const settingsLoaded = !!posSettingsRes
-  const overCap = !isManager && totals.discountPercent > discountCap
-  const offlineOverCap = overCap || (!isManager && !settingsLoaded && totals.discountPercent > 0)
-  const online = typeof navigator === 'undefined' ? true : navigator.onLine
-  const capKnown = settingsLoaded || online
-  const discountBlocked = online ? overCap && !posSettings.hasApprovalPin : offlineOverCap
-  const needsPin = overCap && !discountBlocked
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    setLastScanned(barcode)
+    try {
+      const { data: results } = await catalogApi.listProducts(tenantId!, { search: barcode })
+      const matched = results.flatMap(p =>
+        p.variants
+          .filter(v => v.isActive && (v.barcode === barcode || v.sku === barcode))
+          .map(v => ({ product: p, variant: v }))
+      )
+      const hit = matched[0] ?? (results.length === 1 && results[0].variants[0]
+        ? { product: results[0], variant: results[0].variants[0] }
+        : null)
+
+      if (hit) {
+        const currentQty = useCartStore.getState().lines.find(l => l.variantId === hit.variant.id)?.quantity ?? 0
+        if (!canAddToCart(hit.variant.id, currentQty)) {
+          toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[hit.variant.id] ?? 0} وحدة`)
+        } else {
+          addLine({
+            variantId: hit.variant.id,
+            productName: hit.product.name,
+            variantName: hit.variant.name,
+            unitPrice: hit.variant.salePrice,
+            costPrice: hit.variant.costPrice,
+          })
+          toast.success('تمت الإضافة', `${hit.product.name} — ${formatCurrency(hit.variant.salePrice)}`)
+        }
+      } else {
+        toast.error('باركود غير معروف', barcode)
+      }
+    } catch {
+      toast.error('خطأ في البحث', 'تعذّر البحث عن الباركود')
+    }
+    setTimeout(() => setLastScanned(null), 1500)
+  }, [addLine])
+
+  useBarcodeScanner({ onScan: handleBarcodeScan, active: !showPayment })
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', tenantId, debouncedSearch, GRID_LIMIT],
-    queryFn: () => catalogApi.listProducts(tenantId!, { search: debouncedSearch || undefined, limit: GRID_LIMIT }),
+    queryKey: ['products', tenantId, search],
+    queryFn: () => catalogApi.listProducts(tenantId!, { search: search || undefined }),
     enabled: !!tenantId,
-    placeholderData: (prev) => prev,
   })
 
   const { data: stockData } = useQuery({
@@ -169,84 +157,27 @@ function RetailPosPage() {
     return m
   })()
 
-  const productList: ProductResponse[] = (() => {
-    const raw = products?.data
-    return Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+  const productList = products?.data ?? []
+
+  const trackMap = (() => {
+    const m: Record<string, boolean> = {}
+    const list = Array.isArray(productList) ? productList : ((productList as any)?.items ?? [])
+    for (const p of list) {
+      for (const v of p.variants) m[v.id] = p.trackInventory
+    }
+    return m
   })()
 
-  // Every variant seen on the shelf or through a scan, so items in the cart keep their stock check after the search changes.
-  const trackRef = useRef<Record<string, boolean>>({})
-  for (const p of productList) {
-    for (const v of p.variants) trackRef.current[v.id] = p.trackInventory
-  }
-
-  // A tracked item with no stock row is unknown, not empty: it can be sold and is never shown as sold out.
   const canAddToCart = (variantId: string, currentQty: number, addQty = 1): boolean => {
-    if (!trackRef.current[variantId]) return true
+    if (!trackMap[variantId]) return true
     const available = stockMap[variantId]
     if (available === undefined) return true
     return currentQty + addQty <= available
   }
 
-  const addVariant = (product: ProductResponse, variant: ProductVariantResponse): boolean => {
-    const currentQty = useCartStore.getState().lines.find((l) => l.variantId === variant.id)?.quantity ?? 0
-    if (!canAddToCart(variant.id, currentQty)) {
-      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variant.id] ?? 0} وحدة`)
-      return false
-    }
-    addLine({
-      variantId: variant.id,
-      productName: product.name,
-      variantName: variant.name,
-      unitPrice: variant.salePrice,
-      costPrice: variant.costPrice,
-    })
-    return true
-  }
-
-  // Exact barcode or SKU only: first among the products on screen (works offline), then the server.
-  const findScanned = async (code: string): Promise<{ product: ProductResponse; variant: ProductVariantResponse } | null> => {
-    const exact = (p: ProductResponse) =>
-      p.variants.find((v) => v.isActive && v.barcode === code) ?? p.variants.find((v) => v.isActive && v.sku === code)
-    for (const p of productList) {
-      const v = exact(p)
-      if (v) return { product: p, variant: v }
-    }
-    try {
-      const { data: product } = await catalogApi.findByBarcode(code)
-      for (const v of product.variants) trackRef.current[v.id] = product.trackInventory
-      const v = exact(product)
-      return v ? { product, variant: v } : null
-    } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 404) return null
-      throw err
-    }
-  }
-
-  const scanRef = useRef<(code: string) => Promise<void>>(async () => {})
-  scanRef.current = async (code: string) => {
-    setLastScanned(code)
-    // A scan while the search box has focus types the code into it; take it back out.
-    setSearch((s) => (s.includes(code) ? s.replace(code, '').trim() : s))
-    try {
-      const hit = await findScanned(code)
-      if (!hit) toast.error('باركود غير معروف', code)
-      else if (addVariant(hit.product, hit.variant)) {
-        toast.success('تمت الإضافة', `${hit.product.name} — ${formatCurrency(hit.variant.salePrice)}`)
-      }
-    } catch (err) {
-      toast.error('خطأ في البحث', isTransientError(err) ? 'لا يوجد اتصال، والصنف غير ظاهر في الشاشة' : 'تعذّر البحث عن الباركود')
-    }
-    setTimeout(() => setLastScanned(null), 1500)
-  }
-  // Stable for the scanner hook; always runs the latest render's logic, so stock and cart are never stale.
-  const handleBarcodeScan = useCallback((code: string) => void scanRef.current(code), [])
-
-  const anyDialogOpen = showPayment || showHeld || holdNoteOpen || discountTarget !== null
-  useBarcodeScanner({ onScan: handleBarcodeScan, active: !anyDialogOpen })
-
   const checkout = useMutation({
     mutationFn: async () => {
+      const preTaxRate = 1 + SAUDI_VAT_RATE
       const tendered = payMode === 'Cash' ? Math.max(parseFloat(amountTendered) || grossTotal, grossTotal) : grossTotal
       const clientReference = newClientReference()
       const payload: CheckoutPayload = {
@@ -258,12 +189,10 @@ function RetailPosPage() {
           variantId: line.variantId,
           productName: line.productName,
           variantName: line.variantName,
-          unitPrice: netUnitPrice(line.unitPrice),
+          unitPrice: Math.round((line.unitPrice / preTaxRate) * 10000) / 10000,
           costPrice: line.costPrice,
           quantity: line.quantity,
-          ...serverDiscount(line.discount),
         })),
-        ...serverDiscount(cartDiscount),
         loyaltyPoints: appliedPoints,
         paymentMethod: payMode as PaymentMethod,
         amountTendered: tendered,
@@ -284,6 +213,7 @@ function RetailPosPage() {
           total: grossTotal,
           itemCount: lines.reduce((s, l) => s + l.quantity, 0),
         })
+        const tax = Math.round((grossTotal * SAUDI_VAT_RATE / preTaxRate) * 100) / 100
         // A local receipt with the same figures the server will record; its number is provisional.
         const order: OrderResponse = {
           id: clientReference,
@@ -291,9 +221,9 @@ function RetailPosPage() {
           branchId: branchId!,
           currency: 'SAR',
           status: 'Completed',
-          subtotalAmount: totals.subtotalNet,
-          discountAmount: totals.orderDiscountNet,
-          taxAmount: extractedTax,
+          subtotalAmount: Math.round((grossTotal - tax) * 100) / 100,
+          discountAmount: 0,
+          taxAmount: tax,
           totalAmount: grossTotal,
           taxRate: SAUDI_VAT_RATE,
           paymentMethod: payMode as PaymentMethod,
@@ -308,9 +238,9 @@ function RetailPosPage() {
             productName: l.productName,
             variantName: l.variantName,
             quantity: l.quantity,
-            unitPrice: netUnitPrice(l.unitPrice),
+            unitPrice: l.unitPrice / preTaxRate,
             costPrice: l.costPrice,
-            lineTotal: Math.round(totals.lineTotals[i].total * 100) / 100,
+            lineTotal: Math.round((l.unitPrice * l.quantity / preTaxRate) * 100) / 100,
           })),
         }
         return { order, offline: true }
@@ -318,24 +248,19 @@ function RetailPosPage() {
 
       if (!navigator.onLine) {
         if (appliedPoints > 0) throw new Error('offline-loyalty')
-        if (offlineOverCap) throw new Error('offline-discount')
         return saveOffline()
       }
       try {
-        // The PIN goes with the live request only; it is never kept with a queued sale.
-        const { data } = await ordersApi.checkout(branchId!, needsPin ? { ...payload, approvalPin: approvalPin.trim() } : payload)
+        const { data } = await ordersApi.checkout(branchId!, payload)
         return { order: data, offline: false }
       } catch (err) {
-        if (isTransientError(err)) {
-          if (offlineOverCap) throw new Error('offline-discount')
-          return saveOffline()
-        }
+        if (isNetworkError(err)) return saveOffline()
         throw err
       }
     },
     onSuccess: ({ order, offline }) => {
       setCompletedOffline(offline)
-      if (offline) toast.warning(...savedOnDeviceMessage())
+      if (offline) toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
       setCompletedOrder(order)
       setCompletedPhone(loyaltyCustomer?.phone ?? undefined)
       clear()
@@ -346,61 +271,35 @@ function RetailPosPage() {
       setSplitCard('')
       setLoyaltyCustomer(null)
       setRedeemPoints(0)
-      setApprovalPin('')
       toast.success(t.pos.paymentSuccess, t.pos.orderProcessed)
     },
-    onError: (err: Error) => {
-      if (err.message === 'offline-storage') {
-        toast.error('لم تُحفظ العملية: ذاكرة الجهاز ممتلئة', 'دوّن العملية يدوياً، فهي غير مسجلة. السلة باقية كما هي')
-        return
-      }
-      if (err.message === 'offline-loyalty') {
-        toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
-        return
-      }
-      if (err.message === 'offline-discount') {
-        toast.error(
-          'الخصم يحتاج اتصالاً',
-          settingsLoaded
-            ? `خصم أكبر من ${discountCap}% يُعتمد من الخادم. خفّضه أو انتظر الاتصال`
-            : 'حد الخصم غير معروف دون اتصال. أزل الخصم أو انتظر الاتصال',
-        )
-        return
-      }
-      const code = isAxiosError(err) ? (err.response?.data as { title?: string } | undefined)?.title : undefined
-      if (code === 'POS.InvalidApprovalPin' || code === 'POS.ApprovalPinLocked') setApprovalPin('')
-      toast.error(t.pos.paymentFailed, apiErrorMessage(err))
-    },
+    onError: (err: Error) =>
+      err.message === 'offline-loyalty'
+        ? toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
+        : toast.error(t.pos.paymentFailed, apiErrorMessage(err)),
   })
 
-  const openHold = () => {
+  const handleHold = () => {
     if (lines.length === 0) return
-    setHoldNote('')
-    setHoldNoteOpen(true)
-  }
-
-  const confirmHold = () => {
-    if (!scope || lines.length === 0) return
-    hold(scope, lines, holdNote, cartDiscount)
+    hold(lines)
     clear()
-    setHoldNoteOpen(false)
     toast.success(t.pos.ordersHeld, 'يمكنك استردادها في أي وقت')
   }
 
   const handleRestore = (id: string) => {
     const cart = restore(id)
     if (!cart) return
-    // The cart on the till is held in its place, so switching customers never loses a sale.
-    if (lines.length > 0 && scope) hold(scope, lines, 'السلة السابقة', cartDiscount)
-    replace(cart.lines, cart.discount ?? null)
+    clear()
+    for (const line of cart.lines) {
+      const { quantity, ...rest } = line
+      for (let i = 0; i < quantity; i++) addLine(rest)
+    }
     setShowHeld(false)
-    setConfirmDismissId(null)
     toast.success(t.pos.orderResumed)
   }
 
+
   const canConfirmPayment = !(
-    discountBlocked ||
-    (needsPin && approvalPin.trim().length < 4) ||
     (payMode === 'Cash' && !!amountTendered && parseFloat(amountTendered) < grossTotal) ||
     (payMode === 'Split' && (() => {
       const c = parseFloat(splitCash) || 0
@@ -416,24 +315,11 @@ function RetailPosPage() {
     setSplitCard('')
   }
 
-  const openPayment = () => {
-    if (lines.length === 0) {
-      toast.error('السلة فارغة')
-      return
-    }
-    setShowPayment(true)
-    setAmountTendered('')
-    setApprovalPin('')
-  }
-
   const lastLine = () => lines[lines.length - 1]
-  const discountLine = discountTarget && discountTarget !== 'cart' ? lines.find((l) => l.variantId === discountTarget) : undefined
 
   const shortcutHints = [
     { keys: ['F2', '/'], label: 'البحث / مسح الباركود' },
     { keys: ['+', '-'], label: 'زيادة / إنقاص آخر صنف' },
-    { keys: ['F3'], label: 'خصم على الفاتورة' },
-    { keys: ['F4'], label: 'تعليق الطلب، أو الطلبات المعلقة إن كانت السلة فارغة' },
     { keys: ['F9', 'Ctrl+Enter'], label: 'الدفع، ثم تأكيد الدفع' },
     { keys: ['F5', 'F6', 'F7'], label: 'نقداً / بطاقة / تقسيم (في نافذة الدفع)' },
     { keys: ['Escape'], label: 'إغلاق نافذة الدفع' },
@@ -453,29 +339,13 @@ function RetailPosPage() {
     },
     { keys: ['-'], label: 'dec', run: () => { const l = lastLine(); if (l) updateQuantity(l.variantId, l.quantity - 1) } },
     {
-      keys: ['F3'],
-      label: 'discount',
-      allowInInputs: true,
-      enabled: !showPayment,
-      run: () => { if (lines.length > 0) setDiscountTarget('cart') },
-    },
-    {
-      keys: ['F4'],
-      label: 'hold',
-      allowInInputs: true,
-      enabled: !showPayment,
-      run: () => {
-        if (lines.length > 0) openHold()
-        else if (heldCarts.length > 0) setShowHeld(true)
-      },
-    },
-    {
       keys: ['F9', 'Ctrl+Enter'],
       label: 'pay',
       allowInInputs: true,
       run: () => {
         if (!showPayment) {
-          openPayment()
+          if (lines.length === 0) toast.error('السلة فارغة')
+          else { setShowPayment(true); setAmountTendered('') }
           return
         }
         if (canConfirmPayment && !checkout.isPending) checkout.mutate()
@@ -488,18 +358,6 @@ function RetailPosPage() {
     { keys: ['F8'], label: 'clear', allowInInputs: true, run: () => { if (lines.length > 0) setConfirmClearCart(true) } },
     { keys: ['?', '؟', 'F1'], label: 'help', run: () => setShowShortcuts(true) },
   ])
-
-  // The cashier cap against the bill's discount share with the value being typed, so it warns before payment.
-  const capNote = (percent: number) => {
-    if (isManager) return null
-    const over = capKnown ? percent > discountCap : percent > 0
-    return (
-      <p className={cn('text-xs', over ? 'text-warning' : 'text-muted')}>
-        {capKnown ? `حد خصم الكاشير ${discountCap}%` : 'حد خصم الكاشير غير معروف دون اتصال'}
-        {over && (!online ? ' — يحتاج اتصالاً لاعتماده' : posSettings.hasApprovalPin ? ' — سيُطلب رمز المدير عند الدفع' : ' — اطلب من المدير تنفيذ الخصم')}
-      </p>
-    )
-  }
 
   return (
     <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RETAIL_ACCENT}>
@@ -542,7 +400,7 @@ function RetailPosPage() {
           </div>
         }
       />
-      <ShiftGate onOpenShift={() => setShowOpenShift(true)} onCloseShift={() => setShowCloseShift(true)}>
+      <ShiftGate onOpenShift={() => setShowOpenShift(true)}>
       <div className="flex flex-1 overflow-hidden">
         {/* Product shelf */}
         <div className="flex flex-1 flex-col overflow-hidden border-e" style={{ borderColor: 'var(--card-border)' }}>
@@ -572,26 +430,32 @@ function RetailPosPage() {
                 ))}
               </div>
             ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {productList.map((product) =>
-                    product.variants.filter((v) => v.isActive).map((variant) => (
-                      <ProductCard
-                        key={variant.id}
-                        product={product}
-                        variant={variant}
-                        stockQty={product.trackInventory ? (stockMap[variant.id] ?? null) : null}
-                        onAdd={() => addVariant(product, variant)}
-                      />
-                    ))
-                  )}
-                </div>
-                {productList.length >= GRID_LIMIT && (
-                  <p className="mt-4 text-center text-xs text-muted">
-                    {debouncedSearch ? `أول ${GRID_LIMIT} نتيجة — اكتب أكثر لتضييق البحث` : `يظهر أول ${GRID_LIMIT} صنف — ابحث أو امسح الباركود للباقي`}
-                  </p>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {productList.map((product) =>
+                  product.variants.filter((v) => v.isActive).map((variant) => (
+                    <ProductCard
+                      key={variant.id}
+                      product={product}
+                      variant={variant}
+                      stockQty={trackMap[variant.id] ? (stockMap[variant.id] ?? 0) : null}
+                      onAdd={() => {
+                        const currentQty = lines.find(l => l.variantId === variant.id)?.quantity ?? 0
+                        if (!canAddToCart(variant.id, currentQty)) {
+                          toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variant.id] ?? 0} وحدة`)
+                          return
+                        }
+                        addLine({
+                          variantId: variant.id,
+                          productName: product.name,
+                          variantName: variant.name,
+                          unitPrice: variant.salePrice,
+                          costPrice: variant.costPrice,
+                        })
+                      }}
+                    />
+                  ))
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -609,10 +473,7 @@ function RetailPosPage() {
               </p>
             ) : (
               <ul className="space-y-2 p-3">
-                {lines.map((line, i) => {
-                  const lineGross = line.unitPrice * line.quantity
-                  const lineOff = line.discount ? Math.round(totals.lineTotals[i].discount * (1 + SAUDI_VAT_RATE) * 100) / 100 : 0
-                  return (
+                {lines.map((line) => (
                   <li key={line.variantId} className="card-3d animate-float-up p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -624,23 +485,12 @@ function RetailPosPage() {
                           {formatCurrency(line.unitPrice)} {t.pos.each}
                         </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <button
-                          onClick={() => setDiscountTarget(line.variantId)}
-                          title="خصم على هذا الصنف"
-                          aria-label={`خصم على ${line.productName}`}
-                          className={cn('transition-colors', line.discount ? 'text-success' : 'text-muted/50 hover:text-fg')}
-                        >
-                          <Tag className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => removeLine(line.variantId)}
-                          aria-label={`حذف ${line.productName}`}
-                          className="text-muted/50 transition-colors hover:text-danger"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => removeLine(line.variantId)}
+                        className="shrink-0 text-muted/50 transition-colors hover:text-danger"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                     <div className="mt-2 flex items-center justify-between">
                       <div className="flex items-center gap-1">
@@ -664,21 +514,12 @@ function RetailPosPage() {
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <div className="text-end">
-                        {lineOff > 0 && (
-                          <p className="text-[11px] text-muted">
-                            <span className="line-through tabular-nums">{formatCurrency(lineGross)}</span>
-                            <span className="ms-1 text-success">−{discountLabel(line.discount!)}</span>
-                          </p>
-                        )}
-                        <span className="text-sm font-semibold tabular-nums text-fg">
-                          {formatCurrency(Math.max(lineGross - lineOff, 0))}
-                        </span>
-                      </div>
+                      <span className="text-sm font-semibold tabular-nums text-fg">
+                        {formatCurrency(line.unitPrice * line.quantity)}
+                      </span>
                     </div>
                   </li>
-                  )
-                })}
+                ))}
               </ul>
             )}
           </div>
@@ -686,19 +527,6 @@ function RetailPosPage() {
           {/* Totals + Checkout */}
           <div className="border-t p-4" style={{ borderColor: 'var(--card-border)' }}>
             <div className="mb-2 space-y-1 text-sm">
-              {totals.discountGross > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setDiscountTarget('cart')}
-                  className="flex w-full justify-between text-success"
-                >
-                  <span>
-                    الخصم
-                    {cartDiscount && <span className="ms-1 text-xs">({discountLabel(cartDiscount)})</span>}
-                  </span>
-                  <span className="tabular-nums">−{formatCurrency(totals.discountGross)}</span>
-                </button>
-              )}
               <div className="flex justify-between text-muted">
                 <span>{t.pos.subtotal}</span>
                 <span className="tabular-nums">{formatCurrency(preTaxAmount)}</span>
@@ -725,21 +553,11 @@ function RetailPosPage() {
                 <X className="h-4 w-4" />
                 {t.pos.clear}
               </Button>
-              {/* Cart discount */}
-              <button
-                onClick={() => setDiscountTarget('cart')}
-                disabled={lines.length === 0}
-                title="خصم على الفاتورة (F3)"
-                className="card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-success disabled:opacity-40"
-              >
-                <Percent className="h-4 w-4" />
-                خصم
-              </button>
               {/* Hold current order */}
               <button
-                onClick={openHold}
+                onClick={handleHold}
                 disabled={lines.length === 0}
-                title={`${t.pos.holdOrder} (F4)`}
+                title={t.pos.holdOrder}
                 className="card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-warning disabled:opacity-40"
               >
                 <PauseCircle className="h-4 w-4" />
@@ -751,10 +569,9 @@ function RetailPosPage() {
                   onClick={() => setShowHeld(true)}
                   className="relative card-3d card-3d-lift flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-info"
                   title={t.pos.heldOrders}
-                  aria-label={`${t.pos.heldOrders} (${heldCarts.length})`}
                 >
                   <PlayCircle className="h-4 w-4" />
-                  <span className="absolute -top-1.5 -end-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[10px] font-bold text-white">
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[10px] font-bold text-white">
                     {heldCarts.length}
                   </span>
                 </button>
@@ -763,7 +580,7 @@ function RetailPosPage() {
             <Button
               variant="primary"
               size="sm"
-              onClick={openPayment}
+              onClick={() => { setShowPayment(true); setAmountTendered('') }}
               disabled={lines.length === 0}
               className="btn-3d w-full"
             >
@@ -778,15 +595,9 @@ function RetailPosPage() {
       {showPayment && (
         <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RETAIL_ACCENT}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPayment(false)} />
-          <div className="glass-panel relative mx-4 max-h-[calc(100dvh-2rem)] w-full max-w-sm animate-float-up overflow-y-auto p-6">
+          <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-6">
             <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
             <div className="mb-4 space-y-1 text-sm">
-              {totals.discountGross > 0 && (
-                <div className="flex justify-between text-success">
-                  <span>الخصم{cartDiscount && ` (${discountLabel(cartDiscount)})`}</span>
-                  <span>−{formatCurrency(totals.discountGross)}</span>
-                </div>
-              )}
               <div className="flex justify-between text-muted">
                 <span>{t.pos.subtotal}</span>
                 <span>{formatCurrency(preTaxAmount)}</span>
@@ -811,34 +622,6 @@ function RetailPosPage() {
                 {formatCurrency(grossTotal)}
               </p>
             </div>
-
-            {/* A cashier discount past the branch cap */}
-            {discountBlocked && (
-              <p role="alert" className="mb-4 rounded-xl bg-danger/10 px-3 py-2 text-xs font-medium text-danger">
-                {online
-                  ? `الخصم ${totals.discountPercent}% أكبر من حد الكاشير (${discountCap}%). اطلب من المدير تنفيذه أو خفّض الخصم.`
-                  : capKnown
-                    ? `الخصم ${totals.discountPercent}% أكبر من حد الكاشير (${discountCap}%) ويحتاج اتصالاً لاعتماده.`
-                    : 'حد خصم الكاشير غير معروف دون اتصال، والخصم يحتاج اتصالاً لاعتماده.'}
-              </p>
-            )}
-            {needsPin && (
-              <label className="mb-4 block rounded-xl border border-warning/40 bg-warning/10 p-3">
-                <span className="mb-1 block text-xs font-medium text-fg">
-                  الخصم {totals.discountPercent}% أكبر من حد الكاشير ({discountCap}%) — رمز المدير
-                </span>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  maxLength={8}
-                  value={approvalPin}
-                  onChange={(e) => setApprovalPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="••••"
-                  className="input-3d w-full tabular-nums"
-                />
-              </label>
-            )}
 
             <div className="mb-4">
               <LoyaltyPanel
@@ -883,7 +666,7 @@ function RetailPosPage() {
             {/* Cash input */}
             {payMode === 'Cash' && (
               <div className="mb-4">
-                <CashTender total={grossTotal} value={amountTendered} onChange={setAmountTendered} autoFocus={!needsPin} />
+                <CashTender total={grossTotal} value={amountTendered} onChange={setAmountTendered} autoFocus />
               </div>
             )}
 
@@ -965,120 +748,52 @@ function RetailPosPage() {
         </div>
       )}
 
-      {/* Discount: whole bill or one line */}
-      <DiscountModal
-        open={discountTarget === 'cart'}
-        onClose={() => setDiscountTarget(null)}
-        title="خصم على الفاتورة"
-        base={cartBase}
-        current={cartDiscount}
-        onApply={setDiscount}
-        roundDown={roundDownAmount(cartBase)}
-        note={(d) => capNote(cartTotals(lines, d).discountPercent)}
-      >
-        {isManager && branchId && <DiscountRulesPanel branchId={branchId} settings={posSettings} />}
-      </DiscountModal>
-      <DiscountModal
-        open={!!discountLine}
-        onClose={() => setDiscountTarget(null)}
-        title={discountLine ? `خصم على ${discountLine.productName}` : 'خصم على الصنف'}
-        base={discountLine ? discountLine.unitPrice * discountLine.quantity : 0}
-        current={discountLine?.discount ?? null}
-        onApply={(d) => { if (discountLine) setLineDiscount(discountLine.variantId, d) }}
-        note={(d) =>
-          capNote(cartTotals(lines.map((l) => (l.variantId === discountLine?.variantId ? { ...l, discount: d } : l)), cartDiscount).discountPercent)
-        }
-      />
-
-      {/* Note for a held cart */}
-      <Modal
-        open={holdNoteOpen}
-        onClose={() => setHoldNoteOpen(false)}
-        title={t.pos.holdOrder}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setHoldNoteOpen(false)}>{t.common.cancel}</Button>
-            <Button onClick={confirmHold}>{t.pos.holdOrder}</Button>
-          </>
-        }
-      >
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-fg">اسم العميل أو جواله (اختياري)</span>
-          <input
-            type="text"
-            value={holdNote}
-            maxLength={60}
-            onChange={(e) => setHoldNote(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') confirmHold() }}
-            placeholder="مثال: أبو محمد · 05xxxxxxxx"
-            className="input-3d w-full"
-            data-autofocus
-          />
-        </label>
-        <p className="mt-2 text-xs text-muted">
-          {lines.length} صنف · {formatCurrency(grossTotal)}
-        </p>
-      </Modal>
-
       {/* Held orders panel */}
-      <Modal open={showHeld} onClose={() => { setShowHeld(false); setConfirmDismissId(null) }} title={t.pos.heldOrders} size="sm">
-        {heldCarts.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted">{t.pos.noHeldOrders}</p>
-        ) : (
-          <ul className="space-y-2">
-            {heldCarts.map((cart) => (
-              <li key={cart.id} className="card-3d flex items-center justify-between gap-3 p-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 shrink-0 text-muted" />
-                    <span className="text-xs text-muted">
-                      {new Date(cart.heldAt).toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {cart.note && (
-                      <span className="flex min-w-0 items-center gap-1 truncate text-xs font-semibold text-fg">
-                        <StickyNote className="h-3 w-3 shrink-0 text-brand-strong" />
-                        {cart.note}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-sm font-medium text-fg">
-                    {cart.lines.length} منتج · {formatCurrency(cartTotals(cart.lines, cart.discount ?? null).total)}
-                  </p>
-                  <p className="truncate text-xs text-muted">
-                    {cart.lines.map((l) => l.productName).join('، ')}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {confirmDismissId === cart.id ? (
+      {showHeld && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowHeld(false)} />
+          <div className="glass-panel relative mx-4 w-full max-w-sm animate-float-up p-5" dir="rtl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-semibold text-fg">{t.pos.heldOrders}</h2>
+              <button onClick={() => setShowHeld(false)} className="text-muted hover:text-fg">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {heldCarts.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted">{t.pos.noHeldOrders}</p>
+            ) : (
+              <ul className="space-y-2 max-h-80 overflow-y-auto">
+                {heldCarts.map((cart) => (
+                  <li key={cart.id} className="card-3d flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-muted" />
+                        <span className="text-xs text-muted">
+                          {new Date(cart.heldAt).toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-sm font-medium text-fg">
+                        {cart.lines.length} منتج · {formatCurrency(
+                          cart.lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)
+                        )}
+                      </p>
+                      <p className="truncate text-xs text-muted">
+                        {cart.lines.map((l) => l.productName).join('، ')}
+                      </p>
+                    </div>
                     <button
-                      onClick={() => { dismiss(cart.id); setConfirmDismissId(null) }}
-                      className="rounded-xl bg-danger/10 px-2.5 py-1.5 text-xs font-semibold text-danger"
+                      onClick={() => handleRestore(cart.id)}
+                      className="bg-brand shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold text-brand-fg"
                     >
-                      تأكيد الحذف
+                      {t.pos.resumeOrder}
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmDismissId(cart.id)}
-                      aria-label="حذف الطلب المعلق"
-                      title="حذف"
-                      className="rounded-lg p-1.5 text-muted transition-colors hover:text-danger"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleRestore(cart.id)}
-                    className="bg-brand rounded-xl px-3 py-1.5 text-xs font-semibold text-brand-fg"
-                  >
-                    {t.pos.resumeOrder}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Modal>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ZATCA Receipt modal */}
       {completedOrder && (

@@ -10,5 +10,4 @@ public sealed record ListOrdersQuery(
     DateTime? From = null,
     DateTime? To = null,
     int Page = 1,
-    int PageSize = 50,
-    long? Number = null) : IQuery<IReadOnlyList<OrderResponse>>;
+    int PageSize = 50) : IQuery<IReadOnlyList<OrderResponse>>;

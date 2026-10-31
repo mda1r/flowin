@@ -12,29 +12,13 @@ internal sealed class SupplierRepository(PurchasingDbContext dbContext) : ISuppl
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<Supplier>> FindByTenantAsync(
-        Guid tenantId, int page, int pageSize, bool includeInactive = false, CancellationToken cancellationToken = default)
+        Guid tenantId, int page, int pageSize, CancellationToken cancellationToken = default)
         => await dbContext.Suppliers
-            .Where(s => s.TenantId == tenantId && (includeInactive || s.IsActive))
-            .OrderByDescending(s => s.IsActive)
-            .ThenBy(s => s.Name)
+            .Where(s => s.TenantId == tenantId && s.IsActive)
+            .OrderBy(s => s.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
-
-    // Includes inactive suppliers so past orders keep showing who they were placed with.
-    public async Task<IReadOnlyDictionary<Guid, string>> FindNamesAsync(
-        IReadOnlyCollection<Guid> supplierIds, CancellationToken cancellationToken = default)
-    {
-        if (supplierIds.Count == 0)
-        {
-            return new Dictionary<Guid, string>();
-        }
-
-        List<SupplierId> ids = supplierIds.Select(id => new SupplierId(id)).ToList();
-        return await dbContext.Suppliers
-            .Where(s => ids.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id.Value, s => s.Name, cancellationToken);
-    }
 
     public async Task<bool> ExistsByNameAsync(Guid tenantId, string name, CancellationToken cancellationToken = default)
     {

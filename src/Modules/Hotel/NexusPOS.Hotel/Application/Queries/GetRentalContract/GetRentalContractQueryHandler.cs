@@ -17,7 +17,7 @@ internal sealed class GetRentalContractQueryHandler(IRentalContractRepository re
         var contract = await repository.FindByIdAsync(
             new RentalContractId(request.ContractId), cancellationToken);
 
-        if (contract is null || contract.BranchId != request.BranchId)
+        if (contract is null)
         {
             return HotelErrors.ContractNotFound;
         }

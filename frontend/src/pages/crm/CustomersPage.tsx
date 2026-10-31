@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Gift, Megaphone, MessageCircle, Plus, Search, Star } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -12,15 +12,12 @@ import { Table } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
-import { CUSTOMERS_PAGE_SIZE, customersApi } from '@/api/customers'
+import { customersApi } from '@/api/customers'
 import { useAuthStore } from '@/stores/authStore'
-import { formatDate } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
 import type { CustomerResponse } from '@/types/api'
 import { LoyaltySettingsModal } from '@/components/crm/LoyaltySettingsModal'
-import { CustomerLoyaltyCard } from '@/components/crm/CustomerLoyaltyCard'
-import { apiErrorMessage } from '@/lib/apiError'
 
 const schema = z.object({
   name: z.string().min(1),
@@ -32,20 +29,8 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-// Left-empty fields are sent as missing, not as "", so a walk-in with only a name and phone saves cleanly.
-const blankToUndefined = (value?: string) => value?.trim() || undefined
-const toPayload = (d: FormData) => ({
-  name: d.name.trim(),
-  email: blankToUndefined(d.email),
-  phone: blankToUndefined(d.phone),
-  address: blankToUndefined(d.address),
-  marketingOptIn: d.marketingOptIn,
-})
-
 export function CustomersPage() {
   const [search, setSearch] = useState('')
-  const [debounced, setDebounced] = useState('')
-  const [page, setPage] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<CustomerResponse | null>(null)
   const { tenantId, user } = useAuthStore()
@@ -54,29 +39,11 @@ export function CustomersPage() {
   const { t } = useI18n()
   const qc = useQueryClient()
 
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      setDebounced(search.trim())
-      setPage(1)
-    }, 250)
-    return () => window.clearTimeout(id)
-  }, [search])
-
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', tenantId, 'list', debounced, page],
-    queryFn: () => customersApi.list(tenantId!, { search: debounced || undefined, page }),
-    enabled: !!tenantId,
-    placeholderData: keepPreviousData,
-  })
-  const { data: totalCount } = useQuery({
-    queryKey: ['customers', tenantId, 'count', debounced],
-    queryFn: () => customersApi.count(tenantId!, { search: debounced || undefined }),
+    queryKey: ['customers', tenantId, search],
+    queryFn: () => customersApi.list(tenantId!, { search }),
     enabled: !!tenantId,
   })
-  const rows = data?.data ?? []
-  const pageCount = totalCount ? Math.max(1, Math.ceil(totalCount / CUSTOMERS_PAGE_SIZE)) : 1
-  const from = rows.length ? (page - 1) * CUSTOMERS_PAGE_SIZE + 1 : 0
-  const to = (page - 1) * CUSTOMERS_PAGE_SIZE + rows.length
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -85,8 +52,8 @@ export function CustomersPage() {
   const save = useMutation({
     mutationFn: (formData: FormData) =>
       editing
-        ? customersApi.update(tenantId!, editing.id, toPayload(formData))
-        : customersApi.create(tenantId!, toPayload(formData)),
+        ? customersApi.update(tenantId!, editing.id, formData)
+        : customersApi.create(tenantId!, formData),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['customers', tenantId] })
       setShowModal(false)
@@ -94,7 +61,7 @@ export function CustomersPage() {
       reset()
       toast.success(editing ? t.customers.updated : t.customers.created)
     },
-    onError: (err) => toast.error(apiErrorMessage(err, t.customers.failed)),
+    onError: () => toast.error(t.customers.failed),
   })
 
   const openCreate = () => {
@@ -145,19 +112,19 @@ export function CustomersPage() {
         <Card>
           <div className="flex items-center gap-3 border-b border-border p-4">
             <div className="relative flex-1 max-w-xs">
-              <Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-muted" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted" />
               <input
                 type="text"
                 placeholder={t.common.search + '...'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="input ps-9"
+                className="input pl-9"
               />
             </div>
           </div>
           <Table
             loading={isLoading}
-            data={rows}
+            data={data?.data ?? []}
             keyExtractor={(r) => r.id}
             onRowClick={openEdit}
             emptyMessage={t.customers.noCustomers}
@@ -197,28 +164,10 @@ export function CustomersPage() {
               {
                 key: 'createdAt',
                 header: t.sales.date,
-                render: (r) => formatDate(r.createdAt),
+                render: (r) => new Date(r.createdAt).toLocaleDateString(),
               },
             ]}
           />
-          {totalCount !== undefined && totalCount > CUSTOMERS_PAGE_SIZE && (
-            <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm">
-              <p className="text-muted tabular-nums">
-                {t.customers.showing
-                  .replace('{from}', String(from))
-                  .replace('{to}', String(to))
-                  .replace('{total}', String(totalCount))}
-              </p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  {t.customers.prevPage}
-                </Button>
-                <Button size="sm" variant="secondary" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>
-                  {t.customers.nextPage}
-                </Button>
-              </div>
-            </div>
-          )}
         </Card>
       </div>
 
@@ -248,11 +197,6 @@ export function CustomersPage() {
             </span>
           </label>
         </form>
-        {editing && (
-          <div className="mt-4">
-            <CustomerLoyaltyCard customer={editing} canManage={canManage} onChanged={setEditing} />
-          </div>
-        )}
       </Modal>
 
       {canManage && <LoyaltySettingsModal open={showLoyalty} onClose={() => setShowLoyalty(false)} />}

@@ -26,12 +26,11 @@ internal sealed class UpdateCustomerCommandHandler(
             return CrmErrors.CustomerNotFound;
         }
 
-        string? email = Customer.Clean(request.Email);
-        if (email is not null &&
-            !string.Equals(customer.Email, email, StringComparison.OrdinalIgnoreCase))
+        if (request.Email is not null &&
+            !string.Equals(customer.Email, request.Email, StringComparison.OrdinalIgnoreCase))
         {
             bool emailTaken = await customerRepository.ExistsByEmailAsync(
-                request.TenantId, email, cancellationToken);
+                request.TenantId, request.Email, cancellationToken);
 
             if (emailTaken)
             {
@@ -39,7 +38,7 @@ internal sealed class UpdateCustomerCommandHandler(
             }
         }
 
-        customer.UpdateProfile(request.Name, email, request.Phone,
+        customer.UpdateProfile(request.Name, request.Email, request.Phone,
             request.Address, request.DateOfBirth, request.Notes, request.MarketingOptIn);
 
         customerRepository.Update(customer);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Wrench, Monitor, Printer, RotateCcw } from 'lucide-react'
+import { Plus, Wrench, Monitor } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -10,8 +10,6 @@ import { gamingApi } from '@/api/gaming'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, cn } from '@/lib/utils'
-import { apiErrorMessage } from '@/lib/apiError'
-import { printElement } from '@/lib/print'
 import type {
   GameStationResponse,
   GameSessionBillResponse,
@@ -22,7 +20,6 @@ import { useI18n } from '@/i18n'
 import { playAlarmSequence, playBeep, requestNotificationPermission, sendGameNotification } from '@/lib/gamingAlerts'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { PackageBillLines, PackagePicker, PackagesManager } from '@/components/gaming/Packages'
-import { SessionReceipt } from '@/components/gaming/SessionReceipt'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -71,9 +68,7 @@ export function GamingPage() {
     { label: `1 ${t.gaming.hours}`, value: 60 },
   ]
 
-  const { branchId, user } = useAuthStore()
-  // Stations, packages and custom hourly rates are set by the owner or a manager; the server enforces it too.
-  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
+  const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const [showPackages, setShowPackages] = useState(false)
   const [startPackage, setStartPackage] = useState<GamingPackageResponse | null>(null)
@@ -112,6 +107,9 @@ export function GamingPage() {
     currency: 'SAR',
   })
 
+  // Payment method for bill
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash')
+
   // ── Query ────────────────────────────────────────────────────────────────
   const { data: stations = [], isLoading } = useQuery({
     queryKey: ['gaming-stations', branchId],
@@ -130,6 +128,7 @@ export function GamingPage() {
   const createMut = useMutation({
     mutationFn: () =>
       gamingApi.createStation(branchId!, {
+        tenantId: tenantId!,
         stationType: newStation.stationType,
         name: newStation.name,
         hourlyRate: parseFloat(newStation.hourlyRate) || 0,
@@ -141,7 +140,7 @@ export function GamingPage() {
       setNewStation({ name: '', stationType: 'Console', hourlyRate: '', currency: 'SAR' })
       toast.success(t.gaming.created)
     },
-    onError: (err) => toast.error(t.gaming.failed, apiErrorMessage(err)),
+    onError: () => toast.error(t.gaming.failed),
   })
 
   const startMut = useMutation({
@@ -152,8 +151,7 @@ export function GamingPage() {
       return gamingApi.startSession(branchId!, startModal!.id, {
         playerName: startForm.playerName,
         durationMinutes: startPackage?.durationMinutes ?? dur,
-        // Sent only when a manager changed it; otherwise the server bills the station's own rate.
-        ratePerHour: canManage && startForm.ratePerHour !== startModal!.hourlyRate ? startForm.ratePerHour : undefined,
+        ratePerHour: startForm.ratePerHour,
         packageId: startPackage?.id,
       })
     },
@@ -163,10 +161,7 @@ export function GamingPage() {
       setStartPackage(null)
       toast.success('بدأت الجلسة')
     },
-    onError: (err) => {
-      invalidate()
-      toast.error('فشل بدء الجلسة', apiErrorMessage(err))
-    },
+    onError: () => toast.error('فشل بدء الجلسة'),
   })
 
   const extendMut = useMutation({
@@ -182,7 +177,7 @@ export function GamingPage() {
       setExtendModal(null)
       toast.success('تم تمديد الوقت')
     },
-    onError: (err) => toast.error('فشل تمديد الوقت', apiErrorMessage(err)),
+    onError: () => toast.error('فشل تمديد الوقت'),
   })
 
   const endMut = useMutation({
@@ -194,24 +189,19 @@ export function GamingPage() {
       setBillModal(res.data)
       toast.success('انتهت الجلسة')
     },
-    onError: (err) => {
+    onError: () => {
       setEndingStationId(null)
-      toast.error('فشل إنهاء الجلسة', apiErrorMessage(err))
+      toast.error('فشل إنهاء الجلسة')
     },
   })
 
-  // Maintenance only for a free station; "back in service" returns it to use.
-  const statusMut = useMutation({
-    mutationFn: ({ stationId, maintenance }: { stationId: string; maintenance: boolean }) =>
-      maintenance ? gamingApi.setMaintenance(branchId!, stationId) : gamingApi.setAvailable(branchId!, stationId),
-    onSuccess: (_, { maintenance }) => {
+  const maintenanceMut = useMutation({
+    mutationFn: (stationId: string) => gamingApi.setMaintenance(branchId!, stationId),
+    onSuccess: () => {
       invalidate()
-      toast.success(maintenance ? 'تم تحويل الجهاز للصيانة' : 'عاد الجهاز للخدمة')
+      toast.success('تم تغيير حالة المحطة')
     },
-    onError: (err) => {
-      invalidate()
-      toast.error('تعذّر تغيير حالة الجهاز', apiErrorMessage(err))
-    },
+    onError: () => toast.error('فشل تغيير الحالة'),
   })
 
   // ── Summary stats ────────────────────────────────────────────────────────
@@ -248,24 +238,55 @@ export function GamingPage() {
     setExtendModal(station)
   }
 
+  // ── Print receipt ─────────────────────────────────────────────────────────
+  const printReceipt = () => {
+    if (!billModal) return
+    const win = window.open('', '_blank', 'width=400,height=600')
+    if (!win) return
+    const startTime = new Date(billModal.startTime).toLocaleString('ar-SA')
+    const endTime = new Date(billModal.endTime).toLocaleString('ar-SA')
+    win.document.write(`
+      <html dir="rtl"><head><meta charset="utf-8"><title>إيصال</title>
+      <style>body{font-family:Arial,sans-serif;padding:24px;direction:rtl}
+      h2{text-align:center}table{width:100%;border-collapse:collapse}
+      td{padding:8px;border-bottom:1px solid #eee}
+      .total{font-size:1.4em;font-weight:bold;color:#16a34a}
+      .footer{text-align:center;margin-top:24px;font-size:0.85em;color:#888}
+      </style></head><body>
+      <h2>إيصال جلسة ألعاب</h2>
+      <table>
+        <tr><td>المحطة</td><td>${billModal.stationName}</td></tr>
+        <tr><td>اللاعب</td><td>${billModal.playerName}</td></tr>
+        <tr><td>بداية الجلسة</td><td>${startTime}</td></tr>
+        <tr><td>نهاية الجلسة</td><td>${endTime}</td></tr>
+        <tr><td>المدة الفعلية</td><td>${Math.round(billModal.actualDurationMinutes)} دقيقة</td></tr>
+        <tr><td>السعر / ساعة</td><td>${formatCurrency(billModal.ratePerHour, billModal.currency)}</td></tr>
+        <tr><td class="total">الإجمالي</td><td class="total">${formatCurrency(billModal.totalAmount, billModal.currency)}</td></tr>
+        <tr><td>طريقة الدفع</td><td>${paymentMethod === 'cash' ? 'نقداً' : 'بطاقة'}</td></tr>
+      </table>
+      <div class="footer">شكراً لزيارتكم</div>
+      </body></html>
+    `)
+    win.document.close()
+    win.print()
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div>
+    <div dir="rtl">
       <PageHeader
         title={t.gaming.title}
         description="إدارة محطات الألعاب والجلسات"
         action={
-          canManage ? (
-            <>
-              <Button variant="secondary" onClick={() => setShowPackages(true)}>
-                الباقات
-              </Button>
-              <Button onClick={() => setCreateModal(true)}>
-                <Plus className="h-4 w-4" />
-                {t.gaming.newStation}
-              </Button>
-            </>
-          ) : undefined
+          <>
+            <Button variant="secondary" onClick={() => setShowPackages(true)}>
+              الباقات
+            </Button>
+            <Button onClick={() => setCreateModal(true)}>
+              <Plus className="h-4 w-4" />
+              {t.gaming.newStation}
+            </Button>
+          </>
         }
       />
 
@@ -308,7 +329,7 @@ export function GamingPage() {
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted">
             <Monitor className="h-12 w-12" />
             <p className="text-lg">{t.gaming.noStations}</p>
-            {canManage && <Button onClick={() => setCreateModal(true)}>{t.gaming.newStation}</Button>}
+            <Button onClick={() => setCreateModal(true)}>{t.gaming.newStation}</Button>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -319,10 +340,9 @@ export function GamingPage() {
                 onStart={() => openStartModal(station)}
                 onExtend={() => openExtendModal(station)}
                 onEnd={() => { setEndingStationId(station.id); endMut.mutate(station) }}
-                onMaintenance={() => statusMut.mutate({ stationId: station.id, maintenance: true })}
-                onBackInService={() => statusMut.mutate({ stationId: station.id, maintenance: false })}
+                onMaintenance={() => maintenanceMut.mutate(station.id)}
                 endLoading={endingStationId === station.id && endMut.isPending}
-                statusLoading={statusMut.isPending && statusMut.variables?.stationId === station.id}
+                maintenanceLoading={maintenanceMut.isPending}
               />
             ))}
           </div>
@@ -498,25 +518,16 @@ export function GamingPage() {
 
             {/* Rate & estimated total */}
             <div className="grid grid-cols-2 gap-3">
-              {canManage ? (
-                <Input
-                  label={t.gaming.perHour}
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={startForm.ratePerHour}
-                  onChange={(e) =>
-                    setStartForm((p) => ({ ...p, ratePerHour: parseFloat(e.target.value) || 0 }))
-                  }
-                />
-              ) : (
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-fg">{t.gaming.perHour}</label>
-                  <div className="flex h-9 items-center rounded-lg bg-surface-2 px-3 font-semibold tabular-nums text-fg">
-                    {formatCurrency(startModal.hourlyRate, startModal.currency)}
-                  </div>
-                </div>
-              )}
+              <Input
+                label={t.gaming.perHour}
+                type="number"
+                min="0"
+                step="0.5"
+                value={startForm.ratePerHour}
+                onChange={(e) =>
+                  setStartForm((p) => ({ ...p, ratePerHour: parseFloat(e.target.value) || 0 }))
+                }
+              />
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-fg">
                   التكلفة المتوقعة
@@ -632,13 +643,6 @@ export function GamingPage() {
                 }}
               />
               <div className="flex justify-end gap-2">
-                {/* The invoice prints once the session is paid, with the method actually used. */}
-                {billModal.paidAt && (
-                  <Button variant="secondary" onClick={() => printElement(document.getElementById('gaming-session-receipt'))}>
-                    <Printer className="h-4 w-4" />
-                    {t.gaming.printBill}
-                  </Button>
-                )}
                 <Button
                   variant="secondary"
                   onClick={() => {
@@ -648,14 +652,15 @@ export function GamingPage() {
                 >
                   {billModal.paidAt ? 'إغلاق' : 'لاحقاً'}
                 </Button>
+                <Button variant="secondary" onClick={printReceipt}>
+                  🖨️ {t.gaming.printBill}
+                </Button>
               </div>
             </div>
           ) : undefined
         }
       >
-        {billModal?.paidAt ? (
-          <SessionReceipt id="gaming-session-receipt" bill={billModal} />
-        ) : billModal && (
+        {billModal && (
           <div className="space-y-5">
             {/* Station + player header */}
             <div className="rounded-xl bg-surface-2 p-4 space-y-1">
@@ -665,7 +670,7 @@ export function GamingPage() {
               <p className="text-sm text-muted">اللاعب: {billModal.playerName}</p>
             </div>
 
-            <PackageBillLines bill={billModal} />
+            {billModal && <PackageBillLines bill={billModal} />}
 
             {/* Bill details */}
             <div className="space-y-2 text-sm">
@@ -705,9 +710,34 @@ export function GamingPage() {
                   {formatCurrency(billModal.totalAmount, billModal.currency)}
                 </span>
               </div>
-              <p className="text-xs text-muted">شامل ضريبة القيمة المضافة 15%</p>
             </div>
 
+            {/* Payment method */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-fg">
+                طريقة الدفع
+              </label>
+              <div className="flex gap-3">
+                {[
+                  { value: 'cash', label: '💵 نقداً' },
+                  { value: 'card', label: '💳 بطاقة' },
+                ].map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(m.value as 'cash' | 'card')}
+                    className={cn(
+                      'flex-1 rounded-lg border py-2.5 text-sm font-medium transition-all',
+                      paymentMethod === m.value
+                        ? 'border-brand bg-brand-soft text-brand-ink'
+                        : 'border-border text-muted',
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </Modal>
@@ -757,18 +787,16 @@ function StationCard({
   onExtend,
   onEnd,
   onMaintenance,
-  onBackInService,
   endLoading,
-  statusLoading,
+  maintenanceLoading,
 }: {
   station: GameStationResponse
   onStart: () => void
   onExtend: () => void
   onEnd: () => void
   onMaintenance: () => void
-  onBackInService: () => void
   endLoading: boolean
-  statusLoading: boolean
+  maintenanceLoading: boolean
 }) {
   const { t } = useI18n()
 
@@ -850,10 +878,8 @@ function StationCard({
     (isWarning || (station.status === 'InUse' && !session)) &&
       'border-danger shadow-md shadow-danger/20 dark:border-danger/60',
     isExpired && 'border-danger animate-pulse',
-    station.status === 'Maintenance' && 'border-border',
+    station.status === 'Maintenance' && 'border-border opacity-70',
   )
-  // A station under maintenance fades its details but keeps the return-to-service button at full strength.
-  const dimmed = station.status === 'Maintenance' && 'opacity-70'
 
   // Status badge
   const statusBadge =
@@ -864,7 +890,7 @@ function StationCard({
         {isExpired ? t.gaming.endSession : t.gaming.active}
       </Badge>
     ) : (
-      <Badge variant="yellow">صيانة</Badge>
+      <Badge variant="gray">{t.gaming.types.other}</Badge>
     )
 
   return (
@@ -882,19 +908,19 @@ function StationCard({
         confirmVariant="danger"
       />
       {/* Header row */}
-      <div className={cn('flex items-start justify-between mb-2', dimmed)}>
+      <div className="flex items-start justify-between mb-2">
         <span className="text-2xl">{TYPE_ICON[station.type]}</span>
         {statusBadge}
       </div>
 
       {/* Station name */}
-      <p className={cn('font-bold text-fg text-sm leading-tight', dimmed)}>
+      <p className="font-bold text-fg text-sm leading-tight">
         {station.name}
       </p>
-      <p className={cn('text-xs text-muted mb-1', dimmed)}>{TYPE_LABEL[station.type]}</p>
+      <p className="text-xs text-muted mb-1">{TYPE_LABEL[station.type]}</p>
 
       {/* Rate */}
-      <p className={cn('text-xs font-semibold text-info mb-3', dimmed)}>
+      <p className="text-xs font-semibold text-info mb-3">
         {formatCurrency(station.hourlyRate, station.currency)} / {t.gaming.perHour}
       </p>
 
@@ -948,7 +974,7 @@ function StationCard({
 
       {/* ── Maintenance: spacer ────────────────────────────────────────────── */}
       {station.status === 'Maintenance' && (
-        <div className={cn('flex-1 flex items-center', dimmed)}>
+        <div className="flex-1 flex items-center">
           <p className="text-xs text-muted flex items-center gap-1">
             <Wrench className="h-3 w-3" /> قيد الصيانة
           </p>
@@ -990,30 +1016,16 @@ function StationCard({
           </div>
         )}
 
-        {/* A running station must be ended first, so maintenance is offered only on a free one. */}
-        {station.status === 'Available' && (
+        {station.status !== 'Maintenance' && (
           <Button
             variant="ghost"
             size="sm"
             className="w-full justify-center text-xs text-muted"
             onClick={onMaintenance}
-            loading={statusLoading}
+            loading={maintenanceLoading}
           >
             <Wrench className="h-3 w-3" />
-            صيانة
-          </Button>
-        )}
-
-        {station.status === 'Maintenance' && (
-          <Button
-            variant="primary"
-            size="sm"
-            className="w-full justify-center"
-            onClick={onBackInService}
-            loading={statusLoading}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            إعادة للخدمة
+            {t.gaming.types.other}
           </Button>
         )}
       </div>

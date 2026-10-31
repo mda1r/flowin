@@ -36,13 +36,10 @@ internal static class OrderMapper
                 l.Quantity,
                 l.LineSubtotal,
                 l.LineDiscountAmount,
-                l.LineTotal,
-                l.Notes,
-                order.GrossUnitPaid(l))).ToList(),
+                l.LineTotal)).ToList(),
             order.LoyaltyPointsRedeemed,
             order.LoyaltyDiscountAmount,
             order.Source,
-            order.Number,
-            order.OfflineCreatedAt);
+            order.Number);
     }
 }

@@ -25,12 +25,6 @@ internal sealed class DeleteStockItemCommandHandler(
             return InventoryErrors.StockItemNotFound;
         }
 
-        // Movements belong to the item and would be deleted with it, so anything with history is archived instead.
-        if (stockItem.Quantity != 0 || await stockItemRepository.HasMovementsAsync(stockItem.Id, cancellationToken))
-        {
-            return InventoryErrors.StockItemHasHistory;
-        }
-
         stockItemRepository.Remove(stockItem);
         await dbContext.SaveChangesAsync(cancellationToken);
 

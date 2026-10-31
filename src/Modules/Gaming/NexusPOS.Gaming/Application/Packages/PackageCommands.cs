@@ -53,7 +53,7 @@ internal sealed class CreatePackageCommandHandler(GamingDbContext db, ITenantCon
     {
         if (tenantContext.TenantId is not Guid tenantId)
         {
-            return Error.Unauthorized("Gaming.NoTenant", "انتهت الجلسة، سجّل الدخول مرة أخرى");
+            return Error.Unauthorized("Gaming.NoTenant", "Tenant context is required.");
         }
 
         GamingPackage package = GamingPackage.Create(

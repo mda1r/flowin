@@ -36,14 +36,8 @@ public sealed class ZatcaSettings
         SellerName = sellerName.Trim();
         VatRegistrationNumber = vatRegistrationNumber.Trim();
         IsPhase2Enabled = isPhase2Enabled;
-
-        // The settings form only edits the seller details; a save without a certificate keeps the uploaded one.
-        if (!string.IsNullOrWhiteSpace(certificateBase64))
-        {
-            CertificateBase64 = certificateBase64.Trim();
-            CertificateExpiryDate = certificateExpiry;
-        }
-
+        CertificateBase64 = certificateBase64;
+        CertificateExpiryDate = certificateExpiry;
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -7,5 +7,4 @@ public sealed record ListStockMaterialsQuery(
     Guid TenantId,
     Guid? CategoryId = null,
     bool LowStockOnly = false,
-    string? Search = null,
-    bool Archived = false) : IQuery<IReadOnlyList<StockMaterialResponse>>;
+    string? Search = null) : IQuery<IReadOnlyList<StockMaterialResponse>>;

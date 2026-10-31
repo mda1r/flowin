@@ -48,15 +48,6 @@ internal sealed class StockMaterialsPurchasedInventoryHandler(
                     continue;
                 }
 
-                // An archived material is hidden from the materials list, so stock is not posted to it.
-                if (!material.IsActive)
-                {
-                    logger.LogWarning(
-                        "Purchase order {OrderId} line for archived stock material {MaterialId} in tenant {TenantId} was skipped",
-                        notification.PurchaseOrderId, line.MaterialId, notification.TenantId);
-                    continue;
-                }
-
                 if (line.Quantity <= 0 || line.UnitCost < 0)
                 {
                     continue;

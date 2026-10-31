@@ -44,21 +44,13 @@ internal sealed class RefreshTokenCommandHandler(
             return IamErrors.UserInactive;
         }
 
-        TenantContext? tenantCtx = await tenantContextResolver.ResolveAsync(user.TenantId, user.Email.Value, cancellationToken);
-        if (TenantAccessPolicy.IsBlocked(tenantCtx, user.Roles))
-        {
-            // Suspended tenant: end every session of this user so open tills drop out on their next refresh.
-            user.RevokeAllRefreshTokens();
-            await dbContext.SaveChangesAsync(cancellationToken);
-            return IamErrors.TenantSuspended;
-        }
-
         existingToken.Revoke();
 
         int refreshExpiryDays = configuration.GetValue("Jwt:RefreshTokenExpiryDays", 7);
         RefreshToken newRefreshToken = user.CreateRefreshToken(refreshExpiryDays, existingToken.DeviceInfo);
         dbContext.RefreshTokens.Add(newRefreshToken);
 
+        TenantContext? tenantCtx = await tenantContextResolver.ResolveAsync(user.TenantId, user.Email.Value, cancellationToken);
         Guid? tenantId = tenantCtx?.TenantId ?? configuration.GetValue<Guid?>("Demo:TenantId");
         Guid? branchId = tenantCtx?.BranchId ?? configuration.GetValue<Guid?>("Demo:BranchId");
         string? businessType = tenantCtx?.BusinessType ?? configuration.GetValue<string?>("Demo:BusinessType");

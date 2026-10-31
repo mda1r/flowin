@@ -19,7 +19,7 @@ internal sealed class CreateStockMaterialCategoryCommandHandler(InventoryDbConte
 
         if (exists)
         {
-            return Error.Conflict("Inventory.CategoryNameExists", "يوجد تصنيف بنفس الاسم");
+            return Error.Conflict("Inventory.CategoryNameExists", "A category with this name already exists.");
         }
 
         StockMaterialCategory category = StockMaterialCategory.Create(request.TenantId, request.Name);

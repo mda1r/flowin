@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -26,12 +26,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useI18n } from '@/i18n'
-import { OverlayDialog } from '@/components/ui/Modal'
 import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
-import { apiErrorMessage } from '@/lib/apiError'
-import { toast } from '@/components/ui/Toast'
-import { Button } from '@/components/ui/Button'
 import { aiCashierApi } from '@/api/aiCashier'
 import {
   taxApi,
@@ -41,7 +37,6 @@ import {
   TaxAnomalyResponse,
   VatReturnResponse,
   TaxExpenseInvoiceResponse,
-  isPeriodClosed,
 } from '@/api/tax'
 import { TaxAiDrawer } from '@/components/tax/TaxAiDrawer'
 
@@ -57,24 +52,6 @@ function fmt(n: number) {
 
 function fmtDate(d: string, locale = 'en-SA') {
   return new Date(d).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-// ── Permissions ───────────────────────────────────────────────────────────────
-
-// Periods, purchase invoices and the ledger feed the VAT return, so only the owner or a manager changes them.
-function useCanManageTax() {
-  const role = useAuthStore((s) => s.user?.role)
-  return role === 'Owner' || role === 'Manager'
-}
-
-function useTaxErrorMessage() {
-  const { t } = useI18n()
-  return (err: unknown, fallback: string) => {
-    const code = isAxiosError(err) ? err.response?.data?.title : undefined
-    if (code === 'TaxPeriod.Closed') return t.taxes.close.closedError
-    if (code === 'TaxLedger.SyncFailed') return t.taxes.close.syncFailed
-    return apiErrorMessage(err, fallback)
-  }
 }
 
 // ── UI Primitives ─────────────────────────────────────────────────────────────
@@ -147,13 +124,12 @@ function PermissionDeniedState() {
 
 function NoPeriodState({ onCreateClick }: { onCreateClick: () => void }) {
   const { t } = useI18n()
-  const canManage = useCanManageTax()
   return (
     <EmptyState
       icon={<CalendarDays className="h-8 w-8" />}
       title={t.taxes.noPeriod.title}
       description={t.taxes.noPeriod.description}
-      action={canManage &&
+      action={
         <button
           onClick={onCreateClick}
           className="bg-brand flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-brand-fg transition-opacity hover:opacity-90"
@@ -257,24 +233,22 @@ function PeriodStatusBadge({ status }: { status: string }) {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  const { t } = useI18n()
-  const titleId = useId()
   return (
-    <OverlayDialog
-      onClose={onClose}
-      labelledBy={titleId}
-      backdropClassName="bg-black/50"
-      panelClassName="max-w-md rounded-2xl border p-6 shadow-2xl"
-      panelStyle={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-    >
-      <div className="mb-5 flex items-center justify-between">
-        <h2 id={titleId} className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-        <button onClick={onClose} className="rounded-lg p-1 hover:bg-black/10" aria-label={t.common.close}>
-          <X className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className="relative w-full max-w-md rounded-2xl border p-6 shadow-2xl"
+        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+      >
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-black/10">
+            <X className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
+          </button>
+        </div>
+        {children}
       </div>
-      {children}
-    </OverlayDialog>
+    </div>
   )
 }
 
@@ -398,7 +372,6 @@ function RecordExpenseModal({
   onClose: () => void
 }) {
   const qc = useQueryClient()
-  const taxErrorMessage = useTaxErrorMessage()
   const { register, handleSubmit, formState: { errors } } = useForm<ExpenseForm>({
     resolver: zodResolver(expenseSchema),
     defaultValues: { taxRate: 0.15, currency: 'SAR' },
@@ -461,11 +434,7 @@ function RecordExpenseModal({
             <input type="text" {...register('notes')} className={inputCls} style={inputStyle} />
           </div>
         </div>
-        {mutation.error && (
-          <p className="text-xs text-danger">
-            {taxErrorMessage(mutation.error, 'Failed to record invoice. Please try again.')}
-          </p>
-        )}
+        {mutation.error && <p className="text-xs text-danger">Failed to record invoice. Please try again.</p>}
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
             Cancel
@@ -649,17 +618,12 @@ function VatReturnTab({
 function PurchasesTab({
   periodId,
   onCreatePeriod,
-  locked,
 }: {
   periodId: string | null
   onCreatePeriod: () => void
-  locked: boolean
 }) {
   const [showModal, setShowModal] = useState(false)
   const qc = useQueryClient()
-  const canManage = useCanManageTax()
-  const taxErrorMessage = useTaxErrorMessage()
-  const canEdit = canManage && !locked
 
   const { data: expenses = [], isLoading, error } = useQuery<TaxExpenseInvoiceResponse[]>({
     queryKey: ['tax', 'expenses', periodId],
@@ -669,8 +633,7 @@ function PurchasesTab({
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => taxApi.deleteExpense(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tax'] }),
-    onError: (err) => toast.error(taxErrorMessage(err, 'Failed to delete invoice.')),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tax', 'expenses'] }),
   })
 
   if (!periodId) return <NoPeriodState onCreateClick={onCreatePeriod} />
@@ -684,16 +647,13 @@ function PurchasesTab({
           <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             Expense Invoices ({expenses.length})
           </h3>
-          {canManage && (
-            <button
-              onClick={() => setShowModal(true)}
-              disabled={!canEdit}
-              className="bg-brand flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-brand-fg disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-              Add Invoice
-            </button>
-          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-brand flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-brand-fg"
+          >
+            <Plus className="h-4 w-4" />
+            Add Invoice
+          </button>
         </div>
 
         {expenses.length === 0 ? (
@@ -701,7 +661,7 @@ function PurchasesTab({
             icon={<ShoppingBag className="h-8 w-8" />}
             title="No Expense Invoices"
             description="Add supplier invoices to claim input VAT deductions."
-            action={canEdit &&
+            action={
               <button
                 onClick={() => setShowModal(true)}
                 className="bg-brand flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-brand-fg"
@@ -746,15 +706,13 @@ function PurchasesTab({
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'rgb(var(--success))' }}>SAR {fmt(e.taxAmount)}</td>
                       <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{e.currency}</td>
                       <td className="px-4 py-3">
-                        {canManage && (
-                          <button
-                            onClick={() => deleteMutation.mutate(e.id)}
-                            disabled={deleteMutation.isPending || !canEdit}
-                            className="rounded-lg p-1 hover:bg-danger/10 text-danger disabled:opacity-40"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => deleteMutation.mutate(e.id)}
+                          disabled={deleteMutation.isPending}
+                          className="rounded-lg p-1 hover:bg-danger/10 text-danger disabled:opacity-40"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -765,7 +723,7 @@ function PurchasesTab({
         )}
       </div>
 
-      {showModal && periodId && canEdit && (
+      {showModal && periodId && (
         <RecordExpenseModal periodId={periodId} onClose={() => setShowModal(false)} />
       )}
     </>
@@ -782,7 +740,6 @@ function IssuesTab({
   onCreatePeriod: () => void
 }) {
   const qc = useQueryClient()
-  const canManage = useCanManageTax()
   const [includeResolved, setIncludeResolved] = useState(false)
 
   const { data: anomalies = [], isLoading, error } = useQuery<TaxAnomalyResponse[]>({
@@ -817,17 +774,15 @@ function IssuesTab({
             Show resolved
           </label>
         </div>
-        {canManage && (
-          <button
-            onClick={() => scanMutation.mutate()}
-            disabled={scanMutation.isPending}
-            className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
-            style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
-          >
-            <ScanLine className="h-4 w-4" />
-            {scanMutation.isPending ? 'Scanning…' : 'Scan for Issues'}
-          </button>
-        )}
+        <button
+          onClick={() => scanMutation.mutate()}
+          disabled={scanMutation.isPending}
+          className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
+          style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
+        >
+          <ScanLine className="h-4 w-4" />
+          {scanMutation.isPending ? 'Scanning…' : 'Scan for Issues'}
+        </button>
       </div>
 
       {anomalies.length === 0 ? (
@@ -884,17 +839,13 @@ function IssuesTab({
 function LedgerTab({
   periodId,
   onCreatePeriod,
-  locked,
 }: {
   periodId: string | null
   onCreatePeriod: () => void
-  locked: boolean
 }) {
   const { t, lang } = useI18n()
   const [page, setPage] = useState(1)
   const qc = useQueryClient()
-  const canManage = useCanManageTax()
-  const taxErrorMessage = useTaxErrorMessage()
   const dateLocale = lang === 'ar' ? 'ar-SA' : 'en-SA'
 
   const { data, isLoading, error } = useQuery<TaxLedgerResult>({
@@ -909,9 +860,7 @@ function LedgerTab({
       setPage(1)
       qc.invalidateQueries({ queryKey: ['tax', 'ledger'] })
       qc.invalidateQueries({ queryKey: ['tax', 'overview'] })
-      qc.invalidateQueries({ queryKey: ['tax', 'vat-return'] })
     },
-    onError: (err) => toast.error(taxErrorMessage(err, 'Failed to import sales.')),
   })
 
   if (!periodId) return <NoPeriodState onCreateClick={onCreatePeriod} />
@@ -926,17 +875,15 @@ function LedgerTab({
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           Tax Ledger ({data.totalCount} entries)
         </h3>
-        {canManage && (
-          <button
-            onClick={() => refreshMutation.mutate()}
-            disabled={refreshMutation.isPending || locked}
-            className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
-            style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
-            {refreshMutation.isPending ? 'Importing…' : 'Import Sales'}
-          </button>
-        )}
+        <button
+          onClick={() => refreshMutation.mutate()}
+          disabled={refreshMutation.isPending}
+          className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
+          style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)', background: 'var(--card-bg)' }}
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
+          {refreshMutation.isPending ? 'Importing…' : 'Import Sales'}
+        </button>
       </div>
 
       {data.items.length === 0 ? (
@@ -981,7 +928,7 @@ function LedgerTab({
                         </span>
                       </td>
                       <td className="px-4 py-3 capitalize" style={{ color: 'var(--text-secondary)' }}>
-                        {t.taxes.ledger.transactionTypes[e.transactionType as keyof typeof t.taxes.ledger.transactionTypes] ?? e.transactionType}
+                        {e.transactionType.replace(/([A-Z])/g, ' $1').trim()}
                       </td>
                       <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{fmtDate(e.effectiveDate, dateLocale)}</td>
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--text-primary)' }}>SAR {fmt(e.baseAmount)}</td>
@@ -1048,7 +995,6 @@ function PeriodSelector({
   const { t, lang } = useI18n()
   const dateLocale = lang === 'ar' ? 'ar-SA' : 'en-SA'
   const [open, setOpen] = useState(false)
-  const canManage = useCanManageTax()
   const selected = periods.find((p) => p.id === selectedId)
 
   return (
@@ -1099,15 +1045,13 @@ function PeriodSelector({
         )}
       </div>
 
-      {canManage && (
-        <button
-          onClick={onCreateClick}
-          className="bg-brand flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-brand-fg"
-        >
-          <Plus className="h-4 w-4" />
-          {t.taxes.selector.newPeriod}
-        </button>
-      )}
+      <button
+        onClick={onCreateClick}
+        className="bg-brand flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-brand-fg"
+      >
+        <Plus className="h-4 w-4" />
+        {t.taxes.selector.newPeriod}
+      </button>
     </div>
   )
 }
@@ -1139,10 +1083,14 @@ export function TaxCenterPage() {
   const [showCreatePeriod, setShowCreatePeriod] = useState(false)
   const [showAi, setShowAi] = useState(false)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null)
-  const [confirmClose, setConfirmClose] = useState(false)
   const branchId = useAuthStore((s) => s.branchId)
-  const canManage = useCanManageTax()
-  const taxErrorMessage = useTaxErrorMessage()
+
+  useEffect(() => {
+    if (!selectedPeriodId) return
+    taxApi.refreshLedger(selectedPeriodId)
+      .then(() => qc.invalidateQueries({ queryKey: ['tax'] }))
+      .catch(() => {})
+  }, [selectedPeriodId, qc])
 
   const { data: aiFeature } = useQuery({
     queryKey: ['ai-available', branchId],
@@ -1154,28 +1102,6 @@ export function TaxCenterPage() {
   const { data: periods = [], isLoading: periodsLoading } = useQuery<TaxPeriodResponse[]>({
     queryKey: ['tax', 'periods'],
     queryFn: () => taxApi.listPeriods(),
-  })
-
-  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId)
-  const isClosed = selectedPeriod ? isPeriodClosed(selectedPeriod) : false
-  const selectedStatus = selectedPeriod?.status
-
-  // Closed periods keep the figures that were filed, so only open ones pull in new sales.
-  useEffect(() => {
-    if (!selectedPeriodId || !canManage || !selectedStatus || isPeriodClosed({ status: selectedStatus })) return
-    taxApi.refreshLedger(selectedPeriodId)
-      .then(() => qc.invalidateQueries({ queryKey: ['tax'] }))
-      .catch(() => {})
-  }, [selectedPeriodId, selectedStatus, canManage, qc])
-
-  const closeMutation = useMutation({
-    mutationFn: () => taxApi.closePeriod(selectedPeriodId!),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tax'] })
-      setConfirmClose(false)
-      toast.success(t.taxes.close.done)
-    },
-    onError: (err) => toast.error(taxErrorMessage(err, t.taxes.close.failed)),
   })
 
   function handlePeriodCreated(p: TaxPeriodResponse) {
@@ -1208,7 +1134,7 @@ export function TaxCenterPage() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 pb-4">
+        <div className="flex items-center gap-3 pb-4">
           {periodsLoading ? (
             <div className="h-10 w-48 animate-pulse rounded-xl" style={{ background: 'var(--card-bg)' }} />
           ) : (
@@ -1218,12 +1144,6 @@ export function TaxCenterPage() {
               onChange={setSelectedPeriodId}
               onCreateClick={() => setShowCreatePeriod(true)}
             />
-          )}
-          {canManage && selectedPeriod && !isClosed && (
-            <Button variant="secondary" onClick={() => setConfirmClose(true)}>
-              <Lock className="h-4 w-4" />
-              {t.taxes.close.action}
-            </Button>
           )}
           {aiAvailable && (
             <button
@@ -1266,33 +1186,12 @@ export function TaxCenterPage() {
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        {isClosed && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-muted">
-            <Lock className="h-4 w-4 shrink-0" />
-            {t.taxes.close.lockedNotice}
-          </div>
-        )}
         {activeTab === 'overview'  && <OverviewTab  {...tabProps} />}
         {activeTab === 'vatReturn' && <VatReturnTab {...tabProps} />}
-        {activeTab === 'purchases' && <PurchasesTab {...tabProps} locked={isClosed} />}
+        {activeTab === 'purchases' && <PurchasesTab {...tabProps} />}
         {activeTab === 'issues'    && <IssuesTab    {...tabProps} />}
-        {activeTab === 'ledger'    && <LedgerTab    {...tabProps} locked={isClosed} />}
+        {activeTab === 'ledger'    && <LedgerTab    {...tabProps} />}
       </div>
-
-      {confirmClose && selectedPeriod && (
-        <Modal title={t.taxes.close.title} onClose={() => setConfirmClose(false)}>
-          <p className="text-sm text-muted">{t.taxes.close.body}</p>
-          <div className="mt-6 flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setConfirmClose(false)}>
-              {t.taxes.close.cancel}
-            </Button>
-            <Button variant="danger" loading={closeMutation.isPending} onClick={() => closeMutation.mutate()}>
-              <Lock className="h-4 w-4" />
-              {closeMutation.isPending ? t.taxes.close.closing : t.taxes.close.confirm}
-            </Button>
-          </div>
-        </Modal>
-      )}
 
       {showCreatePeriod && (
         <CreatePeriodModal

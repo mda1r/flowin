@@ -6,9 +6,9 @@ public static class ZatcaErrors
 {
     public static Error SettingsNotFound => Error.NotFound(
         "Zatca.SettingsNotFound",
-        "أكمل إعدادات الفوترة الإلكترونية أولاً: اسم البائع والرقم الضريبي");
+        "ZATCA settings not found. Please configure seller name and VAT number first.");
 
     public static Error InvoiceNotFound => Error.NotFound(
         "Zatca.InvoiceNotFound",
-        "لا توجد فاتورة إلكترونية لهذا الطلب");
+        "ZATCA invoice not found for the specified order.");
 }

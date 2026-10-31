@@ -10,5 +10,4 @@ public sealed record UpdateVariantCommand(
     decimal CostPrice,
     decimal SalePrice,
     string Currency,
-    string? Barcode = null,
-    string? Sku = null) : ICommand<ProductVariantResponse>;
+    string? Barcode = null) : ICommand<ProductVariantResponse>;

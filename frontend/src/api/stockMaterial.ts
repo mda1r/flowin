@@ -5,7 +5,6 @@ import type {
   CreateStockMaterialCategoryPayload,
   CreateStockMaterialPayload,
   UpdateStockMaterialPayload,
-  AdjustStockMaterialPayload,
   ReceiveStockMaterialPayload,
   StockMaterialMovementResponse,
 } from '@/types/stockMaterial'
@@ -29,7 +28,7 @@ export const stockMaterialApi = {
   // Materials
   listMaterials: (
     tenantId: string,
-    params?: { categoryId?: string; lowStockOnly?: boolean; search?: string; archived?: boolean },
+    params?: { categoryId?: string; lowStockOnly?: boolean; search?: string },
   ) => apiClient.get<StockMaterialResponse[]>(base(tenantId), { params }),
 
   getMaterial: (tenantId: string, materialId: string) =>
@@ -41,15 +40,8 @@ export const stockMaterialApi = {
   updateMaterial: (tenantId: string, materialId: string, data: UpdateStockMaterialPayload) =>
     apiClient.put<StockMaterialResponse>(`${base(tenantId)}/${materialId}`, data),
 
-  // Materials with movement history are archived (archived: true) rather than removed.
   deleteMaterial: (tenantId: string, materialId: string) =>
-    apiClient.delete<{ archived: boolean }>(`${base(tenantId)}/${materialId}`),
-
-  restoreMaterial: (tenantId: string, materialId: string) =>
-    apiClient.post<StockMaterialResponse>(`${base(tenantId)}/${materialId}/restore`),
-
-  adjustMaterial: (tenantId: string, materialId: string, data: AdjustStockMaterialPayload) =>
-    apiClient.post<StockMaterialResponse>(`${base(tenantId)}/${materialId}/adjust`, data),
+    apiClient.delete(`${base(tenantId)}/${materialId}`),
 
   receiveMaterial: (tenantId: string, materialId: string, data: ReceiveStockMaterialPayload) =>
     apiClient.post<StockMaterialResponse>(`${base(tenantId)}/${materialId}/receive`, data),

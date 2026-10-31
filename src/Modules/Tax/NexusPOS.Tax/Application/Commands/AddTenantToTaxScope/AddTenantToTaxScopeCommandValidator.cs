@@ -10,6 +10,6 @@ internal sealed class AddTenantToTaxScopeCommandValidator : AbstractValidator<Ad
         RuleFor(x => x.TenantId).NotEmpty();
         RuleFor(x => x.EffectiveFrom)
             .Must(d => d >= DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)))
-            .WithMessage("تاريخ البدء لا يمكن أن يكون في الماضي");
+            .WithMessage("EffectiveFrom cannot be in the past");
     }
 }

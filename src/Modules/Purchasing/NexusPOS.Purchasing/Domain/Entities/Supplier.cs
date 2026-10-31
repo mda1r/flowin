@@ -46,10 +46,4 @@ public sealed class Supplier : AggregateRoot<SupplierId>
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
-
-    public void Activate()
-    {
-        IsActive = true;
-        UpdatedAt = DateTime.UtcNow;
-    }
 }

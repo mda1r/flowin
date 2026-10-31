@@ -5,9 +5,20 @@ import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
 import type { BusinessType, SubscriptionPlanResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
-import { PLAN_FEATURES, normalizeFeatureKey, normalizeFeatures } from '@/lib/planFeatures'
-import { formatCurrency } from '@/lib/utils'
-import { periodTotalWithVat } from '@/lib/subscriptionBilling'
+
+const PREDEFINED_FEATURES: { key: string; label: string }[] = [
+  { key: 'stock_count', label: 'الجرد المخزني' },
+  { key: 'zatca_phase1', label: 'زاتكا المرحلة الأولى' },
+  { key: 'zatca_phase2', label: 'زاتكا المرحلة الثانية' },
+  { key: 'ai_assistant', label: 'المساعد الذكي' },
+  { key: 'purchasing', label: 'المشتريات' },
+  { key: 'crm', label: 'إدارة العملاء (CRM)' },
+  { key: 'loyalty', label: 'برنامج الولاء' },
+  { key: 'multi_branch', label: 'تعدد الفروع' },
+  { key: 'advanced_reports', label: 'التقارير المتقدمة' },
+  { key: 'api_access', label: 'واجهة برمجية (API)' },
+  { key: 'ai_cashier', label: 'كاشير AI (كافيه)' },
+]
 
 export function PlansPage() {
   const qc = useQueryClient()
@@ -256,7 +267,7 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
   const { t, lang } = useI18n()
   const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const [editingFeatures, setEditingFeatures] = useState(false)
-  const [draftFeatures, setDraftFeatures] = useState<string[]>(() => normalizeFeatures(plan.features))
+  const [draftFeatures, setDraftFeatures] = useState<string[]>(plan.features)
 
   const featureMut = useMutation({
     mutationFn: (features: string[]) => superAdminApi.updatePlanFeatures(plan.id, features),
@@ -279,7 +290,7 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
       <div className="mb-4 flex items-start justify-between">
         <h3 className="text-base font-bold text-fg">{plan.name}</h3>
         <button
-          onClick={() => { setDraftFeatures(normalizeFeatures(plan.features)); setEditingFeatures(v => !v) }}
+          onClick={() => { setDraftFeatures(plan.features); setEditingFeatures(v => !v) }}
           className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg transition-colors"
           title={t.admin.plans.edit}
         >
@@ -290,9 +301,6 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
         {plan.price.toLocaleString(locale)}
         <span className="text-sm font-normal text-muted"> ر.س / شهر</span>
       </p>
-      <p className="-mt-3 mb-4 text-xs text-muted">
-        {formatCurrency(periodTotalWithVat(plan.price, 1), 'SAR', locale)} شامل الضريبة
-      </p>
       <div className="mb-4 flex gap-4 text-xs text-muted">
         <span>{plan.maxBranches >= 999 ? 'غير محدود' : plan.maxBranches} فروع</span>
         <span>{plan.maxUsers >= 999 ? 'غير محدود' : plan.maxUsers} مستخدم</span>
@@ -302,7 +310,7 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
         <div className="mt-auto">
           <p className="mb-3 text-xs font-medium text-muted">{t.admin.plans.features}</p>
           <div className="space-y-2">
-            {PLAN_FEATURES.map(f => {
+            {PREDEFINED_FEATURES.map(f => {
               const enabled = draftFeatures.includes(f.key)
               return (
                 <label key={f.key} className="flex cursor-pointer items-center gap-3">
@@ -344,7 +352,7 @@ function PlanCard({ plan, onUpdated }: { plan: SubscriptionPlanResponse; onUpdat
           {plan.features.length === 0 ? (
             <li className="text-xs text-muted">لا توجد ميزات — اضغط ✏️ للإضافة</li>
           ) : plan.features.map((f) => {
-            const meta = PLAN_FEATURES.find(pf => pf.key === normalizeFeatureKey(f))
+            const meta = PREDEFINED_FEATURES.find(pf => pf.key === f)
             return (
               <li key={f} className="flex items-center gap-2 text-xs text-muted">
                 <Check className="h-3.5 w-3.5 flex-shrink-0 text-success" />

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, FlaskConical, ScanBarcode, Power } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, FlaskConical } from 'lucide-react'
 import { recipesApi } from '@/api/recipes'
 import { RecipeModal } from './RecipeModal'
 import { useForm } from 'react-hook-form'
@@ -17,7 +17,6 @@ import { inventoryApi } from '@/api/inventory'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { marginPercent } from '@/lib/pricing'
-import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
@@ -26,7 +25,6 @@ type CategoryFormData = { name: string; description?: string }
 type CreateFormData = {
   name: string
   sku: string
-  barcode?: string
   variantName: string
   description?: string
   costPrice: number
@@ -39,27 +37,17 @@ type CreateFormData = {
   expiryDate?: string
 }
 type EditProductFormData = { name: string; description?: string; categoryId?: string; trackInventory: boolean; unitType: string }
-type EditVariantFormData = { name: string; sku: string; barcode?: string; costPrice: number; salePrice: number; currency: string }
-type AddVariantFormData = EditVariantFormData & { initialQuantity: number; expiryDate?: string }
-
-const randomSku = () => Math.random().toString(36).slice(2, 8).toUpperCase()
-
-// USB scanners type the code then press Enter; keep that Enter from doing anything else in the form.
-const swallowEnter = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.preventDefault() }
+type EditVariantFormData = { name: string; costPrice: number; salePrice: number; currency: string }
 
 export function ProductsPage() {
   const [search, setSearch] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
   const [editingVariant, setEditingVariant] = useState<{ productId: string; variant: ProductVariantResponse } | null>(null)
-  const [addingVariantTo, setAddingVariantTo] = useState<ProductResponse | null>(null)
   const [deactivatingProductId, setDeactivatingProductId] = useState<string | null>(null)
-  const [deactivatingVariant, setDeactivatingVariant] = useState<{ productId: string; variant: ProductVariantResponse } | null>(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
-  const { branchId, tenantId, user } = useAuthStore()
-  // Catalog writes are Owner/Manager-only on the server; cashiers get a read-only list.
-  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
+  const { branchId, tenantId } = useAuthStore()
   const qc = useQueryClient()
   const { t } = useI18n()
   const [recipeVariant, setRecipeVariant] = useState<{ id: string; name: string; salePrice: number; currency: string } | null>(null)
@@ -77,8 +65,7 @@ export function ProductsPage() {
 
   const createSchema = z.object({
     name: z.string().min(1, t.products.nameRequired),
-    sku: z.string().trim().min(1, 'الرمز مطلوب').max(64),
-    barcode: z.string().trim().max(64).optional(),
+    sku: z.string().min(1, t.products.nameRequired),
     variantName: z.string().min(1, t.products.variantNameRequired),
     description: z.string().optional(),
     costPrice: z.coerce.number().nonnegative(),
@@ -101,16 +88,9 @@ export function ProductsPage() {
 
   const editVariantSchema = z.object({
     name: z.string().min(1, t.products.variantNameRequired),
-    sku: z.string().trim().min(1, 'الرمز مطلوب').max(64),
-    barcode: z.string().trim().max(64).optional(),
     costPrice: z.coerce.number().nonnegative(),
     salePrice: z.coerce.number().positive(t.products.pricePositive),
     currency: z.string().length(3),
-  })
-
-  const addVariantSchema = editVariantSchema.extend({
-    initialQuantity: z.coerce.number().nonnegative().default(0),
-    expiryDate: z.string().optional(),
   })
 
   const { data, isLoading } = useQuery({
@@ -142,28 +122,14 @@ export function ProductsPage() {
     defaultValues: { currency: 'SAR' },
   })
 
-  const addVariantForm = useForm<AddVariantFormData>({
-    resolver: zodResolver(addVariantSchema),
-    defaultValues: { currency: 'SAR' },
-  })
-
-  // Opens the variant's stock record in the active branch and records the opening quantity/expiry.
-  const initStock = async (variantId: string, quantity: number, expiryDate?: string) => {
-    if (!branchId) return
-    try {
-      const stockRes = await inventoryApi.initializeStock(branchId, variantId)
-      // Recorded as a receipt so any role that can create products can set it (adjust is manager-only).
-      // An expiry date without stock is not tracked, so it only goes in with a quantity.
-      if (quantity > 0) {
-        await inventoryApi.receiveStock(branchId, stockRes.data.id, {
-          quantity,
-          expiryDate: expiryDate ? expiryDate + 'T00:00:00Z' : null,
-          notes: 'كمية أولية عند إنشاء المنتج',
-        })
-      }
-    } catch {
-      toast.error('تحذير', 'تم الحفظ لكن فشل تسجيل الكمية الأولية — راجع المخزون')
-    }
+  const extractApiError = (err: unknown): string | null => {
+    const response = (err as any)?.response
+    const data = response?.data
+    return data?.message
+      ?? data?.title
+      ?? (data?.errors ? JSON.stringify(data.errors) : null)
+      ?? (typeof data === 'string' ? data : null)
+      ?? (response ? `خطأ ${response.status}` : 'تحقق من اتصال الإنترنت')
   }
 
   const create = useMutation({
@@ -177,15 +143,26 @@ export function ProductsPage() {
         trackInventory: data.trackInventory,
         unitType: data.unitType,
         sku: data.sku,
-        barcode: data.barcode || undefined,
         variantName: data.variantName,
         costPrice: data.costPrice,
         salePrice: data.salePrice,
         currency: data.currency,
       })
-      if (data.trackInventory) {
+      if (data.trackInventory && branchId) {
         for (const variant of result.data.variants) {
-          await initStock(variant.id, data.initialQuantity, data.expiryDate)
+          try {
+            const stockRes = await inventoryApi.initializeStock(branchId, variant.id)
+            const expiryIso = data.expiryDate ? data.expiryDate + 'T00:00:00Z' : null
+            if (data.initialQuantity > 0 || expiryIso) {
+              await inventoryApi.adjustStock(branchId, stockRes.data.id, {
+                newQuantity: data.initialQuantity,
+                expiryDate: expiryIso,
+                notes: data.initialQuantity > 0 ? 'كمية أولية عند إنشاء المنتج' : undefined,
+              })
+            }
+          } catch {
+            toast.error('تحذير', 'تم إنشاء المنتج لكن فشل تسجيل الكمية الأولية — راجع المخزون')
+          }
         }
       }
       return result
@@ -198,7 +175,7 @@ export function ProductsPage() {
       toast.success(t.products.created)
     },
     onError: (err: unknown) => {
-      toast.error(t.products.failed, apiErrorMessage(err, 'تحقق من البيانات'))
+      toast.error(t.products.failed, extractApiError(err) ?? 'تحقق من البيانات')
     },
   })
 
@@ -208,9 +185,7 @@ export function ProductsPage() {
         name: data.name,
         description: data.description,
         categoryId: data.categoryId || undefined,
-        // Not editable here: send the stored values back so an edit never resets them.
-        taxClass: editingProduct!.taxClass,
-        imageUrl: editingProduct!.imageUrl,
+        taxClass: 'Standard',
         trackInventory: data.trackInventory,
         unitType: data.unitType,
       }),
@@ -219,16 +194,13 @@ export function ProductsPage() {
       setEditingProduct(null)
       toast.success('تم تحديث المنتج')
     },
-    onError: (err: unknown) => toast.error('فشل تحديث المنتج', apiErrorMessage(err)),
+    onError: (err: unknown) => toast.error('فشل تحديث المنتج', extractApiError(err) ?? undefined),
   })
 
   const updateVariant = useMutation({
     mutationFn: (data: EditVariantFormData) =>
       catalogApi.updateVariant(editingVariant!.productId, editingVariant!.variant.id, {
         name: data.name,
-        sku: data.sku,
-        // An empty string clears the barcode on the server; omitting it would keep the old one.
-        barcode: data.barcode ?? '',
         costPrice: data.costPrice,
         salePrice: data.salePrice,
         currency: data.currency,
@@ -238,43 +210,7 @@ export function ProductsPage() {
       setEditingVariant(null)
       toast.success('تم تحديث النوع')
     },
-    onError: (err: unknown) => toast.error('فشل تحديث النوع', apiErrorMessage(err)),
-  })
-
-  const addVariant = useMutation({
-    mutationFn: async (data: AddVariantFormData) => {
-      const product = addingVariantTo!
-      const result = await catalogApi.addVariant(product.id, {
-        name: data.name,
-        sku: data.sku,
-        barcode: data.barcode || undefined,
-        costPrice: data.costPrice,
-        salePrice: data.salePrice,
-        currency: data.currency,
-      })
-      if (product.trackInventory) {
-        await initStock(result.data.id, data.initialQuantity, data.expiryDate)
-      }
-      return result
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['products'] })
-      qc.invalidateQueries({ queryKey: ['stock', branchId] })
-      setAddingVariantTo(null)
-      toast.success('تمت إضافة النوع')
-    },
-    onError: (err: unknown) => toast.error('فشل إضافة النوع', apiErrorMessage(err)),
-  })
-
-  const toggleVariant = useMutation({
-    mutationFn: ({ productId, variant }: { productId: string; variant: ProductVariantResponse }) =>
-      catalogApi.setVariantStatus(productId, variant.id, !variant.isActive),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['products'] })
-      setDeactivatingVariant(null)
-      toast.success(res.data.isActive ? 'تم تفعيل النوع' : 'تم إيقاف النوع')
-    },
-    onError: (err: unknown) => toast.error('تعذّر تغيير حالة النوع', apiErrorMessage(err)),
+    onError: (err: unknown) => toast.error('فشل تحديث النوع', extractApiError(err) ?? undefined),
   })
 
   const createCategory = useMutation({
@@ -285,7 +221,7 @@ export function ProductsPage() {
       categoryForm.reset()
       toast.success(t.products.categoryCreated)
     },
-    onError: (err: unknown) => toast.error(t.products.categoryFailed, apiErrorMessage(err)),
+    onError: (err: unknown) => toast.error(t.products.categoryFailed, extractApiError(err) ?? undefined),
   })
 
   const deactivate = useMutation({
@@ -295,7 +231,7 @@ export function ProductsPage() {
       setDeactivatingProductId(null)
       toast.success(t.products.deleted)
     },
-    onError: (err: unknown) => toast.error(t.products.deleteFailed, apiErrorMessage(err)),
+    onError: () => toast.error(t.products.deleteFailed),
   })
 
   const openEdit = (product: ProductResponse) => {
@@ -312,8 +248,6 @@ export function ProductsPage() {
   const openEditVariant = (productId: string, variant: ProductVariantResponse) => {
     editVariantForm.reset({
       name: variant.name,
-      sku: variant.sku,
-      barcode: variant.barcode ?? '',
       costPrice: variant.costPrice,
       salePrice: variant.salePrice,
       currency: variant.currency,
@@ -321,30 +255,15 @@ export function ProductsPage() {
     setEditingVariant({ productId, variant })
   }
 
-  const openAddVariant = (product: ProductResponse) => {
-    const base = product.variants[0]
-    addVariantForm.reset({
-      name: '',
-      sku: randomSku(),
-      barcode: '',
-      costPrice: base?.costPrice ?? 0,
-      salePrice: base?.salePrice ?? 0,
-      currency: base?.currency ?? 'SAR',
-      initialQuantity: 0,
-      expiryDate: '',
-    })
-    setAddingVariantTo(product)
-  }
-
   const _raw = data?.data
   const products: ProductResponse[] = Array.isArray(_raw) ? _raw : ((_raw as any)?.items ?? [])
 
   return (
-    <div className="page-fade">
+    <div className="page-fade" dir="rtl">
       <PageHeader
         title={t.products.title}
         description={t.products.subtitle}
-        action={canManage && (
+        action={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => { categoryForm.reset(); setShowCategoryModal(true) }}>
               <Plus className="h-4 w-4" />
@@ -355,7 +274,7 @@ export function ProductsPage() {
                 currency: 'SAR',
                 variantName: 'افتراضي',
                 trackInventory: true,
-                sku: randomSku(),
+                sku: Math.random().toString(36).slice(2, 8).toUpperCase(),
               })
               setShowCreateModal(true)
             }}>
@@ -363,11 +282,11 @@ export function ProductsPage() {
               {t.products.addProduct}
             </Button>
           </div>
-        )}
+        }
       />
       <div className="p-6">
         <Card>
-          <div className="flex items-center gap-3 border-b border-border p-4">
+          <div className="flex items-center gap-3 border-b border-border p-4" dir="rtl">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute end-3 top-2.5 h-4 w-4 text-muted" />
               <input
@@ -436,7 +355,7 @@ export function ProductsPage() {
                           )}
                         </div>
                       </button>
-                      {canManage && <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -455,41 +374,27 @@ export function ProductsPage() {
                             <Trash2 className="h-3.5 w-3.5 text-danger" />
                           </Button>
                         )}
-                      </div>}
+                      </div>
                     </div>
 
                     {isExpanded && (
                       <div className="border-t border-border bg-surface-2 px-4 py-3">
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                            {t.products.variants}
-                          </p>
-                          {canManage && product.isActive && (
-                            <Button size="sm" variant="secondary" onClick={() => openAddVariant(product)}>
-                              <Plus className="h-3.5 w-3.5" />
-                              {t.products.addVariant}
-                            </Button>
-                          )}
-                        </div>
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                          {t.products.variants}
+                        </p>
                         <div className="space-y-2">
                           {product.variants.map((v) => (
                             <div
                               key={v.id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                              className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                             >
-                              <div className="flex flex-wrap items-center gap-x-2">
+                              <div>
                                 <span className="font-medium text-fg">
                                   {v.name}
                                 </span>
-                                <span className="text-xs text-muted" dir="ltr">{v.sku}</span>
-                                {v.barcode && (
-                                  <span className="inline-flex items-center gap-1 text-xs tabular-nums text-muted" title={t.products.barcode}>
-                                    <ScanBarcode className="h-3 w-3" />
-                                    <span dir="ltr">{v.barcode}</span>
-                                  </span>
-                                )}
+                                <span className="ml-2 text-xs text-muted">{v.sku}</span>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                              <div className="flex items-center gap-4">
                                 <span className="text-xs text-muted">
                                   {t.products.costPrice}: {formatCurrency(v.costPrice, v.currency)}
                                 </span>
@@ -518,33 +423,13 @@ export function ProductsPage() {
                                   <FlaskConical className="h-3.5 w-3.5" />
                                   {recipeByVariant.get(v.id) ? 'الوصفة' : 'إضافة وصفة'}
                                 </Button>
-                                {canManage && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => openEditVariant(product.id, v)}
-                                    title={t.common.edit}
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                )}
-                                {canManage && product.isActive && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      // Switching off pulls the variant from the POS, so it asks first; switching on is one tap.
-                                      v.isActive
-                                        ? setDeactivatingVariant({ productId: product.id, variant: v })
-                                        : toggleVariant.mutate({ productId: product.id, variant: v })
-                                    }
-                                    disabled={toggleVariant.isPending}
-                                    title={v.isActive ? 'إيقاف النوع' : 'تفعيل النوع'}
-                                    aria-label={v.isActive ? `إيقاف ${v.name}` : `تفعيل ${v.name}`}
-                                  >
-                                    <Power className={v.isActive ? 'h-3 w-3 text-danger' : 'h-3 w-3 text-success'} />
-                                  </Button>
-                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openEditVariant(product.id, v)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
                               </div>
                             </div>
                           ))}
@@ -587,23 +472,12 @@ export function ProductsPage() {
           </div>
           <Input label={t.products.description} {...createForm.register('description')} />
           <div className="grid grid-cols-2 gap-4">
-            <Input label={t.products.sku} dir="ltr" error={createForm.formState.errors.sku?.message} {...createForm.register('sku')} />
+            <Input label={t.products.sku} error={createForm.formState.errors.sku?.message} {...createForm.register('sku')} />
             <Input label={t.products.variantName} error={createForm.formState.errors.variantName?.message} {...createForm.register('variantName')} />
           </div>
-          <Input
-            label={t.products.barcode}
-            dir="ltr"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="امسح الباركود أو اكتبه"
-            hint="اختياري، للبيع بالماسح"
-            onKeyDown={swallowEnter}
-            error={createForm.formState.errors.barcode?.message}
-            {...createForm.register('barcode')}
-          />
           <div className="grid grid-cols-3 gap-4">
             <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={createForm.formState.errors.costPrice?.message} {...createForm.register('costPrice')} />
-            <Input label={t.products.salePrice} hint="شامل الضريبة" type="number" step="0.01" min="0" error={createForm.formState.errors.salePrice?.message} {...createForm.register('salePrice')} />
+            <Input label={t.products.salePrice} type="number" step="0.01" min="0" error={createForm.formState.errors.salePrice?.message} {...createForm.register('salePrice')} />
             <Input label={t.products.currency} maxLength={3} placeholder="SAR" error={createForm.formState.errors.currency?.message} {...createForm.register('currency')} />
           </div>
           <Select label="وحدة القياس" {...createForm.register('unitType')}>
@@ -629,12 +503,14 @@ export function ProductsPage() {
                 placeholder="0"
                 {...createForm.register('initialQuantity')}
               />
-              <Input
-                id="create-expiry-date"
-                label="تاريخ الانتهاء (اختياري)"
-                type="date"
-                {...createForm.register('expiryDate')}
-              />
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-fg">تاريخ الانتهاء (اختياري)</label>
+                <input
+                  type="date"
+                  {...createForm.register('expiryDate')}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg"
+                />
+              </div>
             </div>
           )}
         </form>
@@ -697,84 +573,11 @@ export function ProductsPage() {
       >
         <form className="space-y-4">
           <Input label={t.products.variantName} error={editVariantForm.formState.errors.name?.message} {...editVariantForm.register('name')} />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label={t.products.sku} dir="ltr" error={editVariantForm.formState.errors.sku?.message} {...editVariantForm.register('sku')} />
-            <Input
-              label={t.products.barcode}
-              dir="ltr"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="امسح الباركود أو اكتبه"
-              onKeyDown={swallowEnter}
-              error={editVariantForm.formState.errors.barcode?.message}
-              {...editVariantForm.register('barcode')}
-            />
-          </div>
           <div className="grid grid-cols-3 gap-4">
             <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={editVariantForm.formState.errors.costPrice?.message} {...editVariantForm.register('costPrice')} />
-            <Input label={t.products.salePrice} hint="شامل الضريبة" type="number" step="0.01" min="0" error={editVariantForm.formState.errors.salePrice?.message} {...editVariantForm.register('salePrice')} />
+            <Input label={t.products.salePrice} type="number" step="0.01" min="0" error={editVariantForm.formState.errors.salePrice?.message} {...editVariantForm.register('salePrice')} />
             <Input label={t.products.currency} maxLength={3} error={editVariantForm.formState.errors.currency?.message} {...editVariantForm.register('currency')} />
           </div>
-        </form>
-      </Modal>
-
-      {/* Add variant modal */}
-      <Modal
-        open={!!addingVariantTo}
-        onClose={() => setAddingVariantTo(null)}
-        title={addingVariantTo ? `${t.products.addVariant} — ${addingVariantTo.name}` : t.products.addVariant}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setAddingVariantTo(null)}>{t.common.cancel}</Button>
-            <Button loading={addVariant.isPending} onClick={addVariantForm.handleSubmit((d) => addVariant.mutate(d))}>
-              {t.common.add}
-            </Button>
-          </>
-        }
-      >
-        <form className="space-y-4">
-          <Input
-            label={t.products.variantName}
-            placeholder="مثال: كبير، 500 مل، أحمر"
-            error={addVariantForm.formState.errors.name?.message}
-            {...addVariantForm.register('name')}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label={t.products.sku} dir="ltr" error={addVariantForm.formState.errors.sku?.message} {...addVariantForm.register('sku')} />
-            <Input
-              label={t.products.barcode}
-              dir="ltr"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="امسح الباركود أو اكتبه"
-              onKeyDown={swallowEnter}
-              error={addVariantForm.formState.errors.barcode?.message}
-              {...addVariantForm.register('barcode')}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={addVariantForm.formState.errors.costPrice?.message} {...addVariantForm.register('costPrice')} />
-            <Input label={t.products.salePrice} hint="شامل الضريبة" type="number" step="0.01" min="0" error={addVariantForm.formState.errors.salePrice?.message} {...addVariantForm.register('salePrice')} />
-            <Input label={t.products.currency} maxLength={3} error={addVariantForm.formState.errors.currency?.message} {...addVariantForm.register('currency')} />
-          </div>
-          {addingVariantTo?.trackInventory && (
-            <div className="grid grid-cols-2 gap-4 rounded-xl border border-info/30 bg-info/10 p-3">
-              <Input
-                label="الكمية الأولية"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-                {...addVariantForm.register('initialQuantity')}
-              />
-              <Input
-                id="add-variant-expiry-date"
-                label="تاريخ الانتهاء (اختياري)"
-                type="date"
-                {...addVariantForm.register('expiryDate')}
-              />
-            </div>
-          )}
         </form>
       </Modal>
 
@@ -809,18 +612,6 @@ export function ProductsPage() {
         confirmLabel="إلغاء التفعيل"
         confirmVariant="danger"
         loading={deactivate.isPending}
-      />
-
-      {/* Deactivate variant confirm */}
-      <ConfirmModal
-        open={!!deactivatingVariant}
-        onClose={() => setDeactivatingVariant(null)}
-        onConfirm={() => { if (deactivatingVariant) { toggleVariant.mutate(deactivatingVariant) } }}
-        title="إيقاف النوع"
-        message={`إيقاف النوع «${deactivatingVariant?.variant.name ?? ''}»؟ لن يظهر في نقطة البيع.`}
-        confirmLabel="إيقاف"
-        confirmVariant="danger"
-        loading={toggleVariant.isPending}
       />
     </div>
   )

@@ -293,46 +293,6 @@ public sealed class PurchaseOrderTests
     }
 
     [Fact]
-    public void Cancel_WithReason_AppendsToExistingNotes()
-    {
-        PurchaseOrder order = PurchaseOrder.Create(_tenantId, _branchId, _supplierId, notes: "Deliver to back door");
-
-        order.Cancel("  Supplier out of stock  ");
-
-        order.Notes.Should().Be("Deliver to back door\nSupplier out of stock");
-    }
-
-    [Fact]
-    public void Cancel_WithReasonAndNoNotes_SetsNotesToReason()
-    {
-        PurchaseOrder order = CreateDraftOrder();
-
-        order.Cancel("Supplier out of stock");
-
-        order.Notes.Should().Be("Supplier out of stock");
-    }
-
-    [Fact]
-    public void Cancel_WithBlankReason_KeepsExistingNotes()
-    {
-        PurchaseOrder order = PurchaseOrder.Create(_tenantId, _branchId, _supplierId, notes: "Deliver to back door");
-
-        order.Cancel("   ");
-
-        order.Notes.Should().Be("Deliver to back door");
-    }
-
-    [Fact]
-    public void Cancel_WithReason_KeepsNotesWithinMaxLength()
-    {
-        PurchaseOrder order = PurchaseOrder.Create(_tenantId, _branchId, _supplierId, notes: new string('n', 1000));
-
-        order.Cancel(new string('r', 100));
-
-        order.Notes.Should().HaveLength(1024).And.StartWith(new string('n', 1000));
-    }
-
-    [Fact]
     public void Cancel_ReceivedOrder_ReturnsError()
     {
         PurchaseOrder order = CreateOrderWithLine();

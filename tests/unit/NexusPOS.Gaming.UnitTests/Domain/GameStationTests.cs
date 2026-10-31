@@ -148,16 +148,15 @@ public sealed class GameStationTests
     }
 
     [Fact]
-    public void SetMaintenance_FromInUse_ReturnsStationInUseAndKeepsSessionRunning()
+    public void SetMaintenance_FromInUse_TransitionsToMaintenance()
     {
         GameStation station = CreateValidStation().Value;
         station.StartSession();
 
         ErrorOr<Success> result = station.SetMaintenance();
 
-        result.IsError.Should().BeTrue();
-        result.FirstError.Should().Be(GamingErrors.StationInUse);
-        station.Status.Should().Be(StationStatus.InUse);
+        result.IsError.Should().BeFalse();
+        station.Status.Should().Be(StationStatus.Maintenance);
     }
 
     [Fact]
@@ -170,94 +169,6 @@ public sealed class GameStationTests
 
         result.IsError.Should().BeFalse();
         station.Status.Should().Be(StationStatus.Maintenance);
-    }
-
-    // ── ReturnToService ───────────────────────────────────────────────────────
-
-    [Fact]
-    public void ReturnToService_FromMaintenance_MakesStationAvailableAndStartable()
-    {
-        GameStation station = CreateValidStation().Value;
-        station.SetMaintenance();
-
-        ErrorOr<Success> result = station.ReturnToService();
-
-        result.IsError.Should().BeFalse();
-        station.Status.Should().Be(StationStatus.Available);
-        station.StartSession().IsError.Should().BeFalse();
-    }
-
-    [Fact]
-    public void ReturnToService_WithStrandedActiveSession_GoesBackToInUseSoItCanBeEnded()
-    {
-        GameStation station = CreateValidStation().Value;
-        station.SetMaintenance();
-
-        ErrorOr<Success> result = station.ReturnToService(hasActiveSession: true);
-
-        result.IsError.Should().BeFalse();
-        station.Status.Should().Be(StationStatus.InUse);
-        station.EndSession().IsError.Should().BeFalse();
-    }
-
-    [Fact]
-    public void ReturnToService_WhenNotInMaintenance_ReturnsStationNotInMaintenance()
-    {
-        GameStation station = CreateValidStation().Value;
-
-        ErrorOr<Success> result = station.ReturnToService();
-
-        result.IsError.Should().BeTrue();
-        result.FirstError.Should().Be(GamingErrors.StationNotInMaintenance);
-        station.Status.Should().Be(StationStatus.Available);
-    }
-
-    // ── ResolveSessionRate ────────────────────────────────────────────────────
-
-    [Fact]
-    public void ResolveSessionRate_NoRateSent_UsesStationRate()
-    {
-        GameStation station = CreateValidStation(50m).Value;
-
-        station.ResolveSessionRate(null, canOverrideRate: false).Value.Should().Be(50m);
-    }
-
-    [Fact]
-    public void ResolveSessionRate_CashierSendsStationRate_IsAccepted()
-    {
-        GameStation station = CreateValidStation(50m).Value;
-
-        station.ResolveSessionRate(50m, canOverrideRate: false).Value.Should().Be(50m);
-    }
-
-    [Fact]
-    public void ResolveSessionRate_CashierSendsOtherRate_IsRejected()
-    {
-        GameStation station = CreateValidStation(50m).Value;
-
-        ErrorOr<decimal> result = station.ResolveSessionRate(0.01m, canOverrideRate: false);
-
-        result.IsError.Should().BeTrue();
-        result.FirstError.Should().Be(GamingErrors.RateOverrideNotAllowed);
-    }
-
-    [Fact]
-    public void ResolveSessionRate_ManagerOverride_UsesRequestedRate()
-    {
-        GameStation station = CreateValidStation(50m).Value;
-
-        station.ResolveSessionRate(30m, canOverrideRate: true).Value.Should().Be(30m);
-    }
-
-    [Fact]
-    public void ResolveSessionRate_ManagerZeroRate_IsInvalid()
-    {
-        GameStation station = CreateValidStation(50m).Value;
-
-        ErrorOr<decimal> result = station.ResolveSessionRate(0m, canOverrideRate: true);
-
-        result.IsError.Should().BeTrue();
-        result.FirstError.Should().Be(GamingErrors.InvalidHourlyRate);
     }
 
     // ── Deactivate ────────────────────────────────────────────────────────────

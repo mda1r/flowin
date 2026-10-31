@@ -9,6 +9,4 @@ public sealed record CreateUserCommand(
     string FirstName,
     string LastName,
     string Password,
-    string Role,
-    IReadOnlyCollection<string> CallerRoles,
-    Guid CurrentUserId) : ICommand<UserSummaryResponse>;
+    string Role) : ICommand<UserSummaryResponse>;

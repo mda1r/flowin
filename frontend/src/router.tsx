@@ -58,14 +58,6 @@ const appRoute = createRoute({
   },
 })
 
-// Owner/Manager-only pages (the API enforces the same; this just avoids a page full of 403s)
-const requireOwnerOrManager = () => {
-  const role = useAuthStore.getState().user?.role
-  if (role !== 'Owner' && role !== 'Manager') {
-    throw redirect({ to: '/' })
-  }
-}
-
 const dashboardRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/',
@@ -148,7 +140,6 @@ const usersRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/users',
   component: UsersPage,
-  beforeLoad: requireOwnerOrManager,
 })
 
 const branchesRoute = createRoute({
@@ -185,7 +176,6 @@ const activityLogsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/activity-logs',
   component: ActivityLogsPage,
-  beforeLoad: requireOwnerOrManager,
 })
 
 // ── Admin routes ──────────────────────────────────────────────────────────────

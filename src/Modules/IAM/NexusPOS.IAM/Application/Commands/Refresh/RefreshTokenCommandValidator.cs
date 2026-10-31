@@ -7,7 +7,7 @@ internal sealed class RefreshTokenCommandValidator : AbstractValidator<RefreshTo
     public RefreshTokenCommandValidator()
     {
         RuleFor(x => x.Token)
-            .NotEmpty().WithMessage("انتهت الجلسة، سجّل الدخول مرة أخرى")
-            .Length(64).WithMessage("انتهت الجلسة، سجّل الدخول مرة أخرى");
+            .NotEmpty().WithMessage("Refresh token is required.")
+            .Length(64).WithMessage("Invalid refresh token format.");
     }
 }

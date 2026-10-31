@@ -27,13 +27,6 @@ internal sealed class BranchRepository(OrganizationDbContext dbContext) : IBranc
                 b => b.TenantId == tenantId && b.Name == name.Trim(),
                 cancellationToken);
 
-    public async Task<bool> ExistsByNameAsync(
-        TenantId tenantId, string name, BranchId excludeId, CancellationToken cancellationToken = default) =>
-        await dbContext.Branches
-            .AnyAsync(
-                b => b.TenantId == tenantId && b.Name == name.Trim() && b.Id != excludeId,
-                cancellationToken);
-
     public void Add(Branch branch) => dbContext.Branches.Add(branch);
 
     public void Update(Branch branch) => dbContext.Branches.Update(branch);

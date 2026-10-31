@@ -1,13 +1,11 @@
 using ErrorOr;
-using Microsoft.EntityFrameworkCore;
 using NexusPOS.Gaming.Application.Common;
 using NexusPOS.Gaming.Domain;
 using NexusPOS.Gaming.Domain.Entities;
 using NexusPOS.Gaming.Domain.Repositories;
 using NexusPOS.Gaming.Domain.ValueObjects;
-using NexusPOS.Gaming.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
-using Npgsql;
+using NexusPOS.Gaming.Infrastructure.Persistence;
 
 namespace NexusPOS.Gaming.Application.Commands.StartSession;
 
@@ -17,9 +15,6 @@ internal sealed class StartSessionCommandHandler(
     GamingDbContext dbContext)
     : ICommandHandler<StartSessionCommand, GameStationResponse>
 {
-    // Partial unique index (one Active session per station), created by the gaming schema patches.
-    internal const string ActiveStationIndex = "ux_game_sessions_active_station";
-
     public async Task<ErrorOr<GameStationResponse>> Handle(
         StartSessionCommand request,
         CancellationToken cancellationToken)
@@ -47,13 +42,6 @@ internal sealed class StartSessionCommandHandler(
             }
         }
 
-        // Billed at the station's rate; only an owner or manager may set another one.
-        ErrorOr<decimal> rate = station.ResolveSessionRate(request.RatePerHour, request.CanOverrideRate);
-        if (rate.IsError)
-        {
-            return rate.Errors;
-        }
-
         ErrorOr<Success> result = station.StartSession();
         if (result.IsError)
         {
@@ -62,25 +50,13 @@ internal sealed class StartSessionCommandHandler(
 
         GameSession session = package is null
             ? GameSession.Create(
-                station.TenantId, station.BranchId, station.Id.Value, request.PlayerName, request.DurationMinutes, rate.Value)
+                station.TenantId, station.BranchId, station.Id.Value, request.PlayerName, request.DurationMinutes, request.RatePerHour)
             : GameSession.CreateWithPackage(
-                station.TenantId, station.BranchId, station.Id.Value, request.PlayerName, package, rate.Value);
+                station.TenantId, station.BranchId, station.Id.Value, request.PlayerName, package, request.RatePerHour);
 
         gameSessionRepository.Add(session);
         gameStationRepository.Update(station);
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-        {
-            SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: ActiveStationIndex,
-        })
-        {
-            // Another cashier started a session on this station a moment earlier.
-            return GamingErrors.StationHasActiveSession;
-        }
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return GamingMapper.ToResponse(station, session);
     }

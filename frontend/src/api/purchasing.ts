@@ -9,7 +9,7 @@ export const purchasingApi = {
   // Suppliers
   listSuppliers: (
     tenantId: string,
-    params?: { page?: number; pageSize?: number; includeInactive?: boolean },
+    params?: { page?: number; pageSize?: number },
   ) =>
     apiClient.get<SupplierResponse[]>(`/api/v1/tenants/${tenantId}/suppliers`, {
       params: { pageSize: 50, ...params },
@@ -25,24 +25,6 @@ export const purchasingApi = {
     },
   ) =>
     apiClient.post<SupplierResponse>(`/api/v1/tenants/${tenantId}/suppliers`, data),
-
-  updateSupplier: (
-    tenantId: string,
-    supplierId: string,
-    data: {
-      name: string
-      contactEmail?: string
-      contactPhone?: string
-      address?: string
-    },
-  ) =>
-    apiClient.put<SupplierResponse>(`/api/v1/tenants/${tenantId}/suppliers/${supplierId}`, data),
-
-  deactivateSupplier: (tenantId: string, supplierId: string) =>
-    apiClient.delete<SupplierResponse>(`/api/v1/tenants/${tenantId}/suppliers/${supplierId}`),
-
-  reactivateSupplier: (tenantId: string, supplierId: string) =>
-    apiClient.post<SupplierResponse>(`/api/v1/tenants/${tenantId}/suppliers/${supplierId}/reactivate`),
 
   // Purchase Orders
   listPurchaseOrders: (
@@ -107,9 +89,8 @@ export const purchasingApi = {
       `/api/v1/branches/${branchId}/purchase-orders/${orderId}/retry-receipt`,
     ),
 
-  cancel: (branchId: string, orderId: string, reason?: string) =>
+  cancel: (branchId: string, orderId: string) =>
     apiClient.post<PurchaseOrderResponse>(
       `/api/v1/branches/${branchId}/purchase-orders/${orderId}/cancel`,
-      { reason: reason || undefined },
     ),
 }

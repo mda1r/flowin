@@ -17,7 +17,7 @@ internal sealed class ListStockMaterialMovementsQueryHandler(InventoryDbContext 
             .AnyAsync(m => m.Id == request.MaterialId && m.TenantId == request.TenantId, cancellationToken);
         if (!exists)
         {
-            return Error.NotFound("Inventory.MaterialNotFound", "المادة غير موجودة");
+            return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
         }
 
         var rows = await db.StockMaterialMovements

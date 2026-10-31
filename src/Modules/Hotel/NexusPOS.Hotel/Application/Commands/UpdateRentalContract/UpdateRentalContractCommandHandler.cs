@@ -20,12 +20,12 @@ internal sealed class UpdateRentalContractCommandHandler(
         var contract = await repository.FindByIdAsync(
             new RentalContractId(request.ContractId), cancellationToken);
 
-        if (contract is null || contract.BranchId != request.BranchId)
+        if (contract is null)
         {
             return HotelErrors.ContractNotFound;
         }
 
-        ErrorOr<Success> detailsResult = contract.UpdateDetails(
+        contract.UpdateDetails(
             request.TenantName,
             request.TenantNationalId,
             request.TenantPhone,
@@ -36,18 +36,9 @@ internal sealed class UpdateRentalContractCommandHandler(
             request.LandlordName,
             request.Notes);
 
-        if (detailsResult.IsError)
-        {
-            return detailsResult.Errors;
-        }
-
         var clauses = request.Clauses
             .Select(c => new ContractClause(c.Order, c.Title, c.Body));
-        ErrorOr<Success> clausesResult = contract.UpdateClauses(clauses);
-        if (clausesResult.IsError)
-        {
-            return clausesResult.Errors;
-        }
+        contract.UpdateClauses(clauses);
 
         repository.Update(contract);
         await dbContext.SaveChangesAsync(cancellationToken);

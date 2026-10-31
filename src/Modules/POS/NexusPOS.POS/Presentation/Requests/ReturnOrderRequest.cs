@@ -10,6 +10,4 @@ public sealed record ReturnOrderLineRequest(
 public sealed record ReturnOrderRequest(
     RefundMethod RefundMethod,
     IReadOnlyList<ReturnOrderLineRequest> Lines,
-    bool RestockItems = true,
-    string? Note = null,
-    Guid? ClientReference = null);
+    bool RestockItems = true);

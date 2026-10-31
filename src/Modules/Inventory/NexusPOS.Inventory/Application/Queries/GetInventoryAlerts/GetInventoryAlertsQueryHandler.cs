@@ -2,7 +2,6 @@ using ErrorOr;
 using NexusPOS.Inventory.Application.Common;
 using NexusPOS.Inventory.Domain.Entities;
 using NexusPOS.Inventory.Domain.Repositories;
-using NexusPOS.Inventory.Domain.Services;
 using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Inventory.Application.Queries.GetInventoryAlerts;
@@ -17,7 +16,7 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
         DateTime now = DateTime.UtcNow;
 
         IReadOnlyList<StockItem> expiringItems = await stockItemRepository
-            .FindExpiringAsync(request.BranchId, request.ExpiryDaysAhead, cancellationToken);
+            .FindExpiringAsync(request.BranchId, cancellationToken);
 
         IReadOnlyList<StockItem> lowStockItems = await stockItemRepository
             .FindLowStockAsync(request.BranchId, cancellationToken);
@@ -27,12 +26,11 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
 
         foreach (StockItem item in expiringItems)
         {
-            // Calendar days in Riyadh time, so an item expiring today reads 0 and yesterday's reads -1.
             int? daysUntilExpiry = item.ExpiryDate.HasValue
-                ? ExpiryCalendar.DaysUntilExpiry(item.ExpiryDate.Value, now)
+                ? (int)(item.ExpiryDate.Value - now).TotalDays
                 : null;
 
-            bool isExpired = daysUntilExpiry < 0;
+            bool isExpired = item.ExpiryDate.HasValue && item.ExpiryDate.Value < now;
 
             StockAlertItemResponse alert = new(
                 item.Id.Value,
@@ -54,10 +52,11 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
             }
         }
 
-        List<StockAlertItemResponse> lowStock = [.. lowStockItems
+        List<StockAlertItemResponse> lowStock = lowStockItems
             .Select(s => new StockAlertItemResponse(
                 s.Id.Value, s.VariantId, s.BranchId,
-                s.Quantity, s.ReorderPoint, s.ExpiryDate, null, "LowStock"))];
+                s.Quantity, s.ReorderPoint, s.ExpiryDate, null, "LowStock"))
+            .ToList();
 
         InventoryAlertsResponse response = new(
             expired,

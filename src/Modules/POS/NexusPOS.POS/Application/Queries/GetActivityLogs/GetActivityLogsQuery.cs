@@ -8,5 +8,4 @@ public sealed record GetActivityLogsQuery(
     string? Category,
     DateTime? From,
     DateTime? To,
-    int PageSize,
-    int Skip = 0) : IQuery<IReadOnlyList<ActivityLogResponse>>;
+    int PageSize) : IQuery<IReadOnlyList<ActivityLogResponse>>;

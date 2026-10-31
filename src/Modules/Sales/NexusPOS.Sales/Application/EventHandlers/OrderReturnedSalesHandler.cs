@@ -17,19 +17,13 @@ internal sealed class OrderReturnedSalesHandler(
         SalesSummary? summary = await salesSummaryRepository.FindByBranchAndDateAsync(
             notification.BranchId, returnDate, cancellationToken);
 
-        // A refund on a day with no sales yet (an older sale brought back) still has to show in that day's totals.
         if (summary is null)
         {
-            summary = SalesSummary.CreateForDate(notification.BranchId, returnDate, notification.Currency);
-            summary.RecordReturn(notification.RefundAmount, notification.TaxAmount);
-            salesSummaryRepository.Add(summary);
-        }
-        else
-        {
-            summary.RecordReturn(notification.RefundAmount, notification.TaxAmount);
-            salesSummaryRepository.Update(summary);
+            return;
         }
 
+        summary.RecordReturn(notification.RefundAmount);
+        salesSummaryRepository.Update(summary);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

@@ -7,7 +7,6 @@ import {
   playAlarmSequence,
   playBeep,
   sendGameNotification,
-  sessionAlertKey,
   sessionSecondsLeft,
 } from '@/lib/gamingAlerts'
 import type { GameStationResponse } from '@/types/api'
@@ -28,7 +27,6 @@ interface Overdue {
 
 // Watches timed sessions on its own one-second clock (so the cashier page does not re-render every second),
 // alerts once per session at five minutes left and at time-up, and shows a banner while any session is overdue.
-// Alerts are keyed by session and planned duration, so extending a session re-arms both alerts for the new end time.
 export function GamingTimeAlerts({ stations, onCountsChange, onOpenGaming, showBanner }: GamingTimeAlertsProps) {
   const [overdue, setOverdue] = useState<Overdue[]>([])
   const warned = useRef(new Set<string>())
@@ -44,39 +42,28 @@ export function GamingTimeAlerts({ stations, onCountsChange, onOpenGaming, showB
       const now = Date.now()
       const nextOverdue: Overdue[] = []
       let warning = 0
-      const live = new Set<string>()
 
       for (const station of stationsRef.current) {
         const session = station.status === 'InUse' ? station.activeSession : undefined
         if (!session) continue
         const left = sessionSecondsLeft(session, now)
         if (left === null) continue
-        const key = sessionAlertKey(session)
-        live.add(key)
 
         if (left <= 0) {
           nextOverdue.push({ sessionId: session.sessionId, stationName: station.name, playerName: session.playerName, overSeconds: -left })
-          if (!expired.current.has(key)) {
-            expired.current.add(key)
+          if (!expired.current.has(session.sessionId)) {
+            expired.current.add(session.sessionId)
             playAlarmSequence()
             sendGameNotification('انتهى وقت اللعب', `${station.name} · ${session.playerName}`)
             toast.warning('انتهى وقت اللعب', `${station.name} · ${session.playerName}`)
           }
         } else if (left <= WARNING_SECONDS) {
           warning++
-          if (!warned.current.has(key)) {
-            warned.current.add(key)
+          if (!warned.current.has(session.sessionId)) {
+            warned.current.add(session.sessionId)
             playBeep(440, 0.3)
             toast.info('باقي ٥ دقائق', `${station.name} · ${session.playerName}`)
           }
-        }
-      }
-
-      // Forget keys of sessions that ended or were extended so the sets do not grow for the whole shift
-      // (skipped while the station list is empty, e.g. before the first load, so nothing re-fires).
-      if (stationsRef.current.length > 0) {
-        for (const set of [warned.current, expired.current]) {
-          for (const key of set) if (!live.has(key)) set.delete(key)
         }
       }
 

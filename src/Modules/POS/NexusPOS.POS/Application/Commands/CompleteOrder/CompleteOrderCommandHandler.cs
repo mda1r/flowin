@@ -27,14 +27,16 @@ internal sealed class CompleteOrderCommandHandler(
             return PosErrors.OrderNotFound;
         }
 
+        if (order.Status == Domain.Enums.OrderStatus.Open && order.Lines.Count > 0)
+        {
+            order.AssignNumber(await numbers.NextAsync(order.TenantId, cancellationToken));
+        }
+
         ErrorOr<Success> completeResult = order.Complete(request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount);
         if (completeResult.IsError)
         {
             return completeResult.Errors;
         }
-
-        // Numbered only once the payment is accepted, so a rejected one never burns an invoice number.
-        order.AssignNumber(await numbers.NextAsync(order.TenantId, cancellationToken));
 
         orderRepository.Update(order);
         await dbContext.SaveChangesAsync(cancellationToken);

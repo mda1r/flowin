@@ -22,7 +22,7 @@ internal sealed class UpdateBrandCommandHandler(
 
         if (brand is null)
         {
-            return Error.NotFound("Brand.NotFound", "العلامة التجارية غير موجودة");
+            return Error.NotFound("Brand.NotFound", "Brand not found");
         }
 
         brand.Update(request.NameAr, request.NameEn, request.Notes);

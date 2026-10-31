@@ -6,7 +6,6 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { aiApi, type AiChatMessage } from '@/api/ai'
 import { useAuthStore } from '@/stores/authStore'
-import { apiErrorMessage } from '@/lib/apiError'
 import { cn } from '@/lib/utils'
 
 // ── Quick prompts for each "agent" role ───────────────────────────────────────
@@ -44,13 +43,10 @@ const QUICK_PROMPTS: QuickPrompt[] = [
 
 type Tab = 'insights' | 'chat'
 
-// Error bubbles stay on screen but are never sent back as conversation history.
-type ChatBubble = AiChatMessage & { error?: boolean }
-
 // ── Insights panel ────────────────────────────────────────────────────────────
 
 function InsightsPanel({ branchId }: { branchId: string }) {
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['ai-insights', branchId],
     queryFn: () => aiApi.getInsights(branchId).then(r => r.data),
     staleTime: 5 * 60 * 1000,
@@ -75,7 +71,7 @@ function InsightsPanel({ branchId }: { branchId: string }) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
         <Sparkles className="h-8 w-8 text-muted/50" />
-        <p className="text-sm text-muted">{apiErrorMessage(error, 'تعذّر تحميل التحليلات')}</p>
+        <p className="text-sm text-muted">تعذّر تحميل التحليلات</p>
         <button
           onClick={() => refetch()}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-surface-2"
@@ -138,7 +134,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
   }
   const branchId = useAuthStore(s => s.branchId ?? '')
   const [tab, setTab] = useState<Tab>('insights')
-  const [messages, setMessages] = useState<ChatBubble[]>([
+  const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       role: 'assistant',
       content: 'مرحباً! أنا سعد، مساعدك المالي الذكي. يمكنني تحليل مبيعاتك، مراقبة المخزون، وتقديم تقارير محاسبية. استخدم الأزرار السريعة أو اسألني مباشرة.',
@@ -162,19 +158,15 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
     mutationFn: (message: string) =>
       aiApi.chat(branchId, {
         message,
-        history: messages
-          .filter(m => !m.error)
-          .slice(-8)
-          .map(({ role, content }) => ({ role, content })),
+        history: messages.slice(-8),
       }).then(r => r.data),
     onSuccess: (response: string) => {
       setMessages(prev => [...prev, { role: 'assistant', content: response }])
     },
-    onError: (err) => {
+    onError: () => {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: apiErrorMessage(err, 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.'),
-        error: true,
+        content: 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.',
       }])
     },
   })
@@ -295,7 +287,6 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                             msg.role === 'user'
                               ? 'bg-brand text-brand-fg rounded-tr-sm'
                               : 'bg-surface-2 text-fg rounded-tl-sm',
-                            msg.error && 'bg-danger/10 text-danger',
                           )}
                         >
                           {msg.content}

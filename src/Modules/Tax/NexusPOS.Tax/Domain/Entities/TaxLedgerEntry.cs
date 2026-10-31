@@ -61,11 +61,3 @@ public static class LedgerTransactionType
     public const string PurchaseInvoice = "purchase_invoice";
     public const string ManualAdjustment = "manual_adjustment";
 }
-
-// Source documents a ledger entry was imported from (or recorded against).
-public static class LedgerReferenceType
-{
-    public const string SaleRecord = "SaleRecord";
-    public const string ReturnOrder = "ReturnOrder";
-    public const string ExpenseInvoice = "TaxExpenseInvoice";
-}

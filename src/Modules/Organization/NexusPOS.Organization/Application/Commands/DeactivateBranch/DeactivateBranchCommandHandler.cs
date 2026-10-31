@@ -30,12 +30,6 @@ internal sealed class DeactivateBranchCommandHandler(
             return OrganizationErrors.BranchNotFound;
         }
 
-        // Login falls back to the main branch, so it must stay active.
-        if (branch.IsMainBranch)
-        {
-            return OrganizationErrors.CannotDeactivateMainBranch;
-        }
-
         if (!branch.IsActive)
         {
             return Result.Success;

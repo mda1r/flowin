@@ -12,17 +12,6 @@ internal sealed class MenuItemRepository(RestaurantDbContext dbContext) : IMenuI
         => await dbContext.MenuItems
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<MenuItem>> FindByIdsAsync(
-        Guid branchId,
-        IReadOnlyCollection<Guid> ids,
-        CancellationToken cancellationToken = default)
-    {
-        List<MenuItemId> menuItemIds = [.. ids.Select(id => new MenuItemId(id))];
-        return await dbContext.MenuItems
-            .Where(e => e.BranchId == branchId && menuItemIds.Contains(e.Id))
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<IReadOnlyList<MenuItem>> FindByBranchAsync(
         Guid branchId,
         MenuCategory? category,

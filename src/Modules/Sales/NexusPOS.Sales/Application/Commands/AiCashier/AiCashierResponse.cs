@@ -3,8 +3,7 @@ namespace NexusPOS.Sales.Application.Commands.AiCashier;
 public sealed record AiCashierResponse(
     string Message,
     IReadOnlyList<AiCashierAction> Actions,
-    string State,
-    bool Corrected = false);
+    string State);
 
 public sealed record AiCashierAction(
     string Type,

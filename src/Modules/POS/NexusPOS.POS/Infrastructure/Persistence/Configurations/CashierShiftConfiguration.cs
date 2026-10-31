@@ -25,11 +25,8 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
         builder.Property(s => s.TotalSales).HasColumnName("total_sales").HasPrecision(18, 4);
         builder.Property(s => s.TotalCashSales).HasColumnName("total_cash_sales").HasPrecision(18, 4);
         builder.Property(s => s.TotalCardSales).HasColumnName("total_card_sales").HasPrecision(18, 4);
-        builder.Property(s => s.TotalDigitalSales).HasColumnName("total_digital_sales").HasPrecision(18, 4);
-        builder.Property(s => s.TotalCashRefunds).HasColumnName("total_cash_refunds").HasPrecision(18, 4);
         builder.Property(s => s.TotalTax).HasColumnName("total_tax").HasPrecision(18, 4);
         builder.Property(s => s.TotalOrders).HasColumnName("total_orders");
-        builder.Property(s => s.TotalRefunds).HasColumnName("total_refunds").HasPrecision(18, 4);
         builder.Property(s => s.ExpectedCash).HasColumnName("expected_cash").HasPrecision(18, 4);
         builder.Property(s => s.CashVariance).HasColumnName("cash_variance").HasPrecision(18, 4);
         builder.Property(s => s.ClosingCardCount).HasColumnName("closing_card_count").HasPrecision(18, 4);
@@ -37,11 +34,6 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
         builder.Property(s => s.Notes).HasColumnName("notes").HasMaxLength(1000);
         builder.Property(s => s.OpenedAt).HasColumnName("opened_at");
         builder.Property(s => s.ClosedAt).HasColumnName("closed_at");
-        builder.Property(s => s.ClosedByName).HasColumnName("closed_by_name").HasMaxLength(200);
-
-        // A cashier and a manager can close the same shift at once; Postgres' xmin makes the second save fail
-        // instead of overwriting the first close. It is a system column, so no table change is needed.
-        builder.Property<uint>("xmin").HasColumnName("xmin").IsRowVersion();
 
         builder.HasIndex(s => new { s.BranchId, s.UserId, s.Status })
             .HasDatabaseName("ix_cashier_shifts_branch_user_status");

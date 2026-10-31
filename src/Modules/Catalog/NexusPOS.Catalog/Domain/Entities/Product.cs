@@ -90,12 +90,11 @@ public sealed class Product : AggregateRoot<ProductId>
     public bool ApplyPurchaseCost(VariantId variantId, decimal unitCost, DateTime receivedAt)
         => Variants.FirstOrDefault(v => v.Id == variantId)?.ApplyPurchaseCost(unitCost, receivedAt) ?? false;
 
-    // A null tax class or image URL keeps the stored value, so older clients don't wipe them; an empty image URL clears it.
     public void Update(
         string name,
         string? description,
         CategoryId? categoryId,
-        TaxClass? taxClass,
+        TaxClass taxClass,
         bool trackInventory,
         string? imageUrl,
         UnitType unitType = UnitType.Piece)
@@ -103,48 +102,10 @@ public sealed class Product : AggregateRoot<ProductId>
         Name = name.Trim();
         Description = description?.Trim();
         CategoryId = categoryId;
-        TaxClass = taxClass ?? TaxClass;
+        TaxClass = taxClass;
         TrackInventory = trackInventory;
-        if (imageUrl is not null)
-        {
-            ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
-        }
-
+        ImageUrl = imageUrl?.Trim();
         UnitType = unitType;
-    }
-
-    // Switches one variant on or off; the last active variant can't be switched off (deactivate the product instead).
-    public ErrorOr<Success> SetVariantActive(VariantId variantId, bool isActive)
-    {
-        ProductVariant? variant = Variants.FirstOrDefault(v => v.Id == variantId);
-        if (variant is null)
-        {
-            return CatalogErrors.VariantNotFound;
-        }
-
-        if (variant.IsActive == isActive)
-        {
-            return Result.Success;
-        }
-
-        if (isActive)
-        {
-            if (!IsActive)
-            {
-                return CatalogErrors.ProductInactive;
-            }
-
-            variant.Activate();
-            return Result.Success;
-        }
-
-        if (!Variants.Any(v => v.IsActive && v.Id != variantId))
-        {
-            return CatalogErrors.LastActiveVariant;
-        }
-
-        variant.Deactivate();
-        return Result.Success;
     }
 
     public void Deactivate()

@@ -80,41 +80,4 @@ public sealed class SalesSummaryTests
         summary.TotalOrders.Should().Be(1);
         summary.TotalRevenue.Should().Be(0m);
     }
-
-    [Fact]
-    public void RecordReturn_TakesBackRevenueAndVat_KeepsOrderCount()
-    {
-        SalesSummary summary = SalesSummary.CreateForDate(_branchId, _today, "SAR");
-        summary.RecordSale(230m, 0m, 30m);
-
-        summary.RecordReturn(115m, 15m);
-
-        summary.TotalOrders.Should().Be(1);
-        summary.TotalRevenue.Should().Be(115m);
-        summary.TotalTax.Should().Be(15m);
-    }
-
-    [Fact]
-    public void RecordReturn_OnADayWithNoSales_GoesNegative()
-    {
-        SalesSummary summary = SalesSummary.CreateForDate(_branchId, _today, "SAR");
-
-        summary.RecordReturn(46m, 6m);
-
-        summary.TotalRevenue.Should().Be(-46m);
-        summary.TotalTax.Should().Be(-6m);
-    }
-
-    [Fact]
-    public void RecordReturn_FullRefund_RemovesRevenueAndTax()
-    {
-        SalesSummary summary = SalesSummary.CreateForDate(_branchId, _today, "SAR");
-
-        summary.RecordSale(115m, 0m, 15m);
-        summary.RecordReturn(115m, 15m);
-
-        summary.TotalRevenue.Should().Be(0m);
-        summary.TotalTax.Should().Be(0m);
-        summary.TotalOrders.Should().Be(1);
-    }
 }

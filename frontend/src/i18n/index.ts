@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { en } from './en'
 import { ar } from './ar'
 import type { Translations } from './en'
-import { setActiveLang } from '@/lib/locale'
 
 type Language = 'en' | 'ar'
 
@@ -27,8 +26,6 @@ const STORAGE_KEY = 'flowin_lang'
 export function useI18nState(): I18nContextValue {
   const stored = (localStorage.getItem(STORAGE_KEY) ?? 'ar') as Language
   const [lang, setLangState] = useState<Language>(stored)
-  // Set during render, before children format anything with the new language.
-  setActiveLang(lang)
 
   const setLang = (l: Language) => {
     localStorage.setItem(STORAGE_KEY, l)

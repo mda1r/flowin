@@ -3,24 +3,19 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NexusPOS.Restaurant.Application.Commands.AddOrderItems;
 using NexusPOS.Restaurant.Application.Commands.CancelRestaurantOrder;
 using NexusPOS.Restaurant.Application.Commands.CreateRestaurantOrder;
 using NexusPOS.Restaurant.Application.Commands.MarkItemReady;
 using NexusPOS.Restaurant.Application.Commands.MarkOrderReady;
 using NexusPOS.Restaurant.Application.Commands.PayOrder;
-using NexusPOS.Restaurant.Application.Commands.PayTable;
-using NexusPOS.Restaurant.Application.Commands.RemoveOrderItem;
 using NexusPOS.Restaurant.Application.Commands.ReturnToKitchen;
 using NexusPOS.Restaurant.Application.Commands.SendToKitchen;
 using NexusPOS.Restaurant.Application.Commands.ServeOrder;
 using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Application.Queries.ListActiveOrders;
-using NexusPOS.Restaurant.Application.Queries.ListKitchenOrders;
 using NexusPOS.Restaurant.Application.Queries.ListPaidOrders;
 using NexusPOS.Restaurant.Application.Queries.ListTableOrders;
 using NexusPOS.SharedKernel.Application;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Restaurant.Presentation;
 
@@ -30,7 +25,7 @@ namespace NexusPOS.Restaurant.Presentation;
 [Authorize]
 public sealed class RestaurantOrdersController(ISender mediator) : ControllerBase
 {
-    /// <summary>List the floor's open (non-paid, non-cancelled) table orders from the last day.</summary>
+    /// <summary>List all active (non-paid, non-cancelled) orders for a branch.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<RestaurantOrderResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListActiveOrders(
@@ -38,18 +33,6 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
         CancellationToken cancellationToken)
     {
         ListActiveOrdersQuery query = new(branchId);
-        ErrorOr<IReadOnlyList<RestaurantOrderResponse>> result = await mediator.Send(query, cancellationToken);
-        return result.Match(Ok, MapErrors);
-    }
-
-    /// <summary>List what the kitchen screen shows: pending, in-kitchen and ready orders from the last day.</summary>
-    [HttpGet("kitchen")]
-    [ProducesResponseType(typeof(IReadOnlyList<RestaurantOrderResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListKitchenOrders(
-        Guid branchId,
-        CancellationToken cancellationToken)
-    {
-        ListKitchenOrdersQuery query = new(branchId);
         ErrorOr<IReadOnlyList<RestaurantOrderResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrors);
     }
@@ -81,7 +64,7 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
         return result.Match(Ok, MapErrors);
     }
 
-    /// <summary>Create a new restaurant order, optionally sending it to the kitchen and paying it in the same call.</summary>
+    /// <summary>Create a new restaurant order.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(RestaurantOrderResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -90,57 +73,17 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
         [FromBody] CreateRestaurantOrderRequest request,
         CancellationToken cancellationToken)
     {
+        var items = request.Items
+            .Select(i => new OrderItemInput(i.MenuItemId, i.ItemName, i.Quantity, i.UnitPrice, i.Notes))
+            .ToList();
+
         CreateRestaurantOrderCommand command = new(
-            branchId,
-            request.TableNumber,
-            [.. request.Items.Select(i => new OrderItemInput(i.MenuItemId, i.Quantity, i.Notes))],
-            request.Notes,
-            request.DiscountCode,
-            request.SendToKitchen,
-            request.Payment is null ? null : new OrderPaymentInput(request.Payment.PaymentMethod, request.Payment.AmountTendered),
-            request.OrderId);
+            request.TenantId, branchId, request.TableNumber, items, request.Notes, request.DiscountCode);
 
         ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
             order => CreatedAtAction(nameof(ListActiveOrders), new { branchId }, order),
             MapErrors);
-    }
-
-    /// <summary>Add another round to an open order.</summary>
-    [HttpPost("{orderId:guid}/items")]
-    [ProducesResponseType(typeof(RestaurantOrderResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> AddOrderItems(
-        Guid branchId,
-        Guid orderId,
-        [FromBody] AddOrderItemsRequest request,
-        CancellationToken cancellationToken)
-    {
-        AddOrderItemsCommand command = new(
-            orderId,
-            branchId,
-            [.. request.Items.Select(i => new OrderItemInput(i.MenuItemId, i.Quantity, i.Notes))],
-            request.SendToKitchen);
-        ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
-        return result.Match(Ok, MapErrors);
-    }
-
-    /// <summary>Void one line the kitchen has not finished (managers only).</summary>
-    [HttpDelete("{orderId:guid}/items/{itemId:guid}")]
-    [Authorize(Policy = "OwnerOrManager")]
-    [ProducesResponseType(typeof(RestaurantOrderResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> RemoveOrderItem(
-        Guid branchId,
-        Guid orderId,
-        Guid itemId,
-        CancellationToken cancellationToken)
-    {
-        RemoveOrderItemCommand command = new(orderId, itemId, branchId);
-        ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
-        return result.Match(Ok, MapErrors);
     }
 
     /// <summary>Send order to kitchen.</summary>
@@ -234,66 +177,57 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
         return result.Match(Ok, MapErrors);
     }
 
-    /// <summary>Pay every open order of a table at once.</summary>
-    [HttpPost("pay-table")]
-    [ProducesResponseType(typeof(IReadOnlyList<RestaurantOrderResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> PayTable(
-        Guid branchId,
-        [FromBody] PayTableRequest request,
-        CancellationToken cancellationToken)
-    {
-        PayTableCommand command = new(
-            branchId, request.TableNumber, request.OrderIds, request.PaymentMethod, request.AmountTendered);
-        ErrorOr<IReadOnlyList<RestaurantOrderResponse>> result = await mediator.Send(command, cancellationToken);
-        return result.Match(Ok, MapErrors);
-    }
-
-    /// <summary>Cancel an unpaid order with a reason (managers only).</summary>
+    /// <summary>Cancel an order.</summary>
     [HttpPost("{orderId:guid}/cancel")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RestaurantOrderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CancelOrder(
         Guid branchId,
         Guid orderId,
-        [FromBody] CancelOrderRequest request,
         CancellationToken cancellationToken)
     {
-        CancelRestaurantOrderCommand command = new(orderId, branchId, request.Reason);
+        CancelRestaurantOrderCommand command = new(orderId, branchId);
         ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 
-    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
+    private IActionResult MapErrors(List<Error> errors)
+    {
+        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
+        {
+            ValidationProblemDetails problemDetails = new();
+            foreach (Error error in errors)
+            {
+                problemDetails.Errors[error.Code] = [error.Description];
+            }
+            return ValidationProblem(problemDetails);
+        }
+
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+    }
 }
 
-// The dish's name and price come from the menu; the tenant comes from the signed-in user.
 public sealed record CreateOrderItemRequest(
     Guid MenuItemId,
+    string ItemName,
     int Quantity,
+    decimal UnitPrice,
     string? Notes);
 
 public sealed record CreateRestaurantOrderRequest(
+    Guid TenantId,
     int TableNumber,
     IReadOnlyList<CreateOrderItemRequest> Items,
     string? Notes,
-    string? DiscountCode,
-    bool SendToKitchen = false,
-    PayOrderRequest? Payment = null,
-    Guid? OrderId = null);
-
-public sealed record AddOrderItemsRequest(IReadOnlyList<CreateOrderItemRequest> Items, bool SendToKitchen = true);
+    string? DiscountCode);
 
 public sealed record PayOrderRequest(string PaymentMethod, decimal AmountTendered);
-
-public sealed record PayTableRequest(
-    int TableNumber,
-    IReadOnlyList<Guid> OrderIds,
-    string PaymentMethod,
-    decimal AmountTendered);
-
-public sealed record CancelOrderRequest(string Reason);

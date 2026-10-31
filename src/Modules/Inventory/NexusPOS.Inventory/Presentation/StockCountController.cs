@@ -3,7 +3,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NexusPOS.Inventory.Application.Commands.CancelStockCountSession;
 using NexusPOS.Inventory.Application.Commands.CompleteStockCountSession;
 using NexusPOS.Inventory.Application.Commands.CreateStockCountSession;
 using NexusPOS.Inventory.Application.Commands.SaveStockCountItems;
@@ -11,7 +10,6 @@ using NexusPOS.Inventory.Application.Common;
 using NexusPOS.Inventory.Application.Queries.GetStockCountSession;
 using NexusPOS.Inventory.Application.Queries.ListStockCountSessions;
 using NexusPOS.Inventory.Presentation.Requests;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Inventory.Presentation;
 
@@ -49,11 +47,9 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    /// <summary>Create a new stock count session from the branch's current stock.</summary>
+    /// <summary>Create a new stock count session.</summary>
     [HttpPost]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockCountSessionResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CreateSession(
         Guid branchId,
@@ -65,7 +61,10 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
             request.Type,
             request.PeriodStart,
             request.PeriodEnd,
-            request.Notes);
+            request.Notes,
+            request.Items
+                .Select(i => new CreateStockCountSessionItemInput(i.StockItemId, i.VariantId, i.SystemQuantity, i.UnitCost))
+                .ToList());
 
         ErrorOr<StockCountSessionResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -99,7 +98,6 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
 
     /// <summary>Complete a stock count session, optionally auto-adjusting stock quantities.</summary>
     [HttpPost("{sessionId:guid}/complete")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockCountSessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -115,22 +113,28 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    /// <summary>Cancel an open stock count session without changing stock.</summary>
-    [HttpPost("{sessionId:guid}/cancel")]
-    [Authorize(Policy = "OwnerOrManager")]
-    [ProducesResponseType(typeof(StockCountSessionResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> CancelSession(
-        Guid branchId,
-        Guid sessionId,
-        CancellationToken cancellationToken = default)
+    private IActionResult MapErrorsToResult(List<Error> errors)
     {
-        CancelStockCountSessionCommand command = new(branchId, sessionId);
-        ErrorOr<StockCountSessionResponse> result = await mediator.Send(command, cancellationToken);
+        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
+        {
+            ValidationProblemDetails problemDetails = new();
+            foreach (Error error in errors)
+            {
+                problemDetails.Errors[error.Code] = [error.Description];
+            }
 
-        return result.Match(Ok, MapErrorsToResult);
+            return ValidationProblem(problemDetails);
+        }
+
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
     }
-
-    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

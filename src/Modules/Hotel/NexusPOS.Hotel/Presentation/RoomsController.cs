@@ -10,8 +10,6 @@ using NexusPOS.Hotel.Application.Common;
 using NexusPOS.Hotel.Application.Queries.GetRoom;
 using NexusPOS.Hotel.Application.Queries.ListRooms;
 using NexusPOS.Hotel.Domain.Enums;
-using NexusPOS.SharedKernel.Application;
-using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Hotel.Presentation;
 
@@ -31,7 +29,7 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListRoomsQuery query = new(branchId, roomType, status, Paging.Page(page), Paging.Size(pageSize, 500));
+        ListRoomsQuery query = new(branchId, roomType, status, page, pageSize);
         ErrorOr<IReadOnlyList<RoomResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -47,7 +45,6 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -56,14 +53,8 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
         [FromBody] CreateRoomRequest request,
         CancellationToken cancellationToken)
     {
-        // The tenant always comes from the caller's token, never from the request body.
-        if (!Guid.TryParse(User.FindFirst("tenant_id")?.Value, out Guid tenantId) || tenantId == Guid.Empty)
-        {
-            return Forbid();
-        }
-
         CreateRoomCommand command = new(
-            tenantId, branchId, request.RoomType, request.RoomNumber,
+            request.TenantId, branchId, request.RoomType, request.RoomNumber,
             request.Floor, request.Capacity, request.NightlyRate, request.Currency,
             request.Description);
         ErrorOr<RoomResponse> result = await mediator.Send(command, cancellationToken);
@@ -73,7 +64,6 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
     }
 
     [HttpPatch("{roomId:guid}/status")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -89,7 +79,6 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("{roomId:guid}")]
-    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(RoomResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateRoom(
@@ -102,10 +91,22 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
+    private IActionResult MapErrorsToResult(List<Error> errors)
+    {
+        Error first = errors[0];
+        int statusCode = first.Type switch
+        {
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
+    }
 }
 
 public sealed record CreateRoomRequest(
+    Guid TenantId,
     RoomType RoomType,
     string RoomNumber,
     int Floor,

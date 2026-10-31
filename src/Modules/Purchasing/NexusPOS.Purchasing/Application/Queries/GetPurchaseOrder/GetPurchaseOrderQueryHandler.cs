@@ -8,9 +8,7 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Purchasing.Application.Queries.GetPurchaseOrder;
 
-internal sealed class GetPurchaseOrderQueryHandler(
-    IPurchaseOrderRepository purchaseOrderRepository,
-    ISupplierRepository supplierRepository)
+internal sealed class GetPurchaseOrderQueryHandler(IPurchaseOrderRepository purchaseOrderRepository)
     : IQueryHandler<GetPurchaseOrderQuery, PurchaseOrderResponse>
 {
     public async Task<ErrorOr<PurchaseOrderResponse>> Handle(
@@ -25,7 +23,6 @@ internal sealed class GetPurchaseOrderQueryHandler(
             return PurchasingErrors.PurchaseOrderNotFound;
         }
 
-        Supplier? supplier = await supplierRepository.FindByIdAsync(order.SupplierId, cancellationToken);
-        return PurchasingMapper.ToResponse(order, supplier?.Name);
+        return PurchasingMapper.ToResponse(order);
     }
 }
