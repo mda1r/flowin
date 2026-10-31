@@ -9,26 +9,31 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { InvoiceReceiptModal } from '@/components/pos/InvoiceReceiptModal'
 import { FlowinLogo } from '@/components/brand/Brand'
 import { invoiceNo } from '@/lib/invoiceNumber'
-import { paymentLabel } from '@/lib/orderReceipt'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { printElement } from '@/lib/print'
+import { useI18n } from '@/i18n'
+import type { Translations } from '@/i18n/en'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
-import { intlLocale } from '@/lib/locale'
+import { fmtDate, fmtDateTime, fmtNum, fmtTime } from '@/lib/locale'
 
 type Period = '7d' | '30d' | 'all'
 
-const n = (v: number) => v.toLocaleString(intlLocale())
-const time = (iso: string) => new Date(iso).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })
-const day = (iso: string) => new Date(iso).toLocaleDateString(intlLocale(), { weekday: 'short', day: 'numeric', month: 'short' })
+type T = Translations['shiftReports']
 
-// "3 س 20 د", or "2 يوم 4 س" for shifts left open past a day.
-function duration(fromIso: string, toIso?: string | null) {
+const n = (v: number) => fmtNum(v)
+const time = (iso: string) => fmtTime(iso)
+const day = (iso: string) => fmtDate(iso, { weekday: 'short', day: 'numeric', month: 'short' })
+const fill = (s: string, vars: Record<string, string | number>) =>
+  Object.entries(vars).reduce((a, [k, v]) => a.replace(`{${k}}`, typeof v === 'number' ? n(v) : v), s)
+
+// "3h 20m", or "2d 4h" for shifts left open past a day.
+function duration(t: T, fromIso: string, toIso?: string | null) {
   const ms = (toIso ? new Date(toIso).getTime() : Date.now()) - new Date(fromIso).getTime()
   const mins = Math.max(0, Math.floor(ms / 60_000))
   const d = Math.floor(mins / 1440)
   const h = Math.floor((mins % 1440) / 60)
   const m = mins % 60
-  return d > 0 ? `${n(d)} يوم ${n(h)} س` : `${n(h)} س ${n(m)} د`
+  return d > 0 ? fill(t.durationDH, { d, h }) : fill(t.durationHM, { h, m })
 }
 
 const LONG_OPEN_HOURS = 16
@@ -46,6 +51,8 @@ function reconcile(s: ShiftResponse) {
 
 export function ShiftReportsPage() {
   const { branchId } = useAuthStore()
+  const { t: tr, isRtl } = useI18n()
+  const t = tr.shiftReports
   const [period, setPeriod] = useState<Period>('7d')
   const [cashier, setCashier] = useState('all')
 
@@ -89,20 +96,20 @@ export function ShiftReportsPage() {
   }, [closed])
 
   return (
-    <div dir="rtl">
-      <PageHeader title="تقارير الشفتات" description="مطابقة الدرج، أداء كل شفت، وتقرير الإقفال للطباعة" icon={<FileText className="h-5 w-5" />} />
+    <div>
+      <PageHeader title={t.title} description={t.description} icon={<FileText className="h-5 w-5" />} />
 
       <div className="space-y-5 p-4 sm:p-6">
         {current && (
-          <section aria-label="الشفت الحالي">
-            <p className="mb-2 text-xs font-semibold text-brand-ink">الشفت الحالي</p>
-            <ShiftCard shift={current} returns={returns} isCurrent />
+          <section aria-label={t.currentShift}>
+            <p className="mb-2 text-xs font-semibold text-brand-ink">{t.currentShift}</p>
+            <ShiftCard t={t} isRtl={isRtl} shift={current} returns={returns} isCurrent />
           </section>
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-xl border border-border bg-surface p-1" role="tablist" aria-label="الفترة">
-            {([['7d', '7 أيام'], ['30d', '30 يوم'], ['all', 'الكل']] as const).map(([k, label]) => (
+          <div className="flex gap-1 rounded-xl border border-border bg-surface p-1" role="tablist" aria-label={t.period}>
+            {([['7d', t.periods.d7], ['30d', t.periods.d30], ['all', t.periods.all]] as const).map(([k, label]) => (
               <button key={k} role="tab" aria-selected={period === k} onClick={() => setPeriod(k)}
                 className={cn('rounded-lg px-3 py-1.5 text-sm font-medium transition-colors', period === k ? 'bg-brand text-brand-fg' : 'text-muted hover:bg-surface-2 hover:text-fg')}>
                 {label}
@@ -110,19 +117,19 @@ export function ShiftReportsPage() {
             ))}
           </div>
           {cashiers.length > 1 && (
-            <select className="input w-auto" value={cashier} onChange={(e) => setCashier(e.target.value)} aria-label="الكاشير">
-              <option value="all">كل الكاشيرية</option>
+            <select className="input w-auto" value={cashier} onChange={(e) => setCashier(e.target.value)} aria-label={t.cashier}>
+              <option value="all">{t.allCashiers}</option>
               {cashiers.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Summary label="شفتات مغلقة" value={n(closed.length)} />
-          <Summary label="مبيعات الشفتات" value={formatCurrency(totals.sales)} strong />
-          <Summary label="الفواتير" value={n(totals.orders)} />
+          <Summary label={t.closedShifts} value={n(closed.length)} />
+          <Summary label={t.shiftSales} value={formatCurrency(totals.sales)} strong />
+          <Summary label={t.invoices} value={n(totals.orders)} />
           <Summary
-            label={totals.deficits ? `صافي الفروقات · ${n(totals.deficits)} بعجز` : 'صافي الفروقات'}
+            label={totals.deficits ? `${t.netVariance} · ${fill(t.nShort, { n: totals.deficits })}` : t.netVariance}
             value={`${totals.variance > 0 ? '+' : ''}${formatCurrency(totals.variance)}`}
             tone={totals.variance < 0 ? 'danger' : totals.variance > 0 ? 'success' : undefined}
           />
@@ -135,11 +142,11 @@ export function ShiftReportsPage() {
         ) : closed.length === 0 ? (
           <div className="flex min-h-[25vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-center">
             <Clock className="h-10 w-10 text-muted/50" />
-            <p className="text-muted">لا توجد شفتات مغلقة في هذه الفترة</p>
+            <p className="text-muted">{t.noClosedShifts}</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {closed.map((s) => <ShiftCard key={s.id} shift={s} returns={returns} />)}
+            {closed.map((s) => <ShiftCard key={s.id} t={t} isRtl={isRtl} shift={s} returns={returns} />)}
           </div>
         )}
       </div>
@@ -162,7 +169,7 @@ function liveTotals(shift: ShiftResponse, orders: OrderResponse[]): ShiftRespons
   }
 }
 
-function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: ShiftResponse; returns: ReturnOrderResponse[]; isCurrent?: boolean }) {
+function ShiftCard({ t, isRtl, shift: stored, returns, isCurrent = false }: { t: T; isRtl: boolean; shift: ShiftResponse; returns: ReturnOrderResponse[]; isCurrent?: boolean }) {
   const { branchId } = useAuthStore()
   const [expanded, setExpanded] = useState(false)
   const [wantPrint, setWantPrint] = useState(false)
@@ -224,18 +231,18 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
             <p className="mt-0.5 text-xs text-muted">
               {day(shift.openedAt)} · {time(shift.openedAt)}
               {shift.closedAt && ` — ${day(shift.closedAt) !== day(shift.openedAt) ? day(shift.closedAt) + ' ' : ''}${time(shift.closedAt)}`}
-              {' · '}{duration(shift.openedAt, shift.closedAt)}
+              {' · '}{duration(t, shift.openedAt, shift.closedAt)}
             </p>
           </div>
           {isCurrent ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-ink">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-strong motion-reduce:animate-none" />
-              مفتوح
+              {t.status.open}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs text-muted">
               <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-              مغلق
+              {t.status.closed}
             </span>
           )}
         </div>
@@ -243,24 +250,24 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
         {isCurrent && openHours > LONG_OPEN_HOURS && (
           <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            الشفت مفتوح منذ {duration(shift.openedAt)}. أغلقه وطابق الدرج في نهاية كل يوم حتى تصح التقارير.
+            {fill(t.longOpen, { d: duration(t, shift.openedAt) })}
           </p>
         )}
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Cell label="المبيعات" value={formatCurrency(shift.totalSales)} strong />
-          <Cell label="الفواتير" value={n(shift.totalOrders)} />
-          <Cell label="متوسط الفاتورة" value={formatCurrency(avg)} />
-          <Cell label="الضريبة" value={formatCurrency(shift.totalTax)} />
+          <Cell label={t.sales} value={formatCurrency(shift.totalSales)} strong />
+          <Cell label={t.invoices} value={n(shift.totalOrders)} />
+          <Cell label={t.avgInvoice} value={formatCurrency(avg)} />
+          <Cell label={t.tax} value={formatCurrency(shift.totalTax)} />
         </div>
 
         {shift.totalSales > 0 && (
           <div className="mt-4">
             <div className="mb-1 flex justify-between text-xs text-muted">
-              <span>نقداً {formatCurrency(shift.totalCashSales)}</span>
-              <span>بطاقة {formatCurrency(shift.totalCardSales)}</span>
+              <span>{fill(t.cashAmount, { v: formatCurrency(shift.totalCashSales) })}</span>
+              <span>{fill(t.cardAmount, { v: formatCurrency(shift.totalCardSales) })}</span>
             </div>
-            <div className="flex h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`نقداً ${Math.round(cashShare)}٪`}>
+            <div className="flex h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={fill(t.cashShare, { n: Math.round(cashShare) })}>
               <div className="h-full bg-brand-strong" style={{ width: `${cashShare}%` }} />
               <div className="h-full flex-1 bg-fg/25" />
             </div>
@@ -272,24 +279,24 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
           <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="text-xs text-muted">
-                <th className="py-1.5 text-start font-medium">المطابقة</th>
-                <th className="py-1.5 text-end font-medium">المتوقع</th>
-                <th className="py-1.5 text-end font-medium">المعدود</th>
-                <th className="py-1.5 text-end font-medium">الفرق</th>
+                <th className="py-1.5 text-start font-medium">{t.reconciliation}</th>
+                <th className="py-1.5 text-end font-medium">{t.expected}</th>
+                <th className="py-1.5 text-end font-medium">{t.counted}</th>
+                <th className="py-1.5 text-end font-medium">{t.difference}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               <tr>
-                <td className="py-2 text-fg">النقد في الدرج <span className="text-xs text-muted">(عهدة {formatCurrency(shift.openingCash)} + مبيعات نقدية)</span></td>
+                <td className="py-2 text-fg">{t.cashInDrawer} <span className="text-xs text-muted">{fill(t.cashInDrawerHint, { v: formatCurrency(shift.openingCash) })}</span></td>
                 <td className="py-2 text-end tabular-nums">{formatCurrency(r.expectedCash)}</td>
                 <td className="py-2 text-end tabular-nums">{r.countedCash != null ? formatCurrency(r.countedCash) : '—'}</td>
-                <td className="py-2 text-end"><Variance v={r.cashVariance} /></td>
+                <td className="py-2 text-end"><Variance t={t} v={r.cashVariance} /></td>
               </tr>
               <tr>
-                <td className="py-2 text-fg">البطاقات <span className="text-xs text-muted">(جهاز الشبكة)</span></td>
+                <td className="py-2 text-fg">{t.cards} <span className="text-xs text-muted">{t.cardsHint}</span></td>
                 <td className="py-2 text-end tabular-nums">{formatCurrency(shift.totalCardSales)}</td>
                 <td className="py-2 text-end tabular-nums">{r.countedCard != null ? formatCurrency(r.countedCard) : '—'}</td>
-                <td className="py-2 text-end"><Variance v={r.cardVariance} /></td>
+                <td className="py-2 text-end"><Variance t={t} v={r.cardVariance} /></td>
               </tr>
             </tbody>
           </table>
@@ -300,10 +307,10 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
             {refundsInShift.count > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-2.5 py-1 text-danger">
                 <RotateCcw className="h-3 w-3" />
-                {n(refundsInShift.count)} مرتجع · {formatCurrency(refundsInShift.amount)}
+                {fill(t.nRefunds, { n: refundsInShift.count })} · {formatCurrency(refundsInShift.amount)}
               </span>
             )}
-            {shift.notes && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-muted">ملاحظة: {shift.notes}</span>}
+            {shift.notes && <span className="rounded-full bg-surface-2 px-2.5 py-1 text-muted">{t.note}: {shift.notes}</span>}
           </div>
         )}
       </div>
@@ -315,7 +322,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
           className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-fg hover:bg-surface-2"
         >
           <Printer className="h-3.5 w-3.5" />
-          {wantPrint ? 'جارٍ التجهيز…' : isCurrent ? 'طباعة تقرير منتصف الشفت (X)' : 'طباعة تقرير الإقفال (Z)'}
+          {wantPrint ? t.preparing : isCurrent ? t.printX : t.printZ}
         </button>
         <button
           type="button"
@@ -323,7 +330,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
           aria-expanded={expanded}
           className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-muted hover:bg-surface-2 hover:text-fg"
         >
-          {expanded ? 'إخفاء التفاصيل' : 'الفواتير والأكثر مبيعاً'}
+          {expanded ? t.hideDetails : t.showDetails}
           <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
         </button>
       </div>
@@ -333,12 +340,12 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
           <div>
             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted">
               <Receipt className="h-3.5 w-3.5" />
-              الفواتير ({n(orders.length)})
+              {t.invoices} ({n(orders.length)})
             </p>
             {isLoading ? (
               <div className="flex justify-center py-6"><div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-brand" /></div>
             ) : orders.length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted">لا توجد فواتير في هذا الشفت</p>
+              <p className="py-4 text-center text-xs text-muted">{t.noOrdersInShift}</p>
             ) : (
               <ul className="max-h-80 space-y-1.5 overflow-y-auto">
                 {orders.map((o) => (
@@ -351,8 +358,8 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
                       <span className="flex min-w-0 items-center gap-2">
                         <bdi dir="ltr" className="font-display font-semibold tabular-nums text-fg">#{invoiceNo(o)}</bdi>
                         <span className="text-muted tabular-nums">{time(o.completedAt ?? o.createdAt)}</span>
-                        <span className="rounded-full bg-surface px-1.5 py-0.5 text-muted">{paymentLabel(o.paymentMethod)}</span>
-                        <span className="truncate text-muted">{o.lines.map((l) => l.productName).join('، ')}</span>
+                        <span className="rounded-full bg-surface px-1.5 py-0.5 text-muted">{t.payments[o.paymentMethod as keyof T['payments']] ?? o.paymentMethod ?? '—'}</span>
+                        <span className="truncate text-muted">{o.lines.map((l) => l.productName).join(t.listSeparator)}</span>
                       </span>
                       <span className="shrink-0 font-semibold tabular-nums text-fg">{formatCurrency(o.totalAmount)}</span>
                     </button>
@@ -362,7 +369,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
             )}
           </div>
           <div>
-            <p className="mb-2 text-xs font-semibold text-muted">الأكثر مبيعاً في الشفت</p>
+            <p className="mb-2 text-xs font-semibold text-muted">{t.topInShift}</p>
             {topProducts.length === 0 ? (
               <p className="text-xs text-muted">—</p>
             ) : (
@@ -382,7 +389,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
 
       {/* the printable Z/X report, laid out like a receipt */}
       <div className="hidden">
-        <ShiftReportDocument id={`z-report-${shift.id}`} shift={shift} topProducts={topProducts} refunds={refundsInShift} isCurrent={isCurrent} />
+        <ShiftReportDocument t={t} isRtl={isRtl} id={`z-report-${shift.id}`} shift={shift} topProducts={topProducts} refunds={refundsInShift} isCurrent={isCurrent} />
       </div>
 
       {selected && <InvoiceReceiptModal order={selected} onClose={() => setSelected(null)} />}
@@ -390,7 +397,9 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
   )
 }
 
-function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent }: {
+function ShiftReportDocument({ t, isRtl, id, shift, topProducts, refunds, isCurrent }: {
+  t: T
+  isRtl: boolean
   id: string
   shift: ShiftResponse
   topProducts: { name: string; qty: number; total: number }[]
@@ -405,54 +414,54 @@ function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent }: {
   )
   const v = (x: number | null) => (x == null ? '—' : `${x > 0 ? '+' : ''}${formatCurrency(x)}`)
   return (
-    <div id={id} className="receipt-paper scheme-light bg-surface text-fg" data-paper={settings.paperWidthMm} dir="rtl">
+    <div id={id} className="receipt-paper scheme-light bg-surface text-fg" data-paper={settings.paperWidthMm} dir={isRtl ? 'rtl' : 'ltr'}>
       <header className="receipt-center">
         {settings.logoPath && <img src={settings.logoPath} alt="" className="receipt-logo" />}
         {sellerName && <p className="receipt-store">{sellerName}</p>}
-        {vatNumber && <p className="receipt-small">الرقم الضريبي: {vatNumber}</p>}
+        {vatNumber && <p className="receipt-small">{t.vatNumber}: {vatNumber}</p>}
       </header>
       <hr className="receipt-rule" />
       <div className="receipt-center">
-        <p className="receipt-title">{isCurrent ? 'تقرير منتصف الشفت (X)' : 'تقرير إقفال الشفت (Z)'}</p>
+        <p className="receipt-title">{isCurrent ? t.reportX : t.reportZ}</p>
         <p className="receipt-small">{shift.cashierName}</p>
         <p className="receipt-small">
-          {new Date(shift.openedAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' })}
-          {shift.closedAt && ` — ${new Date(shift.closedAt).toLocaleString(intlLocale(), { timeStyle: 'short' })}`}
+          {fmtDateTime(shift.openedAt)}
+          {shift.closedAt && ` — ${fmtDateTime(shift.closedAt, { timeStyle: 'short' })}`}
         </p>
-        <p className="receipt-small">المدة: {duration(shift.openedAt, shift.closedAt)}</p>
+        <p className="receipt-small">{t.duration}: {duration(t, shift.openedAt, shift.closedAt)}</p>
       </div>
       <hr className="receipt-rule" />
       <div className="receipt-totals">
-        {row('عدد الفواتير', n(shift.totalOrders))}
-        {row('مبيعات نقدية', formatCurrency(shift.totalCashSales))}
-        {row('مبيعات بطاقة', formatCurrency(shift.totalCardSales))}
-        {refunds.count > 0 && row(`المرتجعات (${n(refunds.count)})`, `−${formatCurrency(refunds.amount)}`)}
-        {row('ضريبة القيمة المضافة', formatCurrency(shift.totalTax))}
-        <div className="receipt-row receipt-total"><span>إجمالي المبيعات</span><span className="tabular-nums">{formatCurrency(shift.totalSales)}</span></div>
+        {row(t.invoices, n(shift.totalOrders))}
+        {row(t.cashSales, formatCurrency(shift.totalCashSales))}
+        {row(t.cardSales, formatCurrency(shift.totalCardSales))}
+        {refunds.count > 0 && row(fill(t.refundsN, { n: refunds.count }), `−${formatCurrency(refunds.amount)}`)}
+        {row(t.tax, formatCurrency(shift.totalTax))}
+        <div className="receipt-row receipt-total"><span>{t.totalSales}</span><span className="tabular-nums">{formatCurrency(shift.totalSales)}</span></div>
       </div>
       <hr className="receipt-rule" />
-      <p className="receipt-title">مطابقة الدرج</p>
+      <p className="receipt-title">{t.drawerMatching}</p>
       <div className="receipt-totals">
-        {row('عهدة الافتتاح', formatCurrency(shift.openingCash))}
-        {row('النقد المتوقع', formatCurrency(r.expectedCash))}
-        {row('النقد المعدود', r.countedCash != null ? formatCurrency(r.countedCash) : '—')}
-        {row('فرق النقد', v(r.cashVariance))}
-        {row('البطاقات المسجلة', r.countedCard != null ? formatCurrency(r.countedCard) : '—')}
-        {row('فرق البطاقات', v(r.cardVariance))}
+        {row(t.openingFloat, formatCurrency(shift.openingCash))}
+        {row(t.expectedCash, formatCurrency(r.expectedCash))}
+        {row(t.countedCash, r.countedCash != null ? formatCurrency(r.countedCash) : '—')}
+        {row(t.cashVariance, v(r.cashVariance))}
+        {row(t.cardsRecorded, r.countedCard != null ? formatCurrency(r.countedCard) : '—')}
+        {row(t.cardVariance, v(r.cardVariance))}
       </div>
       {topProducts.length > 0 && (
         <>
           <hr className="receipt-rule" />
-          <p className="receipt-title">الأكثر مبيعاً</p>
+          <p className="receipt-title">{t.bestSellers}</p>
           <div className="receipt-totals">
             {topProducts.map((p) => row(`${p.name} ×${n(p.qty)}`, formatCurrency(p.total)))}
           </div>
         </>
       )}
-      {shift.notes && <p className="receipt-note">ملاحظة: {shift.notes}</p>}
+      {shift.notes && <p className="receipt-note">{t.note}: {shift.notes}</p>}
       <hr className="receipt-rule" />
-      <p className="receipt-small receipt-center">طُبع {new Date().toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' })}</p>
-      <p className="receipt-small receipt-center" style={{ marginTop: '0.8rem' }}>توقيع الكاشير ____________</p>
+      <p className="receipt-small receipt-center">{fill(t.printedAt, { v: fmtDateTime(new Date()) })}</p>
+      <p className="receipt-small receipt-center" style={{ marginTop: '0.8rem' }}>{t.cashierSignature} ____________</p>
       {settings.showPoweredBy && <div className="receipt-powered"><FlowinLogo tone="mono" className="h-3" /></div>}
     </div>
   )
@@ -476,13 +485,13 @@ function Cell({ label, value, strong }: { label: string; value: string; strong?:
   )
 }
 
-function Variance({ v }: { v: number | null }) {
+function Variance({ t, v }: { t: T; v: number | null }) {
   if (v == null) return <span className="text-muted">—</span>
-  if (Math.abs(v) < 0.005) return <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><CheckCircle2 className="h-3.5 w-3.5" />مطابق</span>
+  if (Math.abs(v) < 0.005) return <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><CheckCircle2 className="h-3.5 w-3.5" />{t.balanced}</span>
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', v < 0 ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success')}>
       {v < 0 && <AlertTriangle className="h-3 w-3" />}
-      {v < 0 ? 'عجز' : 'فائض'} {formatCurrency(Math.abs(v))}
+      {v < 0 ? t.deficit : t.surplus} {formatCurrency(Math.abs(v))}
     </span>
   )
 }
