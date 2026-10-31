@@ -14,7 +14,7 @@ namespace NexusPOS.POS.Presentation;
 [ApiController]
 [Route("api/v1/activity-logs")]
 [Produces("application/json")]
-[Authorize]
+[Authorize(Policy = "TenantUser")]
 public sealed class ActivityLogsController(ISender mediator) : ControllerBase
 {
     private Guid CurrentUserId =>
@@ -59,18 +59,27 @@ public sealed class ActivityLogsController(ISender mediator) : ControllerBase
             errors => Problem(title: errors[0].Code, detail: errors[0].Description));
     }
 
-    /// <summary>List activity logs for the authenticated tenant (schema-isolated).</summary>
+    /// <summary>
+    /// List activity logs for the authenticated tenant (schema-isolated). Owner/Manager only:
+    /// the trail covers shifts, stock changes and staff edits.
+    /// </summary>
+    /// <remarks>
+    /// <c>branchId</c> also returns tenant-wide entries (no branch). <c>from</c>/<c>to</c> accept an
+    /// offset (e.g. 2026-10-31T00:00:00+03:00) so "today" means the shop's local day.
+    /// </remarks>
     [HttpGet]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(IReadOnlyList<ActivityLogResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActivityLogs(
         [FromQuery] Guid? branchId,
         [FromQuery] string? category,
-        [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
         [FromQuery] int pageSize = 500,
+        [FromQuery] int skip = 0,
         CancellationToken cancellationToken = default)
     {
-        GetActivityLogsQuery query = new(branchId, category, from, to, pageSize);
+        GetActivityLogsQuery query = new(branchId, category, from?.UtcDateTime, to?.UtcDateTime, pageSize, skip);
         ErrorOr<IReadOnlyList<ActivityLogResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, errors => Problem(title: errors[0].Code, detail: errors[0].Description));

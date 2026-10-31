@@ -47,9 +47,18 @@ internal sealed class CreateUserCommandHandler(
                 $"وصلت للحد الأقصى للمستخدمين ({maxUsers.Value}). ترقية الاشتراك مطلوبة.");
         }
 
-        if (!Enum.TryParse<UserRole>(request.Role, out UserRole role) || role == UserRole.SuperAdmin)
+        ErrorOr<UserRole> roleResult = UserManagementRules.ParseAssignableRole(request.Role);
+        if (roleResult.IsError)
         {
-            return Error.Validation("User.InvalidRole", "الدور غير صالح");
+            return roleResult.Errors;
+        }
+        UserRole role = roleResult.Value;
+
+        // A Manager must not be able to mint an Owner account and take over the shop.
+        ErrorOr<Success> canAssign = UserManagementRules.CanAssign(request.CallerRoles, role);
+        if (canAssign.IsError)
+        {
+            return canAssign.Errors;
         }
 
         User user = User.Create(emailResult.Value, request.FirstName, request.LastName, request.TenantId);
@@ -62,15 +71,6 @@ internal sealed class CreateUserCommandHandler(
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new UserSummaryResponse(
-            user.Id.Value,
-            user.Email.Value,
-            user.FirstName,
-            user.LastName,
-            user.FullName,
-            user.Roles.Select(r => r.ToString()).ToList(),
-            user.IsActive,
-            user.CreatedAt,
-            null);
+        return user.ToSummary();
     }
 }

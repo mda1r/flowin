@@ -11,15 +11,26 @@ namespace NexusPOS.POS.Application.Queries.GetActivityLogs;
 internal sealed class GetActivityLogsQueryHandler(PosDbContext dbContext)
     : IQueryHandler<GetActivityLogsQuery, IReadOnlyList<ActivityLogResponse>>
 {
+    internal const int MaxPageSize = 500;
+    internal const int DefaultPageSize = 200;
+
     public async Task<ErrorOr<IReadOnlyList<ActivityLogResponse>>> Handle(
         GetActivityLogsQuery request,
         CancellationToken cancellationToken)
     {
-        IQueryable<ActivityLog> query = dbContext.ActivityLogs.AsNoTracking();
+        List<ActivityLog> logs = await Apply(dbContext.ActivityLogs.AsNoTracking(), request)
+            .ToListAsync(cancellationToken);
 
+        return logs.Select(LogActivityCommandHandler.ToResponse).ToList();
+    }
+
+    /// <summary>Filters, orders (newest first) and pages the log rows.</summary>
+    internal static IQueryable<ActivityLog> Apply(IQueryable<ActivityLog> query, GetActivityLogsQuery request)
+    {
         if (request.BranchId.HasValue)
         {
-            query = query.Where(l => l.BranchId == request.BranchId);
+            // Tenant-wide entries (user management, settings) carry no branch; show them in every branch.
+            query = query.Where(l => l.BranchId == request.BranchId || l.BranchId == null);
         }
 
         if (!string.IsNullOrEmpty(request.Category))
@@ -37,11 +48,11 @@ internal sealed class GetActivityLogsQueryHandler(PosDbContext dbContext)
             query = query.Where(l => l.OccurredAt <= request.To.Value);
         }
 
-        List<ActivityLog> logs = await query
-            .OrderByDescending(l => l.OccurredAt)
-            .Take(request.PageSize > 0 ? request.PageSize : 200)
-            .ToListAsync(cancellationToken);
+        int pageSize = request.PageSize > 0 ? Math.Min(request.PageSize, MaxPageSize) : DefaultPageSize;
 
-        return logs.Select(LogActivityCommandHandler.ToResponse).ToList();
+        return query
+            .OrderByDescending(l => l.OccurredAt)
+            .Skip(Math.Max(request.Skip, 0))
+            .Take(pageSize);
     }
 }

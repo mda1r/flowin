@@ -141,4 +141,28 @@ public sealed class User : AggregateRoot<UserId>
         IsActive = false;
         RevokeAllRefreshTokens();
     }
+
+    public void Activate()
+    {
+        IsActive = true;
+        FailedLoginAttempts = 0;
+        LockedUntil = null;
+        RevokeAllRefreshTokens();
+    }
+
+    /// <summary>Replaces the user's roles with a single role (tenant users carry one role).</summary>
+    public void SetRole(UserRole role)
+    {
+        Roles.Clear();
+        Roles.Add(role);
+    }
+
+    /// <summary>Admin-initiated reset: clears lockout and signs the user out everywhere.</summary>
+    public void ResetPassword(PasswordHash newHash)
+    {
+        ChangePassword(newHash);
+        FailedLoginAttempts = 0;
+        LockedUntil = null;
+        RevokeAllRefreshTokens();
+    }
 }
