@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { stockCountApi } from '@/api/stockCounts'
-import { inventoryApi } from '@/api/inventory'
-import { catalogApi } from '@/api/catalog'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
+import { apiErrorMessage } from '@/lib/apiError'
 import { useI18n } from '@/i18n'
 import type { StockCountType } from '@/types/api'
 
@@ -24,8 +23,10 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 export function StockCountPage() {
   const navigate = useNavigate()
-  const { branchId: branchIdRaw, tenantId } = useAuthStore()
+  const { branchId: branchIdRaw, user } = useAuthStore()
   const branchId = branchIdRaw ?? ''
+  // Starting a count is for owners and managers; staff only enter quantities.
+  const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const queryClient = useQueryClient()
   const { t, lang } = useI18n()
 
@@ -56,49 +57,22 @@ export function StockCountPage() {
     enabled: !!branchId,
   })
 
-  const { data: stockItems } = useQuery({
-    queryKey: ['stock-items-all', branchId],
-    queryFn: () => inventoryApi.listItems(branchId).then(r => r.data),
-    enabled: showCreate && !!branchId,
-  })
-
-  const { data: products } = useQuery({
-    queryKey: ['products-all'],
-    queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 500 }).then(r => r.data),
-    enabled: showCreate && !!tenantId,
-  })
-
+  // The server snapshots the branch's stock quantities and costs when the count starts.
   const createMutation = useMutation({
-    mutationFn: async () => {
-      const variantCostMap = new Map<string, number>()
-      for (const product of products ?? []) {
-        for (const variant of product.variants) {
-          variantCostMap.set(variant.id, variant.costPrice)
-        }
-      }
-
-      const items = (stockItems ?? []).map(si => ({
-        stockItemId: si.id,
-        variantId: si.variantId,
-        systemQuantity: si.quantity,
-        unitCost: variantCostMap.get(si.variantId) ?? 0,
-      }))
-
-      return stockCountApi.createSession(branchId, {
+    mutationFn: () =>
+      stockCountApi.createSession(branchId, {
         type: form.type,
         periodStart: form.periodStart + 'T00:00:00Z',
         periodEnd: form.periodEnd + 'T23:59:59Z',
         notes: form.notes.trim() || undefined,
-        items,
-      })
-    },
+      }),
     onSuccess: res => {
       toast.success(t.stockCount.createSuccess)
       queryClient.invalidateQueries({ queryKey: ['stock-counts', branchId] })
       setShowCreate(false)
       void navigate({ to: '/stock-counts/$sessionId', params: { sessionId: res.data.id } })
     },
-    onError: () => toast.error(t.stockCount.createFailed),
+    onError: err => toast.error(apiErrorMessage(err, t.stockCount.createFailed)),
   })
 
   return (
@@ -107,10 +81,12 @@ export function StockCountPage() {
         title={t.stockCount.title}
         description={t.stockCount.description}
         action={
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" />
-            {t.stockCount.newCount}
-          </Button>
+          canManage ? (
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" />
+              {t.stockCount.newCount}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -120,10 +96,12 @@ export function StockCountPage() {
         <div className="flex flex-col items-center gap-4 py-20 text-muted">
           <ClipboardList className="h-14 w-14 opacity-25" />
           <p className="text-base">{t.stockCount.noSessions}</p>
-          <Button variant="secondary" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" />
-            {t.stockCount.startFirst}
-          </Button>
+          {canManage && (
+            <Button variant="secondary" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" />
+              {t.stockCount.startFirst}
+            </Button>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-surface">

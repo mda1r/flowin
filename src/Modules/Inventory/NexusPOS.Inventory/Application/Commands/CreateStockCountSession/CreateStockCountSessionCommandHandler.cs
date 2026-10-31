@@ -1,5 +1,6 @@
 using ErrorOr;
 using NexusPOS.Inventory.Application.Common;
+using NexusPOS.Inventory.Application.Services;
 using NexusPOS.Inventory.Domain;
 using NexusPOS.Inventory.Domain.Entities;
 using NexusPOS.Inventory.Domain.Enums;
@@ -11,6 +12,8 @@ namespace NexusPOS.Inventory.Application.Commands.CreateStockCountSession;
 
 internal sealed class CreateStockCountSessionCommandHandler(
     IStockCountRepository stockCountRepository,
+    IStockItemRepository stockItemRepository,
+    IVariantCostLookup variantCostLookup,
     InventoryDbContext dbContext)
     : ICommandHandler<CreateStockCountSessionCommand, StockCountSessionResponse>
 {
@@ -18,10 +21,26 @@ internal sealed class CreateStockCountSessionCommandHandler(
         CreateStockCountSessionCommand request,
         CancellationToken cancellationToken)
     {
-        if (!Enum.TryParse<StockCountType>(request.Type, ignoreCase: true, out StockCountType type))
+        if (!Enum.TryParse(request.Type, ignoreCase: true, out StockCountType type) || !Enum.IsDefined(type))
         {
-            return InventoryErrors.StockCountNotFound;
+            return InventoryErrors.InvalidStockCountType;
         }
+
+        // Two open counts on one branch would each adjust the same stock when completed.
+        if (await stockCountRepository.HasOpenSessionAsync(request.BranchId, cancellationToken))
+        {
+            return InventoryErrors.StockCountOpenExists;
+        }
+
+        IReadOnlyList<StockItem> stockItems = await stockItemRepository.FindByBranchAsync(request.BranchId, cancellationToken);
+        if (stockItems.Count == 0)
+        {
+            return InventoryErrors.StockCountNoItems;
+        }
+
+        // Snapshot quantities and costs on the server; the browser's copy may be stale or incomplete.
+        IReadOnlyDictionary<Guid, decimal> costs = await variantCostLookup.GetCostsAsync(
+            stockItems.Select(s => s.VariantId).Distinct().ToList(), cancellationToken);
 
         StockCountSession session = StockCountSession.Create(
             request.BranchId,
@@ -30,14 +49,14 @@ internal sealed class CreateStockCountSessionCommandHandler(
             request.PeriodEnd,
             request.Notes);
 
-        foreach (CreateStockCountSessionItemInput item in request.Items)
+        foreach (StockItem stockItem in stockItems)
         {
             session.AddItem(StockCountItem.Create(
                 session.Id,
-                item.StockItemId,
-                item.VariantId,
-                item.SystemQuantity,
-                item.UnitCost));
+                stockItem.Id.Value,
+                stockItem.VariantId,
+                stockItem.Quantity,
+                costs.GetValueOrDefault(stockItem.VariantId)));
         }
 
         stockCountRepository.Add(session);

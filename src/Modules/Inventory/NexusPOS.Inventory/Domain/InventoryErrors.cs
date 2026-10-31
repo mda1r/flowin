@@ -27,4 +27,13 @@ public static class InventoryErrors
 
     public static readonly Error StockCountAlreadyCompleted =
         Error.Validation("Inventory.StockCountAlreadyCompleted", "Stock count session is already completed.");
+
+    public static readonly Error StockCountOpenExists =
+        Error.Conflict("Inventory.StockCountOpenExists", "This branch already has a stock count in progress.");
+
+    public static readonly Error InvalidStockCountType =
+        Error.Validation("Inventory.InvalidStockCountType", "Stock count type is not valid.");
+
+    public static readonly Error StockCountNoItems =
+        Error.Validation("Inventory.StockCountNoItems", "This branch has no stock items to count.");
 }
