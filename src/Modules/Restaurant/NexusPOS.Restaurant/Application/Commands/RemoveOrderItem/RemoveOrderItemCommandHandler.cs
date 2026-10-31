@@ -33,7 +33,11 @@ internal sealed class RemoveOrderItemCommandHandler(
         }
 
         dbContext.RestaurantOrderItems.Remove(removed.Value);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        ErrorOr<Success> saved = await RestaurantSave.SaveAsync(dbContext, RestaurantErrors.OrderChanged, cancellationToken);
+        if (saved.IsError)
+        {
+            return saved.Errors;
+        }
 
         return RestaurantOrderMapper.ToResponse(order);
     }

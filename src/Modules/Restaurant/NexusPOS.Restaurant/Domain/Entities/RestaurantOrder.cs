@@ -26,8 +26,8 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public DateTime? ServedAt { get; private set; }
     public DateTime? PaidAt { get; private set; }
 
-    // A copy of a sale already paid at the cafe till, kept only so the kitchen sees it. Its lines are catalog
-    // items, not menu items, and it never takes a payment here.
+    // A copy of a sale already paid at the cafe till, kept only so the kitchen sees it. Its id is the POS
+    // sale's, its lines are that sale's catalog items, and it never takes a payment here.
     public bool IsKitchenCopy { get; private set; }
     public string? CancelReason { get; private set; }
     public Guid? CancelledBy { get; private set; }
@@ -47,7 +47,8 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         string? notes,
         string? discountCode,
         decimal discountAmount,
-        bool isKitchenCopy = false)
+        bool isKitchenCopy = false,
+        Guid? id = null)
     {
         var items = itemsData.ToList();
         if (items.Count == 0)
@@ -62,7 +63,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
 
         RestaurantOrder order = new RestaurantOrder
         {
-            Id = new RestaurantOrderId(Guid.NewGuid()),
+            Id = new RestaurantOrderId(id ?? Guid.NewGuid()),
             TenantId = tenantId,
             BranchId = branchId,
             TableNumber = tableNumber,
@@ -232,6 +233,11 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     // reuse catalog ids that the POS sale already deducted, so only genuine menu items count as recipe sales.
     public ErrorOr<Success> Pay(string paymentMethod, decimal amountTendered, IReadOnlySet<Guid> menuItemIds)
     {
+        if (IsKitchenCopy)
+        {
+            return RestaurantErrors.KitchenCopyNotPayable;
+        }
+
         if (Status == RestaurantOrderStatus.Paid)
         {
             return RestaurantErrors.OrderAlreadyPaid;

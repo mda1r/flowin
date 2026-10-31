@@ -3,15 +3,17 @@ using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Repositories;
+using NexusPOS.Restaurant.Domain.ValueObjects;
 using NexusPOS.Restaurant.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Restaurant.Application.Commands.CreateKitchenCopy;
 
 internal sealed class CreateKitchenCopyCommandHandler(
     IRestaurantOrderRepository orderRepository,
-    IMenuItemRepository menuItemRepository,
+    IPosSaleDirectory posSales,
     RestaurantDbContext dbContext,
     ITenantContext tenantContext)
     : ICommandHandler<CreateKitchenCopyCommand, RestaurantOrderResponse>
@@ -25,24 +27,33 @@ internal sealed class CreateKitchenCopyCommandHandler(
             return Error.Unauthorized("Restaurant.NoTenant", "Tenant context is required.");
         }
 
-        // The names and prices here are the cafe's own and only shown in the kitchen. A copy that names real
-        // menu items could be paid as a restaurant order at the client's prices, so it is refused.
-        List<Guid> ids = [.. request.Items.Select(i => i.CatalogItemId).Distinct()];
-        IReadOnlyList<MenuItem> menuItems = await menuItemRepository.FindByIdsAsync(request.BranchId, ids, cancellationToken);
-        if (menuItems.Count > 0)
+        // The copy takes the sale's id, so each sale reaches the kitchen once and a resent copy is the same one.
+        RestaurantOrder? existing = await orderRepository.FindByIdAsync(new RestaurantOrderId(request.PosOrderId), cancellationToken);
+        if (existing is not null)
         {
-            return RestaurantErrors.KitchenCopyHasMenuItems;
+            return existing.IsKitchenCopy && existing.BranchId == request.BranchId
+                ? RestaurantOrderMapper.ToResponse(existing)
+                : RestaurantErrors.OrderIdTaken;
+        }
+
+        // Only a sale completed at this branch's till can be copied, so nothing reaches the kitchen unpaid.
+        IReadOnlyList<PosSaleLine>? sale = await posSales.GetCompletedSaleLinesAsync(
+            request.BranchId, request.PosOrderId, cancellationToken);
+        if (sale is null || sale.Count == 0)
+        {
+            return RestaurantErrors.KitchenCopyWithoutSale;
         }
 
         ErrorOr<RestaurantOrder> orderResult = RestaurantOrder.Create(
             tenantId,
             request.BranchId,
             request.TableNumber,
-            request.Items.Select(i => (i.CatalogItemId, i.ItemName, i.Quantity, i.UnitPrice, i.Notes)),
+            Lines(sale, request.ItemNotes),
             request.Notes,
             discountCode: null,
             discountAmount: 0m,
-            isKitchenCopy: true);
+            isKitchenCopy: true,
+            id: request.PosOrderId);
 
         if (orderResult.IsError)
         {
@@ -50,8 +61,30 @@ internal sealed class CreateKitchenCopyCommandHandler(
         }
 
         orderRepository.Add(orderResult.Value);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        ErrorOr<Success> saved = await RestaurantSave.SaveAsync(dbContext, RestaurantErrors.OrderChanged, cancellationToken);
+        if (saved.IsError)
+        {
+            return saved.Errors;
+        }
 
         return RestaurantOrderMapper.ToResponse(orderResult.Value);
+    }
+
+    // The sale's lines as the kitchen sees them, each with the cook's note the till gave for that item.
+    internal static IEnumerable<(Guid MenuItemId, string ItemName, int Quantity, decimal UnitPrice, string? Notes)> Lines(
+        IReadOnlyList<PosSaleLine> sale,
+        IReadOnlyList<KitchenCopyNoteInput>? itemNotes)
+    {
+        Dictionary<Guid, string> notes = (itemNotes ?? [])
+            .Where(n => !string.IsNullOrWhiteSpace(n.Notes))
+            .GroupBy(n => n.CatalogItemId)
+            .ToDictionary(g => g.Key, g => g.First().Notes!.Trim());
+
+        return sale.Select(l => (
+            l.ItemId,
+            l.Name,
+            (int)Math.Ceiling(l.Quantity),
+            l.UnitPrice,
+            notes.TryGetValue(l.ItemId, out string? note) ? note : null));
     }
 }

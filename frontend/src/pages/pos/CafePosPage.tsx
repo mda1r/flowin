@@ -649,14 +649,9 @@ export function CafePosPage() {
       if (branchId && tenantId && !offline) {
         restaurantApi
           .createKitchenCopy(branchId, {
+            posOrderId: orderId,
             tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
-            items: cart.map((i) => ({
-              menuItemId: i.variantId,
-              itemName: i.productName,
-              quantity: i.quantity,
-              unitPrice: i.unitPrice,
-              notes: i.notes || undefined,
-            })),
+            itemNotes: cart.filter((i) => i.notes).map((i) => ({ menuItemId: i.variantId, notes: i.notes })),
           })
           .catch(() => {})
       }
@@ -742,8 +737,9 @@ export function CafePosPage() {
       }
       if (branchId && tenantId) {
         restaurantApi.createKitchenCopy(branchId, {
+          posOrderId: orderId,
           tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
-          items: cart.map((i) => ({ menuItemId: i.variantId, itemName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, notes: i.notes || undefined })),
+          itemNotes: cart.filter((i) => i.notes).map((i) => ({ menuItemId: i.variantId, notes: i.notes })),
         }).catch(() => {})
       }
       setCustomerReceipt({

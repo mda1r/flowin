@@ -6,6 +6,7 @@ using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Repositories;
 using NexusPOS.Restaurant.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.Restaurant.Application.Commands.PayTable;
 
@@ -42,17 +43,25 @@ internal sealed class PayTableCommandHandler(
         IReadOnlyList<decimal> tendered = RestaurantPayment.SplitTender(totals, request.AmountTendered);
 
         // One sale per order, so each keeps its own invoice; the orders are saved together once all are paid.
+        // A round added or voided after the orders were read here fails the save, so the bill is never short.
+        List<ExternalSaleCompletedDomainEvent> sales = [];
         for (int i = 0; i < orders.Count; i++)
         {
-            ErrorOr<Success> result = await RestaurantPayment.PayAsync(
-                orders[i], request.PaymentMethod, tendered[i], menuItemIds, publisher, cancellationToken);
-            if (result.IsError)
+            var paid = RestaurantPayment.Pay(orders[i], request.PaymentMethod, tendered[i], menuItemIds);
+            if (paid.IsError)
             {
-                return result.Errors;
+                return paid.Errors;
             }
+
+            sales.AddRange(paid.Value);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        ErrorOr<Success> saved = await RestaurantSave.SaveWithSalesAsync(
+            dbContext, sales, publisher, RestaurantErrors.TableChanged, cancellationToken);
+        if (saved.IsError)
+        {
+            return saved.Errors;
+        }
 
         return orders.Select(RestaurantOrderMapper.ToResponse).ToList();
     }

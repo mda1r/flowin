@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using NexusPOS.POS.Domain.Repositories;
 using NexusPOS.POS.Infrastructure.Persistence;
 using NexusPOS.POS.Infrastructure.Persistence.Repositories;
+using NexusPOS.POS.Infrastructure.Services;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.POS;
@@ -26,6 +28,7 @@ public static class PosServiceExtensions
         services.AddScoped<IOrderNumberSequence, OrderNumberSequence>();
         services.AddScoped<IReturnOrderRepository, ReturnOrderRepository>();
         services.AddScoped<IShiftRepository, ShiftRepository>();
+        services.AddScoped<IPosSaleDirectory, PosSaleDirectory>();
 
         return services;
     }

@@ -12,7 +12,8 @@ public sealed record OrderItemInput(
 public sealed record OrderPaymentInput(string PaymentMethod, decimal AmountTendered);
 
 // SendToKitchen and Payment let a till open, send and settle an order in one call, so a retry after a
-// failure never leaves a half-made order behind. A payment implies sending to the kitchen.
+// failure never leaves a half-made order behind. A payment implies sending to the kitchen. OrderId is the
+// till's own id for the order: a call resent with it returns the order the first call made, never a second one.
 public sealed record CreateRestaurantOrderCommand(
     Guid BranchId,
     int TableNumber,
@@ -20,4 +21,5 @@ public sealed record CreateRestaurantOrderCommand(
     string? Notes,
     string? DiscountCode,
     bool SendToKitchen = false,
-    OrderPaymentInput? Payment = null) : ICommand<RestaurantOrderResponse>;
+    OrderPaymentInput? Payment = null,
+    Guid? OrderId = null) : ICommand<RestaurantOrderResponse>;

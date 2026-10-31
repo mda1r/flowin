@@ -50,9 +50,14 @@ internal sealed class AddOrderItemsCommandHandler(
             }
         }
 
-        // The order is tracked; the new lines are added explicitly so they are inserted, not updated.
+        // The order is tracked; the new lines are added explicitly so they are inserted, not updated. If the
+        // order was paid or changed since it was read, the save fails rather than add a round to a settled bill.
         dbContext.RestaurantOrderItems.AddRange(added.Value);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        ErrorOr<Success> saved = await RestaurantSave.SaveAsync(dbContext, RestaurantErrors.OrderChanged, cancellationToken);
+        if (saved.IsError)
+        {
+            return saved.Errors;
+        }
 
         return RestaurantOrderMapper.ToResponse(order);
     }

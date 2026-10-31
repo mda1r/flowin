@@ -47,8 +47,13 @@ internal sealed class CancelRestaurantOrderCommandHandler(
             }
         }
 
+        // Refused if the order was paid or changed meanwhile, so a paid bill is never marked cancelled.
         orderRepository.Update(order);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        ErrorOr<Success> saved = await RestaurantSave.SaveAsync(dbContext, RestaurantErrors.OrderChanged, cancellationToken);
+        if (saved.IsError)
+        {
+            return saved.Errors;
+        }
 
         return RestaurantOrderMapper.ToResponse(order);
     }

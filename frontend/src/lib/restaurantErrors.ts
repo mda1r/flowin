@@ -6,6 +6,7 @@ const RESTAURANT_MESSAGES: Record<string, string> = {
   'MenuItem.Unavailable': 'أحد الأصناف غير متوفر الآن',
   'RestaurantOrder.TableChanged': 'وصل طلب جديد للطاولة، راجع الفاتورة وادفع مرة أخرى',
   'RestaurantOrder.NotModifiable': 'لا يمكن تعديل هذا الطلب الآن',
+  'RestaurantOrder.Changed': 'تغيّر الطلب للتو، حدّث الصفحة وحاول مرة أخرى',
   'RestaurantOrder.AlreadyPaid': 'هذا الطلب مدفوع',
   'RestaurantOrder.AlreadyCancelled': 'هذا الطلب ملغى',
   'RestaurantOrder.InsufficientPayment': 'المبلغ المستلم أقل من الإجمالي',

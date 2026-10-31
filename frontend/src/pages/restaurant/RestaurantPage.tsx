@@ -13,7 +13,7 @@ import { recipesApi } from '@/api/recipes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Card } from '@/components/ui/Card'
 import { RestaurantReceiptModal } from '@/components/restaurant/RestaurantReceiptModal'
 import { restaurantApi, type OrderItemInput } from '@/api/restaurant'
@@ -187,6 +187,8 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
   const [amountTendered, setAmountTendered] = useState('')
   const [paidOrders, setPaidOrders] = useState<RestaurantOrderResponse[] | null>(null)
   const [cancelTarget, setCancelTarget] = useState<RestaurantOrderResponse | null>(null)
+  // A voided line has already reached the kitchen and cannot be brought back, so it is confirmed first.
+  const [voidTarget, setVoidTarget] = useState<{ orderId: string; itemId: string; label: string } | null>(null)
 
   const { data: menuData } = useQuery({
     queryKey: ['menu-items', branchId],
@@ -363,6 +365,7 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
       restaurantApi.removeItem(branchId, orderId, itemId),
     onSuccess: () => {
       void refreshOrders()
+      setVoidTarget(null)
       toast.success('حُذف الصنف من الطلب')
     },
     onError: (e) => toast.error('تعذّر حذف الصنف', restaurantErrorMessage(e)),
@@ -548,9 +551,13 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
                         </span>
                         {canManage && item.status !== 'Ready' && order.items.length > 1 && (
                           <button
-                            onClick={() => removeItemMutation.mutate({ orderId: order.id, itemId: item.id })}
+                            onClick={() => setVoidTarget({
+                              orderId: order.id,
+                              itemId: item.id,
+                              label: `${item.itemName} × ${item.quantity}`,
+                            })}
                             disabled={removeItemMutation.isPending}
-                            className="shrink-0 text-muted/50 hover:text-danger disabled:opacity-40"
+                            className="shrink-0 rounded-md p-1 text-muted/50 hover:bg-surface-2 hover:text-danger disabled:opacity-40"
                             aria-label={`حذف ${item.itemName}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -774,6 +781,17 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
           isPending={cancelMutation.isPending}
         />
       )}
+
+      <ConfirmModal
+        open={!!voidTarget}
+        onClose={() => setVoidTarget(null)}
+        onConfirm={() => voidTarget && removeItemMutation.mutate({ orderId: voidTarget.orderId, itemId: voidTarget.itemId })}
+        title="حذف الصنف؟"
+        message={`${voidTarget?.label ?? ''} سيُحذف من طلب الطاولة`}
+        confirmLabel="حذف"
+        confirmVariant="danger"
+        loading={removeItemMutation.isPending}
+      />
 
       {/* ZATCA Receipt */}
       {paidOrders && paidOrders.length > 0 && (

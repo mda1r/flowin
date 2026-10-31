@@ -1,13 +1,12 @@
-using ErrorOr;
 using FluentAssertions;
-using MediatR;
-using Moq;
+using NexusPOS.Restaurant.Application.Commands.CreateKitchenCopy;
 using NexusPOS.Restaurant.Application.Commands.CreateRestaurantOrder;
 using NexusPOS.Restaurant.Application.Commands.PayTable;
 using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Enums;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.Restaurant.UnitTests.Application;
@@ -39,50 +38,78 @@ public sealed class RestaurantPaymentTests
     // ── Recording the sale ─────────────────────────────────────────────────
 
     [Fact]
-    public async Task PayAsync_PublishesOneSaleWithNetPrices()
+    public void Pay_ReturnsOneSaleWithNetPrices()
     {
         RestaurantOrder order = NewOrder();
-        Mock<IPublisher> publisher = new();
 
-        ErrorOr<Success> result = await RestaurantPayment.PayAsync(
-            order, "Cash", 100m, new HashSet<Guid> { _burger }, publisher.Object, CancellationToken.None);
+        var sales = RestaurantPayment.Pay(order, "Cash", 100m, new HashSet<Guid> { _burger });
 
-        result.IsError.Should().BeFalse();
+        sales.IsError.Should().BeFalse();
         order.Status.Should().Be(RestaurantOrderStatus.Paid);
-        publisher.Verify(p => p.Publish(
-            It.Is<ExternalSaleCompletedDomainEvent>(e =>
-                e.SourceReferenceId == order.Id.Value
-                && e.Lines.Count == 1
-                && e.Lines[0].UnitPrice == 30m
-                && e.AmountTendered == 100m),
-            It.IsAny<CancellationToken>()), Times.Once);
+        ExternalSaleCompletedDomainEvent sale = sales.Value.Should().ContainSingle().Subject;
+        sale.SourceReferenceId.Should().Be(order.Id.Value);
+        sale.Lines.Should().ContainSingle().Which.UnitPrice.Should().Be(30m);
+        sale.AmountTendered.Should().Be(100m);
     }
 
     [Fact]
-    public async Task PayAsync_KitchenCopy_RecordsNoSaleAndUsesNoStock()
+    public void Pay_KitchenCopy_IsRefused_ItWasPaidAtTheCafeTill()
     {
         RestaurantOrder order = NewOrder(kitchenCopy: true);
-        Mock<IPublisher> publisher = new();
 
-        ErrorOr<Success> result = await RestaurantPayment.PayAsync(
-            order, "Cash", 100m, new HashSet<Guid> { _burger }, publisher.Object, CancellationToken.None);
+        var sales = RestaurantPayment.Pay(order, "Cash", 100m, new HashSet<Guid> { _burger });
 
-        result.IsError.Should().BeFalse();
-        publisher.Verify(p => p.Publish(It.IsAny<ExternalSaleCompletedDomainEvent>(), It.IsAny<CancellationToken>()), Times.Never);
+        sales.FirstError.Should().Be(RestaurantErrors.KitchenCopyNotPayable);
+        order.Status.Should().NotBe(RestaurantOrderStatus.Paid);
         order.DomainEvents.OfType<RecipeItemsSoldDomainEvent>().Should().BeEmpty();
     }
 
     [Fact]
-    public async Task PayAsync_ShortPayment_PublishesNothing()
+    public void Pay_ShortPayment_RecordsNothing()
     {
         RestaurantOrder order = NewOrder();
-        Mock<IPublisher> publisher = new();
 
-        ErrorOr<Success> result = await RestaurantPayment.PayAsync(
-            order, "Cash", 10m, new HashSet<Guid> { _burger }, publisher.Object, CancellationToken.None);
+        var sales = RestaurantPayment.Pay(order, "Cash", 10m, new HashSet<Guid> { _burger });
 
-        result.FirstError.Should().Be(RestaurantErrors.InsufficientPayment);
-        publisher.Verify(p => p.Publish(It.IsAny<ExternalSaleCompletedDomainEvent>(), It.IsAny<CancellationToken>()), Times.Never);
+        sales.FirstError.Should().Be(RestaurantErrors.InsufficientPayment);
+        order.Status.Should().NotBe(RestaurantOrderStatus.Paid);
+    }
+
+    [Fact]
+    public void Pay_NoMenuItems_RecordsNoSale()
+    {
+        RestaurantOrder order = NewOrder();
+
+        var sales = RestaurantPayment.Pay(order, "Cash", 100m, new HashSet<Guid>());
+
+        sales.IsError.Should().BeFalse();
+        sales.Value.Should().BeEmpty();
+    }
+
+    // ── Kitchen copies of cafe sales ───────────────────────────────────────
+
+    [Fact]
+    public void KitchenCopyLines_ComeFromTheSale_WithTheTillsNotes()
+    {
+        Guid latte = Guid.NewGuid();
+        Guid cookie = Guid.NewGuid();
+
+        var lines = CreateKitchenCopyCommandHandler.Lines(
+            [new PosSaleLine(latte, "لاتيه", 2m, 18m), new PosSaleLine(cookie, "كوكيز", 1m, 9.5m)],
+            [new KitchenCopyNoteInput(latte, " بدون سكر "), new KitchenCopyNoteInput(Guid.NewGuid(), "ليس في الفاتورة")]).ToList();
+
+        lines.Should().Equal(
+            (latte, "لاتيه", 2, 18m, "بدون سكر"),
+            (cookie, "كوكيز", 1, 9.5m, (string?)null));
+    }
+
+    [Fact]
+    public void CreateValidator_RejectsAnEmptyClientOrderId()
+    {
+        CreateRestaurantOrderCommand command = new(
+            Guid.NewGuid(), 99, [new OrderItemInput(Guid.NewGuid(), 1, null)], null, null, OrderId: Guid.Empty);
+
+        new CreateRestaurantOrderCommandValidator().Validate(command).IsValid.Should().BeFalse();
     }
 
     // ── Pricing from the menu ──────────────────────────────────────────────

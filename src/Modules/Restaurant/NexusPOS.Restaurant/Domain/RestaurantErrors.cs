@@ -60,8 +60,17 @@ public static class RestaurantErrors
     public static readonly Error TableChanged =
         Error.Conflict("RestaurantOrder.TableChanged", "The table's open orders changed. Refresh and try again.");
 
-    public static readonly Error KitchenCopyHasMenuItems =
-        Error.Validation("RestaurantOrder.KitchenCopyHasMenuItems", "Menu items must be ordered as a restaurant order, not a kitchen copy.");
+    public static readonly Error OrderChanged =
+        Error.Conflict("RestaurantOrder.Changed", "The order changed meanwhile. Refresh and try again.");
+
+    public static readonly Error OrderIdTaken =
+        Error.Conflict("RestaurantOrder.IdTaken", "Another order already uses this id.");
+
+    public static readonly Error KitchenCopyWithoutSale =
+        Error.Validation("RestaurantOrder.KitchenCopyWithoutSale", "A kitchen copy needs a sale completed at this branch's till.");
+
+    public static readonly Error KitchenCopyNotPayable =
+        Error.Conflict("RestaurantOrder.KitchenCopyNotPayable", "This order was paid at the cafe till.");
 
     // ── Discount Codes ───────────────────────────────────────────────────────
     public static readonly Error DiscountCodeNotFound =

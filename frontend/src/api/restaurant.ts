@@ -15,12 +15,10 @@ export interface OrderItemInput {
   notes?: string
 }
 
-// A sale the cafe till already charged, copied for the kitchen screen. These lines are catalog items.
-export interface KitchenCopyItemInput {
+// A sale the cafe till already charged, copied for the kitchen screen. The server copies the sale's own
+// lines; the till only adds the cook's note per catalog item.
+export interface KitchenCopyNoteInput {
   menuItemId: string
-  itemName: string
-  quantity: number
-  unitPrice: number
   notes?: string
 }
 
@@ -103,7 +101,8 @@ export const restaurantApi = {
       `/api/v1/branches/${branchId}/restaurant/orders/by-table/${tableNumber}`,
     ),
 
-  // sendToKitchen and payment make opening, sending and paying one call, so a retry never doubles an order.
+  // sendToKitchen and payment make opening, sending and paying one call. orderId is the till's own id for the
+  // order: resending a call with it returns the order already made instead of opening or charging another.
   createOrder: (
     branchId: string,
     data: {
@@ -113,6 +112,7 @@ export const restaurantApi = {
       discountCode?: string
       sendToKitchen?: boolean
       payment?: OrderPaymentInput
+      orderId?: string
     },
   ) =>
     apiClient.post<RestaurantOrderResponse>(
@@ -122,7 +122,7 @@ export const restaurantApi = {
 
   createKitchenCopy: (
     branchId: string,
-    data: { tableNumber: number; items: KitchenCopyItemInput[]; notes?: string },
+    data: { posOrderId: string; tableNumber: number; itemNotes?: KitchenCopyNoteInput[]; notes?: string },
   ) =>
     apiClient.post<RestaurantOrderResponse>(
       `/api/v1/branches/${branchId}/restaurant/orders/kitchen-copy`,

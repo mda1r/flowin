@@ -30,15 +30,18 @@ internal sealed class PayOrderCommandHandler(
 
         HashSet<Guid> menuItemIds = await RestaurantPayment.MenuItemIdsAsync(dbContext, [order], cancellationToken);
 
-        ErrorOr<Success> result = await RestaurantPayment.PayAsync(
-            order, request.PaymentMethod, request.AmountTendered, menuItemIds, publisher, cancellationToken);
-        if (result.IsError)
+        var sales = RestaurantPayment.Pay(order, request.PaymentMethod, request.AmountTendered, menuItemIds);
+        if (sales.IsError)
         {
-            return result.Errors;
+            return sales.Errors;
         }
 
-        orderRepository.Update(order);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        ErrorOr<Success> saved = await RestaurantSave.SaveWithSalesAsync(
+            dbContext, sales.Value, publisher, RestaurantErrors.OrderChanged, cancellationToken);
+        if (saved.IsError)
+        {
+            return saved.Errors;
+        }
 
         return RestaurantOrderMapper.ToResponse(order);
     }

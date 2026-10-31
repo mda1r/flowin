@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Utensils, Plus, Minus, Trash2, CreditCard, Banknote } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -15,6 +15,7 @@ import { ConfirmModal } from '@/components/ui/Modal'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { restaurantErrorMessage } from '@/lib/restaurantErrors'
 import { RestaurantReceiptModal } from '@/components/restaurant/RestaurantReceiptModal'
+import { newClientReference } from '@/lib/offlineSales'
 
 // The page's accent (var(--accent)) is the brand ink from the design tokens, as on every till.
 const VAT = 0.15
@@ -77,9 +78,15 @@ export function RestaurantPosPage() {
   const subtotal = total
   const vat = Math.round((total * VAT / (1 + VAT)) * 100) / 100
 
+  // The till's id for this sale, kept across retries so a resent payment returns the same order instead of
+  // charging twice. A different order (other dishes or table) gets a new one.
+  const checkoutId = useRef<string | null>(null)
+  useEffect(() => { checkoutId.current = null }, [lines, tableNumber, isTakeaway])
+
   // Opened, sent to the kitchen and paid in one call: a failure leaves nothing behind, so trying again is safe.
   const createOrder = useMutation({
     mutationFn: async () => {
+      checkoutId.current ??= newClientReference()
       const due = Math.ceil(total * 100) / 100
       const tendered = payMethod === 'Cash' ? Math.max(parseFloat(amountTendered) || 0, due) : due
       const { data: order } = await restaurantApi.createOrder(branchId!, {
@@ -88,6 +95,7 @@ export function RestaurantPosPage() {
         items: lines.map(l => ({ menuItemId: l.menuItemId, quantity: l.quantity })),
         sendToKitchen: true,
         payment: { paymentMethod: payMethod, amountTendered: tendered },
+        orderId: checkoutId.current,
       })
       return order
     },

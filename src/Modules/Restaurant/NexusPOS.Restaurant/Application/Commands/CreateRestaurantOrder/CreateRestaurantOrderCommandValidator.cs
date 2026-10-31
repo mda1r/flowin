@@ -17,6 +17,7 @@ internal sealed class CreateRestaurantOrderCommandValidator : AbstractValidator<
             item.RuleFor(i => i.Notes).MaximumLength(256);
         });
         RuleFor(x => x.Notes).MaximumLength(512);
+        RuleFor(x => x.OrderId).NotEqual(Guid.Empty);
         When(x => x.Payment is not null, () =>
         {
             RuleFor(x => x.Payment!.PaymentMethod).Must(m => m is RestaurantPayment.Cash or RestaurantPayment.Card);

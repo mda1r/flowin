@@ -4,8 +4,10 @@ using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Repositories;
+using NexusPOS.Restaurant.Domain.ValueObjects;
 using NexusPOS.Restaurant.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
+using NexusPOS.SharedKernel.Domain.Events;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 
 namespace NexusPOS.Restaurant.Application.Commands.CreateRestaurantOrder;
@@ -26,6 +28,17 @@ internal sealed class CreateRestaurantOrderCommandHandler(
         if (tenantContext.TenantId is not Guid tenantId)
         {
             return Error.Unauthorized("Restaurant.NoTenant", "Tenant context is required.");
+        }
+
+        if (request.OrderId is Guid orderId)
+        {
+            RestaurantOrder? existing = await orderRepository.FindByIdAsync(new RestaurantOrderId(orderId), cancellationToken);
+            if (existing is not null)
+            {
+                return existing.BranchId == request.BranchId && !existing.IsKitchenCopy
+                    ? RestaurantOrderMapper.ToResponse(existing)
+                    : RestaurantErrors.OrderIdTaken;
+            }
         }
 
         var linesResult = await MenuOrderLines.ResolveAsync(
@@ -66,7 +79,8 @@ internal sealed class CreateRestaurantOrderCommandHandler(
             lines,
             request.Notes,
             discountCode?.Code,
-            discountAmount);
+            discountAmount,
+            id: request.OrderId);
 
         if (orderResult.IsError)
         {
@@ -83,15 +97,17 @@ internal sealed class CreateRestaurantOrderCommandHandler(
             }
         }
 
+        IReadOnlyList<ExternalSaleCompletedDomainEvent> sales = [];
         if (request.Payment is not null)
         {
             HashSet<Guid> menuItemIds = [.. lines.Select(l => l.MenuItemId)];
-            ErrorOr<Success> paid = await RestaurantPayment.PayAsync(
-                order, request.Payment.PaymentMethod, request.Payment.AmountTendered, menuItemIds, publisher, cancellationToken);
+            var paid = RestaurantPayment.Pay(order, request.Payment.PaymentMethod, request.Payment.AmountTendered, menuItemIds);
             if (paid.IsError)
             {
                 return paid.Errors;
             }
+
+            sales = paid.Value;
         }
 
         orderRepository.Add(order);
@@ -102,7 +118,14 @@ internal sealed class CreateRestaurantOrderCommandHandler(
             discountCodeRepository.Update(discountCode);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        // The order is written before its sale is recorded, and committed only once the sale is, so a failure
+        // leaves neither behind; a retry with the same OrderId is recorded once.
+        ErrorOr<Success> saved = await RestaurantSave.SaveWithSalesAsync(
+            dbContext, sales, publisher, RestaurantErrors.OrderChanged, cancellationToken);
+        if (saved.IsError)
+        {
+            return saved.Errors;
+        }
 
         return RestaurantOrderMapper.ToResponse(order);
     }

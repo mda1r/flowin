@@ -84,7 +84,8 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
             request.Notes,
             request.DiscountCode,
             request.SendToKitchen,
-            request.Payment is null ? null : new OrderPaymentInput(request.Payment.PaymentMethod, request.Payment.AmountTendered));
+            request.Payment is null ? null : new OrderPaymentInput(request.Payment.PaymentMethod, request.Payment.AmountTendered),
+            request.OrderId);
 
         ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
@@ -92,7 +93,7 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
             MapErrors);
     }
 
-    /// <summary>Copy a sale already paid at the cafe till to the kitchen screen.</summary>
+    /// <summary>Copy a sale completed at the cafe till to the kitchen screen.</summary>
     [HttpPost("kitchen-copy")]
     [ProducesResponseType(typeof(RestaurantOrderResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -103,8 +104,9 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
     {
         CreateKitchenCopyCommand command = new(
             branchId,
+            request.PosOrderId,
             request.TableNumber,
-            [.. request.Items.Select(i => new KitchenCopyItemInput(i.MenuItemId, i.ItemName, i.Quantity, i.UnitPrice, i.Notes))],
+            [.. (request.ItemNotes ?? []).Select(i => new KitchenCopyNoteInput(i.MenuItemId, i.Notes))],
             request.Notes);
 
         ErrorOr<RestaurantOrderResponse> result = await mediator.Send(command, cancellationToken);
@@ -311,20 +313,18 @@ public sealed record CreateRestaurantOrderRequest(
     string? Notes,
     string? DiscountCode,
     bool SendToKitchen = false,
-    PayOrderRequest? Payment = null);
+    PayOrderRequest? Payment = null,
+    Guid? OrderId = null);
 
 public sealed record AddOrderItemsRequest(IReadOnlyList<CreateOrderItemRequest> Items, bool SendToKitchen = true);
 
-public sealed record KitchenCopyItemRequest(
-    Guid MenuItemId,
-    string ItemName,
-    int Quantity,
-    decimal UnitPrice,
-    string? Notes);
+// The sale's own lines are copied; the till only says which sale, the table, and the cook's notes.
+public sealed record KitchenCopyNoteRequest(Guid MenuItemId, string? Notes);
 
 public sealed record CreateKitchenCopyRequest(
+    Guid PosOrderId,
     int TableNumber,
-    IReadOnlyList<KitchenCopyItemRequest> Items,
+    IReadOnlyList<KitchenCopyNoteRequest>? ItemNotes,
     string? Notes);
 
 public sealed record PayOrderRequest(string PaymentMethod, decimal AmountTendered);
