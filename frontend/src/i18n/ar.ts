@@ -764,6 +764,7 @@ export const ar: Translations = {
     preparing: 'يتحضر',
     ready: 'جاهز ✓',
     table: 'طاولة',
+    noTable: 'بدون طاولة',
     takeaway: 'تيك أواي',
     noOrders: 'لا توجد طلبات',
     markReady: '✓ الطلب جاهز',

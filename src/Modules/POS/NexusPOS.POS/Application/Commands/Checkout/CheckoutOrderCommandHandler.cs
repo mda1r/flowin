@@ -34,7 +34,7 @@ internal sealed class CheckoutOrderCommandHandler(
             return rules.Errors;
         }
 
-        IReadOnlyDictionary<Guid, decimal>? catalogPrices = request.IsManager
+        IReadOnlyDictionary<Guid, decimal>? catalogPrices = request.IsManager || request.OfflineCreatedAt is not null
             ? null
             : await prices.GetSalePricesAsync([.. request.Lines.Select(l => l.VariantId)], cancellationToken);
 

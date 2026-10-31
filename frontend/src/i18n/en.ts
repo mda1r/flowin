@@ -762,6 +762,7 @@ export const en = {
     preparing: 'Preparing',
     ready: 'Ready ✓',
     table: 'Table',
+    noTable: 'No table',
     takeaway: 'Takeaway',
     noOrders: 'No orders yet',
     markReady: '✓ Order Ready',

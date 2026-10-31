@@ -35,6 +35,7 @@ import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
 import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
 import { apiErrorMessage } from '@/lib/apiError'
+import { isAxiosError } from 'axios'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage } from '@/lib/whatsapp'
@@ -621,6 +622,27 @@ export function CafePosPage() {
 
   // ── Checkout ──────────────────────────────────────────────────────────────
 
+  // A sale refused for a price below the catalog means the menu changed after these items were added:
+  // reload it and reprice the cart lines from it, so the next press of pay goes through.
+  const repriceCart = async (err: Error) => {
+    const fresh = await queryClient.fetchQuery({
+      queryKey: ['products', tenantId],
+      queryFn: () => catalogApi.listProducts(tenantId!, { pageSize: 200 }),
+      staleTime: 0,
+    })
+    void queryClient.invalidateQueries({ queryKey: ['cafe-products', tenantId] })
+    const raw = fresh?.data
+    const list: ProductResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
+    const prices = new Map(list.flatMap((p) => p.variants.map((v) => [v.id, v.salePrice] as const)))
+    const stale = (i: CafeCartItem) => prices.has(i.variantId) && prices.get(i.variantId) !== i.unitPrice
+    if (!cart.some(stale)) {
+      toast.error(apiErrorMessage(err), 'احذف الصنف من السلة وأضفه من جديد')
+      return
+    }
+    setCart((prev) => prev.map((i) => (stale(i) ? { ...i, unitPrice: prices.get(i.variantId)! } : i)))
+    toast.warning('تحدّثت الأسعار من قائمة المنتجات', 'راجع الإجمالي ثم ادفع مرة أخرى')
+  }
+
   // The button and the AI cashier share one path: a single idempotent /orders/checkout with the offline fallback.
   // The AI cashier settles the exact total by cash or card, so it has no tendered amount or split.
   const checkout = useMutation({
@@ -750,8 +772,10 @@ export function CafePosPage() {
       if (e.message === 'empty') toast.error('السلة فارغة')
       else if (e.message === 'offline-loyalty') toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
       else if (e.message === 'discount-cap') toast.error(`أقصى خصم للكاشير ${CASHIER_DISCOUNT_CAP}٪`, 'اطلب من المدير إتمام البيع')
-      else {
-        // A price that changed in the catalog is refused; reload the menu so the next try uses it.
+      else if (isAxiosError(e) && (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.['POS.PriceBelowCatalog']) {
+        void repriceCart(e).catch(() => toast.error(t.pos.paymentFailed, apiErrorMessage(e)))
+      } else {
+        // An item that left the catalog is refused too; reload the menu so it can be picked again.
         void queryClient.invalidateQueries({ queryKey: ['products', tenantId] })
         void queryClient.invalidateQueries({ queryKey: ['cafe-products', tenantId] })
         toast.error(t.pos.paymentFailed, apiErrorMessage(e))

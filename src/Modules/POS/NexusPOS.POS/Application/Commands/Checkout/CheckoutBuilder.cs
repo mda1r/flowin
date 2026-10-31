@@ -10,7 +10,9 @@ namespace NexusPOS.POS.Application.Commands.Checkout;
 internal static class CheckoutBuilder
 {
     // catalogPrices: listed sale prices (VAT included) by variant. A cashier's line may not be cheaper than the
-    // catalog, so a lowered price cannot stand in for a discount; owners and managers may override.
+    // catalog, so a lowered price cannot stand in for a discount, nor name an item the catalog does not have;
+    // owners and managers may override. An offline sale already happened at the till, under whoever was logged
+    // in then and at the prices of the time, so its sync is not checked again (it stays marked by OfflineCreatedAt).
     public static ErrorOr<Order> Build(
         CheckoutOrderCommand cmd,
         LoyaltyRules loyalty,
@@ -20,12 +22,21 @@ internal static class CheckoutBuilder
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
         order.TagClientReference(cmd.ClientReference, cmd.OfflineCreatedAt);
 
+        bool enforceCashierRules = !cmd.IsManager && cmd.OfflineCreatedAt is null;
+
         foreach (CheckoutOrderCommand.Line line in cmd.Lines)
         {
-            if (!cmd.IsManager && catalogPrices is not null && catalogPrices.TryGetValue(line.VariantId, out decimal listed)
-                && Math.Round(line.UnitPrice * (1 + cmd.TaxRate), 2) < Math.Round(listed, 2) - 0.01m)
+            if (enforceCashierRules && catalogPrices is not null)
             {
-                return PosErrors.PriceBelowCatalog(line.ProductName);
+                if (!catalogPrices.TryGetValue(line.VariantId, out decimal listed))
+                {
+                    return PosErrors.UnknownVariant(line.ProductName);
+                }
+
+                if (Math.Round(line.UnitPrice * (1 + cmd.TaxRate), 2) < Math.Round(listed, 2) - 0.01m)
+                {
+                    return PosErrors.PriceBelowCatalog(line.ProductName);
+                }
             }
 
             ErrorOr<OrderLine> added = order.AddLine(
@@ -49,7 +60,7 @@ internal static class CheckoutBuilder
             decimal share = order.SubtotalAmount > 0
                 ? order.OrderDiscount.ComputeAmount(order.SubtotalAmount) / order.SubtotalAmount * 100m
                 : 0m;
-            if (!cmd.IsManager && share > CheckoutOrderCommand.CashierDiscountCapPercent + 0.01m)
+            if (enforceCashierRules && share > CheckoutOrderCommand.CashierDiscountCapPercent + 0.01m)
             {
                 return PosErrors.DiscountAboveCashierLimit(CheckoutOrderCommand.CashierDiscountCapPercent);
             }

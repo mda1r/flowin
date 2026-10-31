@@ -96,7 +96,7 @@ function TicketCard({
           </span>
         ) : (
           <span className="inline-flex items-center rounded-lg bg-surface-2 px-2 py-0.5 text-sm font-bold text-muted">
-            بدون طاولة
+            {t.kitchen.noTable}
           </span>
         )}
       </div>

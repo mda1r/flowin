@@ -63,4 +63,7 @@ public static class PosErrors
 
     public static Error PriceBelowCatalog(string productName) =>
         Error.Validation("POS.PriceBelowCatalog", $"سعر «{productName}» أقل من سعره في قائمة المنتجات، حدّث الصفحة أو استخدم الخصم.");
+
+    public static Error UnknownVariant(string productName) =>
+        Error.Validation("POS.UnknownVariant", $"«{productName}» غير موجود في قائمة المنتجات، حدّث الصفحة.");
 }
