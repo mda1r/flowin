@@ -9,7 +9,9 @@ import {
   Users,
   DollarSign,
   Package,
-  ArrowUpRight,
+  ArrowUp,
+  ArrowDown,
+  Minus,
   AlertTriangle,
   Sun,
   Sunset,
@@ -30,14 +32,20 @@ import {
   BarChart2,
   Receipt,
   FlaskConical,
+  Clock,
+  Lock,
+  Unlock,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { SpillArt } from '@/components/brand/SpillArt'
 import { Badge } from '@/components/ui/Badge'
 import { cn, formatCurrency } from '@/lib/utils'
+import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { useAuthStore } from '@/stores/authStore'
 import { ordersApi } from '@/api/orders'
+import { useShift, OpenShiftModal, CloseShiftModal, shiftExpectedCash } from '@/pages/pos/ShiftGate'
 import type { OrderResponse, BusinessType, PaymentMethod, ReturnOrderResponse } from '@/types/api'
 import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
@@ -93,6 +101,14 @@ function useCountUp(target: number, duration = 1100): { value: number; settled: 
 function Sparkline({ data, id, className }: { data: number[]; id: string; className?: string }) {
   const w = 120
   const h = 36
+  // no movement yet: a quiet flat baseline instead of an invented trend
+  if (data.length < 2 || data.every((v) => v === data[0])) {
+    return (
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={className} aria-hidden="true">
+        <path d={`M0 ${h - 3} L${w} ${h - 3}`} stroke="currentColor" strokeOpacity="0.3" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4" />
+      </svg>
+    )
+  }
   const min = Math.min(...data)
   const max = Math.max(...data)
   const range = max - min || 1
@@ -146,6 +162,7 @@ interface StatCardProps {
 }
 
 function StatCard({ title, value, format, change, icon, iconWrap, sparkColor, kpiColor, spark, sparkId, entrance, badge }: StatCardProps) {
+  const { t } = useI18n()
   const { value: animated, settled } = useCountUp(value)
   const fmt = format ?? ((n: number) => String(Math.round(n)))
 
@@ -162,9 +179,16 @@ function StatCard({ title, value, format, change, icon, iconWrap, sparkColor, kp
             <span className={cn('inline-block', settled && 'count-pop')}>{fmt(animated)}</span>
           </p>
           {change !== undefined && (
-            <div className="mt-1 flex items-center gap-1 text-xs font-medium text-success">
-              <ArrowUpRight className="h-3 w-3" />
-              {Math.abs(change)}%
+            <div
+              className={cn(
+                'mt-1 flex items-center gap-1 text-xs font-medium',
+                change > 0 ? 'text-success' : change < 0 ? 'text-danger' : 'text-muted',
+              )}
+              title={t.dashboard.vsYesterdayHint}
+            >
+              {change > 0 ? <ArrowUp className="h-3 w-3" /> : change < 0 ? <ArrowDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+              <span className="tabular-nums">{Math.abs(change)}%</span>
+              <span className="font-normal text-muted">{t.dashboard.vsYesterday}</span>
             </div>
           )}
         </div>
@@ -548,27 +572,325 @@ const MILESTONES = [
 ] as const
 
 /* ────────────────────────────────────────────────────────────────
-   dashboard page
+   today's numbers — totals, hourly buckets, comparison with yesterday
    ──────────────────────────────────────────────────────────────── */
 
-function computeStats(orders: OrderResponse[]) {
-  const totalRevenue = orders.reduce((s, o) => s + o.totalAmount, 0)
-  const totalSubtotal = orders.reduce((s, o) => s + o.subtotalAmount, 0)
-  const totalTax = orders.reduce((s, o) => s + o.taxAmount, 0)
-  const totalCogs = orders.reduce((s, o) => s + o.lines.reduce((ls, l) => ls + (l.costPrice ?? 0) * l.quantity, 0), 0)
-  const totalOrders = orders.length
-  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0
-  return { totalRevenue, totalSubtotal, totalTax, totalCogs, totalOrders, avgOrder }
+function asList<T>(raw: unknown): T[] {
+  return Array.isArray(raw) ? raw : ((raw as { items?: T[] } | undefined)?.items ?? [])
 }
 
-const FALLBACK_REVENUE   = [4, 6, 5, 8, 7, 10, 9]
-const FALLBACK_ORDERS    = [2, 3, 2, 4, 3,  5, 4]
-const FALLBACK_AVG       = [5, 4, 6, 5, 7,  6, 8]
+function orderTime(o: OrderResponse): Date {
+  return new Date(o.completedAt ?? o.createdAt)
+}
+
+// Customer-facing money: totals and refunds both include VAT.
+function computeStats(orders: OrderResponse[], returns: ReturnOrderResponse[]) {
+  const grossSales = orders.reduce((s, o) => s + o.totalAmount, 0)
+  const refunds = returns.reduce((s, r) => s + r.refundAmount, 0)
+  const totalTax = orders.reduce((s, o) => s + o.taxAmount, 0)
+  const totalOrders = orders.length
+  const avgOrder = totalOrders > 0 ? grossSales / totalOrders : 0
+  return { grossSales, refunds, sales: grossSales - refunds, totalTax, totalOrders, avgOrder }
+}
+
+// Net of VAT and discounts, less cost of goods. Refunds come off at their net line value;
+// the returned goods' cost is not added back since we can't tell whether they were restocked.
+function computeGrossProfit(orders: OrderResponse[], returns: ReturnOrderResponse[]) {
+  let netSales = 0
+  let cogs = 0
+  let missingCost = false
+  for (const o of orders) {
+    netSales += o.totalAmount - o.taxAmount
+    for (const l of o.lines) {
+      if (!(l.costPrice > 0)) missingCost = true
+      cogs += (l.costPrice ?? 0) * l.quantity
+    }
+  }
+  for (const r of returns) netSales -= r.lines.reduce((s, l) => s + l.lineTotal, 0)
+  return { grossProfit: netSales - cogs, missingCost }
+}
+
+// % change against the same point yesterday; undefined when yesterday has nothing to compare with.
+function pctChange(current: number, previous: number): number | undefined {
+  if (!(previous > 0)) return undefined
+  return Math.round(((current - previous) / previous) * 100)
+}
+
+interface HourBucket {
+  hour: number
+  sales: number
+  orders: number
+  tax: number
+  avg: number
+}
+
+// Today's activity per local hour, from the first active hour up to now.
+function bucketByHour(orders: OrderResponse[], returns: ReturnOrderResponse[], nowHour: number): HourBucket[] {
+  const raw = Array.from({ length: 24 }, (_, hour) => ({ hour, sales: 0, orders: 0, tax: 0, gross: 0 }))
+  for (const o of orders) {
+    const b = raw[orderTime(o).getHours()]
+    b.sales += o.totalAmount
+    b.gross += o.totalAmount
+    b.tax += o.taxAmount
+    b.orders += 1
+  }
+  for (const r of returns) raw[new Date(r.createdAt).getHours()].sales -= r.refundAmount
+  const active = raw.filter((b) => b.orders > 0 || b.sales !== 0).map((b) => b.hour)
+  if (active.length === 0) return []
+  const first = Math.min(...active)
+  const last = Math.max(nowHour, ...active)
+  let runGross = 0
+  let runOrders = 0
+  return raw.slice(first, last + 1).map(({ hour, sales, orders: n, tax, gross }) => {
+    runGross += gross
+    runOrders += n
+    return { hour, sales, orders: n, tax, avg: runOrders > 0 ? runGross / runOrders : 0 }
+  })
+}
+
+function formatHour(hour: number, lang: string): string {
+  const d = new Date()
+  d.setHours(hour, 0, 0, 0)
+  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric' }).format(d)
+}
+
+/* ────────────────────────────────────────────────────────────────
+   hourly sales — one bar per hour, busiest hour highlighted
+   ──────────────────────────────────────────────────────────────── */
+
+function HourlySalesCard({ buckets, loading }: { buckets: HourBucket[]; loading: boolean }) {
+  const { t, lang } = useI18n()
+  const max = Math.max(0, ...buckets.map((b) => b.sales))
+  const busiest = buckets.reduce<HourBucket | null>((best, b) => (b.orders > 0 && (!best || b.sales > best.sales) ? b : best), null)
+  // label roughly every third bar so the axis stays readable on phones
+  const labelEvery = buckets.length > 12 ? 3 : buckets.length > 6 ? 2 : 1
+
+  return (
+    <Card className="h-full">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-6 py-4">
+        <h2 className="text-sm font-semibold text-fg">{t.dashboard.hourlySales}</h2>
+        {busiest && (
+          <p className="text-xs text-muted">
+            {t.dashboard.busiestHour}:{' '}
+            <span className="font-semibold text-fg">{formatHour(busiest.hour, lang)}</span>
+            {' · '}
+            <span className="tabular-nums">{formatCurrency(busiest.sales)}</span>
+          </p>
+        )}
+      </div>
+      <div className="px-6 pb-4 pt-6">
+        {loading ? (
+          <div className="skeleton h-36 w-full" aria-hidden="true" />
+        ) : buckets.length === 0 || max <= 0 ? (
+          <div className="flex h-36 items-center justify-center text-sm text-muted">{t.dashboard.noSalesYet}</div>
+        ) : (
+          <>
+            <div className="flex h-36 items-end gap-0.5 border-b border-border">
+              {buckets.map((b, i) => (
+                <div
+                  key={b.hour}
+                  role="img"
+                  tabIndex={0}
+                  aria-label={`${formatHour(b.hour, lang)}: ${formatCurrency(b.sales)} · ${t.dashboard.ordersCount.replace('{n}', String(b.orders))}`}
+                  className="group relative flex h-full min-w-0 flex-1 items-end justify-center outline-none"
+                >
+                  <div
+                    className={cn(
+                      'w-full max-w-[2rem] rounded-t transition-colors',
+                      busiest?.hour === b.hour ? 'bg-brand' : 'bg-brand/40 group-hover:bg-brand/70 group-focus-visible:bg-brand/70',
+                    )}
+                    style={{ height: `${b.sales > 0 ? Math.max((b.sales / max) * 100, 2) : 0}%` }}
+                  />
+                  <div
+                    className={cn(
+                      'pointer-events-none absolute bottom-full z-10 mb-1 hidden whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs shadow-md group-hover:block group-focus-visible:block',
+                      // keep the edge tooltips inside the card
+                      i < 2 ? 'start-0' : i > buckets.length - 3 ? 'end-0' : 'left-1/2 -translate-x-1/2',
+                    )}
+                  >
+                    <p className="font-semibold text-fg">{formatHour(b.hour, lang)}</p>
+                    <p className="tabular-nums text-fg">{formatCurrency(b.sales)}</p>
+                    <p className="text-muted">{t.dashboard.ordersCount.replace('{n}', String(b.orders))}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-1.5 flex gap-0.5">
+              {buckets.map((b, i) => (
+                <span key={b.hour} className="min-w-0 flex-1 truncate text-center text-[10px] text-muted">
+                  {i % labelEvery === 0 ? formatHour(b.hour, lang) : ''}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────
+   today's payments + the cashier's shift / cash drawer
+   ──────────────────────────────────────────────────────────────── */
+
+function paymentTotals(orders: OrderResponse[]): Record<PaymentMethod, number> {
+  const totals: Record<PaymentMethod, number> = { Cash: 0, Card: 0, BankTransfer: 0, Voucher: 0, Split: 0 }
+  for (const o of orders) {
+    if (o.paymentMethod === 'Split') {
+      const cash = o.splitCash ?? 0
+      const card = o.splitCard ?? 0
+      totals.Cash += cash
+      totals.Card += card
+      // whatever the split doesn't account for stays under "split"
+      const rest = o.totalAmount - cash - card
+      if (rest > 0.005) totals.Split += rest
+    } else if (o.paymentMethod) {
+      totals[o.paymentMethod] += o.totalAmount
+    }
+  }
+  return totals
+}
+
+function TodayMoneyCard({ orders, returns, loading }: { orders: OrderResponse[]; returns: ReturnOrderResponse[]; loading: boolean }) {
+  const { t, lang } = useI18n()
+  const { branchId } = useAuthStore()
+  const { shift, isLoading: shiftLoading } = useShift()
+  const [modal, setModal] = useState<'open' | 'close' | null>(null)
+
+  const totals = useMemo(() => paymentTotals(orders), [orders])
+  const refunds = returns.reduce((s, r) => s + r.refundAmount, 0)
+  const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0)
+
+  const rows: Array<{ method: PaymentMethod; label: string; always?: boolean }> = [
+    { method: 'Cash', label: t.dashboard.cash, always: true },
+    { method: 'Card', label: t.dashboard.cardMada, always: true },
+    { method: 'BankTransfer', label: t.dashboard.bankTransfer },
+    { method: 'Voucher', label: t.dashboard.voucher },
+    { method: 'Split', label: t.dashboard.split },
+  ]
+
+  // Drawer cash for the open shift, computed exactly as the close-shift screen does.
+  const drawerQuery = useQuery({
+    queryKey: ['dashboard-shift-drawer', branchId, shift?.id],
+    queryFn: async () => {
+      const opened = new Date(shift!.openedAt)
+      const shiftOrders = await salesApi.listAllCompletedOrdersBetween(branchId!, shift!.openedAt)
+      return shiftExpectedCash(shift!, shiftOrders.filter((o) => orderTime(o) >= opened))
+    },
+    enabled: !!branchId && !!shift,
+    refetchInterval: 60_000,
+  })
+  const expectedCash = shift ? drawerQuery.data : undefined
+
+  const openedTime = shift
+    ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(shift.openedAt))
+    : ''
+
+  return (
+    <Card className="h-full">
+      <div className="border-b border-border px-6 py-4">
+        <h2 className="text-sm font-semibold text-fg">{t.dashboard.paymentSplit}</h2>
+      </div>
+
+      <div className="space-y-3 px-6 py-4">
+        {loading ? (
+          Array.from({ length: 3 }, (_, i) => <div key={i} className="skeleton h-8 w-full" aria-hidden="true" />)
+        ) : (
+          <>
+            {rows.filter((r) => r.always || totals[r.method] > 0).map(({ method, label }) => {
+              const { Icon } = PAYMENT_META[method]
+              const share = grandTotal > 0 ? (totals[method] / grandTotal) * 100 : 0
+              return (
+                <div key={method}>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="flex items-center gap-2 text-fg">
+                      <Icon className="h-4 w-4 text-muted" />
+                      {label}
+                    </span>
+                    <span className="font-semibold tabular-nums text-fg">{formatCurrency(totals[method])}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full bg-brand" style={{ width: `${share}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+            {refunds > 0 && (
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted">{t.dashboard.refunds}</span>
+                <span className="font-semibold tabular-nums text-danger">−{formatCurrency(refunds)}</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="border-t border-border px-6 py-4">
+        {shiftLoading ? (
+          <div className="skeleton h-10 w-full" aria-hidden="true" />
+        ) : shift ? (
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-success">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-success" aria-hidden="true" />
+                  {t.shiftGate.shiftOpen}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-muted">
+                  <Clock className="h-3 w-3" />
+                  {t.dashboard.shiftOpenSince.replace('{time}', openedTime)}
+                  {shift.cashierName && <span>· {t.dashboard.shiftOpenedBy.replace('{name}', shift.cashierName)}</span>}
+                </p>
+              </div>
+              <Button size="sm" variant="secondary" className="shrink-0 gap-1" onClick={() => setModal('close')}>
+                <Lock className="h-3.5 w-3.5" />
+                {t.shiftGate.closeShift}
+              </Button>
+            </div>
+            <div className="rounded-xl bg-surface-2 px-4 py-3" title={t.dashboard.expectedDrawerHint}>
+              <p className="text-xs text-muted">{t.dashboard.expectedDrawer}</p>
+              {drawerQuery.isError ? (
+                <button
+                  type="button"
+                  className="mt-0.5 text-sm text-muted underline-offset-2 hover:underline"
+                  onClick={() => void drawerQuery.refetch()}
+                >
+                  — · {t.dashboard.expectedDrawerError}
+                </button>
+              ) : expectedCash === undefined ? (
+                <span className="mt-1.5 inline-block h-5 w-24 animate-pulse rounded-md bg-border" />
+              ) : (
+                <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{formatCurrency(expectedCash)}</p>
+              )}
+              <p className="mt-0.5 text-[11px] text-muted">{t.dashboard.expectedDrawerHint}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted">{t.dashboard.noOpenShift}</p>
+            <Button size="sm" className="shrink-0 gap-1" onClick={() => setModal('open')}>
+              <Unlock className="h-3.5 w-3.5" />
+              {t.shiftGate.openShift}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {modal === 'open' && <OpenShiftModal onClose={() => setModal(null)} />}
+      {modal === 'close' && shift && <CloseShiftModal shift={shift} onClose={() => setModal(null)} />}
+    </Card>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────
+   dashboard page
+   ──────────────────────────────────────────────────────────────── */
 
 export function DashboardPage() {
   const { t, lang } = useI18n()
   const { user, branchId, tenantId } = useAuthStore()
   const businessType = user?.businessType as BusinessType | undefined
+  const canSeeProfit = user?.role === 'Owner' || user?.role === 'Manager'
 
   const today = localToday()
   const ordersQuery = useQuery({
@@ -579,7 +901,31 @@ export function DashboardPage() {
   })
   const returnsQuery = useQuery({
     queryKey: ['dashboard-returns', branchId, today],
-    queryFn: () => ordersApi.listReturns(branchId!),
+    queryFn: () => ordersApi.listReturns(branchId!, localDaysToUtcRange(today, today)),
+    enabled: !!branchId,
+    refetchInterval: 60_000,
+  })
+  // Yesterday up to this time of day, so "vs yesterday" compares like with like.
+  const yesterdayQuery = useQuery({
+    queryKey: ['dashboard-yesterday', branchId, today],
+    queryFn: async () => {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - 1)
+      const yesterday = localYmd(cutoff)
+      const { from } = localDaysToUtcRange(yesterday, yesterday)
+      const to = cutoff.toISOString()
+      const [orders, returns] = await Promise.all([
+        salesApi.listAllCompletedOrdersBetween(branchId!, from, to),
+        ordersApi.listReturns(branchId!, { from, to }).then((r) => asList<ReturnOrderResponse>(r.data)),
+      ])
+      return {
+        orders: orders.filter((o) => {
+          const d = orderTime(o)
+          return d <= cutoff && localYmd(d) === yesterday
+        }),
+        returns,
+      }
+    },
     enabled: !!branchId,
     refetchInterval: 60_000,
   })
@@ -631,24 +977,25 @@ export function DashboardPage() {
     return map
   }, [productsData])
 
-  const orders = useMemo<OrderResponse[]>(() => {
-    const raw = ordersQuery.data?.data
-    const all: OrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
-    return all.filter(o => {
-      const d = new Date(o.completedAt ?? o.createdAt)
-      return d.toLocaleDateString('en-CA') === today
-    })
-  }, [ordersQuery.data, today])
+  const orders = useMemo<OrderResponse[]>(
+    () => asList<OrderResponse>(ordersQuery.data?.data).filter((o) => localYmd(orderTime(o)) === today),
+    [ordersQuery.data, today],
+  )
 
-  const todayReturns = useMemo<ReturnOrderResponse[]>(() => {
-    const raw = returnsQuery.data?.data
-    const all: ReturnOrderResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
-    return all.filter(r => new Date(r.createdAt).toLocaleDateString('en-CA') === today)
-  }, [returnsQuery.data, today])
+  const todayReturns = useMemo<ReturnOrderResponse[]>(
+    () => asList<ReturnOrderResponse>(returnsQuery.data?.data),
+    [returnsQuery.data],
+  )
 
-  const stats = useMemo(() => computeStats(orders), [orders])
-  const returnTotal = todayReturns.reduce((s, r) => s + r.refundAmount, 0)
-  const netRevenue = stats.totalSubtotal - stats.totalCogs - returnTotal
+  const stats = useMemo(() => computeStats(orders, todayReturns), [orders, todayReturns])
+  const profit = useMemo(() => computeGrossProfit(orders, todayReturns), [orders, todayReturns])
+  const prevStats = useMemo(
+    () => (yesterdayQuery.data ? computeStats(yesterdayQuery.data.orders, yesterdayQuery.data.returns) : null),
+    [yesterdayQuery.data],
+  )
+  const salesChange = prevStats ? pctChange(stats.sales, prevStats.sales) : undefined
+  const ordersChange = prevStats ? pctChange(stats.totalOrders, prevStats.totalOrders) : undefined
+  const avgChange = prevStats ? pctChange(stats.avgOrder, prevStats.avgOrder) : undefined
   const alerts = alertsData?.data
 
   const nearExpiryCount = (alerts?.expired.length ?? 0) + (alerts?.expiringSoon.length ?? 0)
@@ -681,7 +1028,7 @@ export function DashboardPage() {
     }
   }, [ordersFetched, orders])
 
-  const milestone = MILESTONES.find((m) => netRevenue >= m.at)
+  const milestone = MILESTONES.find((m) => stats.sales >= m.at)
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? t.dashboard.goodMorning : t.dashboard.goodEvening
@@ -693,12 +1040,11 @@ export function DashboardPage() {
     year: 'numeric',
   }).format(new Date())
 
-  const chrono = [...orders].reverse()
-  const revenueSpark = chrono.length >= 2 ? chrono.map((o) => o.totalAmount) : FALLBACK_REVENUE
-  const ordersSpark  = chrono.length >= 2 ? chrono.map((o) => o.lines.length) : FALLBACK_ORDERS
-  const avgSpark     = chrono.length >= 2
-    ? chrono.map((_, i) => chrono.slice(0, i + 1).reduce((s, x) => s + x.totalAmount, 0) / (i + 1))
-    : FALLBACK_AVG
+  const hourly = useMemo(() => bucketByHour(orders, todayReturns, hour), [orders, todayReturns, hour])
+  const revenueSpark = hourly.map((b) => b.sales)
+  const ordersSpark  = hourly.map((b) => b.orders)
+  const taxSpark     = hourly.map((b) => b.tax)
+  const avgSpark     = hourly.map((b) => b.avg)
 
   const quickActions = useMemo<QuickAction[]>(() => {
     const byType: Partial<Record<BusinessType, QuickAction[]>> = {
@@ -770,14 +1116,30 @@ export function DashboardPage() {
               <p className="mt-1.5 text-sm text-muted">{todayLabel}</p>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm">
-                  <p className="text-xs font-medium text-muted">{t.dashboard.netRevenue}</p>
+                <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm" title={t.dashboard.salesHint}>
+                  <p className="text-xs font-medium text-muted">{t.dashboard.salesToday}</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-20 animate-pulse rounded-md bg-border" />
                   ) : (
-                    <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{formatCurrency(netRevenue)}</p>
+                    <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{formatCurrency(stats.sales)}</p>
                   )}
                 </div>
+                {canSeeProfit && (
+                  <div
+                    className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm"
+                    title={profit.missingCost ? t.dashboard.missingCostHint : undefined}
+                  >
+                    <p className="flex items-center gap-1 text-xs font-medium text-muted">
+                      {t.dashboard.grossProfit}
+                      {profit.missingCost && !ordersLoading && <AlertTriangle className="h-3 w-3 text-warning" aria-label={t.dashboard.missingCostHint} />}
+                    </p>
+                    {ordersLoading ? (
+                      <span className="mt-1.5 inline-block h-5 w-20 animate-pulse rounded-md bg-border" />
+                    ) : (
+                      <p className="mt-0.5 font-display text-lg font-semibold tabular-nums text-fg">{formatCurrency(profit.grossProfit)}</p>
+                    )}
+                  </div>
+                )}
                 <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm">
                   <p className="text-xs font-medium text-muted">{t.dashboard.ordersToday}</p>
                   {ordersLoading ? (
@@ -832,9 +1194,10 @@ export function DashboardPage() {
           ) : (
             <>
               <StatCard
-                title={t.dashboard.netRevenue}
-                value={netRevenue}
+                title={t.dashboard.salesToday}
+                value={stats.sales}
                 format={(n) => formatCurrency(n)}
+                change={salesChange}
                 icon={<DollarSign className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft"
                 sparkColor="text-brand-strong"
@@ -856,6 +1219,7 @@ export function DashboardPage() {
               <StatCard
                 title={t.dashboard.ordersToday}
                 value={stats.totalOrders}
+                change={ordersChange}
                 icon={<ShoppingCart className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft"
                 sparkColor="text-brand-strong"
@@ -872,7 +1236,7 @@ export function DashboardPage() {
                 iconWrap="bg-brand-soft"
                 sparkColor="text-brand-strong"
                 kpiColor="rgb(var(--brand))"
-                spark={FALLBACK_AVG}
+                spark={taxSpark}
                 sparkId="spark-tax"
                 entrance="entrance-4"
               />
@@ -880,6 +1244,7 @@ export function DashboardPage() {
                 title={t.dashboard.avgOrderValue}
                 value={stats.avgOrder}
                 format={(n) => formatCurrency(n)}
+                change={avgChange}
                 icon={<TrendingUp className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft"
                 sparkColor="text-brand-strong"
@@ -890,6 +1255,16 @@ export function DashboardPage() {
               />
             </>
           )}
+        </div>
+
+        {/* ── Today by hour (2/3) + payments & shift (1/3) ─────────── */}
+        <div className="entrance-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <HourlySalesCard buckets={hourly} loading={ordersLoading} />
+          </div>
+          <div>
+            <TodayMoneyCard orders={orders} returns={todayReturns} loading={ordersLoading} />
+          </div>
         </div>
 
         {/* ── Main content: orders (2/3) + quick actions (1/3) ──────── */}

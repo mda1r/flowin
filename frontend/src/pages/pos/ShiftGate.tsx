@@ -436,6 +436,21 @@ export function ShiftBadge({ shift, onCloseShift }: { shift: ShiftResponse; onCl
   )
 }
 
+// ── Expected drawer cash ──────────────────────────────────────────────────────
+
+/** Cash taken by the given (in-shift) orders: Cash orders plus the cash part of Split orders. */
+export function shiftCashTakings(orders: OrderResponse[]): number {
+  return orders.reduce(
+    (s, o) => s + (o.paymentMethod === 'Cash' ? o.totalAmount : o.paymentMethod === 'Split' ? (o.splitCash ?? 0) : 0),
+    0,
+  )
+}
+
+/** What the drawer should hold: opening cash + cash takings. Shared by CloseShiftModal and the dashboard. */
+export function shiftExpectedCash(shift: ShiftResponse, orders: OrderResponse[]): number {
+  return shift.openingCash + shiftCashTakings(orders)
+}
+
 // ── Main ShiftGate Export ─────────────────────────────────────────────────────
 
 // The last known shift per user and branch, so a dropped connection or a server error does not lock a till

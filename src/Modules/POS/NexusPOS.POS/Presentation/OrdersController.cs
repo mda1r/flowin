@@ -241,14 +241,16 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
-    /// <summary>List returns for a branch.</summary>
+    /// <summary>List returns for a branch, optionally within [from, to) (UTC).</summary>
     [HttpGet("/api/v1/branches/{branchId:guid}/returns")]
     [ProducesResponseType(typeof(IReadOnlyList<ReturnOrderResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListReturns(
         Guid branchId,
-        CancellationToken cancellationToken)
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        CancellationToken cancellationToken = default)
     {
-        ListReturnsQuery query = new(branchId);
+        ListReturnsQuery query = new(branchId, UtcDates.AsUtc(from), UtcDates.AsUtc(to));
         ErrorOr<IReadOnlyList<ReturnOrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
