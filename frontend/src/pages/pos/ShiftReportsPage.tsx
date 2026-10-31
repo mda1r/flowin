@@ -32,14 +32,17 @@ function duration(fromIso: string, toIso?: string | null) {
 
 const LONG_OPEN_HOURS = 16
 
-function reconcile(s: ShiftResponse) {
+// Card refunds go back through the terminal, so the card total it should show is net of them, as the server reckons at close.
+function reconcile(s: ShiftResponse, cardRefunds = 0) {
   const expectedCash = s.expectedCash ?? s.openingCash + s.totalCashSales
+  const expectedCard = s.totalCardSales - cardRefunds
   return {
     expectedCash,
     countedCash: s.closingCash,
     cashVariance: s.cashVariance ?? (s.closingCash != null ? s.closingCash - expectedCash : null),
+    expectedCard,
     countedCard: s.closingCardCount,
-    cardVariance: s.cardVariance ?? (s.closingCardCount != null ? s.closingCardCount - s.totalCardSales : null),
+    cardVariance: s.cardVariance ?? (s.closingCardCount != null ? s.closingCardCount - expectedCard : null),
   }
 }
 
@@ -151,9 +154,14 @@ function liveTotals(shift: ShiftResponse, orders: OrderResponse[], returns: Retu
   const cash = orders.reduce((a, o) => a + (o.paymentMethod === 'Cash' ? o.totalAmount : o.paymentMethod === 'Split' ? o.splitCash ?? 0 : 0), 0)
   // Cash refunds leave the drawer, as the server counts them at close.
   const opened = new Date(shift.openedAt).getTime()
-  const cashBack = returns
-    .filter((x) => x.refundMethod === 'Cash' && new Date(x.createdAt).getTime() >= opened)
-    .reduce((a, x) => a + x.refundAmount, 0)
+  const since = returns.filter((x) => new Date(x.createdAt).getTime() >= opened)
+  const cashBack = since.filter((x) => x.refundMethod === 'Cash').reduce((a, x) => a + x.refundAmount, 0)
+  // VAT handed back on refunds comes off the shift's VAT, at the rate of the invoice being returned.
+  const rates = new Map(orders.map((o) => [o.id, o.taxRate ?? 0.15]))
+  const taxBack = since.reduce((a, x) => {
+    const rate = rates.get(x.originalOrderId) ?? 0.15
+    return a + (rate > 0 ? (x.refundAmount * rate) / (1 + rate) : 0)
+  }, 0)
   const card = orders.reduce((a, o) => a + (o.paymentMethod === 'Card' ? o.totalAmount : o.paymentMethod === 'Split' ? o.splitCard ?? 0 : 0), 0)
   return {
     ...shift,
@@ -161,7 +169,7 @@ function liveTotals(shift: ShiftResponse, orders: OrderResponse[], returns: Retu
     totalSales: orders.reduce((a, o) => a + o.totalAmount, 0),
     totalCashSales: cash,
     totalCardSales: card,
-    totalTax: orders.reduce((a, o) => a + o.taxAmount, 0),
+    totalTax: orders.reduce((a, o) => a + o.taxAmount, 0) - taxBack,
     expectedCash: shift.openingCash + cash - cashBack,
   }
 }
@@ -182,20 +190,24 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
   })
 
   const shift = isCurrent ? liveTotals(stored, orders, returns) : stored
-  const r = reconcile(shift)
+
+  const refundsInShift = useMemo(() => {
+    const until = stored.closedAt ? new Date(stored.closedAt).getTime() : Date.now()
+    const list = returns.filter((x) => {
+      const t = new Date(x.createdAt).getTime()
+      return t >= new Date(stored.openedAt).getTime() && t <= until
+    })
+    return {
+      count: list.length,
+      amount: list.reduce((a, x) => a + x.refundAmount, 0),
+      card: list.filter((x) => x.refundMethod === 'Card').reduce((a, x) => a + x.refundAmount, 0),
+    }
+  }, [returns, stored.openedAt, stored.closedAt])
+
+  const r = reconcile(shift, refundsInShift.card)
   const avg = shift.totalOrders ? shift.totalSales / shift.totalOrders : 0
   const cashShare = shift.totalSales ? (shift.totalCashSales / shift.totalSales) * 100 : 0
   const openHours = (Date.now() - new Date(shift.openedAt).getTime()) / 3_600_000
-
-
-  const refundsInShift = useMemo(() => {
-    const until = shift.closedAt ? new Date(shift.closedAt).getTime() : Date.now()
-    const list = returns.filter((x) => {
-      const t = new Date(x.createdAt).getTime()
-      return t >= new Date(shift.openedAt).getTime() && t <= until
-    })
-    return { count: list.length, amount: list.reduce((a, x) => a + x.refundAmount, 0) }
-  }, [returns, shift])
 
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; total: number }>()
@@ -284,14 +296,14 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
             </thead>
             <tbody className="divide-y divide-border">
               <tr>
-                <td className="py-2 text-fg">النقد في الدرج <span className="text-xs text-muted">(عهدة {formatCurrency(shift.openingCash)} + مبيعات نقدية)</span></td>
+                <td className="py-2 text-fg">النقد في الدرج <span className="text-xs text-muted">(عهدة {formatCurrency(shift.openingCash)} + مبيعات نقدية − مرتجعات نقدية)</span></td>
                 <td className="py-2 text-end tabular-nums">{formatCurrency(r.expectedCash)}</td>
                 <td className="py-2 text-end tabular-nums">{r.countedCash != null ? formatCurrency(r.countedCash) : '—'}</td>
                 <td className="py-2 text-end"><Variance v={r.cashVariance} /></td>
               </tr>
               <tr>
                 <td className="py-2 text-fg">البطاقات <span className="text-xs text-muted">(جهاز الشبكة)</span></td>
-                <td className="py-2 text-end tabular-nums">{formatCurrency(shift.totalCardSales)}</td>
+                <td className="py-2 text-end tabular-nums">{formatCurrency(r.expectedCard)}</td>
                 <td className="py-2 text-end tabular-nums">{r.countedCard != null ? formatCurrency(r.countedCard) : '—'}</td>
                 <td className="py-2 text-end"><Variance v={r.cardVariance} /></td>
               </tr>
@@ -398,12 +410,12 @@ function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent }: {
   id: string
   shift: ShiftResponse
   topProducts: { name: string; qty: number; total: number }[]
-  refunds: { count: number; amount: number }
+  refunds: { count: number; amount: number; card: number }
   isCurrent: boolean
 }) {
   const settings = useReceiptSettings()
   const { sellerName, vatNumber } = useSellerIdentity()
-  const r = reconcile(shift)
+  const r = reconcile(shift, refunds.card)
   const row = (label: string, value: string) => (
     <div className="receipt-row"><span>{label}</span><span className="tabular-nums">{value}</span></div>
   )

@@ -14,6 +14,8 @@ internal sealed class ReturnOrderCommandValidator : AbstractValidator<ReturnOrde
             .When(x => x.Lines is not null)
             .WithMessage("Each line can appear only once in a return.");
         RuleFor(x => x.Note).MaximumLength(500);
+        // An empty reference would make every later return look like a replay of the first.
+        RuleFor(x => x.ClientReference).NotEqual(Guid.Empty).When(x => x.ClientReference.HasValue);
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.LineId).NotEmpty();
