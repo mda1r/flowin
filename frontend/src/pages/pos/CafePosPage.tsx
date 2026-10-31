@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot,
-  Gamepad2, Clock, Play, Square, Search, Percent,
+  Gamepad2, Clock, Play, Square, Search, Percent, RotateCcw,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi, posSettingsApi } from '@/api/orders'
@@ -124,6 +124,17 @@ function mergeCartLines(lines: CafeCartItem[]): CafeCartItem[] {
   return out
 }
 
+// variantId → its menu price (VAT included). A line whose price differs from it takes the menu price;
+// shared by a sale refused for an old price and a cart read back after a reload.
+const catalogPrices = (list: ProductResponse[]) =>
+  new Map(list.flatMap((p) => p.variants.map((v) => [v.id, v.salePrice] as const)))
+
+const isStale = (line: CafeCartItem, prices: Map<string, number>) =>
+  prices.has(line.variantId) && prices.get(line.variantId) !== line.unitPrice
+
+const repriceLines = (lines: CafeCartItem[], prices: Map<string, number>) =>
+  lines.map((i) => (isStale(i, prices) ? { ...i, unitPrice: prices.get(i.variantId)! } : i))
+
 // Search rank of a product, lower first, or null when it does not match. Every side is folded with
 // normalizeArabic, so "اسبريسو" finds "إسبريسو". An exact barcode or SKU comes first, then a name that
 // starts with the term, a word in the name that does, a name that only contains it, then sizes and SKUs.
@@ -166,12 +177,62 @@ function rememberLastSize(productId: string, variantId: string) {
   }
 }
 
+// The order on the till, kept per branch for this browser tab so an accidental reload does not lose it.
+// sessionStorage, best effort: the manager PIN, payment and customer are never part of it.
+interface CartDraft {
+  cart: CafeCartItem[]
+  orderType: 'here' | 'takeaway'
+  tableNumber: number | null
+  discountMode: DiscountMode
+  discountInput: string
+}
+
+const draftKey = (branchId: string) => `cafe-cart-draft:${branchId}`
+
+function readDraft(branchId: string): Partial<CartDraft> | null {
+  try {
+    const raw = sessionStorage.getItem(draftKey(branchId))
+    const draft = raw ? (JSON.parse(raw) as Partial<CartDraft>) : null
+    return draft && Array.isArray(draft.cart) ? draft : null
+  } catch {
+    return null
+  }
+}
+
+function writeDraft(branchId: string, draft: CartDraft) {
+  try {
+    if (draft.cart.length === 0) sessionStorage.removeItem(draftKey(branchId))
+    else sessionStorage.setItem(draftKey(branchId), JSON.stringify(draft))
+  } catch {
+    // Storage blocked or full: the order just is not kept across a reload.
+  }
+}
+
+function clearDraft(branchId: string | null) {
+  try {
+    if (branchId) sessionStorage.removeItem(draftKey(branchId))
+  } catch {
+    // Nothing to clear when storage is blocked.
+  }
+}
+
+// A typed quantity: Arabic-Indic and Persian digits count too, since a phone's Arabic keypad sends them.
+const parseQty = (text: string) =>
+  parseInt(text.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)), 10)
+
 const CAFE_ACCENT: React.CSSProperties = {
   '--accent-l': '#0B7A65',
   '--accent-d': '#3FD3B0',
 } as React.CSSProperties
 
 const TOTAL_TABLES = 16
+
+// Product tiles: two across on a phone, up to five on a wide screen.
+const PRODUCT_GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+
+// Cart line controls: 36px to look at, 44px to hit, since the ::after layer reaches 4px past each edge.
+const HIT_AREA = "relative flex items-center justify-center transition-colors after:absolute after:-inset-1 after:content-['']"
+const QTY_BUTTON = cn(HIT_AREA, 'h-9 w-9 shrink-0 rounded-lg border border-border bg-surface text-fg hover:bg-surface-2')
 
 // ── Table Picker ──────────────────────────────────────────────────────────────
 
@@ -478,6 +539,20 @@ export function CafePosPage() {
   const [showKitchenTicket, setShowKitchenTicket] = useState(false)
   const [customerReceipt, setCustomerReceipt] = useState<CustomerReceiptData | null>(null)
 
+  // Below md the cart is a bottom sheet over the menu; a quantity tapped on a line becomes a typed field.
+  const [cartOpen, setCartOpen] = useState(false)
+  const [qtyEdit, setQtyEdit] = useState<{ lineKey: string; text: string } | null>(null)
+  // Set once this branch's saved draft has been looked at, so an empty cart never overwrites it first.
+  const draftBranchRef = useRef<string | null>(null)
+
+  // Widening past md shows the side cart, so a sheet left open there must not linger as a dialog.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const onChange = () => { if (mq.matches) setCartOpen(false) }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
   // ── Data ──────────────────────────────────────────────────────────────────
 
   const { data: categoriesData } = useQuery({
@@ -575,14 +650,21 @@ export function CafePosPage() {
   }, [selectedCategoryId])
 
   // One drink can sit on several lines (different notes); stock counts them all.
-  const cartQty = (variantId: string) => cart.reduce((n, i) => (i.variantId === variantId ? n + i.quantity : n), 0)
+  const cartQty = (variantId: string, lines = cart) => lines.reduce((n, i) => (i.variantId === variantId ? n + i.quantity : n), 0)
 
-  const canAddMore = (variantId: string, addingQty = 1): boolean => {
-    if (!trackMap[variantId]) return true
+  // How many more of a size the stock allows on top of the given lines; untracked or unknown stock has no limit.
+  const stockRoom = (variantId: string, lines = cart): number => {
+    if (!trackMap[variantId]) return Infinity
     const available = stockMap[variantId]
-    if (available === undefined) return true
-    return cartQty(variantId) + addingQty <= available
+    if (available === undefined) return Infinity
+    return available - cartQty(variantId, lines)
   }
+
+  const canAddMore = (variantId: string, addingQty = 1, lines = cart): boolean => addingQty <= stockRoom(variantId, lines)
+
+  // A tracked size with nothing on hand; a tile is sold out only when every one of its sizes is.
+  const isSoldOut = (variantId: string) =>
+    !!trackMap[variantId] && stockMap[variantId] !== undefined && stockMap[variantId] <= 0
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
 
@@ -715,6 +797,58 @@ export function CafePosPage() {
 
   const removeItem = (lineKey: string) => setCart((prev) => prev.filter((i) => i.lineKey !== lineKey))
 
+  // A typed quantity: 0 removes the line, more than the stock allows stops at what is on hand.
+  const commitQty = () => {
+    if (!qtyEdit) return
+    const { lineKey, text } = qtyEdit
+    setQtyEdit(null)
+    const line = cart.find((i) => i.lineKey === lineKey)
+    const typed = parseQty(text)
+    if (!line || !Number.isFinite(typed) || typed < 0) return
+    if (typed === 0) { removeItem(lineKey); return }
+    let quantity = Math.min(typed, 999)
+    if (quantity > line.quantity && !canAddMore(line.variantId, quantity - line.quantity)) {
+      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[line.variantId] ?? 0} وحدة`)
+      quantity = line.quantity + Math.max(0, stockRoom(line.variantId))
+    }
+    lastLineRef.current = lineKey
+    setCart((prev) => prev.map((i) => (i.lineKey === lineKey ? { ...i, quantity } : i)))
+  }
+
+  // Rings the last sale again for a regular, at today's prices and with its notes. Stock applies as for a tap:
+  // a size that ran out, or is no longer on the menu, is left out and the cashier is told.
+  const repeatLastOrder = () => {
+    const last = lastKitchenTicket?.items ?? []
+    if (last.length === 0) {
+      toast.info(t.pos.repeatNothing)
+      return
+    }
+    const onSale = new Map(allProducts.flatMap((p) => p.variants.filter((v) => v.isActive).map((v) => [v.id, { product: p, variant: v }] as const)))
+    const next = [...cart]
+    let missed = 0
+    for (const item of last) {
+      const found = onSale.get(item.variantId)
+      if (!found) { missed += item.quantity; continue }
+      let quantity = item.quantity
+      if (!canAddMore(item.variantId, quantity, next)) quantity = Math.max(0, stockRoom(item.variantId, next))
+      missed += item.quantity - quantity
+      if (quantity === 0) continue
+      const { product, variant } = found
+      const lineKey = newLineKey()
+      lastLineRef.current = lineKey
+      next.push({ lineKey, variantId: variant.id, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity, notes: item.notes })
+    }
+    if (next.length === cart.length) {
+      toast.error(t.pos.repeatNoneAdded, t.pos.repeatMissed.replace('{n}', String(missed)))
+      return
+    }
+    const merged = mergeCartLines(next)
+    if (!merged.some((i) => i.lineKey === lastLineRef.current)) lastLineRef.current = null
+    setCart(merged)
+    if (missed > 0) toast.warning(t.pos.repeatPartial, t.pos.repeatMissed.replace('{n}', String(missed)))
+    else toast.success(t.pos.repeatAdded)
+  }
+
   const updateNote = (lineKey: string, note: string) => {
     setCart((prev) => prev.map((i) => i.lineKey === lineKey ? { ...i, notes: note } : i))
   }
@@ -727,6 +861,7 @@ export function CafePosPage() {
 
   // الأسعار شاملة الضريبة — نستخرج الضريبة من الإجمالي
   const cartTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
   // The order discount comes off first, then loyalty points, as on the server. A fixed discount is typed
   // in riyals the customer sees (VAT included); a percentage is the same share before or after VAT.
   const discountRaw = Math.max(0, parseFloat(discountInput) || 0)
@@ -763,15 +898,59 @@ export function CafePosPage() {
     void queryClient.invalidateQueries({ queryKey: ['cafe-products', tenantId] })
     const raw = fresh?.data
     const list: ProductResponse[] = Array.isArray(raw) ? raw : ((raw as any)?.items ?? [])
-    const prices = new Map(list.flatMap((p) => p.variants.map((v) => [v.id, v.salePrice] as const)))
-    const stale = (i: CafeCartItem) => prices.has(i.variantId) && prices.get(i.variantId) !== i.unitPrice
-    if (!cart.some(stale)) {
+    const prices = catalogPrices(list)
+    if (!cart.some((i) => isStale(i, prices))) {
       toast.error(apiErrorMessage(err), 'احذف الصنف من السلة وأضفه من جديد')
       return
     }
-    setCart((prev) => prev.map((i) => (stale(i) ? { ...i, unitPrice: prices.get(i.variantId)! } : i)))
+    setCart((prev) => repriceLines(prev, prices))
     toast.warning('تحدّثت الأسعار من قائمة المنتجات', 'راجع الإجمالي ثم ادفع مرة أخرى')
   }
+
+  // ── Cart draft ────────────────────────────────────────────────────────────
+  // Saved on every change once this branch's draft has been read back, and dropped with an empty cart.
+  useEffect(() => {
+    if (!branchId || draftBranchRef.current !== branchId) return
+    writeDraft(branchId, { cart, orderType, tableNumber, discountMode, discountInput })
+  }, [branchId, cart, orderType, tableNumber, discountMode, discountInput])
+
+  // Read back once the menu has loaded: lines whose size left the menu are dropped and the rest take
+  // today's prices, the same repricing a refused sale gets. A cart already started here is left alone.
+  useEffect(() => {
+    if (!branchId || !allProductsData || draftBranchRef.current === branchId) return
+    draftBranchRef.current = branchId
+    const draft = readDraft(branchId)
+    if (!draft?.cart?.length || cart.length > 0) return
+    const onSale = new Map(allProducts.flatMap((p) => p.variants.filter((v) => v.isActive).map((v) => [v.id, { product: p, variant: v }] as const)))
+    const kept: CafeCartItem[] = []
+    for (const i of draft.cart) {
+      const found = typeof i?.variantId === 'string' ? onSale.get(i.variantId) : undefined
+      if (!found || !Number.isInteger(i.quantity) || i.quantity <= 0) continue
+      kept.push({
+        lineKey: typeof i.lineKey === 'string' ? i.lineKey : newLineKey(),
+        variantId: found.variant.id,
+        productName: found.product.name,
+        variantName: found.variant.name,
+        unitPrice: Number(i.unitPrice),
+        costPrice: found.variant.costPrice,
+        quantity: Math.min(i.quantity, 999),
+        notes: typeof i.notes === 'string' ? i.notes.slice(0, 200) : '',
+      })
+    }
+    const dropped = draft.cart.length - kept.length
+    if (kept.length === 0) {
+      clearDraft(branchId)
+      return
+    }
+    setCart(mergeCartLines(repriceLines(kept, catalogPrices(allProducts))))
+    if (draft.orderType === 'here' || draft.orderType === 'takeaway') setOrderType(draft.orderType)
+    if (typeof draft.tableNumber === 'number' && draft.tableNumber >= 1 && draft.tableNumber <= TOTAL_TABLES) setTableNumber(draft.tableNumber)
+    if (draft.discountMode === 'Percentage' || draft.discountMode === 'Fixed') setDiscountMode(draft.discountMode)
+    if (typeof draft.discountInput === 'string') setDiscountInput(draft.discountInput)
+    toast.info(t.pos.draftRestored, dropped > 0 ? t.pos.draftDropped.replace('{n}', String(dropped)) : undefined)
+    // Only the menu arriving (or the branch changing) should trigger the read-back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId, allProductsData])
 
   // The button and the AI cashier share one path: a single idempotent /orders/checkout with the offline fallback.
   // The AI cashier settles the exact total by cash or card, so it has no tendered amount or split.
@@ -878,6 +1057,9 @@ export function CafePosPage() {
 
       setCustomerReceipt({ orderId, number, ...snapshot, completedAt, offline })
       setCart([])
+      clearDraft(branchId)
+      setCartOpen(false)
+      setQtyEdit(null)
       lastLineRef.current = null
       setTableNumber(null)
       setSplitCash('')
@@ -1041,6 +1223,7 @@ export function CafePosPage() {
     { keys: ['+', '-'], label: 'زيادة / إنقاص آخر صنف' },
     { keys: ['F5', 'F6', 'F7'], label: 'الدفع: نقداً / بطاقة / تقسيم' },
     { keys: ['F9', 'Ctrl+Enter'], label: 'إتمام الدفع' },
+    { keys: ['F4'], label: t.pos.repeatLast },
     { keys: ['F8'], label: 'تفريغ السلة' },
     { keys: ['?'], label: 'عرض الاختصارات' },
   ]
@@ -1075,14 +1258,16 @@ export function CafePosPage() {
         if (!checkout.isPending) checkout.mutate({ mode: payMode })
       },
     },
+    { keys: ['F4'], label: 'repeat', allowInInputs: true, run: repeatLastOrder },
     { keys: ['F8'], label: 'clear', allowInInputs: true, run: () => { if (cart.length > 0) setConfirmClearCart(true) } },
+    { keys: ['Escape'], label: 'close-cart', allowInInputs: true, enabled: cartOpen, run: () => setCartOpen(false) },
     { keys: ['?', '؟', 'F1'], label: 'help', allowInInputs: false, run: () => setShowShortcuts(true) },
   ])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" style={CAFE_ACCENT}>
+    <div className="flex h-full flex-col overflow-hidden bg-surface-2" style={CAFE_ACCENT}>
       <OfflineBanner />
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
       <ConfirmModal
@@ -1090,6 +1275,8 @@ export function CafePosPage() {
         onClose={() => setConfirmClearCart(false)}
         onConfirm={() => {
           setCart([])
+          clearDraft(branchId)
+          setQtyEdit(null)
           setConfirmClearCart(false)
           lastLineRef.current = null
           setDiscountInput('')
@@ -1101,17 +1288,28 @@ export function CafePosPage() {
         confirmVariant="danger"
       />
       {/* ── Header ── */}
-      <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2.5 shadow-sm sm:px-5 sm:py-3">
         <div className="flex items-center gap-3">
           <Coffee className="h-5 w-5 text-brand-ink" />
           <h1 className="text-base font-bold text-fg">{t.pos.title}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {lastKitchenTicket && (
+            <button
+              onClick={repeatLastOrder}
+              title={`${t.pos.repeatLast} (F4)`}
+              aria-label={t.pos.repeatLast}
+              className="flex min-h-9 items-center gap-1.5 rounded-xl border border-brand/40 px-3 py-1.5 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand/10"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden sm:inline">{t.pos.repeatLast}</span>
+            </button>
+          )}
           {lastKitchenTicket && (
             <button
               onClick={() => setShowKitchenTicket(true)}
               title={`إعادة طباعة تذكرة المطبخ #${lastKitchenTicket.ticketNo}`}
-              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
+              className="flex min-h-9 items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
             >
               <ChefHat className="h-4 w-4 text-brand-strong" />
               <span className="tabular-nums" dir="ltr">#{lastKitchenTicket.ticketNo}</span>
@@ -1122,14 +1320,14 @@ export function CafePosPage() {
               onClick={() => setAiCashierActive((v) => !v)}
               title="كاشير AI"
               className={cn(
-                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors',
+                'flex min-h-9 items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors',
                 aiCashierActive
                   ? 'bg-brand text-brand-fg'
                   : 'border border-brand/40 text-brand-ink hover:bg-brand/10',
               )}
             >
               <Bot className="h-4 w-4" />
-              كاشير AI
+              <span className="hidden sm:inline">كاشير AI</span>
             </button>
           )}
           {shift ? (
@@ -1137,7 +1335,7 @@ export function CafePosPage() {
           ) : (
             <button
               onClick={() => setShowOpenShift(true)}
-              className="rounded-xl bg-brand px-4 py-1.5 text-sm font-semibold text-white"
+              className="min-h-9 rounded-xl bg-brand px-4 py-1.5 text-sm font-semibold text-brand-fg"
             >
               فتح شفت
             </button>
@@ -1146,9 +1344,38 @@ export function CafePosPage() {
       </div>
 
       <ShiftGate onOpenShift={() => setShowOpenShift(true)} onCloseShift={() => setShowCloseShift(true)}>
-        <div className="flex flex-1 overflow-hidden">
-          {/* ── Cart sidebar (appears RIGHT in RTL) ── */}
-          <aside className="flex w-72 flex-shrink-0 flex-col border-l border-border bg-surface">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* ── Cart: a side column at the start edge from md up (right in RTL), a bottom sheet below it ── */}
+          {cartOpen && (
+            <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setCartOpen(false)} aria-hidden="true" />
+          )}
+          <aside
+            id="cafe-cart"
+            role={cartOpen ? 'dialog' : undefined}
+            aria-modal={cartOpen || undefined}
+            aria-label={cartOpen ? t.pos.currentOrder : undefined}
+            // The till's F-keys keep working while the sheet is open.
+            data-page-shortcuts={cartOpen || undefined}
+            className={cn(
+              'flex-col bg-surface',
+              cartOpen
+                ? 'fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] animate-float-up overflow-y-auto overscroll-contain rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] shadow-2xl'
+                : 'hidden',
+              'md:static md:z-auto md:flex md:max-h-none md:w-72 md:flex-shrink-0 md:animate-none md:overflow-hidden md:rounded-none md:border-e md:border-t-0 md:pb-0 md:shadow-none lg:w-80',
+            )}
+          >
+            {/* Sheet title and close, phones only */}
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2 md:hidden">
+              <span className="text-sm font-bold text-fg">{t.pos.currentOrder}</span>
+              <button
+                type="button"
+                onClick={() => setCartOpen(false)}
+                aria-label={t.pos.closeCart}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
             {/* Order type toggle */}
             <div className="space-y-2 border-b border-border p-3">
               <div className="flex overflow-hidden rounded-xl border border-border">
@@ -1192,9 +1419,9 @@ export function CafePosPage() {
               )}
             </div>
 
-            {/* Cart header */}
+            {/* Cart header; the sheet has its own title */}
             <div
-              className="border-b border-border px-4 py-2"
+              className="hidden border-b border-border px-4 py-2 md:block"
               style={{ background: 'linear-gradient(to left, color-mix(in srgb, var(--accent) 8%, transparent), transparent)' }}
             >
               <p className="text-sm font-bold text-fg">
@@ -1204,12 +1431,23 @@ export function CafePosPage() {
               </p>
             </div>
 
-            {/* Cart items */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* Cart items: the list scrolls in the side column; in the sheet the whole sheet scrolls */}
+            <div className="space-y-2 p-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
               {cart.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-14 text-muted/50">
                   <Coffee className="h-8 w-8" />
                   <p className="text-sm">{t.pos.addProducts}</p>
+                  {lastKitchenTicket && (
+                    <button
+                      type="button"
+                      onClick={repeatLastOrder}
+                      className="mt-2 flex min-h-11 items-center gap-2 rounded-xl border border-brand/40 px-4 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand/10"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      {t.pos.repeatLast}
+                      <kbd className="hidden rounded border border-border bg-surface-2 px-1 font-mono text-[10px] text-muted md:inline">F4</kbd>
+                    </button>
+                  )}
                 </div>
               ) : (
                 cart.map((item) => (
@@ -1225,31 +1463,66 @@ export function CafePosPage() {
                         {!isPlainVariant(item.variantName, item.productName) && (
                           <p className="text-xs text-muted">{item.variantName}</p>
                         )}
-                        <p className="text-xs font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
-                          {formatCurrency(item.unitPrice * item.quantity)}
-                        </p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <p className="shrink-0 text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
+                        {formatCurrency(item.unitPrice * item.quantity)}
+                      </p>
+                    </div>
+
+                    {/* Quantity: 36px buttons with a 44px hit area (after:-inset-1); tapping the number types one */}
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateQty(item.lineKey, -1)}
+                        aria-label={t.pos.qtyDecrease}
+                        className={QTY_BUTTON}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      {qtyEdit?.lineKey === item.lineKey ? (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          autoFocus
+                          value={qtyEdit.text}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onChange={(e) => setQtyEdit({ lineKey: item.lineKey, text: e.target.value.replace(/[^0-9٠-٩۰-۹]/g, '').slice(0, 3) })}
+                          onBlur={commitQty}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitQty() }
+                            else if (e.key === 'Escape') { e.preventDefault(); setQtyEdit(null) }
+                          }}
+                          aria-label={t.pos.qtyLabel}
+                          className="h-9 w-14 shrink-0 rounded-lg border border-brand bg-surface text-center text-base font-bold tabular-nums text-fg outline-none focus:ring-2 focus:ring-brand/40"
+                        />
+                      ) : (
                         <button
-                          onClick={() => updateQty(item.lineKey, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
+                          type="button"
+                          onClick={() => setQtyEdit({ lineKey: item.lineKey, text: String(item.quantity) })}
+                          aria-label={`${t.pos.qtyLabel}: ${item.quantity}`}
+                          title={t.pos.qtyTapToType}
+                          className={cn(HIT_AREA, 'h-9 min-w-14 shrink-0 rounded-lg px-2 text-base font-bold tabular-nums text-fg hover:bg-surface')}
                         >
-                          <Minus className="h-3 w-3" />
+                          {item.quantity}
                         </button>
-                        <span className="w-5 text-center text-sm font-bold tabular-nums">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQty(item.lineKey, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => removeItem(item.lineKey)}
-                          className="flex h-6 w-6 items-center justify-center rounded-lg text-danger hover:bg-danger/10 dark:hover:bg-danger/15"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => updateQty(item.lineKey, 1)}
+                        aria-label={t.pos.qtyIncrease}
+                        className={QTY_BUTTON}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.lineKey)}
+                        aria-label={t.pos.removeLine}
+                        className={cn(HIT_AREA, 'ms-auto h-9 w-9 shrink-0 rounded-lg text-danger hover:bg-danger/10 dark:hover:bg-danger/15')}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
 
                     {/* Per-item notes */}
@@ -1268,7 +1541,7 @@ export function CafePosPage() {
                     ) : (
                       <button
                         onClick={() => setEditingNoteId(item.lineKey)}
-                        className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-brand-ink transition-colors"
+                        className="mt-1 flex min-h-8 items-center gap-1 text-xs text-muted hover:text-brand-ink transition-colors"
                       >
                         <MessageSquare className="h-3 w-3" />
                         {item.notes ? (
@@ -1493,7 +1766,7 @@ export function CafePosPage() {
           </aside>
 
           {/* ── Products area ── */}
-          <main className="flex flex-1 flex-col overflow-hidden">
+          <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {/* Category tabs */}
             <div className="flex gap-2 overflow-x-auto border-b border-border bg-surface px-4 py-3">
               <button
@@ -1722,7 +1995,7 @@ export function CafePosPage() {
             {selectedCategoryId !== '__gaming__' && (
             <div className="flex-1 overflow-y-auto p-4">
               {productsLoading ? (
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                <div className={PRODUCT_GRID}>
                   {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="h-28 animate-pulse rounded-xl bg-border" />
                   ))}
@@ -1734,27 +2007,44 @@ export function CafePosPage() {
                   {!searchTerm && <p className="text-xs text-muted">أضف منتجات من صفحة المنتجات أولاً</p>}
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                <div className={PRODUCT_GRID}>
                   {products.map((product) => {
                     // One tile per drink: a single size shows its price, several show the lowest as "from".
                     const sizes = product.variants.filter((v) => v.isActive)
                     const only = sizes.length === 1 ? sizes[0] : null
                     const lowest = Math.min(...sizes.map((v) => v.salePrice))
+                    // Sold out only when every size is; a drink with one size left still opens its picker.
+                    const soldOut = sizes.every((v) => isSoldOut(v.id))
                     return (
                       <button
                         key={product.id}
                         onClick={() => openProduct(product)}
-                        className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-2.5 text-start transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md active:translate-y-0 active:scale-[0.98]"
+                        disabled={soldOut}
+                        aria-label={soldOut ? `${product.name} · ${t.pos.soldOut}` : undefined}
+                        className={cn(
+                          'group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-2.5 text-start transition-all duration-200',
+                          soldOut
+                            ? 'cursor-not-allowed'
+                            : 'hover:-translate-y-0.5 hover:border-brand hover:shadow-md active:translate-y-0 active:scale-[0.98]',
+                        )}
                       >
+                        {soldOut && (
+                          <span className="absolute end-4 top-4 z-10 rounded-full border border-danger/30 bg-surface px-2 py-0.5 text-xs font-bold text-danger shadow-sm">
+                            {t.pos.soldOut}
+                          </span>
+                        )}
                         {/* product art: the photo when there is one, otherwise its initial on a mint tile */}
-                        <span className="mb-2.5 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl bg-brand-soft font-display text-3xl font-semibold text-brand-ink transition-colors duration-200 group-hover:bg-brand group-hover:text-brand-fg">
+                        <span className={cn(
+                          'mb-2.5 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl bg-brand-soft font-display text-3xl font-semibold text-brand-ink transition-colors duration-200',
+                          soldOut ? 'opacity-40 grayscale' : 'group-hover:bg-brand group-hover:text-brand-fg',
+                        )}>
                           {product.imageUrl ? (
                             <img src={product.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
                           ) : (
                             product.name.trim().charAt(0)
                           )}
                         </span>
-                        <p className="px-0.5 text-sm font-semibold leading-snug text-fg">
+                        <p className={cn('px-0.5 text-sm font-semibold leading-snug', soldOut ? 'text-muted' : 'text-fg')}>
                           {product.name}
                         </p>
                         {only ? (
@@ -1764,7 +2054,7 @@ export function CafePosPage() {
                         ) : (
                           <p className="px-0.5 text-xs text-muted">{t.pos.sizesCount.replace('{n}', String(sizes.length))}</p>
                         )}
-                        <p className="mt-auto px-0.5 pt-2 font-display text-sm font-semibold tabular-nums text-brand-ink">
+                        <p className={cn('mt-auto px-0.5 pt-2 font-display text-sm font-semibold tabular-nums', soldOut ? 'text-muted line-through' : 'text-brand-ink')}>
                           {only ? formatCurrency(only.salePrice) : t.pos.fromPrice.replace('{price}', formatCurrency(lowest))}
                         </p>
                       </button>
@@ -1774,6 +2064,26 @@ export function CafePosPage() {
               )}
             </div>
             )}
+
+            {/* ── Phones: the order total stays in reach; tapping it opens the cart sheet ── */}
+            <div className="shrink-0 border-t border-border bg-surface p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:hidden">
+              <button
+                type="button"
+                onClick={() => setCartOpen(true)}
+                aria-controls="cafe-cart"
+                aria-expanded={cartOpen}
+                className="flex h-12 w-full items-center justify-between gap-3 rounded-xl bg-brand px-4 text-brand-fg shadow-sm transition-transform active:scale-[0.99]"
+              >
+                <span className="flex items-center gap-2 text-sm font-bold">
+                  <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-brand-fg/20 px-1.5 text-sm tabular-nums" aria-hidden="true">
+                    {cartCount}
+                  </span>
+                  <span className="sr-only">{t.pos.itemsInCart.replace('{n}', String(cartCount))}</span>
+                  {t.pos.viewOrder}
+                </span>
+                <span className="text-base font-bold tabular-nums">{formatCurrency(grandTotal)}</span>
+              </button>
+            </div>
           </main>
         </div>
       </ShiftGate>
