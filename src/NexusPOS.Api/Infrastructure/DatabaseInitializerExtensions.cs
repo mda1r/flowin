@@ -403,7 +403,7 @@ internal static class DatabaseInitializerExtensions
             CREATE TABLE IF NOT EXISTS stock_material_movements (
                 id UUID PRIMARY KEY,
                 tenant_id UUID NOT NULL,
-                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE CASCADE,
+                material_id UUID NOT NULL REFERENCES stock_materials(id) ON DELETE RESTRICT,
                 type INT NOT NULL,
                 quantity_change NUMERIC(18,4) NOT NULL,
                 unit_cost NUMERIC(18,4),
@@ -415,6 +415,33 @@ internal static class DatabaseInitializerExtensions
             )
             """,
             "CREATE INDEX IF NOT EXISTS ix_stock_material_movements_material ON stock_material_movements (tenant_id, material_id, created_at)",
+            // Older schemas got ON DELETE CASCADE; movements are the audit trail, so swap any non-RESTRICT FK.
+            """
+            DO $$
+            DECLARE fk_name TEXT;
+            BEGIN
+                IF to_regclass('stock_material_movements') IS NULL OR to_regclass('stock_materials') IS NULL THEN
+                    RETURN;
+                END IF;
+                FOR fk_name IN
+                    SELECT conname FROM pg_constraint
+                    WHERE conrelid = to_regclass('stock_material_movements')
+                      AND confrelid = to_regclass('stock_materials')
+                      AND contype = 'f' AND confdeltype <> 'r'
+                LOOP
+                    EXECUTE format('ALTER TABLE stock_material_movements DROP CONSTRAINT %I', fk_name);
+                END LOOP;
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conrelid = to_regclass('stock_material_movements')
+                      AND confrelid = to_regclass('stock_materials')
+                      AND contype = 'f'
+                ) THEN
+                    ALTER TABLE stock_material_movements ADD CONSTRAINT fk_stock_material_movements_material
+                        FOREIGN KEY (material_id) REFERENCES stock_materials(id) ON DELETE RESTRICT;
+                END IF;
+            END $$
+            """,
             """
             CREATE TABLE IF NOT EXISTS recipe_lines (
                 id UUID PRIMARY KEY,

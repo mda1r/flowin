@@ -2,6 +2,7 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Inventory.Application.Commands.CreateStockMaterial;
 using NexusPOS.Inventory.Application.Common;
+using NexusPOS.Inventory.Domain;
 using NexusPOS.Inventory.Domain.Entities;
 using NexusPOS.Inventory.Domain.Enums;
 using NexusPOS.Inventory.Infrastructure.Persistence;
@@ -23,6 +24,11 @@ internal sealed class ReceiveStockMaterialCommandHandler(InventoryDbContext db, 
         if (material is null)
         {
             return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
+        }
+
+        if (!material.IsActive)
+        {
+            return InventoryErrors.MaterialArchived;
         }
 
         material.Receive(request.Quantity, request.UnitCost);

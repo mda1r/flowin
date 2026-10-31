@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { FlaskConical, Plus, Pencil, Trash2, AlertTriangle, Search, X, PackagePlus, History } from 'lucide-react'
+import { FlaskConical, Plus, Pencil, Archive, ArchiveRestore, AlertTriangle, Search, X, PackagePlus, History, Scale, Trash2 } from 'lucide-react'
 import { stockMaterialApi } from '@/api/stockMaterial'
 import { useAuthStore } from '@/stores/authStore'
+import { useCanManageMaterials } from '@/hooks/useCanManageMaterials'
 import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -80,6 +81,14 @@ function toPayload(f: MaterialForm): CreateStockMaterialPayload {
   }
 }
 
+// Quantity changes go through the adjust action, and the cost is sent only when the user changed
+// it, so saving a rename never rolls back stock or cost that moved while the form was open.
+function toUpdatePayload(f: MaterialForm, initial: StockMaterialResponse): UpdateStockMaterialPayload {
+  const { initialQuantity, initialCost, ...rest } = toPayload(f)
+  const cost = parseMaybeNum(f.initialCost)
+  return { ...rest, manualCost: cost !== undefined && cost !== initial.currentCost ? cost : undefined }
+}
+
 function fromMaterial(m: StockMaterialResponse): MaterialForm {
   return {
     code: m.code,
@@ -114,7 +123,7 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 interface MaterialModalProps {
   categories: StockMaterialCategoryResponse[]
   initial?: StockMaterialResponse
-  onSave: (payload: CreateStockMaterialPayload) => void
+  onSave: (form: MaterialForm) => void
   onClose: () => void
   saving: boolean
   error: string | null
@@ -129,7 +138,7 @@ function MaterialModal({ categories, initial, onSave, onClose, saving, error }: 
   const factor = parseFloat(f.conversionFactor) || 0
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (canSave && !saving) onSave(toPayload(f))
+    if (canSave && !saving) onSave(f)
   }
 
   return (
@@ -214,9 +223,17 @@ function MaterialModal({ categories, initial, onSave, onClose, saving, error }: 
             <Field label={`تكلفة ${f.storageUnit || 'وحدة التخزين'} (ر.س)`} hint="تتحدث تلقائياً عند الاستلام">
               <input type="number" className="input" value={f.initialCost} onChange={field('initialCost')} min="0" step="0.01" />
             </Field>
-            <Field label={`الكمية الحالية (${f.storageUnit || 'وحدة تخزين'})`}>
-              <input type="number" className="input" value={f.quantity} onChange={field('quantity')} min="0" step="0.001" />
-            </Field>
+            {initial ? (
+              <Field label="الكمية الحالية" hint="لتغييرها استخدم زر «جرد الكمية»">
+                <p className="input flex items-center bg-surface-2 tabular-nums text-muted">
+                  {initial.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {initial.storageUnit}
+                </p>
+              </Field>
+            ) : (
+              <Field label={`الكمية الحالية (${f.storageUnit || 'وحدة تخزين'})`}>
+                <input type="number" className="input" value={f.quantity} onChange={field('quantity')} min="0" step="0.001" />
+              </Field>
+            )}
             <Field label="حد إعادة الطلب" hint="يظهر تنبيه عند الوصول له">
               <input type="number" className="input" value={f.reorderLevel} onChange={field('reorderLevel')} min="0" step="0.01" placeholder="اختياري" />
             </Field>
@@ -364,6 +381,129 @@ function ReceiveModal({ material, onClose }: { material: StockMaterialResponse; 
   )
 }
 
+// ─── Adjust (count) stock ───────────────────────────────────────────────────
+
+const ADJUST_REASONS = ['جرد', 'تالف', 'هدر', 'تصحيح خطأ']
+
+function AdjustModal({ material, onClose }: { material: StockMaterialResponse; onClose: () => void }) {
+  const { tenantId } = useAuthStore()
+  const qc = useQueryClient()
+  const [qty, setQty] = useState('')
+  const [reason, setReason] = useState(ADJUST_REASONS[0])
+  const [note, setNote] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const q = qty.trim() === '' ? NaN : parseFloat(qty)
+  const valid = !isNaN(q) && q >= 0
+  const change = valid ? q - material.currentQuantityInStorageUnits : 0
+
+  const mut = useMutation({
+    mutationFn: () =>
+      stockMaterialApi.adjustMaterial(tenantId!, material.id, {
+        newQuantity: q,
+        reason: note.trim() ? `${reason}: ${note.trim()}` : reason,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
+      void qc.invalidateQueries({ queryKey: ['stock-material-movements', tenantId, material.id] })
+      toast.success(`تم تحديث كمية ${material.nameAr}`)
+      onClose()
+    },
+    onError: (err) => setError(apiErrorMessage(err)),
+  })
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`جرد الكمية: ${material.nameAr}`}
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={mut.isPending}>
+            إلغاء
+          </Button>
+          <Button type="submit" form="adjust-form" loading={mut.isPending} disabled={!valid || change === 0}>
+            حفظ الكمية
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="adjust-form"
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (valid && change !== 0 && !mut.isPending) mut.mutate()
+        }}
+      >
+        {error && (
+          <div role="alert" className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2.5 text-sm text-danger">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
+        <Field label={`الكمية الفعلية (${material.storageUnit})`} hint="اكتب الكمية الموجودة فعلاً بعد العدّ" required>
+          <input
+            type="number"
+            className="input"
+            value={qty}
+            onChange={(e) => {
+              setQty(e.target.value)
+              setError(null)
+            }}
+            min="0"
+            step="0.001"
+            data-autofocus
+          />
+        </Field>
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-fg">السبب</span>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="السبب">
+            {ADJUST_REASONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                role="radio"
+                aria-checked={reason === r}
+                onClick={() => setReason(r)}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-sm transition-colors',
+                  reason === r ? 'border-brand bg-brand text-brand-fg' : 'border-border text-muted hover:bg-surface-2 hover:text-fg',
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Field label="ملاحظة">
+          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={400} placeholder="اختياري" />
+        </Field>
+
+        <dl className="grid grid-cols-2 gap-3 rounded-xl bg-surface-2 p-4 text-sm">
+          <div>
+            <dt className="text-xs text-muted">الكمية في النظام</dt>
+            <dd className="mt-1 font-semibold tabular-nums text-fg">
+              {material.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {material.storageUnit}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">الفرق</dt>
+            <dd
+              className={cn('mt-1 font-semibold tabular-nums', change > 0 ? 'text-success' : change < 0 ? 'text-danger' : 'text-muted')}
+              dir="ltr"
+            >
+              {change > 0 ? '+' : ''}
+              {change.toLocaleString('ar-SA', { maximumFractionDigits: 4 })} {material.storageUnit}
+            </dd>
+          </div>
+        </dl>
+      </form>
+    </Modal>
+  )
+}
+
 const MOVEMENT_LABELS: Record<string, string> = {
   Receive: 'استلام',
   Adjustment: 'تعديل يدوي',
@@ -449,6 +589,7 @@ function MovementsModal({ material, onClose }: { material: StockMaterialResponse
 
 export function StockMaterialsPage() {
   const { tenantId } = useAuthStore()
+  const canManage = useCanManageMaterials()
   const qc = useQueryClient()
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -458,6 +599,8 @@ export function StockMaterialsPage() {
   const [deleteMat, setDeleteMat] = useState<StockMaterialResponse | null>(null)
   const [receiveMat, setReceiveMat] = useState<StockMaterialResponse | null>(null)
   const [historyMat, setHistoryMat] = useState<StockMaterialResponse | null>(null)
+  const [adjustMat, setAdjustMat] = useState<StockMaterialResponse | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
   const [deleteCat, setDeleteCat] = useState<StockMaterialCategoryResponse | null>(null)
   const [showAddCat, setShowAddCat] = useState(false)
   const [newCatName, setNewCatName] = useState('')
@@ -472,16 +615,27 @@ export function StockMaterialsPage() {
   const categories: StockMaterialCategoryResponse[] = catResp?.data ?? []
 
   const { data: matResp, isLoading } = useQuery({
-    queryKey: ['stock-materials', tenantId, selectedCatId, lowStockOnly, search],
+    queryKey: ['stock-materials', tenantId, selectedCatId, lowStockOnly, search, showArchived],
     queryFn: () =>
       stockMaterialApi.listMaterials(tenantId!, {
         categoryId: selectedCatId ?? undefined,
         lowStockOnly,
         search: search || undefined,
+        archived: showArchived || undefined,
       }),
     enabled: !!tenantId,
   })
   const materials: StockMaterialResponse[] = matResp?.data ?? []
+
+  // The server archives a material with movement history and deletes one that never moved,
+  // so the confirm copy follows its history (neutral until the history has loaded).
+  const { data: deleteMovResp } = useQuery({
+    queryKey: ['stock-material-movements', tenantId, deleteMat?.id],
+    queryFn: () => stockMaterialApi.listMovements(tenantId!, deleteMat!.id),
+    enabled: !!tenantId && !!deleteMat,
+    staleTime: 0,
+  })
+  const deleteHasMovements = deleteMovResp ? deleteMovResp.data.length > 0 : null
 
   const invalidateMaterials = () => qc.invalidateQueries({ queryKey: ['stock-materials', tenantId] })
   const invalidateCategories = () => qc.invalidateQueries({ queryKey: ['stock-material-categories', tenantId] })
@@ -537,15 +691,24 @@ export function StockMaterialsPage() {
 
   const deleteMatMut = useMutation({
     mutationFn: (id: string) => stockMaterialApi.deleteMaterial(tenantId!, id),
-    onSuccess: () => {
+    onSuccess: (res) => {
       void invalidateMaterials()
       setDeleteMat(null)
-      toast.success('تم حذف المادة')
+      toast.success(res.data?.archived ? 'تم نقل المادة إلى الأرشيف' : 'تم حذف المادة')
     },
     onError: (err) => {
       setDeleteMat(null)
-      toast.error('تعذّر حذف المادة', apiErrorMessage(err))
+      toast.error('تعذّرت أرشفة المادة', apiErrorMessage(err))
     },
+  })
+
+  const restoreMatMut = useMutation({
+    mutationFn: (id: string) => stockMaterialApi.restoreMaterial(tenantId!, id),
+    onSuccess: (res) => {
+      void invalidateMaterials()
+      toast.success(`تم استرجاع ${res.data.nameAr}`)
+    },
+    onError: (err) => toast.error('تعذّر استرجاع المادة', apiErrorMessage(err)),
   })
 
   const submitCategory = () => {
@@ -553,8 +716,8 @@ export function StockMaterialsPage() {
     if (name && !createCatMut.isPending) createCatMut.mutate(name)
   }
 
-  const lowCount = materials.filter((m) => m.isLowStock).length
-  const hasFilters = !!search || lowStockOnly || selectedCatId !== null
+  const lowCount = showArchived ? 0 : materials.filter((m) => m.isLowStock).length
+  const hasFilters = !!search || lowStockOnly || selectedCatId !== null || showArchived
 
   const catButton = (id: string | null, label: string, withAction = false) => {
     const active = selectedCatId === id
@@ -592,15 +755,17 @@ export function StockMaterialsPage() {
                 {lowCount} تحت حد الطلب · اطلبها
               </a>
             )}
-            <Button
-              onClick={() => {
-                setMatError(null)
-                setShowAddMat(true)
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              مادة جديدة
-            </Button>
+            {canManage && (
+              <Button
+                onClick={() => {
+                  setMatError(null)
+                  setShowAddMat(true)
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                مادة جديدة
+              </Button>
+            )}
           </>
         }
       />
@@ -610,21 +775,23 @@ export function StockMaterialsPage() {
         <aside className="card-3d flex shrink-0 flex-col p-3 md:w-56">
           <div className="mb-2 flex items-center justify-between px-1">
             <span className="text-sm font-semibold text-fg">التصنيفات</span>
-            <button
-              type="button"
-              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-              onClick={() => {
-                setCatError(null)
-                setShowAddCat((v) => !v)
-              }}
-              aria-label="إضافة تصنيف"
-              aria-expanded={showAddCat}
-            >
-              {showAddCat ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            </button>
+            {canManage && (
+              <button
+                type="button"
+                className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                onClick={() => {
+                  setCatError(null)
+                  setShowAddCat((v) => !v)
+                }}
+                aria-label="إضافة تصنيف"
+                aria-expanded={showAddCat}
+              >
+                {showAddCat ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              </button>
+            )}
           </div>
 
-          {showAddCat && (
+          {canManage && showAddCat && (
             <form
               className="mb-3 space-y-2"
               onSubmit={(e) => {
@@ -654,15 +821,17 @@ export function StockMaterialsPage() {
             <li className="shrink-0 md:shrink">{catButton(null, 'الكل')}</li>
             {categories.map((cat) => (
               <li key={cat.id} className="group relative shrink-0 md:shrink">
-                {catButton(cat.id, cat.name, true)}
-                <button
-                  type="button"
-                  onClick={() => setDeleteCat(cat)}
-                  className="absolute end-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted opacity-70 transition hover:bg-danger/10 hover:text-danger hover:opacity-100 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                  aria-label={`حذف تصنيف ${cat.name}`}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {catButton(cat.id, cat.name, canManage)}
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteCat(cat)}
+                    className="absolute end-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted opacity-70 transition hover:bg-danger/10 hover:text-danger hover:opacity-100 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                    aria-label={`حذف تصنيف ${cat.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -690,6 +859,15 @@ export function StockMaterialsPage() {
               />
               تحت حد الطلب فقط
             </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-border accent-[rgb(var(--brand-ink))]"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+              />
+              المؤرشفة
+            </label>
             <span className="ms-auto text-xs text-muted tabular-nums">{materials.length} مادة</span>
           </div>
 
@@ -701,7 +879,9 @@ export function StockMaterialsPage() {
                 ))}
               </div>
             ) : materials.length === 0 ? (
-              hasFilters ? (
+              showArchived && !search && !lowStockOnly && selectedCatId === null ? (
+                <EmptyState icon={<Archive />} title="الأرشيف فارغ" description="المواد التي تؤرشفها تظهر هنا مع سجل حركتها." />
+              ) : hasFilters ? (
                 <EmptyState icon={<Search />} title="لا توجد نتائج" description="جرّب كلمة بحث أخرى أو أزل عوامل التصفية" />
               ) : (
                 <EmptyState
@@ -709,15 +889,17 @@ export function StockMaterialsPage() {
                   title="لا توجد مواد مخزون بعد"
                   description="أضف المواد الخام مثل البن والحليب والسكر، لتتبع الكميات والتكلفة."
                   action={
-                    <Button
-                      onClick={() => {
-                        setMatError(null)
-                        setShowAddMat(true)
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                      أضف أول مادة
-                    </Button>
+                    canManage && (
+                      <Button
+                        onClick={() => {
+                          setMatError(null)
+                          setShowAddMat(true)
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        أضف أول مادة
+                      </Button>
+                    )
                   }
                 />
               )
@@ -781,10 +963,25 @@ export function StockMaterialsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <Button size="sm" variant="secondary" onClick={() => setReceiveMat(m)} aria-label={`استلام كمية من ${m.nameAr}`}>
-                              <PackagePlus className="h-4 w-4" />
-                              استلام
-                            </Button>
+                            {showArchived ? (
+                              canManage && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => restoreMatMut.mutate(m.id)}
+                                  loading={restoreMatMut.isPending && restoreMatMut.variables === m.id}
+                                  aria-label={`استرجاع ${m.nameAr}`}
+                                >
+                                  <ArchiveRestore className="h-4 w-4" />
+                                  استرجاع
+                                </Button>
+                              )
+                            ) : (
+                              <Button size="sm" variant="secondary" onClick={() => setReceiveMat(m)} aria-label={`استلام كمية من ${m.nameAr}`}>
+                                <PackagePlus className="h-4 w-4" />
+                                استلام
+                              </Button>
+                            )}
                             <button
                               type="button"
                               className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
@@ -794,25 +991,40 @@ export function StockMaterialsPage() {
                             >
                               <History className="h-4 w-4" />
                             </button>
-                            <button
-                              type="button"
-                              className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                              onClick={() => {
-                                setMatError(null)
-                                setEditMat(m)
-                              }}
-                              aria-label={`تعديل ${m.nameAr}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                              onClick={() => setDeleteMat(m)}
-                              aria-label={`حذف ${m.nameAr}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {canManage && !showArchived && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                                  onClick={() => setAdjustMat(m)}
+                                  aria-label={`جرد كمية ${m.nameAr}`}
+                                  title="جرد الكمية"
+                                >
+                                  <Scale className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                                  onClick={() => {
+                                    setMatError(null)
+                                    setEditMat(m)
+                                  }}
+                                  aria-label={`تعديل ${m.nameAr}`}
+                                  title="تعديل"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                                  onClick={() => setDeleteMat(m)}
+                                  aria-label={`أرشفة ${m.nameAr}`}
+                                  title="أرشفة"
+                                >
+                                  <Archive className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -828,7 +1040,7 @@ export function StockMaterialsPage() {
       {showAddMat && (
         <MaterialModal
           categories={categories}
-          onSave={(p) => createMatMut.mutate(p)}
+          onSave={(f) => createMatMut.mutate(toPayload(f))}
           onClose={() => setShowAddMat(false)}
           saving={createMatMut.isPending}
           error={matError}
@@ -839,13 +1051,7 @@ export function StockMaterialsPage() {
         <MaterialModal
           categories={categories}
           initial={editMat}
-          onSave={(p) => {
-            const { initialQuantity, initialCost, ...rest } = p
-            updateMatMut.mutate({
-              id: editMat.id,
-              payload: { ...rest, manualCost: initialCost, manualQuantity: initialQuantity },
-            })
-          }}
+          onSave={(f) => updateMatMut.mutate({ id: editMat.id, payload: toUpdatePayload(f, editMat) })}
           onClose={() => setEditMat(null)}
           saving={updateMatMut.isPending}
           error={matError}
@@ -854,14 +1060,23 @@ export function StockMaterialsPage() {
 
       {receiveMat && <ReceiveModal material={receiveMat} onClose={() => setReceiveMat(null)} />}
       {historyMat && <MovementsModal material={historyMat} onClose={() => setHistoryMat(null)} />}
+      {adjustMat && <AdjustModal material={adjustMat} onClose={() => setAdjustMat(null)} />}
 
       <ConfirmModal
         open={!!deleteMat}
         onClose={() => setDeleteMat(null)}
         onConfirm={() => deleteMat && deleteMatMut.mutate(deleteMat.id)}
-        title="حذف المادة"
-        message={deleteMat ? `سيتم حذف "${deleteMat.nameAr}" نهائياً. هل تريد المتابعة؟` : ''}
-        confirmLabel="حذف"
+        title={deleteHasMovements === false ? 'حذف المادة' : 'أرشفة المادة'}
+        message={
+          !deleteMat
+            ? ''
+            : deleteHasMovements === true
+              ? `سيتم نقل "${deleteMat.nameAr}" إلى الأرشيف مع الاحتفاظ بسجل حركتها، ويمكنك استرجاعها لاحقاً.`
+              : deleteHasMovements === false
+                ? `سيتم حذف "${deleteMat.nameAr}" نهائياً لأنه لا توجد عليها أي حركة.`
+                : `ستُؤرشف "${deleteMat.nameAr}" إن كان لها سجل حركة، وإلا ستُحذف نهائياً.`
+        }
+        confirmLabel={deleteHasMovements === false ? 'حذف' : 'أرشفة'}
         confirmVariant="danger"
         loading={deleteMatMut.isPending}
       />

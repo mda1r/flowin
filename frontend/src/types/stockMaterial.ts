@@ -77,10 +77,14 @@ export interface UpdateStockMaterialPayload {
   conversionFactor: number
   costMethod: number
   manualCost?: number
-  manualQuantity?: number
   minLevel?: number
   maxLevel?: number
   reorderLevel?: number
+}
+
+export interface AdjustStockMaterialPayload {
+  newQuantity: number
+  reason: string
 }
 
 export interface RecipeLineResponse {

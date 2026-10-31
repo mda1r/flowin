@@ -19,6 +19,8 @@ public sealed record CreateStockMaterialRequest(
 
 public sealed record ReceiveStockMaterialRequest(decimal Quantity, decimal UnitCost, string? Note = null);
 
+public sealed record AdjustStockMaterialRequest(decimal NewQuantity, string Reason);
+
 public sealed record UpdateStockMaterialRequest(
     string Code,
     string NameAr,
@@ -29,7 +31,6 @@ public sealed record UpdateStockMaterialRequest(
     decimal ConversionFactor,
     CostMethod CostMethod,
     decimal? ManualCost = null,
-    decimal? ManualQuantity = null,
     decimal? MinLevel = null,
     decimal? MaxLevel = null,
     decimal? ReorderLevel = null);
