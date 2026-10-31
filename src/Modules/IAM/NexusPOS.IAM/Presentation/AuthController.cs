@@ -87,7 +87,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         string? firstName = User.FindFirstValue(JwtRegisteredClaimNames.GivenName);
         string? lastName = User.FindFirstValue(JwtRegisteredClaimNames.FamilyName);
         // Users may have multiple roles; return the highest-privilege one
-        string[] priorityOrder = ["SuperAdmin", "Owner", "Manager", "Staff"];
+        string[] priorityOrder = ["SuperAdmin", "Owner", "Manager", "Accountant", "Cashier", "Staff"];
         IEnumerable<string> userRoles = User.FindAll(ClaimTypes.Role).Select(c => c.Value);
         string? role = priorityOrder.FirstOrDefault(r => userRoles.Contains(r));
         string? tenantId = User.FindFirstValue("tenant_id");
