@@ -127,7 +127,7 @@ export function StockCountPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-surface">
-          <table className="w-full text-sm" dir="rtl">
+          <table className="w-full text-sm">
             <thead className="bg-surface-2">
               <tr>
                 {[
@@ -185,7 +185,7 @@ export function StockCountPage() {
       )}
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t.stockCount.newCount}>
-        <div className="flex flex-col gap-4" dir="rtl">
+        <div className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">{t.stockCount.type}</label>
             <div className="grid grid-cols-2 gap-2">

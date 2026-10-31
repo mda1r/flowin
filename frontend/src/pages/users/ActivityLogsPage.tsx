@@ -98,7 +98,7 @@ export function ActivityLogsPage() {
   const hasFilters = filterCategory !== 'all' || filterUser || filterFrom || filterTo
 
   return (
-    <div className="p-6 md:p-8" dir="rtl">
+    <div className="p-6 md:p-8">
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>

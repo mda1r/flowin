@@ -227,7 +227,7 @@ export function CafeKitchenPage() {
   ]
 
   return (
-    <div className="scheme-dark flex h-screen flex-col overflow-hidden bg-bg text-fg" dir="rtl">
+    <div className="scheme-dark flex h-screen flex-col overflow-hidden bg-bg text-fg">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
         <div className="flex items-center gap-3">

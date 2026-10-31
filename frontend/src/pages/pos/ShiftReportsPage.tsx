@@ -88,7 +88,7 @@ export function ShiftReportsPage() {
   }, [closed])
 
   return (
-    <div dir="rtl">
+    <div>
       <PageHeader title="تقارير الشفتات" description="مطابقة الدرج، أداء كل شفت، وتقرير الإقفال للطباعة" icon={<FileText className="h-5 w-5" />} />
 
       <div className="space-y-5 p-4 sm:p-6">

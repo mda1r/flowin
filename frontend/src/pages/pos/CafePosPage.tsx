@@ -897,7 +897,7 @@ export function CafePosPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" dir="rtl" style={CAFE_ACCENT}>
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-2" style={CAFE_ACCENT}>
       <OfflineBanner />
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
       <ConfirmModal

@@ -1,5 +1,26 @@
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
 import { cn } from '@/lib/utils'
+
+/** Shared id + aria wiring: a unique id per field and error/hint linked for screen readers. */
+function useFieldIds(id: string | undefined, error: string | undefined, hint: string | undefined, describedBy: string | undefined) {
+  const autoId = useId()
+  const fieldId = id ?? autoId
+  const messageId = error || hint ? `${fieldId}-msg` : undefined
+  return {
+    fieldId,
+    messageId,
+    aria: {
+      'aria-invalid': error ? true : undefined,
+      'aria-describedby': [describedBy, messageId].filter(Boolean).join(' ') || undefined,
+    },
+  }
+}
+
+function FieldMessage({ id, error, hint }: { id?: string; error?: string; hint?: string }) {
+  if (error) return <p id={id} className="text-xs text-danger">{error}</p>
+  if (hint) return <p id={id} className="text-xs text-muted">{hint}</p>
+  return null
+}
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -10,8 +31,8 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, floating, className, id, placeholder, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+  ({ label, error, hint, floating, className, id, placeholder, 'aria-describedby': describedBy, ...props }, ref) => {
+    const { fieldId: inputId, messageId, aria } = useFieldIds(id, error, hint, describedBy)
 
     if (floating && label) {
       return (
@@ -23,14 +44,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               /* a placeholder must exist for :placeholder-shown to drive the float */
               placeholder={placeholder ?? ' '}
               className={cn('input-float', error && 'input-float-error', className)}
+              {...aria}
               {...props}
             />
             <label htmlFor={inputId} className="float-label">
               {label}
             </label>
           </div>
-          {error && <p className="text-xs text-danger">{error}</p>}
-          {hint && !error && <p className="text-xs text-muted">{hint}</p>}
+          <FieldMessage id={messageId} error={error} hint={hint} />
         </div>
       )
     }
@@ -56,10 +77,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               : 'border-border focus:border-brand focus:ring-brand/15',
             className,
           )}
+          {...aria}
           {...props}
         />
-        {error && <p className="text-xs text-danger">{error}</p>}
-        {hint && !error && <p className="text-xs text-muted">{hint}</p>}
+        <FieldMessage id={messageId} error={error} hint={hint} />
       </div>
     )
   },
@@ -70,12 +91,13 @@ Input.displayName = 'Input'
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
+  hint?: string
   children: React.ReactNode
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, className, id, children, ...props }, ref) => {
-    const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+  ({ label, error, hint, className, id, children, 'aria-describedby': describedBy, ...props }, ref) => {
+    const { fieldId: selectId, messageId, aria } = useFieldIds(id, error, hint, describedBy)
     return (
       <div className="space-y-1">
         {label && (
@@ -96,11 +118,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               : 'border-border focus:border-brand focus:ring-brand/15',
             className,
           )}
+          {...aria}
           {...props}
         >
           {children}
         </select>
-        {error && <p className="text-xs text-danger">{error}</p>}
+        <FieldMessage id={messageId} error={error} hint={hint} />
       </div>
     )
   },
@@ -111,11 +134,12 @@ Select.displayName = 'Select'
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
   error?: string
+  hint?: string
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, className, id, ...props }, ref) => {
-    const textareaId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+  ({ label, error, hint, className, id, 'aria-describedby': describedBy, ...props }, ref) => {
+    const { fieldId: textareaId, messageId, aria } = useFieldIds(id, error, hint, describedBy)
     return (
       <div className="space-y-1">
         {label && (
@@ -137,9 +161,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             className,
           )}
           rows={3}
+          {...aria}
           {...props}
         />
-        {error && <p className="text-xs text-danger">{error}</p>}
+        <FieldMessage id={messageId} error={error} hint={hint} />
       </div>
     )
   },

@@ -80,6 +80,11 @@ export const en = {
     required: 'Required',
     optional: 'Optional',
     submitting: 'Saving...',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
+    mainMenu: 'Main menu',
+    collapseMenu: 'Collapse menu',
+    expandMenu: 'Expand menu',
   },
 
   login: {

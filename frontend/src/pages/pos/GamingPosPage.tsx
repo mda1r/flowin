@@ -117,7 +117,7 @@ export function GamingPosPage() {
   void renderKey
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={GAMING_ACCENT}>
+    <div className="flex h-[calc(100vh-0px)] flex-col" style={GAMING_ACCENT}>
       <PageHeader title="نقطة البيع — الألعاب" />
 
       {/* Stats bar */}

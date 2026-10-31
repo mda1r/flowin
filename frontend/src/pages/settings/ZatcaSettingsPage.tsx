@@ -51,7 +51,7 @@ export function ZatcaSettingsPage() {
   const vatValid = vatNumber.trim().length >= 15
 
   return (
-    <div className="flex flex-col gap-6 p-6" dir="rtl">
+    <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title={t.zatca.title}
         description={t.zatca.description}

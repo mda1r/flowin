@@ -246,7 +246,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
         </div>
       }
     >
-      <div className="space-y-4" dir="rtl">
+      <div className="space-y-4">
         {/* summary cards */}
         <div className="grid grid-cols-2 gap-3">
           <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={String(computed.totalOrders)} />

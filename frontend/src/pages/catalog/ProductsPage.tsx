@@ -259,7 +259,7 @@ export function ProductsPage() {
   const products: ProductResponse[] = Array.isArray(_raw) ? _raw : ((_raw as any)?.items ?? [])
 
   return (
-    <div className="page-fade" dir="rtl">
+    <div className="page-fade">
       <PageHeader
         title={t.products.title}
         description={t.products.subtitle}
@@ -286,7 +286,7 @@ export function ProductsPage() {
       />
       <div className="p-6">
         <Card>
-          <div className="flex items-center gap-3 border-b border-border p-4" dir="rtl">
+          <div className="flex items-center gap-3 border-b border-border p-4">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute end-3 top-2.5 h-4 w-4 text-muted" />
               <input

@@ -24,6 +24,7 @@ const sizeClasses = {
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 export function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
+  const { t } = useI18n()
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -89,7 +90,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }: M
             <button
               type="button"
               onClick={onClose}
-              aria-label="إغلاق"
+              aria-label={t.common.close}
               className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
             >
               <X className="h-4 w-4" />
@@ -139,7 +140,7 @@ export function ConfirmModal({
             {t.common.cancel}
           </Button>
           <Button variant={confirmVariant} onClick={onConfirm} loading={loading} data-autofocus>
-            {confirmLabel ?? 'تأكيد'}
+            {confirmLabel ?? t.common.confirm}
           </Button>
         </>
       }

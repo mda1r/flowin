@@ -360,7 +360,7 @@ function RetailPosPage() {
   ])
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={RETAIL_ACCENT}>
+    <div className="flex h-[calc(100vh-0px)] flex-col" style={RETAIL_ACCENT}>
       <ShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} hints={shortcutHints} />
       <ConfirmModal
         open={confirmClearCart}

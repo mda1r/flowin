@@ -118,7 +118,7 @@ export function HotelPosPage() {
   }
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-0px)] flex-col" style={HOTEL_ACCENT}>
+    <div className="flex h-[calc(100vh-0px)] flex-col" style={HOTEL_ACCENT}>
       <PageHeader title="نقطة البيع — الفندق" />
 
       {/* Stats bar */}

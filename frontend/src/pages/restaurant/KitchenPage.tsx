@@ -226,7 +226,7 @@ export function KitchenPage() {
   const readyOrders = orders.filter((o) => o.status === 'Ready')
 
   return (
-    <div className="scheme-dark min-h-screen bg-bg text-fg" dir="rtl">
+    <div className="scheme-dark min-h-screen bg-bg text-fg">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
@@ -260,7 +260,7 @@ export function KitchenPage() {
       </div>
 
       {/* Columns */}
-      <div className="grid h-[calc(100vh-73px)] grid-cols-3 divide-x divide-border" style={{ direction: 'rtl' }}>
+      <div className="grid h-[calc(100vh-73px)] grid-cols-3 divide-x divide-border">
         {/* قيد الانتظار */}
         <div className="flex flex-col overflow-hidden">
           <div className="border-b border-border bg-warning/10 px-4 py-3">

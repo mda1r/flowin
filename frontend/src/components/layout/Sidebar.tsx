@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { aiCashierApi } from '@/api/aiCashier'
 import { Link, useRouterState, useRouter } from '@tanstack/react-router'
@@ -163,6 +163,20 @@ export function FlowinWordmark({ compact = false }: { compact?: boolean }) {
   return compact ? <FlowinMark framed={false} className="h-9 w-9 text-fg" /> : <FlowinLockup />
 }
 
+const BELOW_LG = '(max-width: 1023.98px)'
+
+/** True below Tailwind's lg breakpoint, where the sidebar is an off-canvas drawer. */
+function useBelowLg() {
+  const [below, setBelow] = useState(() => window.matchMedia(BELOW_LG).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(BELOW_LG)
+    const onChange = () => setBelow(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return below
+}
+
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon } as const
 const THEME_LABEL = {
   ar: { system: 'حسب الجهاز', light: 'فاتح', dark: 'داكن' },
@@ -176,6 +190,21 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const { t, lang, setLang } = useI18n()
   const router = useRouter()
   const [aiOpen, setAiOpen] = useState(false)
+  const belowLg = useBelowLg()
+  const closeBtnRef = useRef<HTMLButtonElement>(null)
+  const onMobileCloseRef = useRef(onMobileClose)
+  onMobileCloseRef.current = onMobileClose
+
+  // open drawer: focus its close button and let Escape dismiss it
+  useEffect(() => {
+    if (!mobileOpen) return
+    closeBtnRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onMobileCloseRef.current()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
 
   const { data: aiFeature } = useQuery({
     queryKey: ['ai-available', branchId],
@@ -192,6 +221,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const isRail = collapsed && !mobileOpen
   const ThemeIcon = THEME_ICON[mode]
   const themeLabel = THEME_LABEL[lang][mode]
+  // a closed off-canvas drawer stays out of the tab order and the accessibility tree (the AI chat lives inside it)
+  const hiddenDrawer = belowLg && !mobileOpen && !aiOpen
 
   return (
     <>
@@ -199,22 +230,25 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={onMobileClose} aria-hidden="true" />
       )}
       <aside
+        id="app-sidebar"
+        inert={hiddenDrawer}
         className={cn(
           'sidebar-3d z-40 flex h-[100dvh] flex-col transition-[width,transform] duration-200 ease-out print:hidden',
           'fixed inset-y-0 start-0 w-64 lg:static',
           mobileOpen ? 'translate-x-0 shadow-lg' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
           isRail ? 'lg:w-[72px]' : 'lg:w-60',
         )}
-        aria-label="القائمة الرئيسية"
+        aria-label={t.common.mainMenu}
       >
         <div className={cn('border-b border-border px-4', isRail ? 'flex h-16 items-center justify-center' : 'py-4')}>
           <div className={cn('flex items-center', isRail ? 'justify-center' : 'justify-between')}>
             {!isRail && <FlowinWordmark />}
             <button
+              ref={closeBtnRef}
               type="button"
               onClick={onMobileClose}
               className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg lg:hidden"
-              aria-label="إغلاق القائمة"
+              aria-label={t.common.closeMenu}
             >
               <X className="h-4 w-4" />
             </button>
@@ -222,7 +256,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               type="button"
               onClick={onToggle}
               className="hidden rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-fg lg:inline-flex"
-              aria-label={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
+              aria-label={collapsed ? t.common.expandMenu : t.common.collapseMenu}
             >
               {isRail ? <FlowinWordmark compact /> : <ChevronLeft className={cn('h-4 w-4 transition-transform ltr:rotate-180')} />}
             </button>

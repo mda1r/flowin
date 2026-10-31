@@ -141,7 +141,7 @@ export function StockCountDetailPage() {
   const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
 
   return (
-    <div className="flex flex-col gap-6 p-6" dir="rtl">
+    <div className="flex flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -333,7 +333,7 @@ export function StockCountDetailPage() {
 
       {/* Complete modal */}
       <Modal open={showComplete} onClose={() => setShowComplete(false)} title={t.stockCount.complete}>
-        <div className="flex flex-col gap-5" dir="rtl">
+        <div className="flex flex-col gap-5">
           {session.discrepancyCount > 0 && (
             <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />

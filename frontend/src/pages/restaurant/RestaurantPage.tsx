@@ -84,7 +84,7 @@ export function RestaurantPage() {
   const { t } = useI18n()
 
   return (
-    <div className="flex h-[calc(100vh-0px)] flex-col" dir="rtl">
+    <div className="flex h-[calc(100vh-0px)] flex-col">
       <PageHeader
         title={t.restaurant.title}
         action={
@@ -990,7 +990,7 @@ function ManagerView({ branchId }: { branchId: string }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6" dir="rtl">
+    <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         <Card className="p-4">
@@ -1144,7 +1144,7 @@ function ManagerView({ branchId }: { branchId: string }) {
           </>
         }
       >
-        <form className="space-y-4" dir="rtl">
+        <form className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="رمز الخصم"
@@ -1207,7 +1207,7 @@ function ManagerView({ branchId }: { branchId: string }) {
           </>
         }
       >
-        <form className="space-y-4" dir="rtl">
+        <form className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="اسم الصنف"

@@ -205,7 +205,7 @@ export function HotelPage() {
   ).length
 
   return (
-    <div dir="rtl">
+    <div>
       <PageHeader
         title={t.hotel.title}
         description="إدارة الغرف والحجوزات والتنظيف"
@@ -944,7 +944,7 @@ function AddRoomModal({
         </>
       }
     >
-      <form className="space-y-4" dir="rtl">
+      <form className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="رقم الغرفة"
