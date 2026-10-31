@@ -2,6 +2,7 @@ using ErrorOr;
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Organization.Infrastructure.Persistence;
 using NexusPOS.SuperAdmin.Application.Common;
+using NexusPOS.SuperAdmin.Domain.Entities;
 using NexusPOS.SuperAdmin.Domain.Enums;
 using NexusPOS.SuperAdmin.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
@@ -27,20 +28,20 @@ internal sealed class ListTenantsQueryHandler(
         var subscriptions = await superAdminDb.TenantSubscriptions
             .AsNoTracking()
             .Include(s => s.Plan)
-            .Where(s => tenantIds.Contains(s.TenantId)
-                && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Trial))
+            .Where(s => tenantIds.Contains(s.TenantId) && s.Status != SubscriptionStatus.Cancelled)
             .ToListAsync(cancellationToken);
 
-        var subByTenant = subscriptions
+        DateTime now = DateTime.UtcNow;
+        Dictionary<Guid, TenantSubscription?> subByTenant = subscriptions
             .GroupBy(s => s.TenantId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.ExpiryDate).First());
+            .ToDictionary(g => g.Key, g => TenantSubscription.PickCurrent(g, now));
 
         var result = tenants.Select(t =>
         {
             TenantSubscriptionResponse? activeSub = null;
-            if (subByTenant.TryGetValue(t.Id.Value, out var sub))
+            if (subByTenant.TryGetValue(t.Id.Value, out var sub) && sub is not null)
             {
-                activeSub = MapSubscription(sub);
+                activeSub = sub.ToResponse(now);
             }
 
             return new TenantWithSubscriptionResponse(
@@ -58,25 +59,5 @@ internal sealed class ListTenantsQueryHandler(
         }).ToList();
 
         return result;
-    }
-
-    private static TenantSubscriptionResponse MapSubscription(Domain.Entities.TenantSubscription sub)
-    {
-        int daysRemaining = (int)(sub.ExpiryDate - DateTime.UtcNow).TotalDays;
-
-        return new TenantSubscriptionResponse(
-            sub.Id,
-            sub.TenantId,
-            sub.PlanId,
-            sub.Plan?.Name ?? string.Empty,
-            sub.Plan?.Price ?? 0,
-            sub.StartDate,
-            sub.ExpiryDate,
-            sub.Status,
-            sub.MaxBranches,
-            sub.MaxUsers,
-            sub.Notes,
-            sub.CreatedAt,
-            daysRemaining);
     }
 }

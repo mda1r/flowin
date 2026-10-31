@@ -13,6 +13,7 @@ using NexusPOS.SuperAdmin.Application.Commands.CreateTenantAndLinkToBrand;
 using NexusPOS.SuperAdmin.Application.Commands.DeleteTenant;
 using NexusPOS.SuperAdmin.Application.Commands.LinkTenantToBrand;
 using NexusPOS.SuperAdmin.Application.Commands.MoveTenantBetweenBrands;
+using NexusPOS.SuperAdmin.Application.Commands.RenewSubscription;
 using NexusPOS.SuperAdmin.Application.Commands.SuspendTenant;
 using NexusPOS.SuperAdmin.Application.Commands.UnlinkTenantFromBrand;
 using NexusPOS.SuperAdmin.Application.Commands.UpdateBrand;
@@ -125,6 +126,20 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
         return result.Match(
             sub => CreatedAtAction(nameof(GetTenant), new { id }, sub),
             MapErrors);
+    }
+
+    /// <summary>تجديد الاشتراك الحالي للمستأجر بعدد من الأشهر على نفس الخطة</summary>
+    [HttpPost("tenants/{id:guid}/subscriptions/renew")]
+    [ProducesResponseType(typeof(TenantSubscriptionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RenewSubscription(
+        Guid id,
+        [FromBody] RenewSubscriptionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new RenewSubscriptionCommand(id, request.Months), cancellationToken);
+        return result.Match(Ok, MapErrors);
     }
 
     /// <summary>تعليق حساب المستأجر</summary>

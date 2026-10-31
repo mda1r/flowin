@@ -26,13 +26,19 @@ internal sealed class SuspendTenantCommandHandler(
             return Error.NotFound("Tenant.NotFound", "المستأجر غير موجود");
         }
 
-        tenant.Suspend();
+        // Login and token refresh check Tenant.IsActive, so this is what actually stops the tenant.
+        tenant.Suspend(request.Reason);
         await orgDb.SaveChangesAsync(cancellationToken);
 
-        var activeSub = await subscriptionRepository.GetActiveByTenantIdAsync(request.TenantId, cancellationToken);
-        if (activeSub is not null)
+        // Suspend every live or upcoming subscription, not just the first, so none keeps granting features.
+        DateTime now = DateTime.UtcNow;
+        var running = (await subscriptionRepository.GetByTenantIdAsync(request.TenantId, cancellationToken))
+            .Where(s => s.IsRunning && s.ExpiryDate >= now)
+            .ToList();
+
+        if (running.Count > 0)
         {
-            activeSub.Suspend();
+            running.ForEach(s => s.Suspend());
             await superAdminDb.SaveChangesAsync(cancellationToken);
         }
 

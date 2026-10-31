@@ -4,6 +4,7 @@ using NexusPOS.Organization.Domain.ValueObjects;
 using NexusPOS.Organization.Infrastructure.Persistence;
 using NexusPOS.SuperAdmin.Application.Common;
 using NexusPOS.SuperAdmin.Domain.Entities;
+using NexusPOS.SuperAdmin.Domain.Enums;
 using NexusPOS.SuperAdmin.Domain.Repositories;
 using NexusPOS.SuperAdmin.Infrastructure.Persistence;
 using NexusPOS.SharedKernel.Application.Messaging;
@@ -21,10 +22,11 @@ internal sealed class CreateSubscriptionCommandHandler(
         CreateSubscriptionCommand request,
         CancellationToken cancellationToken)
     {
-        bool tenantExists = await orgDb.Tenants
-            .AnyAsync(t => t.Id == new TenantId(request.TenantId), cancellationToken);
+        var tenant = await orgDb.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == new TenantId(request.TenantId), cancellationToken);
 
-        if (!tenantExists)
+        if (tenant is null)
         {
             return Error.NotFound("Tenant.NotFound", "المستأجر غير موجود");
         }
@@ -33,6 +35,17 @@ internal sealed class CreateSubscriptionCommandHandler(
         if (plan is null)
         {
             return Error.NotFound("Plan.NotFound", "خطة الاشتراك غير موجودة");
+        }
+
+        // The new subscription replaces whatever overlaps it (e.g. a plan change mid-term):
+        // the old one ends where the new one starts, so a tenant never has two live subscriptions.
+        List<TenantSubscription> existing = await subscriptionRepository.GetByTenantIdAsync(request.TenantId, cancellationToken);
+        foreach (TenantSubscription overlapping in existing.Where(s =>
+            s.Status is SubscriptionStatus.Active or SubscriptionStatus.Trial or SubscriptionStatus.Suspended
+            && s.StartDate < request.ExpiryDate
+            && s.ExpiryDate > request.StartDate))
+        {
+            overlapping.EndAt(request.StartDate);
         }
 
         TenantSubscription subscription = TenantSubscription.Create(
@@ -44,24 +57,15 @@ internal sealed class CreateSubscriptionCommandHandler(
             plan.MaxUsers,
             request.Notes);
 
+        // A suspended tenant's new subscription waits for reactivation like the rest.
+        if (!tenant.IsActive)
+        {
+            subscription.Suspend();
+        }
+
         subscriptionRepository.Add(subscription);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        int daysRemaining = (int)(subscription.ExpiryDate - DateTime.UtcNow).TotalDays;
-
-        return new TenantSubscriptionResponse(
-            subscription.Id,
-            subscription.TenantId,
-            subscription.PlanId,
-            plan.Name,
-            plan.Price,
-            subscription.StartDate,
-            subscription.ExpiryDate,
-            subscription.Status,
-            subscription.MaxBranches,
-            subscription.MaxUsers,
-            subscription.Notes,
-            subscription.CreatedAt,
-            daysRemaining);
+        return subscription.ToResponse(DateTime.UtcNow, plan);
     }
 }

@@ -25,6 +25,9 @@ public static class IamErrors
     public static readonly Error UserInactive =
         Error.Forbidden("IAM.UserInactive", "This account has been deactivated.");
 
+    public static readonly Error TenantSuspended =
+        Error.Forbidden("IAM.TenantSuspended", "الحساب موقوف، تواصل مع الدعم");
+
     public static readonly Error TooManyRequests =
         Error.Custom(429, "IAM.TooManyRequests", "Too many requests. Please try again later.");
 }
