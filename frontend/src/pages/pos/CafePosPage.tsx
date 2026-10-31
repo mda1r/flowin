@@ -14,8 +14,8 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency, cn } from '@/lib/utils'
 import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
-import { aiCashierApi } from '@/api/aiCashier'
-import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
+import { aiCashierApi, type AiCashierCartSnapshot } from '@/api/aiCashier'
+import { AiCashierAgent, type AiCartResult } from '@/components/cafe/AiCashierAgent'
 import { gamingApi } from '@/api/gaming'
 import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
@@ -557,32 +557,68 @@ export function CafePosPage() {
     })
   }
 
-  const addVariantById = useCallback((variantId: string, qty: number, notes: string) => {
-    for (const product of allProducts) {
-      const variant = product.variants.find((v) => v.id === variantId)
-      if (variant) {
-        if (product.trackInventory) {
-          const available = stockMap[variantId]
-          if (available !== undefined) {
-            const inCart = cartQty(variantId)
-            if (inCart + qty > available) {
-              toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
-              return
-            }
-          }
-        }
-        const note = (notes ?? '').trim()
-        setCart((prev) => {
-          const existing = prev.find((i) => i.variantId === variantId && i.notes === note)
-          if (existing) {
-            return prev.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + qty } : i)
-          }
-          return [...prev, { lineKey: newLineKey(), variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: note }]
-        })
-        break
-      }
+  // ── AI cashier cart ops ─────────────────────────────────────────────────────
+  // One AI reply can carry several actions in the same tick, so these work on a ref
+  // that is updated immediately instead of waiting for the next render.
+  const aiCartRef = useRef<CafeCartItem[]>(cart)
+  aiCartRef.current = cart
+  const commitAiCart = (next: CafeCartItem[]) => {
+    aiCartRef.current = next
+    setCart(next)
+  }
+
+  const aiStockAllows = (variantId: string, trackInventory: boolean, qty: number): boolean => {
+    if (!trackInventory) return true
+    const available = stockMap[variantId]
+    if (available === undefined || qty <= available) return true
+    toast.error('المخزون غير كافٍ', `المتاح: ${available} وحدة`)
+    return false
+  }
+
+  const aiQtyOf = (variantId: string, except?: string) =>
+    aiCartRef.current.reduce((n, i) => (i.variantId === variantId && i.lineKey !== except ? n + i.quantity : n), 0)
+
+  // The same drink with the same note joins its line; a different note is its own line, as at the till.
+  const addVariantById = (variantId: string, qty: number, notes: string): AiCartResult => {
+    const product = allProducts.find((p) => p.variants.some((v) => v.id === variantId))
+    const variant = product?.variants.find((v) => v.id === variantId)
+    if (!product || !variant) return 'not_found'
+    const note = (notes ?? '').trim()
+    const current = aiCartRef.current
+    const existing = current.find((i) => i.variantId === variantId && i.notes === note)
+    if (!aiStockAllows(variantId, product.trackInventory, aiQtyOf(variantId) + qty)) return 'out_of_stock'
+    commitAiCart(existing
+      ? current.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + qty } : i)
+      : [...current, { lineKey: newLineKey(), variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: note }])
+    return 'ok'
+  }
+
+  // Sets the item's quantity on its plain line (or its first line); other lines with notes stay as they are.
+  const setVariantQtyById = (variantId: string, qty: number): AiCartResult => {
+    const current = aiCartRef.current
+    const lines = current.filter((i) => i.variantId === variantId)
+    if (lines.length === 0) return 'not_in_cart'
+    if (qty <= 0) {
+      commitAiCart(current.filter((i) => i.variantId !== variantId))
+      return 'ok'
     }
-  }, [allProducts, stockMap, cartQty])
+    const target = lines.find((i) => !i.notes) ?? lines[0]
+    if (!aiStockAllows(variantId, trackMap[variantId] ?? false, aiQtyOf(variantId, target.lineKey) + qty)) return 'out_of_stock'
+    commitAiCart(current.map((i) => i.lineKey === target.lineKey ? { ...i, quantity: qty } : i))
+    return 'ok'
+  }
+
+  const removeVariantById = (variantId: string): AiCartResult => setVariantQtyById(variantId, 0)
+
+  const getAiCartSnapshot = (): AiCashierCartSnapshot => {
+    const lines = aiCartRef.current.map((i) => ({
+      variantId: i.variantId,
+      name: (i.variantName && i.variantName !== i.productName ? `${i.productName} - ${i.variantName}` : i.productName) + (i.notes ? ` (${i.notes})` : ''),
+      quantity: i.quantity,
+      lineTotal: Math.round(i.unitPrice * i.quantity * 100) / 100,
+    }))
+    return { lines, total: Math.round(lines.reduce((s, l) => s + l.lineTotal, 0) * 100) / 100 }
+  }
 
   const updateQty = (lineKey: string, delta: number) => {
     const line = cart.find((i) => i.lineKey === lineKey)
@@ -811,9 +847,20 @@ export function CafePosPage() {
 
   // ── AI Cashier checkout ────────────────────────────────────────────────────
 
-  const handleAiCompleteOrder = useCallback((paymentMethod: 'Cash' | 'Card') => {
-    if (!checkout.isPending) checkout.mutate({ mode: paymentMethod, viaAi: true })
-  }, [checkout])
+  // The AI may add items and pay in the same reply; paying waits for that cart to render, so the
+  // checkout reads the cart the AI just wrote. Resolves false on failure so the agent can say so.
+  const [aiPayRequest, setAiPayRequest] = useState<{ mode: 'Cash' | 'Card'; resolve: (ok: boolean) => void } | null>(null)
+  const handleAiCompleteOrder = useCallback(
+    (paymentMethod: 'Cash' | 'Card') => new Promise<boolean>((resolve) => setAiPayRequest({ mode: paymentMethod, resolve })),
+    [],
+  )
+  useEffect(() => {
+    if (!aiPayRequest) return
+    const { mode, resolve } = aiPayRequest
+    setAiPayRequest(null)
+    if (checkout.isPending) { resolve(false); return }
+    checkout.mutateAsync({ mode, viaAi: true }).then(() => resolve(true), () => resolve(false))
+  }, [aiPayRequest, checkout])
 
   // ── Gaming mutations ───────────────────────────────────────────────────────
 
@@ -1868,7 +1915,10 @@ export function CafePosPage() {
         <AiCashierAgent
           branchId={branchId}
           allProducts={allProducts}
+          getCart={getAiCartSnapshot}
           onAddVariant={addVariantById}
+          onSetQuantity={setVariantQtyById}
+          onRemoveVariant={removeVariantById}
           onCompleteOrder={handleAiCompleteOrder}
           onDeactivate={() => setAiCashierActive(false)}
         />

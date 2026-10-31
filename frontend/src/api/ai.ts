@@ -17,7 +17,16 @@ export interface AiInsightsResponse {
   generatedAt: string
 }
 
+/** What the signed-in user can open: the assistant is Owner/Manager only and needs the 'ai' feature. */
+export interface AiAvailability {
+  assistant: boolean
+  cashier: boolean
+}
+
 export const aiApi = {
+  available: (branchId: string) =>
+    apiClient.get<AiAvailability>(`/api/v1/branches/${branchId}/ai/available`).then((r) => r.data),
+
   chat: (branchId: string, data: AiChatRequest) =>
     apiClient.post<string>(`/api/v1/branches/${branchId}/ai/chat`, data),
 
