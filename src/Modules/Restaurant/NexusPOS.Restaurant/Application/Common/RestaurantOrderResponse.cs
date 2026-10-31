@@ -19,4 +19,7 @@ public sealed record RestaurantOrderResponse(
     DateTime CreatedAt,
     DateTime? ServedAt,
     DateTime? PaidAt,
-    IReadOnlyList<RestaurantOrderItemResponse> Items);
+    IReadOnlyList<RestaurantOrderItemResponse> Items,
+    bool KitchenOnly = false,
+    Guid? SourceOrderId = null,
+    long? TicketNumber = null);

@@ -57,4 +57,10 @@ public static class PosErrors
 
     public static readonly Error InsufficientLoyaltyPoints =
         Error.Validation("POS.InsufficientLoyaltyPoints", "رصيد العميل من النقاط لا يكفي.");
+
+    public static Error DiscountAboveCashierLimit(decimal capPercent) =>
+        Error.Validation("POS.DiscountAboveCashierLimit", $"الخصم أكبر من {capPercent:0.##}٪، يحتاج موافقة المدير أو المالك.");
+
+    public static Error PriceBelowCatalog(string productName) =>
+        Error.Validation("POS.PriceBelowCatalog", $"سعر «{productName}» أقل من سعره في قائمة المنتجات، حدّث الصفحة أو استخدم الخصم.");
 }

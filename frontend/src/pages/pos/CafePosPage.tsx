@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot,
-  Gamepad2, Clock, Play, Square, Search,
+  Gamepad2, Clock, Play, Square, Search, Percent,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi } from '@/api/orders'
@@ -13,8 +13,6 @@ import { toast } from '@/components/ui/Toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
-import { pushKitchenTicket } from '@/lib/cafeKitchen'
-import { restaurantApi } from '@/api/restaurant'
 import { aiCashierApi } from '@/api/aiCashier'
 import { AiCashierAgent } from '@/components/cafe/AiCashierAgent'
 import { gamingApi } from '@/api/gaming'
@@ -36,6 +34,7 @@ import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
 import { isNetworkError, newClientReference, queueSale } from '@/lib/offlineSales'
+import { apiErrorMessage } from '@/lib/apiError'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage } from '@/lib/whatsapp'
@@ -55,6 +54,8 @@ interface StartSessionForm {
 }
 
 interface CafeCartItem {
+  // Local id of the cart line: the same drink with different notes is a separate line.
+  lineKey: string
   variantId: string
   productName: string
   variantName: string
@@ -68,7 +69,10 @@ interface KitchenTicketData {
   items: CafeCartItem[]
   orderType: 'here' | 'takeaway'
   tableNumber: number | null
-  ticketNumber: number
+  // The sale's invoice number, the same one the kitchen screen shows.
+  ticketNo: string
+  offline?: boolean
+  createdAt: string
 }
 
 interface CustomerReceiptData {
@@ -88,12 +92,31 @@ interface CustomerReceiptData {
   offline?: boolean
   customerName?: string
   customerPhone?: string
+  discount?: number
   loyaltyDiscount?: number
   pointsRedeemed?: number
   pointsEarned?: number
 }
 
 type PayMode = 'Cash' | 'Card' | 'Split'
+type DiscountMode = 'Percentage' | 'Fixed'
+
+// Mirrors CheckoutOrderCommand.CashierDiscountCapPercent: above it only an owner or manager can discount.
+const CASHIER_DISCOUNT_CAP = 20
+
+const newLineKey = () => Math.random().toString(36).slice(2, 10)
+
+// One line per drink and notes: equal items with equal notes fold together, keeping the first line's place.
+function mergeCartLines(lines: CafeCartItem[]): CafeCartItem[] {
+  const out: CafeCartItem[] = []
+  for (const line of lines) {
+    const notes = line.notes.trim()
+    const same = out.find((l) => l.variantId === line.variantId && l.notes === notes)
+    if (same) same.quantity += line.quantity
+    else out.push({ ...line, notes })
+  }
+  return out
+}
 
 const CAFE_ACCENT: React.CSSProperties = {
   '--accent-l': '#0B7A65',
@@ -140,7 +163,6 @@ function KitchenTicketModal({
   ticket: KitchenTicketData
   onClose: () => void
 }) {
-  const now = new Date()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" dir="rtl">
       <div className="w-80 overflow-hidden rounded-2xl bg-surface shadow-2xl">
@@ -152,7 +174,7 @@ function KitchenTicketModal({
               طلب المطبخ
             </div>
             <p className="text-xs text-muted">
-              {now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(ticket.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
             </p>
             <div className="mt-2 flex items-center justify-center gap-2">
               <span className={cn(
@@ -165,14 +187,15 @@ function KitchenTicketModal({
                   ? ticket.tableNumber ? `طاولة ${ticket.tableNumber}` : 'بدون طاولة'
                   : '🛍 تيك أواي'}
               </span>
-              <span className="text-sm text-muted">#{ticket.ticketNumber}</span>
+              <span className="text-sm tabular-nums text-muted" dir="ltr">#{ticket.ticketNo}</span>
             </div>
+            {ticket.offline && <p className="mt-2 text-xs text-warning">رقم مؤقت · يصل للمطبخ عند المزامنة</p>}
           </div>
 
           {/* Items */}
           <div className="space-y-3">
-            {ticket.items.map((item, i) => (
-              <div key={i} className="border-b border-border pb-3 last:border-0 last:pb-0">
+            {ticket.items.map((item) => (
+              <div key={item.lineKey} className="border-b border-border pb-3 last:border-0 last:pb-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-fg">{item.productName}</p>
@@ -221,9 +244,11 @@ function KitchenTicketModal({
 function CustomerReceiptModal({
   receipt,
   onClose,
+  onKitchenTicket,
 }: {
   receipt: CustomerReceiptData
   onClose: () => void
+  onKitchenTicket?: () => void
 }) {
   const { sellerName, vatNumber } = useSellerIdentity()
   const receiptSettings = useReceiptSettings()
@@ -253,7 +278,7 @@ function CustomerReceiptModal({
             invoiceNo={invoiceNo({ id: receipt.orderId, number: receipt.number })}
             issuedAt={receipt.completedAt}
             lines={receipt.items.map((item) => ({
-              key: item.variantId,
+              key: item.lineKey,
               name: item.productName,
               quantity: item.quantity,
               total: item.unitPrice * item.quantity,
@@ -262,6 +287,7 @@ function CustomerReceiptModal({
             subtotal={receipt.subtotal}
             tax={receipt.tax}
             total={receipt.grandTotal}
+            discount={receipt.discount}
             loyalty={receipt.loyaltyDiscount ? { amount: receipt.loyaltyDiscount, points: receipt.pointsRedeemed ?? 0 } : undefined}
             paymentLabel={payLabel}
             tendered={receipt.payMode === 'Cash' ? receipt.cashTendered : undefined}
@@ -292,7 +318,7 @@ function CustomerReceiptModal({
                 quantity: i.quantity,
                 total: i.unitPrice * i.quantity,
               })),
-              discount: receipt.loyaltyDiscount,
+              discount: (receipt.discount ?? 0) + (receipt.loyaltyDiscount ?? 0) || undefined,
               vat: receipt.tax,
               vatIncluded: true,
               total: receipt.grandTotal,
@@ -310,6 +336,16 @@ function CustomerReceiptModal({
             <Printer className="h-4 w-4" />
             طباعة
           </button>
+          {onKitchenTicket && (
+            <button
+              onClick={onKitchenTicket}
+              title="طباعة تذكرة المطبخ"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-fg hover:bg-surface-2"
+            >
+              <ChefHat className="h-4 w-4 text-brand-strong" />
+              المطبخ
+            </button>
+          )}
           <button
             onClick={onClose}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-fg hover:bg-surface-2"
@@ -328,6 +364,7 @@ function CustomerReceiptModal({
 export function CafePosPage() {
   const { branchId, tenantId, user } = useAuthStore()
   const isGamingLounge = user?.businessType === 'Gaming'
+  const isManager = user?.role === 'Owner' || user?.role === 'Manager'
   const [gamingAlertCounts, setGamingAlertCounts] = useState({ expired: 0, warning: 0 })
   const { t } = useI18n()
   const { shift } = useShift()
@@ -343,7 +380,7 @@ export function CafePosPage() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [confirmClearCart, setConfirmClearCart] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const lastVariantRef = useRef<string | null>(null)
+  const lastLineRef = useRef<string | null>(null)
 
   // Cart
   const [cart, setCart] = useState<CafeCartItem[]>([])
@@ -353,8 +390,10 @@ export function CafePosPage() {
   const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
   const loyaltyRules = useLoyaltyRules()
   const [redeemPoints, setRedeemPoints] = useState(0)
+  const [discountMode, setDiscountMode] = useState<DiscountMode>('Percentage')
+  const [discountInput, setDiscountInput] = useState('')
+  const [showDiscount, setShowDiscount] = useState(false)
   const queryClient = useQueryClient()
-  const payModeRef = useRef<PayMode>('Cash')
 
   // AI Cashier
   const [aiCashierActive, setAiCashierActive] = useState(false)
@@ -372,10 +411,10 @@ export function CafePosPage() {
   const [splitCash, setSplitCash] = useState<string>('')
   const [splitCard, setSplitCard] = useState<string>('')
 
-  // Kitchen ticket & customer receipt
-  const [kitchenTicket, setKitchenTicket] = useState<KitchenTicketData | null>(null)
+  // Kitchen ticket & customer receipt. The last sale's ticket is kept so the cashier can reprint it.
+  const [lastKitchenTicket, setLastKitchenTicket] = useState<KitchenTicketData | null>(null)
+  const [showKitchenTicket, setShowKitchenTicket] = useState(false)
   const [customerReceipt, setCustomerReceipt] = useState<CustomerReceiptData | null>(null)
-  const [ticketCounter, setTicketCounter] = useState(1)
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
@@ -470,7 +509,8 @@ export function CafePosPage() {
     return () => clearInterval(id)
   }, [selectedCategoryId])
 
-  const cartQty = (variantId: string) => cart.find(i => i.variantId === variantId)?.quantity ?? 0
+  // One drink can sit on several lines (different notes); stock counts them all.
+  const cartQty = (variantId: string) => cart.reduce((n, i) => (i.variantId === variantId ? n + i.quantity : n), 0)
 
   const canAddMore = (variantId: string, addingQty = 1): boolean => {
     if (!trackMap[variantId]) return true
@@ -492,11 +532,16 @@ export function CafePosPage() {
       toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
       return
     }
-    lastVariantRef.current = variantId
     setCart((prev) => {
-      const existing = prev.find((i) => i.variantId === variantId)
-      if (existing) return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + 1 } : i)
-      return [...prev, { variantId, productName, variantName, unitPrice, costPrice, quantity: 1, notes: '' }]
+      // A tap adds to the plain line; a line with notes is a different order and stays as it is.
+      const existing = prev.find((i) => i.variantId === variantId && !i.notes)
+      if (existing) {
+        lastLineRef.current = existing.lineKey
+        return prev.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + 1 } : i)
+      }
+      const lineKey = newLineKey()
+      lastLineRef.current = lineKey
+      return [...prev, { lineKey, variantId, productName, variantName, unitPrice, costPrice, quantity: 1, notes: '' }]
     })
   }
 
@@ -514,57 +559,79 @@ export function CafePosPage() {
             }
           }
         }
+        const note = (notes ?? '').trim()
         setCart((prev) => {
-          const existing = prev.find((i) => i.variantId === variantId)
+          const existing = prev.find((i) => i.variantId === variantId && i.notes === note)
           if (existing) {
-            return prev.map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + qty, notes: notes || i.notes } : i)
+            return prev.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + qty } : i)
           }
-          return [...prev, { variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: notes ?? '' }]
+          return [...prev, { lineKey: newLineKey(), variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: note }]
         })
         break
       }
     }
   }, [allProducts, stockMap, cartQty])
 
-  const updateQty = (variantId: string, delta: number) => {
-    if (delta > 0 && !canAddMore(variantId)) {
-      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
+  const updateQty = (lineKey: string, delta: number) => {
+    const line = cart.find((i) => i.lineKey === lineKey)
+    if (!line) return
+    if (delta > 0 && !canAddMore(line.variantId)) {
+      toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[line.variantId] ?? 0} وحدة`)
       return
     }
     setCart((prev) =>
       prev
-        .map((i) => i.variantId === variantId ? { ...i, quantity: i.quantity + delta } : i)
+        .map((i) => i.lineKey === lineKey ? { ...i, quantity: i.quantity + delta } : i)
         .filter((i) => i.quantity > 0),
     )
   }
 
-  const removeItem = (variantId: string) => setCart((prev) => prev.filter((i) => i.variantId !== variantId))
+  const removeItem = (lineKey: string) => setCart((prev) => prev.filter((i) => i.lineKey !== lineKey))
 
-  const updateNote = (variantId: string, note: string) => {
-    setCart((prev) => prev.map((i) => i.variantId === variantId ? { ...i, notes: note } : i))
+  const updateNote = (lineKey: string, note: string) => {
+    setCart((prev) => prev.map((i) => i.lineKey === lineKey ? { ...i, notes: note } : i))
+  }
+
+  // Once a note is written, a line that now matches another one (same drink, same note) joins it.
+  const finishNote = () => {
+    setEditingNoteId(null)
+    setCart(mergeCartLines)
   }
 
   // الأسعار شاملة الضريبة — نستخرج الضريبة من الإجمالي
   const cartTotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
-  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, cartTotal, loyaltyRules) : 0
+  // The order discount comes off first, then loyalty points, as on the server. A fixed discount is typed
+  // in riyals the customer sees (VAT included); a percentage is the same share before or after VAT.
+  const discountRaw = Math.max(0, parseFloat(discountInput) || 0)
+  const discountGross = Math.round(Math.min(
+    discountMode === 'Percentage' ? cartTotal * Math.min(discountRaw, 100) / 100 : discountRaw,
+    cartTotal,
+  ) * 100) / 100
+  const discountShare = cartTotal > 0 ? (discountGross / cartTotal) * 100 : 0
+  const discountOverCap = !isManager && discountShare > CASHIER_DISCOUNT_CAP + 0.01
+  const afterDiscount = Math.round((cartTotal - discountGross) * 100) / 100
+  const maxRedeemable = loyaltyCustomer ? maxRedeemablePoints(loyaltyCustomer.loyaltyPoints, afterDiscount, loyaltyRules) : 0
   const appliedPoints = Math.min(redeemPoints, maxRedeemable)
   const loyaltyDiscount = pointsValue(appliedPoints, loyaltyRules)
-  // grandTotal is what the customer pays, after any loyalty discount.
-  const grandTotal = Math.round((cartTotal - loyaltyDiscount) * 100) / 100
+  // grandTotal is what the customer pays, after the order discount and any loyalty discount.
+  const grandTotal = Math.round((afterDiscount - loyaltyDiscount) * 100) / 100
   const vatOf = (gross: number) => Math.round((gross * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
   const tax = vatOf(grandTotal)
   const subtotal = Math.round((grandTotal - tax) * 100) / 100
 
   // ── Checkout ──────────────────────────────────────────────────────────────
 
+  // The button and the AI cashier share one path: a single idempotent /orders/checkout with the offline fallback.
+  // The AI cashier settles the exact total by cash or card, so it has no tendered amount or split.
   const checkout = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ mode, viaAi }: { mode: PayMode; viaAi?: boolean }) => {
       if (!branchId || !tenantId) throw new Error('no-branch')
       if (cart.length === 0) throw new Error('empty')
+      if (discountOverCap) throw new Error('discount-cap')
 
       // Prices include VAT; the server receives the pre-VAT price and adds the tax back.
       const preTaxRate = 1 + SAUDI_VAT_RATE
-      const handed = payMode === 'Cash' ? parseFloat(cashTendered) || 0 : 0
+      const handed = mode === 'Cash' && !viaAi ? parseFloat(cashTendered) || 0 : 0
       const clientReference = newClientReference()
       const payload: CheckoutPayload = {
         clientReference,
@@ -578,17 +645,24 @@ export function CafePosPage() {
           unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
           costPrice: item.costPrice,
           quantity: item.quantity,
+          notes: item.notes.trim() || undefined,
         })),
+        ...(discountGross > 0 && (discountMode === 'Percentage'
+          ? { discountType: 'Percentage' as const, discountValue: Math.min(discountRaw, 100) }
+          : { discountType: 'Fixed' as const, discountValue: Math.round((discountGross / preTaxRate) * 10000) / 10000 })),
+        // The kitchen screen gets the paid sale as a ticket; dine-in without a table goes as "no table".
+        kitchen: { tableNumber: orderType === 'here' ? tableNumber : null, takeaway: orderType === 'takeaway' },
         loyaltyPoints: appliedPoints,
-        paymentMethod: payMode as PaymentMethod,
+        paymentMethod: mode as PaymentMethod,
         amountTendered: Math.max(grandTotal, handed),
-        ...(payMode === 'Split' && {
+        ...(mode === 'Split' && {
           cashAmount: parseFloat(splitCash) || 0,
           cardAmount: parseFloat(splitCard) || 0,
         }),
       }
 
-      // Keep selling without a connection: the sale waits on this device and syncs when the network returns.
+      // Keep selling without a connection: the sale waits on this device and syncs when the network returns,
+      // and the kitchen ticket goes with it.
       const saveOffline = () => {
         queueSale({
           clientReference,
@@ -613,81 +687,61 @@ export function CafePosPage() {
         throw err
       }
     },
-    onSuccess: ({ orderId, number, offline }) => {
+    onSuccess: ({ orderId, number, offline }, { mode, viaAi }) => {
+      const completedAt = new Date().toISOString()
       const snapshot = {
         items: [...cart],
         grandTotal,
         tax,
         subtotal,
-        payMode,
-        splitCash: splitCashNum || undefined,
-        splitCard: splitCardNum || undefined,
-        cashTendered: payMode === 'Cash' && parseFloat(cashTendered) > 0 ? parseFloat(cashTendered) : undefined,
-        tableNumber,
+        payMode: mode,
+        splitCash: mode === 'Split' ? splitCashNum || undefined : undefined,
+        splitCard: mode === 'Split' ? splitCardNum || undefined : undefined,
+        cashTendered: mode === 'Cash' && !viaAi && parseFloat(cashTendered) > 0 ? parseFloat(cashTendered) : undefined,
+        tableNumber: orderType === 'here' ? tableNumber : null,
         orderType,
         customerName: loyaltyCustomer?.name,
         customerPhone: loyaltyCustomer?.phone ?? undefined,
+        discount: discountGross || undefined,
         loyaltyDiscount: loyaltyDiscount || undefined,
         pointsRedeemed: appliedPoints || undefined,
         pointsEarned: loyaltyCustomer && loyaltyRules.enabled ? pointsEarned(grandTotal, loyaltyRules) : undefined,
       }
 
-      // Push to kitchen (fire and forget)
-      if (tenantId) {
-        pushKitchenTicket(tenantId, {
-          ticketNumber: ticketCounter,
-          tableNumber,
-          orderType,
-          items: cart.map((i) => ({
-            productName: i.productName,
-            variantName: i.variantName,
-            quantity: i.quantity,
-            notes: i.notes,
-          })),
-        })
-      }
-      if (branchId && tenantId && !offline) {
-        restaurantApi
-          .createOrder(branchId, {
-            tenantId,
-            tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
-            items: cart.map((i) => ({
-              menuItemId: i.variantId,
-              itemName: i.productName,
-              quantity: i.quantity,
-              unitPrice: i.unitPrice,
-              notes: i.notes || undefined,
-            })),
-          })
-          .catch(() => {})
-      }
-
-      // Show customer receipt
-      setCustomerReceipt({
-        orderId,
-        number,
-        ...snapshot,
-        completedAt: new Date().toISOString(),
+      // The server put the ticket on the kitchen screen; this copy is for printing it here.
+      setLastKitchenTicket({
+        items: snapshot.items,
+        orderType,
+        tableNumber: snapshot.tableNumber,
+        ticketNo: invoiceNo({ id: orderId, number }),
         offline,
+        createdAt: completedAt,
       })
-      setTicketCounter((n) => n + 1)
+      setShowKitchenTicket(false)
+
+      setCustomerReceipt({ orderId, number, ...snapshot, completedAt, offline })
       setCart([])
+      lastLineRef.current = null
       setTableNumber(null)
       setSplitCash('')
       setSplitCard('')
       setCashTendered('')
       setPayMode('Cash')
+      setDiscountInput('')
+      setShowDiscount(false)
+      void queryClient.invalidateQueries({ queryKey: ['pos-stock', branchId] })
       if (loyaltyCustomer) {
         void queryClient.invalidateQueries({ queryKey: ['pos-customer-search'] })
         void queryClient.invalidateQueries({ queryKey: ['customers'] })
       }
       setLoyaltyCustomer(null)
       setRedeemPoints(0)
+      if (viaAi) setAiCashierActive(false)
       if (offline) {
         toast.warning('حُفظت العملية دون اتصال', 'ستُسجَّل تلقائياً عند عودة الإنترنت')
       } else {
         toast.success(
-          t.pos.orderProcessed,
+          viaAi ? 'تم إتمام الطلب عبر كاشير AI' : t.pos.orderProcessed,
           snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString('ar-SA')} نقطة لـ${snapshot.customerName}` : undefined,
         )
       }
@@ -695,7 +749,13 @@ export function CafePosPage() {
     onError: (e: Error) => {
       if (e.message === 'empty') toast.error('السلة فارغة')
       else if (e.message === 'offline-loyalty') toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
-      else toast.error(t.pos.paymentFailed)
+      else if (e.message === 'discount-cap') toast.error(`أقصى خصم للكاشير ${CASHIER_DISCOUNT_CAP}٪`, 'اطلب من المدير إتمام البيع')
+      else {
+        // A price that changed in the catalog is refused; reload the menu so the next try uses it.
+        void queryClient.invalidateQueries({ queryKey: ['products', tenantId] })
+        void queryClient.invalidateQueries({ queryKey: ['cafe-products', tenantId] })
+        toast.error(t.pos.paymentFailed, apiErrorMessage(e))
+      }
     },
   })
 
@@ -706,72 +766,13 @@ export function CafePosPage() {
     Math.abs(splitCashNum + splitCardNum - grandTotal) < 0.01
   )
   const cashShort = payMode === 'Cash' && cashTendered !== '' && (parseFloat(cashTendered) || 0) < grandTotal
-  const canCheckout = cart.length > 0 && splitValid && !cashShort
+  const canCheckout = cart.length > 0 && splitValid && !cashShort && !discountOverCap
 
   // ── AI Cashier checkout ────────────────────────────────────────────────────
 
-  const aiCheckout = useMutation({
-    mutationFn: async (paymentMethod: 'Cash' | 'Card') => {
-      if (!branchId || !tenantId) throw new Error('no-branch')
-      if (cart.length === 0) throw new Error('empty')
-      const preTaxRate = 1 + SAUDI_VAT_RATE
-      const orderRes = await ordersApi.createOrder(branchId, { tenantId, currency: 'SAR', taxRate: SAUDI_VAT_RATE })
-      const orderId = orderRes.data.id
-      await Promise.all(
-        cart.map((item) =>
-          ordersApi.addLine(branchId, orderId, {
-            variantId: item.variantId,
-            productName: item.productName,
-            variantName: item.variantName,
-            unitPrice: Math.round((item.unitPrice / preTaxRate) * 10000) / 10000,
-            costPrice: item.costPrice,
-            quantity: item.quantity,
-          }),
-        ),
-      )
-      await ordersApi.complete(branchId, orderId, { paymentMethod, amountTendered: cartTotal })
-      return orderId
-    },
-    onSuccess: (orderId) => {
-      if (tenantId) {
-        pushKitchenTicket(tenantId, {
-          ticketNumber: ticketCounter,
-          tableNumber,
-          orderType,
-          items: cart.map((i) => ({ productName: i.productName, variantName: i.variantName, quantity: i.quantity, notes: i.notes })),
-        })
-      }
-      if (branchId && tenantId) {
-        restaurantApi.createOrder(branchId, {
-          tenantId,
-          tableNumber: orderType === 'takeaway' ? 99 : (tableNumber ?? 1),
-          items: cart.map((i) => ({ menuItemId: i.variantId, itemName: i.productName, quantity: i.quantity, unitPrice: i.unitPrice, notes: i.notes || undefined })),
-        }).catch(() => {})
-      }
-      setCustomerReceipt({
-        orderId,
-        items: [...cart],
-        grandTotal: cartTotal,
-        tax: vatOf(cartTotal),
-        subtotal: Math.round((cartTotal - vatOf(cartTotal)) * 100) / 100,
-        payMode: payModeRef.current,
-        tableNumber,
-        orderType,
-        completedAt: new Date().toISOString(),
-      })
-      setTicketCounter((n) => n + 1)
-      setCart([])
-      setTableNumber(null)
-      setAiCashierActive(false)
-      toast.success('تم إتمام الطلب عبر كاشير AI')
-    },
-    onError: () => toast.error(t.pos.paymentFailed),
-  })
-
   const handleAiCompleteOrder = useCallback((paymentMethod: 'Cash' | 'Card') => {
-    payModeRef.current = paymentMethod
-    aiCheckout.mutate(paymentMethod)
-  }, [aiCheckout])
+    if (!checkout.isPending) checkout.mutate({ mode: paymentMethod, viaAi: true })
+  }, [checkout])
 
   // ── Gaming mutations ───────────────────────────────────────────────────────
 
@@ -848,8 +849,8 @@ export function CafePosPage() {
     if (searchTerm) toast.error('لا يوجد منتج مطابق', productSearch)
   }
 
-  const lastCartVariant = () =>
-    cart.some((i) => i.variantId === lastVariantRef.current) ? lastVariantRef.current : cart[cart.length - 1]?.variantId
+  const lastCartLine = () =>
+    cart.some((i) => i.lineKey === lastLineRef.current) ? lastLineRef.current : cart[cart.length - 1]?.lineKey
 
   const shortcutHints = [
     { keys: ['F2', '/'], label: 'البحث عن منتج' },
@@ -871,8 +872,8 @@ export function CafePosPage() {
         window.setTimeout(() => searchInputRef.current?.focus(), 0)
       },
     },
-    { keys: ['+', '='], label: 'inc', run: () => { const v = lastCartVariant(); if (v) updateQty(v, 1) } },
-    { keys: ['-'], label: 'dec', run: () => { const v = lastCartVariant(); if (v) updateQty(v, -1) } },
+    { keys: ['+', '='], label: 'inc', run: () => { const k = lastCartLine(); if (k) updateQty(k, 1) } },
+    { keys: ['-'], label: 'dec', run: () => { const k = lastCartLine(); if (k) updateQty(k, -1) } },
     { keys: ['F5'], label: 'cash', allowInInputs: true, run: () => setPayMode('Cash') },
     { keys: ['F6'], label: 'card', allowInInputs: true, run: () => setPayMode('Card') },
     { keys: ['F7'], label: 'split', allowInInputs: true, run: () => setPayMode('Split') },
@@ -883,11 +884,12 @@ export function CafePosPage() {
       run: () => {
         if (!canCheckout) {
           if (cart.length === 0) toast.error('السلة فارغة')
+          else if (discountOverCap) toast.error(`أقصى خصم للكاشير ${CASHIER_DISCOUNT_CAP}٪`)
           else if (cashShort) toast.error('المبلغ المستلم أقل من الإجمالي')
           else toast.error('تحقق من مبالغ الدفع المقسّم')
           return
         }
-        if (!checkout.isPending) checkout.mutate()
+        if (!checkout.isPending) checkout.mutate({ mode: payMode })
       },
     },
     { keys: ['F8'], label: 'clear', allowInInputs: true, run: () => { if (cart.length > 0) setConfirmClearCart(true) } },
@@ -906,7 +908,9 @@ export function CafePosPage() {
         onConfirm={() => {
           setCart([])
           setConfirmClearCart(false)
-          lastVariantRef.current = null
+          lastLineRef.current = null
+          setDiscountInput('')
+          setShowDiscount(false)
         }}
         title="تفريغ السلة"
         message="سيتم حذف كل الأصناف من السلة. هل تريد المتابعة؟"
@@ -920,6 +924,16 @@ export function CafePosPage() {
           <h1 className="text-base font-bold text-fg">{t.pos.title}</h1>
         </div>
         <div className="flex items-center gap-2">
+          {lastKitchenTicket && (
+            <button
+              onClick={() => setShowKitchenTicket(true)}
+              title={`إعادة طباعة تذكرة المطبخ #${lastKitchenTicket.ticketNo}`}
+              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
+            >
+              <ChefHat className="h-4 w-4 text-brand-strong" />
+              <span className="tabular-nums" dir="ltr">#{lastKitchenTicket.ticketNo}</span>
+            </button>
+          )}
           {aiCashierAvailable && (
             <button
               onClick={() => setAiCashierActive((v) => !v)}
@@ -1017,7 +1031,7 @@ export function CafePosPage() {
               ) : (
                 cart.map((item) => (
                   <div
-                    key={item.variantId}
+                    key={item.lineKey}
                     className="rounded-xl border border-border bg-surface-2 p-3"
                   >
                     <div className="flex items-start gap-2">
@@ -1034,20 +1048,20 @@ export function CafePosPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => updateQty(item.variantId, -1)}
+                          onClick={() => updateQty(item.lineKey, -1)}
                           className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className="w-5 text-center text-sm font-bold tabular-nums">{item.quantity}</span>
                         <button
-                          onClick={() => updateQty(item.variantId, 1)}
+                          onClick={() => updateQty(item.lineKey, 1)}
                           className="flex h-6 w-6 items-center justify-center rounded-lg bg-border hover:bg-border"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                         <button
-                          onClick={() => removeItem(item.variantId)}
+                          onClick={() => removeItem(item.lineKey)}
                           className="flex h-6 w-6 items-center justify-center rounded-lg text-danger hover:bg-danger/10 dark:hover:bg-danger/15"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -1056,20 +1070,21 @@ export function CafePosPage() {
                     </div>
 
                     {/* Per-item notes */}
-                    {editingNoteId === item.variantId ? (
+                    {editingNoteId === item.lineKey ? (
                       <input
                         type="text"
                         value={item.notes}
-                        onChange={(e) => updateNote(item.variantId, e.target.value)}
-                        onBlur={() => setEditingNoteId(null)}
-                        onKeyDown={(e) => e.key === 'Enter' && setEditingNoteId(null)}
+                        maxLength={200}
+                        onChange={(e) => updateNote(item.lineKey, e.target.value)}
+                        onBlur={finishNote}
+                        onKeyDown={(e) => e.key === 'Enter' && finishNote()}
                         autoFocus
                         placeholder="ملاحظة للمطبخ..."
                         className="mt-1.5 w-full rounded-lg border border-brand/40 bg-brand-soft px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-brand/40"
                       />
                     ) : (
                       <button
-                        onClick={() => setEditingNoteId(item.variantId)}
+                        onClick={() => setEditingNoteId(item.lineKey)}
                         className="mt-1 flex items-center gap-1 text-xs text-muted hover:text-brand-ink transition-colors"
                       >
                         <MessageSquare className="h-3 w-3" />
@@ -1092,10 +1107,78 @@ export function CafePosPage() {
                   redeemPoints={appliedPoints}
                   onRedeemPointsChange={setRedeemPoints}
                   maxRedeemable={maxRedeemable}
-                  payable={grandTotal}
+                  payable={afterDiscount}
                   rules={loyaltyRules}
                 />
+                {showDiscount || discountInput ? (
+                  <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex overflow-hidden rounded-lg border border-border bg-surface">
+                        {(['Percentage', 'Fixed'] as DiscountMode[]).map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => setDiscountMode(m)}
+                            className={cn(
+                              'px-2.5 py-1 text-xs font-semibold transition-colors',
+                              discountMode === m ? 'bg-brand text-brand-fg' : 'text-muted hover:bg-surface-2',
+                            )}
+                          >
+                            {m === 'Percentage' ? '٪' : 'ر.س'}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        step={discountMode === 'Percentage' ? '1' : '0.5'}
+                        max={discountMode === 'Percentage' ? 100 : undefined}
+                        inputMode="decimal"
+                        autoFocus={!discountInput}
+                        placeholder={discountMode === 'Percentage' ? 'نسبة الخصم' : 'مبلغ الخصم'}
+                        value={discountInput}
+                        onChange={(e) => setDiscountInput(e.target.value)}
+                        aria-label="قيمة الخصم"
+                        className="w-full min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm tabular-nums text-fg outline-none focus:border-brand"
+                      />
+                      <button
+                        onClick={() => { setDiscountInput(''); setShowDiscount(false) }}
+                        title="إلغاء الخصم"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-fg"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {discountOverCap ? (
+                      <p className="text-[11px] font-medium text-danger">
+                        أقصى خصم للكاشير {CASHIER_DISCOUNT_CAP}٪ — الأعلى يحتاج المدير
+                      </p>
+                    ) : !isManager ? (
+                      <p className="text-[11px] text-muted">حتى {CASHIER_DISCOUNT_CAP}٪ من الفاتورة</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowDiscount(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-brand-ink"
+                  >
+                    <Percent className="h-3 w-3" />
+                    إضافة خصم
+                  </button>
+                )}
+                {/* Discounts come off the listed prices first; net and VAT below are of what is left, as on the receipt. */}
                 <div className="space-y-1 text-sm">
+                  {discountGross > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>الخصم{discountMode === 'Percentage' ? ` ${Math.min(discountRaw, 100).toLocaleString('ar-SA')}٪` : ''}</span>
+                      <span className="tabular-nums">−{formatCurrency(discountGross)}</span>
+                    </div>
+                  )}
+                  {appliedPoints > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>خصم النقاط</span>
+                      <span className="tabular-nums">−{formatCurrency(loyaltyDiscount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-muted">
                     <span>{t.pos.subtotal}</span>
                     <span className="tabular-nums">{formatCurrency(subtotal)}</span>
@@ -1104,12 +1187,6 @@ export function CafePosPage() {
                     <span>{t.pos.tax}</span>
                     <span className="tabular-nums">{formatCurrency(tax)}</span>
                   </div>
-                  {appliedPoints > 0 && (
-                    <div className="flex justify-between text-success">
-                      <span>خصم النقاط</span>
-                      <span className="tabular-nums">−{formatCurrency(loyaltyDiscount)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between text-base font-bold text-fg">
                     <span>{t.pos.total}</span>
                     <span className="tabular-nums">{formatCurrency(grandTotal)}</span>
@@ -1192,7 +1269,7 @@ export function CafePosPage() {
                 )}
 
                 <button
-                  onClick={() => checkout.mutate()}
+                  onClick={() => checkout.mutate({ mode: payMode })}
                   disabled={checkout.isPending || !canCheckout}
                   className="bg-brand w-full rounded-xl py-3 text-sm font-bold text-brand-fg transition-all disabled:opacity-50"
                 >
@@ -1519,12 +1596,16 @@ export function CafePosPage() {
 
       {/* ── Customer Receipt (shown after checkout) ── */}
       {customerReceipt && (
-        <CustomerReceiptModal receipt={customerReceipt} onClose={() => setCustomerReceipt(null)} />
+        <CustomerReceiptModal
+          receipt={customerReceipt}
+          onClose={() => setCustomerReceipt(null)}
+          onKitchenTicket={lastKitchenTicket ? () => { setCustomerReceipt(null); setShowKitchenTicket(true) } : undefined}
+        />
       )}
 
-      {/* ── Kitchen Ticket (for kitchen display only) ── */}
-      {kitchenTicket && !customerReceipt && (
-        <KitchenTicketModal ticket={kitchenTicket} onClose={() => setKitchenTicket(null)} />
+      {/* ── Kitchen Ticket: a paper copy of the last sale's ticket for kitchens without a screen ── */}
+      {showKitchenTicket && lastKitchenTicket && !customerReceipt && (
+        <KitchenTicketModal ticket={lastKitchenTicket} onClose={() => setShowKitchenTicket(false)} />
       )}
 
       {/* ── Start Gaming Session Modal ── */}

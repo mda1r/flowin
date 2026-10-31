@@ -67,6 +67,7 @@ internal static class DatabaseInitializerExtensions
             await MigrateCrmColumnsAsync(sp, logger);
             await EnsureCreatedAsync<FinanceDbContext>(sp, logger);
             await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+            await MigrateRestaurantColumnsAsync(sp, logger);
             await EnsureCreatedAsync<HotelDbContext>(sp, logger);
             await EnsureCreatedAsync<GamingDbContext>(sp, logger);
             await EnsureCreatedAsync<SuperAdminDbContext>(sp, logger);
@@ -259,12 +260,34 @@ internal static class DatabaseInitializerExtensions
             // Number the existing invoices once, in the order they were completed; skipped once any order has a number.
             "UPDATE orders o SET number = s.rn FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY COALESCE(completed_at, created_at), id) AS rn FROM orders WHERE status IN (2, 4)) s WHERE o.id = s.id AND NOT EXISTS (SELECT 1 FROM orders x WHERE x.number IS NOT NULL)",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_number ON orders (number) WHERE number IS NOT NULL",
+            "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS notes VARCHAR(256)",
         ];
 
         foreach (string sql in patches)
         {
             try { await posDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "POS migration skipped: {Sql}", sql); }
+        }
+    }
+
+    internal static async Task MigrateRestaurantColumnsAsync(IServiceProvider sp, ILogger logger)
+    {
+        RestaurantDbContext restaurantDb = sp.GetRequiredService<RestaurantDbContext>();
+        string[] patches =
+        [
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS kitchen_only BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS source_order_id UUID",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS ticket_number BIGINT",
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_restaurant_orders_source_order ON restaurant_orders (source_order_id) WHERE source_order_id IS NOT NULL",
+            // Unpaid copies the cafe cashier used to open for the kitchen hold no real menu item; mark them kitchen-only
+            // so they leave the open tables and can no longer be paid a second time.
+            "UPDATE restaurant_orders o SET kitchen_only = TRUE WHERE o.kitchen_only = FALSE AND o.status NOT IN ('Paid', 'Cancelled') AND NOT EXISTS (SELECT 1 FROM restaurant_order_items i JOIN menu_items m ON m.id = i.menu_item_id WHERE i.restaurant_order_id = o.id)",
+        ];
+
+        foreach (string sql in patches)
+        {
+            try { await restaurantDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (Exception ex) { logger.LogWarning(ex, "Restaurant migration skipped: {Sql}", sql); }
         }
     }
 
@@ -1114,6 +1137,7 @@ internal static class DatabaseInitializerExtensions
                 if (bizType is BusinessType.Restaurant or BusinessType.Cafe)
                 {
                     await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
+                    await MigrateRestaurantColumnsAsync(sp, logger);
                 }
 
                 if (bizType == BusinessType.Hotel)
@@ -1421,7 +1445,10 @@ internal static class DatabaseInitializerExtensions
         NexusPOS.Catalog.Domain.ValueObjects.Money priceVo =
             NexusPOS.Catalog.Domain.ValueObjects.Money.Create(salePrice, "SAR").Value;
 
-        product.AddVariant(skuVo, variantName, priceVo, priceVo, null);
+        // Cost and sale price are separate owned values; one shared instance cannot be tracked twice.
+        NexusPOS.Catalog.Domain.ValueObjects.Money costVo =
+            NexusPOS.Catalog.Domain.ValueObjects.Money.Create(salePrice, "SAR").Value;
+        product.AddVariant(skuVo, variantName, costVo, priceVo, null);
         product.ClearDomainEvents();
         db.Products.Add(product);
         return product;

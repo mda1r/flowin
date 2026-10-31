@@ -20,6 +20,7 @@ internal sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLin
         builder.Property(l => l.ProductName).HasColumnName("product_name").HasMaxLength(256);
         builder.Property(l => l.VariantName).HasColumnName("variant_name").HasMaxLength(256);
         builder.Property(l => l.Quantity).HasColumnName("quantity").HasPrecision(18, 4);
+        builder.Property(l => l.Notes).HasColumnName("notes").HasMaxLength(256);
 
         builder.OwnsOne(l => l.UnitPrice, m =>
         {

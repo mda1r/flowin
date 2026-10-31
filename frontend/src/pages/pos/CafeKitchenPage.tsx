@@ -7,6 +7,7 @@ import { useI18n } from '@/i18n'
 import { restaurantApi } from '@/api/restaurant'
 import type { RestaurantOrderResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
+import { invoiceNo } from '@/lib/invoiceNumber'
 
 // Light cards on the graphite board, like the identity's kitchen screen: new waits in amber,
 // in-progress carries a mint edge, ready turns mint.
@@ -50,6 +51,10 @@ function TicketCard({
     label: status === 'pending' ? t.kitchen.statusNew : status === 'preparing' ? t.kitchen.preparing : t.kitchen.ready,
   }
   const isTakeaway = order.tableNumber === 99
+  // Cafe tickets carry the sale's invoice number, so the kitchen calls out the number printed on the receipt.
+  const ticketNo = order.kitchenOnly && order.sourceOrderId
+    ? invoiceNo({ id: order.sourceOrderId, number: order.ticketNumber })
+    : order.id.slice(-4).toUpperCase()
 
   return (
     <div className={cn('scheme-light relative flex flex-col rounded-2xl border-2 p-4 text-fg shadow-md', cfg.card, cfg.border)}>
@@ -60,7 +65,7 @@ function TicketCard({
             {cfg.label}
           </span>
           <span className="text-sm font-black text-muted">
-            #{order.id.slice(-4).toUpperCase()}
+            #{ticketNo}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -85,9 +90,13 @@ function TicketCard({
           <span className="inline-flex items-center rounded-lg bg-info/10 px-2 py-0.5 text-sm font-bold text-info dark:bg-info/15">
             🛍 {t.kitchen.takeaway}
           </span>
-        ) : (
+        ) : order.tableNumber > 0 ? (
           <span className="inline-flex items-center rounded-lg bg-warning/10 px-2 py-0.5 text-sm font-bold text-warning dark:bg-warning/15">
             {t.kitchen.table} {order.tableNumber}
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-lg bg-surface-2 px-2 py-0.5 text-sm font-bold text-muted">
+            بدون طاولة
           </span>
         )}
       </div>
