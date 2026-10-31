@@ -98,6 +98,7 @@ public sealed class StockCountController(ISender mediator) : ControllerBase
 
     /// <summary>Complete a stock count session, optionally auto-adjusting stock quantities.</summary>
     [HttpPost("{sessionId:guid}/complete")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockCountSessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]

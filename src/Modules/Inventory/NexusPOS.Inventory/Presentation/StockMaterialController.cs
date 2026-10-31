@@ -119,7 +119,9 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
+    // Editing a material can overwrite its quantity and cost, so it is limited like a stock adjustment.
     [HttpPut("{materialId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(StockMaterialResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateMaterial(
@@ -173,6 +175,7 @@ public sealed class StockMaterialController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("{materialId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteMaterial(

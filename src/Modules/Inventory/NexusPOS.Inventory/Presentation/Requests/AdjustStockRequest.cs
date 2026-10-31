@@ -7,4 +7,5 @@ public sealed record AdjustStockRequest(
     DateTime? ExpiryDate = null,
     decimal? ReorderPoint = null,
     decimal? ReorderQuantity = null,
-    int? NotifyDaysBeforeExpiry = null);
+    int? NotifyDaysBeforeExpiry = null,
+    bool ClearExpiry = false);

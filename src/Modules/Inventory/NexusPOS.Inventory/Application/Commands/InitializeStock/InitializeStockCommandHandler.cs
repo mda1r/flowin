@@ -21,7 +21,14 @@ internal sealed class InitializeStockCommandHandler(
 
         if (existing is not null)
         {
-            return MapToResponse(existing);
+            // Turning tracking back on for an archived item brings it back with its history.
+            if (existing.IsArchived)
+            {
+                existing.Restore();
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            return StockItemResponse.From(existing);
         }
 
         StockItem stockItem = StockItem.Create(
@@ -33,12 +40,6 @@ internal sealed class InitializeStockCommandHandler(
         stockItemRepository.Add(stockItem);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return MapToResponse(stockItem);
+        return StockItemResponse.From(stockItem);
     }
-
-    private static StockItemResponse MapToResponse(StockItem s) => new(
-        s.Id.Value, s.VariantId, s.BranchId,
-        s.Quantity, s.ReorderPoint, s.ReorderQuantity,
-        s.Quantity <= s.ReorderPoint && s.ReorderPoint > 0,
-        s.UpdatedAt, s.ExpiryDate, s.NotifyDaysBeforeExpiry);
 }

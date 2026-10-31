@@ -21,7 +21,7 @@ internal sealed class RecipeItemsSoldInventoryHandler(
             await RecipeStockDeduction.DeductAsync(
                 db, notification.TenantId, notification.SaleId,
                 [.. notification.Lines.Select(l => (l.ItemId, l.Quantity))],
-                tenantContext.UserId, cancellationToken);
+                tenantContext.UserId, logger, cancellationToken);
         }
         catch (Exception ex)
         {

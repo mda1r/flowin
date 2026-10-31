@@ -3,4 +3,4 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.Inventory.Application.Queries.ListBranchStock;
 
-public sealed record ListBranchStockQuery(Guid BranchId, bool LowStockOnly = false) : IQuery<IReadOnlyList<StockItemResponse>>;
+public sealed record ListBranchStockQuery(Guid BranchId, bool LowStockOnly = false, bool IncludeArchived = false) : IQuery<IReadOnlyList<StockItemResponse>>;

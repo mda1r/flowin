@@ -176,7 +176,140 @@ public sealed class StockItemTests
             e.GetType().Name == "LowStockAlertDomainEvent");
     }
 
+    // ── DeductForSale ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public void DeductForSale_WithinStock_DeductsWithoutShortfall()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+        stock.Receive(10);
+
+        ErrorOr<decimal> result = stock.DeductForSale(4, "order-1", "فاتورة #12");
+
+        result.IsError.Should().BeFalse();
+        result.Value.Should().Be(0);
+        stock.Quantity.Should().Be(6);
+        stock.Movements.Should().Contain(m =>
+            m.Type == MovementType.Sale && m.Quantity == 4 && m.QuantityBefore == 10 && m.QuantityAfter == 6
+            && m.Notes == "فاتورة #12" && m.Reference == "order-1");
+    }
+
+    [Fact]
+    public void DeductForSale_MoreThanOnHand_TakesStockToZeroAndRecordsShortfall()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+        stock.Receive(2);
+
+        ErrorOr<decimal> result = stock.DeductForSale(3, "order-1", "فاتورة #12");
+
+        result.IsError.Should().BeFalse();
+        result.Value.Should().Be(1);
+        stock.Quantity.Should().Be(0);
+        StockMovement sale = stock.Movements.Single(m => m.Type == MovementType.Sale);
+        sale.Quantity.Should().Be(3);
+        sale.QuantityBefore.Should().Be(2);
+        sale.QuantityAfter.Should().Be(0);
+        sale.Notes.Should().StartWith("فاتورة #12").And.Contain("1");
+    }
+
+    [Fact]
+    public void DeductForSale_WithNothingOnHand_StillRecordsTheSale()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+
+        ErrorOr<decimal> result = stock.DeductForSale(2.5m);
+
+        result.Value.Should().Be(2.5m);
+        stock.Quantity.Should().Be(0);
+        stock.Movements.Should().ContainSingle(m => m.Type == MovementType.Sale && m.Quantity == 2.5m);
+    }
+
+    [Fact]
+    public void DeductForSale_BelowReorderPoint_RaisesLowStockAlert()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId, reorderPoint: 5);
+        stock.Receive(2);
+        stock.ClearDomainEvents();
+
+        stock.DeductForSale(3);
+
+        stock.DomainEvents.Should().Contain(e => e.GetType().Name == "LowStockAlertDomainEvent");
+    }
+
+    [Fact]
+    public void DeductForSale_ZeroQuantity_ReturnsInvalidQuantityError()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+        stock.Receive(5);
+
+        ErrorOr<decimal> result = stock.DeductForSale(0);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Should().Be(InventoryErrors.InvalidQuantity);
+        stock.Movements.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void DeductForSale_RecordsWhoSold()
+    {
+        Guid cashierId = Guid.NewGuid();
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+        stock.Receive(5);
+
+        stock.DeductForSale(1, userId: cashierId);
+
+        stock.Movements.Should().Contain(m => m.Type == MovementType.Sale && m.UserId == cashierId);
+    }
+
+    // ── Archive ───────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Archive_ThenRestore_TogglesFlag()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+
+        stock.Archive();
+        stock.IsArchived.Should().BeTrue();
+
+        stock.Restore();
+        stock.IsArchived.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Receive_OnArchivedItem_TracksItAgain()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+        stock.Archive();
+
+        stock.Receive(5);
+
+        stock.IsArchived.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Receive_AsReturn_RecordsReturnMovement()
+    {
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+
+        stock.Receive(2, "return-1", type: MovementType.Return);
+
+        stock.Movements.Should().ContainSingle(m => m.Type == MovementType.Return && m.Quantity == 2);
+    }
+
     // ── Adjust ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Adjust_RecordsWhoAdjusted()
+    {
+        Guid managerId = Guid.NewGuid();
+        StockItem stock = StockItem.Create(_variantId, _branchId);
+        stock.Receive(10);
+
+        stock.Adjust(7, notes: "جرد", userId: managerId);
+
+        stock.Movements.Should().Contain(m =>
+            m.Type == MovementType.Adjustment && m.UserId == managerId && m.QuantityBefore == 10 && m.QuantityAfter == 7);
+    }
 
     [Fact]
     public void Adjust_ToNewQuantity_SetsQuantityAndRecordsAdjustment()

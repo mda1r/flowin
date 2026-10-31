@@ -317,6 +317,9 @@ internal static class DatabaseInitializerExtensions
         string[] patches =
         [
             "ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS notify_days_before_expiry INT DEFAULT 7",
+            "ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS user_id UUID",
+            "CREATE INDEX IF NOT EXISTS ix_stock_movements_stock_item_occurred ON stock_movements (stock_item_id, occurred_at DESC)",
         ];
 
         foreach (string sql in patches)

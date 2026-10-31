@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NexusPOS.Inventory.Domain.Entities;
 using NexusPOS.Inventory.Domain.Enums;
 using NexusPOS.Inventory.Domain.Services;
@@ -7,6 +8,7 @@ using NexusPOS.Inventory.Infrastructure.Persistence;
 namespace NexusPOS.Inventory.Application.Services;
 
 // Recipe lines are keyed by the sold item's id: a catalog variant for POS sales, a menu item for restaurant sales.
+// Materials may go below zero so a sale is never dropped; that is logged so the shortfall can be traced.
 internal static class RecipeStockDeduction
 {
     public static async Task DeductAsync(
@@ -15,6 +17,7 @@ internal static class RecipeStockDeduction
         Guid saleId,
         IReadOnlyCollection<(Guid ItemId, decimal Quantity)> soldLines,
         Guid? userId,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         List<Guid> itemIds = [.. soldLines.Select(l => l.ItemId).Distinct()];
@@ -38,6 +41,12 @@ internal static class RecipeStockDeduction
         {
             decimal before = material.CurrentQuantityInStorageUnits;
             material.Consume(consumed[material.Id]);
+            if (material.CurrentQuantityInStorageUnits < 0)
+            {
+                logger.LogWarning(
+                    "Sale {SaleId} took material {MaterialId} below zero ({Before} -> {After} {Unit})",
+                    saleId, material.Id, before, material.CurrentQuantityInStorageUnits, material.StorageUnit);
+            }
             db.StockMaterialMovements.Add(StockMaterialMovement.Record(
                 material, StockMaterialMovementType.Consumption,
                 material.CurrentQuantityInStorageUnits - before, material.CurrentCost, note, userId));

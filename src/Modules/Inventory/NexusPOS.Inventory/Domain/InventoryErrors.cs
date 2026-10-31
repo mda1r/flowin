@@ -16,6 +16,9 @@ public static class InventoryErrors
     public static readonly Error NegativeReorderPoint =
         Error.Validation("Inventory.NegativeReorderPoint", "Reorder point must not be negative.");
 
+    public static readonly Error StockItemHasHistory =
+        Error.Conflict("Inventory.StockItemHasHistory", "Stock item still has quantity or movement history; archive it instead.");
+
     public static readonly Error StockCountNotFound =
         Error.NotFound("Inventory.StockCountNotFound", "Stock count session was not found.");
 
