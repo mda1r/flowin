@@ -1,4 +1,4 @@
-import { Outlet, Link, useNavigate } from '@tanstack/react-router'
+import { Outlet, Link } from '@tanstack/react-router'
 import {
   LayoutDashboard,
   Building2,
@@ -8,12 +8,13 @@ import {
   Layers,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { useSignOut } from '@/lib/session'
 import { useI18n } from '@/i18n'
 import { FlowinLockup } from '@/components/brand/Brand'
 
 export function AdminLayout() {
-  const { logout, user } = useAuthStore()
-  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const handleLogout = useSignOut()
   const { t } = useI18n()
 
   const navItems = [
@@ -22,11 +23,6 @@ export function AdminLayout() {
     { to: '/admin/brands', label: t.admin.brands.title, icon: Layers },
     { to: '/admin/plans', label: t.admin.plans.title, icon: CreditCard },
   ]
-
-  const handleLogout = () => {
-    logout()
-    navigate({ to: '/login' })
-  }
 
   return (
     <div className="scheme-dark flex h-screen bg-bg text-fg" dir="rtl">

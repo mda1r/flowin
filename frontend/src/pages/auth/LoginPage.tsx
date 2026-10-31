@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -22,6 +23,7 @@ const NAVIGATE_AT_MS = 420
 export function LoginPage() {
   const navigate = useNavigate()
   const { setTokens, setUser } = useAuthStore()
+  const queryClient = useQueryClient()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [entering, setEntering] = useState(false)
@@ -42,6 +44,8 @@ export function LoginPage() {
     setLoading(true)
     try {
       const { data: tokens } = await authApi.login(data.email, data.password)
+      // Nothing cached under a previous session (another cashier or store on this device) may leak into this one.
+      queryClient.clear()
       setTokens(tokens.accessToken, tokens.refreshToken)
       const { data: user } = await authApi.me()
       setUser(user)
@@ -55,8 +59,14 @@ export function LoginPage() {
       timers.current.push(window.setTimeout(() => navigate({ to }), NAVIGATE_AT_MS))
     } catch (err) {
       // No response or a 5xx means the server is down or unreachable, not that the password is wrong.
-      const unreachable = isAxiosError(err) && (!err.response || err.response.status >= 500)
+      // Otherwise the problem title says why: a lockout or a deactivated account is not a wrong password.
+      const res = isAxiosError<{ title?: string }>(err) ? err.response : undefined
+      const code = res?.data?.title
+      const unreachable = isAxiosError(err) && (!res || res.status >= 500)
       if (unreachable) toast.error(t.login.serverUnreachable, t.login.serverUnreachableHint)
+      else if (res?.status === 429) toast.error(t.login.loginFailed, t.login.tooManyAttempts)
+      else if (code === 'IAM.AccountLocked') toast.error(t.login.loginFailed, t.login.accountLocked)
+      else if (code === 'IAM.UserInactive') toast.error(t.login.loginFailed, t.login.accountInactive)
       else toast.error(t.login.loginFailed, t.login.invalidCredentials)
     } finally {
       setLoading(false)
@@ -144,7 +154,7 @@ export function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute end-3 top-4 text-muted transition-colors hover:text-fg"
-                aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                aria-label={showPassword ? t.login.hidePassword : t.login.showPassword}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>

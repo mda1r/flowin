@@ -98,6 +98,11 @@ export const ar: Translations = {
     loginFailed: 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.',
     serverUnreachable: 'لا يمكن الوصول إلى الخادم',
     serverUnreachableHint: 'تحقق من اتصالك بالإنترنت، أو حاول بعد قليل إذا كان الخادم متوقفاً مؤقتاً',
+    accountLocked: 'الحساب مقفل مؤقتاً، حاول بعد 15 دقيقة',
+    accountInactive: 'تم إيقاف هذا الحساب، تواصل مع المالك',
+    tooManyAttempts: 'محاولات كثيرة، انتظر دقيقة ثم حاول',
+    showPassword: 'إظهار كلمة المرور',
+    hidePassword: 'إخفاء كلمة المرور',
   },
 
   dashboard: {

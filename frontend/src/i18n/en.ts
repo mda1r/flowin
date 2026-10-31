@@ -96,6 +96,11 @@ export const en = {
     loginFailed: 'Login failed. Please try again.',
     serverUnreachable: "Can't reach the server",
     serverUnreachableHint: 'Check your internet connection, or try again shortly if the server is temporarily down',
+    accountLocked: 'Account temporarily locked. Try again in 15 minutes',
+    accountInactive: 'This account has been deactivated. Contact the owner',
+    tooManyAttempts: 'Too many attempts. Wait a minute and try again',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
   },
 
   dashboard: {

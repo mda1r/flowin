@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { aiCashierApi } from '@/api/aiCashier'
-import { Link, useRouterState, useRouter } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -42,6 +42,7 @@ import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { BrandTagline, FlowinLockup, FlowinMark } from '@/components/brand/Brand'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
+import { useSignOut } from '@/lib/session'
 import { useThemeStore } from '@/stores/themeStore'
 import { useI18n } from '@/i18n'
 import { getUserPermissions } from '@/lib/userPermissions'
@@ -171,10 +172,10 @@ const THEME_LABEL = {
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const { pathname } = useRouterState({ select: (s) => s.location })
-  const { user, logout, tenantId, branchId } = useAuthStore()
+  const { user, tenantId, branchId } = useAuthStore()
   const { mode, cycle } = useThemeStore()
   const { t, lang, setLang } = useI18n()
-  const router = useRouter()
+  const signOut = useSignOut()
   const [aiOpen, setAiOpen] = useState(false)
 
   const { data: aiFeature } = useQuery({
@@ -326,10 +327,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             </Link>
             <button
               type="button"
-              onClick={() => {
-                logout()
-                void router.navigate({ to: '/login' })
-              }}
+              onClick={signOut}
               className="nav-item !px-2 !py-2 text-sm hover:!text-danger"
               title={isRail ? t.nav.logout : undefined}
             >

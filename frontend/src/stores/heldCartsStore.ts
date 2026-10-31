@@ -13,6 +13,7 @@ interface HeldCartsState {
   hold: (lines: CartLine[], note?: string) => string
   restore: (id: string) => HeldCart | null
   dismiss: (id: string) => void
+  clear: () => void
 }
 
 export const useHeldCartsStore = create<HeldCartsState>()((set, get) => ({
@@ -33,4 +34,6 @@ export const useHeldCartsStore = create<HeldCartsState>()((set, get) => ({
   },
 
   dismiss: (id) => set((s) => ({ carts: s.carts.filter((c) => c.id !== id) })),
+
+  clear: () => set({ carts: [] }),
 }))
