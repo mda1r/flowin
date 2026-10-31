@@ -35,6 +35,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { SpillArt } from '@/components/brand/SpillArt'
 import { Badge } from '@/components/ui/Badge'
+import { localDaysToUtcRange } from '@/lib/dates'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { ordersApi } from '@/api/orders'
@@ -579,7 +580,7 @@ export function DashboardPage() {
   })
   const returnsQuery = useQuery({
     queryKey: ['dashboard-returns', branchId, today],
-    queryFn: () => ordersApi.listReturns(branchId!),
+    queryFn: () => ordersApi.listReturns(branchId!, localDaysToUtcRange(today, today)),
     enabled: !!branchId,
     refetchInterval: 60_000,
   })

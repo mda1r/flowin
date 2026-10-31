@@ -73,15 +73,73 @@ public static class ValidationLanguage
         ["GuestName"] = "اسم الضيف",
         ["GuestPhone"] = "جوال الضيف",
         ["PaymentMethod"] = "طريقة الدفع",
+        ["ReorderLevel"] = "حد إعادة الطلب",
+        ["ReorderPoint"] = "حد إعادة الطلب",
+        ["ReorderQuantity"] = "كمية إعادة الطلب",
+        ["MinLevel"] = "الحد الأدنى",
+        ["MaxLevel"] = "الحد الأعلى",
+        ["VariantName"] = "اسم الخيار",
+        ["ProductName"] = "اسم المنتج",
+        ["ItemName"] = "اسم الصنف",
+        ["StorageUnit"] = "وحدة التخزين",
+        ["ComponentUnit"] = "وحدة المكوّن",
+        ["ConversionFactor"] = "معامل التحويل",
+        ["ContactPhone"] = "جوال التواصل",
+        ["ContactEmail"] = "بريد التواصل",
+        ["AdminEmail"] = "بريد المسؤول",
+        ["DurationMinutes"] = "المدة بالدقائق",
+        ["ExtraMinutes"] = "الدقائق الإضافية",
+        ["HourlyRate"] = "سعر الساعة",
+        ["RatePerHour"] = "سعر الساعة",
+        ["NightlyRate"] = "سعر الليلة",
+        ["RatePerNight"] = "سعر الليلة",
+        ["PlayerName"] = "اسم اللاعب",
+        ["RoomNumber"] = "رقم الغرفة",
+        ["Floor"] = "الطابق",
+        ["Capacity"] = "السعة",
+        ["CheckOut"] = "تاريخ المغادرة",
+        ["GuestNationalId"] = "هوية الضيف",
+        ["SupplierName"] = "اسم المورد",
+        ["SupplierVatNumber"] = "الرقم الضريبي للمورد",
+        ["InvoiceNumber"] = "رقم الفاتورة",
+        ["InvoiceDate"] = "تاريخ الفاتورة",
+        ["BusinessType"] = "نوع النشاط",
+        ["LegalEntityName"] = "الاسم القانوني",
+        ["BranchCode"] = "كود الفرع",
+        ["NewBranchCode"] = "كود الفرع",
+        ["BranchDisplayName"] = "اسم الفرع",
+        ["NewBranchDisplayName"] = "اسم الفرع",
+        ["LogoUrl"] = "رابط الشعار",
+        ["Role"] = "الدور",
+        ["Value"] = "القيمة",
+        ["TaxAmount"] = "مبلغ الضريبة",
+        ["BaseAmount"] = "المبلغ الأساسي",
+        ["MinOrderAmount"] = "الحد الأدنى للطلب",
+        ["MaxUses"] = "عدد مرات الاستخدام",
+        ["LoyaltyPoints"] = "نقاط الولاء",
+        ["RedeemPoints"] = "نقاط الاستبدال",
+        ["MinRedeemPoints"] = "الحد الأدنى للاستبدال",
+        ["RedeemValue"] = "قيمة الاستبدال",
+        ["PointsPerCurrencyUnit"] = "النقاط لكل ريال",
+        ["NewQuantity"] = "الكمية الجديدة",
+        ["SystemQuantity"] = "كمية النظام",
+        ["InitialCost"] = "التكلفة الأولية",
+        ["ManualCost"] = "التكلفة",
+        ["PeriodStart"] = "بداية الفترة",
+        ["PeriodEnd"] = "نهاية الفترة",
+        ["EffectiveFrom"] = "تاريخ السريان",
     };
+
+    // Used for any field not listed above, so a default message never carries English words.
+    public const string GenericFieldName = "الحقل";
 
     public static void UseArabic()
     {
         ValidatorOptions.Global.LanguageManager.Culture = Culture;
-        ValidatorOptions.Global.DisplayNameResolver = (_, member, _) => FieldName(member);
+        ValidatorOptions.Global.DisplayNameResolver = (_, member, _) => FieldName(member) ?? GenericFieldName;
     }
 
-    // null lets FluentValidation fall back to its own name (the property split into words).
+    // null when the field has no Arabic name; UseArabic then shows GenericFieldName.
     public static string? FieldName(MemberInfo? member) =>
         member is not null && _fieldNames.TryGetValue(member.Name, out string? name) ? name : null;
 }

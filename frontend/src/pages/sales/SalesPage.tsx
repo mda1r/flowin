@@ -318,8 +318,8 @@ export function SalesPage() {
   })
 
   const { data: returnsData } = useQuery({
-    queryKey: ['returns', branchId],
-    queryFn: () => ordersApi.listReturns(branchId!),
+    queryKey: ['returns', branchId, 'sales', range],
+    queryFn: () => ordersApi.listReturns(branchId!, { from }),
     enabled: !!branchId,
   })
 

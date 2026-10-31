@@ -15,6 +15,9 @@ export interface CheckoutPayload {
   offlineCreatedAt?: string
 }
 
+// Mirrors ListReturnsQuery.MaxLimit on the server.
+export const RETURNS_MAX_LIMIT = 2000
+
 export const ordersApi = {
   // Whole sale in one request; resending the same clientReference returns the same order.
   checkout: (branchId: string, payload: CheckoutPayload) =>
@@ -92,7 +95,7 @@ export const ordersApi = {
       data,
     ),
 
-  // Newest first; the server caps the list (default 1000) so pass from/to for older periods.
+  // Newest first; the server caps the list (default 1000, at most RETURNS_MAX_LIMIT) so pass from/to.
   listReturns: (branchId: string, params?: { from?: string; to?: string; limit?: number }) =>
     apiClient.get<ReturnOrderResponse[]>(`/api/v1/branches/${branchId}/returns`, { params }),
 }

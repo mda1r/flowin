@@ -18,6 +18,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { localDaysToUtcRange } from '@/lib/dates'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { salesApi } from '@/api/sales'
@@ -238,8 +239,8 @@ export function ReportsPage() {
   })
 
   const { data: rawReturns } = useQuery({
-    queryKey: ['reports-returns', branchId],
-    queryFn: () => ordersApi.listReturns(branchId!),
+    queryKey: ['reports-returns', branchId, dateFrom, dateTo],
+    queryFn: () => ordersApi.listReturns(branchId!, localDaysToUtcRange(dateFrom, dateTo)),
     enabled: !!branchId,
   })
 

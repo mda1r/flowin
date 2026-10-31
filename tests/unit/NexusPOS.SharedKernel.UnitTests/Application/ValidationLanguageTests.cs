@@ -29,9 +29,10 @@ public sealed class ValidationLanguageTests
         ValidationFailure name = result.Errors.Single(e => e.PropertyName == nameof(SampleCommand.Name));
         name.ErrorMessage.Should().Contain("الاسم").And.NotContain("must not be empty");
 
-        // A field with no Arabic name still gets the Arabic sentence around FluentValidation's own name.
+        // A field with no Arabic name gets a generic Arabic one rather than its English words.
         ValidationFailure zone = result.Errors.Single(e => e.PropertyName == nameof(SampleCommand.ZoneLabel));
-        zone.ErrorMessage.Should().NotContain("must not be empty");
+        zone.ErrorMessage.Should().Contain(ValidationLanguage.GenericFieldName)
+            .And.NotContain("must not be empty").And.NotContain("Zone");
     }
 
     [Fact]
