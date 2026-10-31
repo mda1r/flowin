@@ -3,8 +3,10 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.SharedKernel.Application;
 using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Presentation;
 using NexusPOS.Tax.Application.Commands.CloseTaxPeriod;
 using NexusPOS.Tax.Application.Commands.CreateTaxPeriod;
 using NexusPOS.Tax.Application.Commands.DeleteExpenseInvoice;
@@ -112,7 +114,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
         CancellationToken cancellationToken = default)
     {
         ErrorOr<TaxLedgerResult> result =
-            await mediator.Send(new GetTaxLedgerQuery(periodId, TenantId, page, pageSize), cancellationToken);
+            await mediator.Send(new GetTaxLedgerQuery(periodId, TenantId, Paging.Page(page), Paging.Size(pageSize)), cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 
@@ -231,20 +233,11 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Unexpected => StatusCodes.Status503ServiceUnavailable,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    // The tax source (another module's schema) being unreachable is a 503, not our fault; the rest uses the shared mapping.
+    private IActionResult MapErrors(List<Error> errors) =>
+        errors is [{ Type: ErrorType.Unexpected } first, ..]
+            ? Problem(title: first.Code, detail: first.Description, statusCode: StatusCodes.Status503ServiceUnavailable)
+            : this.ToProblem(errors);
 }
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────

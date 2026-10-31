@@ -21,6 +21,7 @@ internal static class ApplicationServiceExtensions
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
 
         services.AddValidatorsFromAssemblies(assemblies, includeInternalTypes: true);
+        ValidationLanguage.UseArabic();
 
         return services;
     }

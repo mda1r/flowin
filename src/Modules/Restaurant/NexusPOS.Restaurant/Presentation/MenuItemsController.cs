@@ -11,6 +11,8 @@ using NexusPOS.Restaurant.Application.Queries.GetMenuItem;
 using NexusPOS.Restaurant.Application.Queries.ListMenuItems;
 using NexusPOS.Restaurant.Domain.Enums;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Restaurant.Presentation;
 
@@ -30,7 +32,7 @@ public sealed class MenuItemsController(ISender mediator, ITenantContext tenantC
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListMenuItemsQuery query = new(branchId, category, includeUnavailable, page, pageSize);
+        ListMenuItemsQuery query = new(branchId, category, includeUnavailable, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<MenuItemResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -101,18 +103,7 @@ public sealed class MenuItemsController(ISender mediator, ITenantContext tenantC
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateMenuItemRequest(

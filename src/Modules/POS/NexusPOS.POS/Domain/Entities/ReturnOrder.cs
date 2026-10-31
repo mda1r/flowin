@@ -61,7 +61,7 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
         List<(Guid lineId, decimal quantity, ReturnReason reason)> requested = [.. returnLines];
         if (requested.Count == 0)
         {
-            return Error.Validation("ReturnOrder.NoLines", "At least one line is required for a return.");
+            return Error.Validation("ReturnOrder.NoLines", "اختر صنفاً واحداً على الأقل للإرجاع");
         }
 
         if (requested.Select(l => l.lineId).Distinct().Count() != requested.Count)

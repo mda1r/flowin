@@ -4,6 +4,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 using NexusPOS.SuperAdmin.Application.Commands.ActivateTenant;
 using NexusPOS.SuperAdmin.Application.Commands.CreateBrand;
 using NexusPOS.SuperAdmin.Application.Commands.CreateSubscription;
@@ -234,7 +236,7 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await mediator.Send(new ListBrandsQuery(status, search, page, pageSize), cancellationToken);
+        var result = await mediator.Send(new ListBrandsQuery(status, search, Paging.Page(page), Paging.Size(pageSize)), cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 
@@ -415,30 +417,5 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
 
     // ──────────────────────── Error Mapping ──────────────────────────────────
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails pd = new();
-            foreach (Error error in errors)
-            {
-                pd.Errors[error.Code] = [error.Description];
-            }
-
-            return ValidationProblem(pd);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }

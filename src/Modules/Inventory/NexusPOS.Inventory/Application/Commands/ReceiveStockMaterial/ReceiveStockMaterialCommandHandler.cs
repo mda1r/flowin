@@ -23,7 +23,7 @@ internal sealed class ReceiveStockMaterialCommandHandler(InventoryDbContext db, 
 
         if (material is null)
         {
-            return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
+            return Error.NotFound("Inventory.MaterialNotFound", "المادة غير موجودة");
         }
 
         if (!material.IsActive)

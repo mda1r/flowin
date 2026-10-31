@@ -5,37 +5,37 @@ namespace NexusPOS.Purchasing.Domain;
 public static class PurchasingErrors
 {
     public static readonly Error SupplierNotFound =
-        Error.NotFound("Purchasing.SupplierNotFound", "Supplier was not found.");
+        Error.NotFound("Purchasing.SupplierNotFound", "المورد غير موجود");
 
     public static readonly Error PurchaseOrderNotFound =
-        Error.NotFound("Purchasing.PurchaseOrderNotFound", "Purchase order was not found.");
+        Error.NotFound("Purchasing.PurchaseOrderNotFound", "أمر الشراء غير موجود");
 
     public static readonly Error PurchaseOrderNotDraft =
-        Error.Conflict("Purchasing.PurchaseOrderNotDraft", "Purchase order must be in Draft status.");
+        Error.Conflict("Purchasing.PurchaseOrderNotDraft", "أمر الشراء يجب أن يكون مسودة");
 
     public static readonly Error PurchaseOrderNotSent =
-        Error.Conflict("Purchasing.PurchaseOrderNotSent", "Purchase order must be sent before receiving.");
+        Error.Conflict("Purchasing.PurchaseOrderNotSent", "أرسل أمر الشراء قبل الاستلام");
 
     public static readonly Error PurchaseOrderAlreadyCompleted =
-        Error.Conflict("Purchasing.PurchaseOrderAlreadyCompleted", "Purchase order has already been received or cancelled.");
+        Error.Conflict("Purchasing.PurchaseOrderAlreadyCompleted", "أمر الشراء مستلم أو ملغى مسبقاً");
 
     public static readonly Error PurchaseOrderLineNotFound =
-        Error.NotFound("Purchasing.PurchaseOrderLineNotFound", "Purchase order line was not found.");
+        Error.NotFound("Purchasing.PurchaseOrderLineNotFound", "البند غير موجود في أمر الشراء");
 
     public static readonly Error InvalidQuantity =
-        Error.Validation("Purchasing.InvalidQuantity", "Quantity must be greater than zero.");
+        Error.Validation("Purchasing.InvalidQuantity", "الكمية يجب أن تكون أكبر من صفر");
 
     public static readonly Error InvalidUnitCost =
-        Error.Validation("Purchasing.InvalidUnitCost", "Unit cost must not be negative.");
+        Error.Validation("Purchasing.InvalidUnitCost", "تكلفة الوحدة لا يمكن أن تكون سالبة");
 
     public static readonly Error EmptyPurchaseOrder =
-        Error.Validation("Purchasing.EmptyPurchaseOrder", "Cannot send a purchase order with no lines.");
+        Error.Validation("Purchasing.EmptyPurchaseOrder", "لا يمكن إرسال أمر شراء فارغ");
 
     public static readonly Error SupplierNameTaken =
-        Error.Conflict("Purchasing.SupplierNameTaken", "A supplier with this name already exists.");
+        Error.Conflict("Purchasing.SupplierNameTaken", "يوجد مورد بنفس الاسم");
 
     public static readonly Error PurchaseOrderNotReceived =
-        Error.Validation("Purchasing.PurchaseOrderNotReceived", "Purchase order has not been received yet.");
+        Error.Validation("Purchasing.PurchaseOrderNotReceived", "لم يُستلم أمر الشراء بعد");
 
     public static readonly Error SupplierInactive =
         Error.Validation("Purchasing.SupplierInactive", "This supplier is inactive. Reactivate it before placing new orders.");

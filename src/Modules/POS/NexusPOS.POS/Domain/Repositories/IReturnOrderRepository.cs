@@ -7,7 +7,7 @@ public interface IReturnOrderRepository
 {
     Task<ReturnOrder?> FindByIdAsync(ReturnOrderId id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ReturnOrder>> FindByOriginalOrderAsync(Guid originalOrderId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<ReturnOrder>> FindByBranchAsync(Guid branchId, DateTime? dateFrom, DateTime? dateTo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReturnOrder>> FindByBranchAsync(Guid branchId, DateTime? dateFrom, DateTime? dateTo, int limit, CancellationToken cancellationToken = default);
     Task<ReturnOrder?> FindByClientReferenceAsync(Guid clientReference, CancellationToken cancellationToken = default);
     // Unit cost of each original sale line, so reports can put returned goods back into stock value.
     Task<IReadOnlyDictionary<Guid, decimal>> FindOriginalLineCostsAsync(

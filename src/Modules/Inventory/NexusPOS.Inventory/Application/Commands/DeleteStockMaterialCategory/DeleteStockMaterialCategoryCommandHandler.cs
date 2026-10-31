@@ -18,7 +18,7 @@ internal sealed class DeleteStockMaterialCategoryCommandHandler(InventoryDbConte
 
         if (category is null)
         {
-            return Error.NotFound("Inventory.CategoryNotFound", "Stock material category was not found.");
+            return Error.NotFound("Inventory.CategoryNotFound", "التصنيف غير موجود");
         }
 
         bool hasItems = await db.StockMaterials
@@ -26,7 +26,7 @@ internal sealed class DeleteStockMaterialCategoryCommandHandler(InventoryDbConte
 
         if (hasItems)
         {
-            return Error.Conflict("Inventory.CategoryHasItems", "Cannot delete category that has stock materials.");
+            return Error.Conflict("Inventory.CategoryHasItems", "لا يمكن حذف تصنيف يحتوي على مواد، انقل المواد أو احذفها أولاً");
         }
 
         db.StockMaterialCategories.Remove(category);

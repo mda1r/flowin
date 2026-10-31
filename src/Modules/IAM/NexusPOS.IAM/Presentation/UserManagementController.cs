@@ -11,6 +11,7 @@ using NexusPOS.IAM.Application.Commands.SetUserActive;
 using NexusPOS.IAM.Application.Commands.UpdateUser;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Application.Queries.ListUsers;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.IAM.Presentation;
 
@@ -118,29 +119,7 @@ public sealed class UserManagementController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrors);
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails pd = new();
-            foreach (Error error in errors)
-            {
-                pd.Errors[error.Code] = [error.Description];
-            }
-            return ValidationProblem(pd);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateUserRequest(string Email, string FirstName, string LastName, string Password, string Role);

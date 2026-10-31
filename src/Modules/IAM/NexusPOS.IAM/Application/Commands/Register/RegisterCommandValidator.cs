@@ -7,25 +7,25 @@ internal sealed class RegisterCommandValidator : AbstractValidator<RegisterComma
     public RegisterCommandValidator()
     {
         RuleFor(x => x.Email)
-            .NotEmpty().WithMessage("Email is required.")
-            .EmailAddress().WithMessage("A valid email address is required.")
-            .MaximumLength(256).WithMessage("Email must not exceed 256 characters.");
+            .NotEmpty().WithMessage("البريد الإلكتروني مطلوب")
+            .EmailAddress().WithMessage("البريد الإلكتروني غير صالح")
+            .MaximumLength(256).WithMessage("البريد الإلكتروني يجب ألا يتجاوز 256 حرفاً");
 
         RuleFor(x => x.Password)
-            .NotEmpty().WithMessage("Password is required.")
-            .MinimumLength(8).WithMessage("Password must be at least 8 characters.")
-            .MaximumLength(128).WithMessage("Password must not exceed 128 characters.")
-            .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter.")
-            .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
-            .Matches("[0-9]").WithMessage("Password must contain at least one digit.")
-            .Matches("[^A-Za-z0-9]").WithMessage("Password must contain at least one special character.");
+            .NotEmpty().WithMessage("كلمة المرور مطلوبة")
+            .MinimumLength(8).WithMessage("كلمة المرور 8 أحرف على الأقل")
+            .MaximumLength(128).WithMessage("كلمة المرور يجب ألا تتجاوز 128 حرفاً")
+            .Matches("[A-Z]").WithMessage("كلمة المرور تحتاج حرفاً إنجليزياً كبيراً واحداً على الأقل")
+            .Matches("[a-z]").WithMessage("كلمة المرور تحتاج حرفاً إنجليزياً صغيراً واحداً على الأقل")
+            .Matches("[0-9]").WithMessage("كلمة المرور تحتاج رقماً واحداً على الأقل")
+            .Matches("[^A-Za-z0-9]").WithMessage("كلمة المرور تحتاج رمزاً خاصاً واحداً على الأقل");
 
         RuleFor(x => x.FirstName)
-            .NotEmpty().WithMessage("First name is required.")
-            .MaximumLength(100).WithMessage("First name must not exceed 100 characters.");
+            .NotEmpty().WithMessage("الاسم الأول مطلوب")
+            .MaximumLength(100).WithMessage("الاسم الأول يجب ألا يتجاوز 100 حرف");
 
         RuleFor(x => x.LastName)
-            .NotEmpty().WithMessage("Last name is required.")
-            .MaximumLength(100).WithMessage("Last name must not exceed 100 characters.");
+            .NotEmpty().WithMessage("اسم العائلة مطلوب")
+            .MaximumLength(100).WithMessage("اسم العائلة يجب ألا يتجاوز 100 حرف");
     }
 }

@@ -13,13 +13,13 @@ internal sealed class ListReturnsQueryHandler(IReturnOrderRepository returnOrder
         ListReturnsQuery request,
         CancellationToken cancellationToken)
     {
-        if (request.DateFrom > request.DateTo)
+        if (request.From > request.To)
         {
             return Error.Validation("Returns.InvalidDateRange", "The start of the date range must be before its end.");
         }
 
         IReadOnlyList<ReturnOrderEntity> returns = await returnOrderRepository
-            .FindByBranchAsync(request.BranchId, request.DateFrom, request.DateTo, cancellationToken);
+            .FindByBranchAsync(request.BranchId, request.From, request.To, request.Limit, cancellationToken);
 
         // Unit costs of the sale lines these returns came from, so reports can reverse the cost of goods.
         IReadOnlyDictionary<Guid, decimal> lineCosts = await returnOrderRepository.FindOriginalLineCostsAsync(

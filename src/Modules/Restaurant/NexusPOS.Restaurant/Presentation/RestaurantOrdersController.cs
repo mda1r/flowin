@@ -20,6 +20,7 @@ using NexusPOS.Restaurant.Application.Queries.ListKitchenOrders;
 using NexusPOS.Restaurant.Application.Queries.ListPaidOrders;
 using NexusPOS.Restaurant.Application.Queries.ListTableOrders;
 using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Restaurant.Presentation;
 
@@ -267,28 +268,7 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
         return result.Match(Ok, MapErrors);
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }
 
 // The dish's name and price come from the menu; the tenant comes from the signed-in user.

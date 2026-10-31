@@ -21,7 +21,7 @@ internal sealed class UpdateStockMaterialCommandHandler(InventoryDbContext db)
 
         if (material is null)
         {
-            return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
+            return Error.NotFound("Inventory.MaterialNotFound", "المادة غير موجودة");
         }
 
         if (!material.IsActive)
@@ -35,7 +35,7 @@ internal sealed class UpdateStockMaterialCommandHandler(InventoryDbContext db)
 
         if (codeConflict)
         {
-            return Error.Conflict("Inventory.MaterialCodeExists", "A stock material with this code already exists.");
+            return Error.Conflict("Inventory.MaterialCodeExists", "يوجد مادة أخرى بنفس الكود");
         }
 
         material.Update(request.Code, request.NameAr, request.NameEn, request.CategoryId,

@@ -18,6 +18,7 @@ using NexusPOS.Gaming.Application.Queries.ListCompletedSessions;
 using NexusPOS.Gaming.Application.Queries.ListStations;
 using NexusPOS.Gaming.Domain.Enums;
 using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Gaming.Presentation;
 
@@ -39,7 +40,7 @@ public sealed class GamingController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        ListStationsQuery query = new(branchId, stationType, status, page, pageSize);
+        ListStationsQuery query = new(branchId, stationType, status, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<GameStationResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -211,19 +212,7 @@ public sealed class GamingController(ISender mediator) : ControllerBase
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateGamingStationRequest(

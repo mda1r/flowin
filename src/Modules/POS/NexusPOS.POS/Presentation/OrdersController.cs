@@ -20,6 +20,7 @@ using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Presentation.Requests;
 using NexusPOS.SharedKernel.Application;
 using System.Security.Claims;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.POS.Presentation;
 
@@ -52,7 +53,7 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken = default)
     {
         ListOrdersQuery query = new(
-            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Math.Max(page, 1), Math.Clamp(pageSize, 1, 500), number);
+            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Paging.Page(page), Paging.Size(pageSize, 500), number);
         ErrorOr<IReadOnlyList<OrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -248,9 +249,11 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         Guid branchId,
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
+        [FromQuery] int limit = ListReturnsQuery.DefaultLimit,
         CancellationToken cancellationToken = default)
     {
-        ListReturnsQuery query = new(branchId, UtcDates.AsUtc(from), UtcDates.AsUtc(to));
+        ListReturnsQuery query = new(
+            branchId, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Paging.Size(limit, ListReturnsQuery.MaxLimit));
         ErrorOr<IReadOnlyList<ReturnOrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -272,29 +275,5 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

@@ -14,6 +14,8 @@ using NexusPOS.Purchasing.Application.Common;
 using NexusPOS.Purchasing.Application.Queries.GetPurchaseOrder;
 using NexusPOS.Purchasing.Application.Queries.ListPurchaseOrders;
 using NexusPOS.Purchasing.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Purchasing.Presentation;
 
@@ -33,7 +35,7 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListPurchaseOrdersQuery query = new(branchId, status, supplierId, page, pageSize);
+        ListPurchaseOrdersQuery query = new(branchId, status, supplierId, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<PurchaseOrderResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -150,18 +152,7 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreatePurchaseOrderRequest(

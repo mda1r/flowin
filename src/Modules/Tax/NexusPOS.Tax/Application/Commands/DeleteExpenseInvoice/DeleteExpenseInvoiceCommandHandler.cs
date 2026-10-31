@@ -21,7 +21,7 @@ internal sealed class DeleteExpenseInvoiceCommandHandler(TaxConfigDbContext db)
 
         if (invoice is null)
         {
-            return Error.NotFound("TaxExpenseInvoice.NotFound", "Expense invoice not found.");
+            return Error.NotFound("TaxExpenseInvoice.NotFound", "فاتورة المصروف غير موجودة");
         }
 
         // Removing a purchase invoice changes the input VAT of its period, which is not allowed once filed.

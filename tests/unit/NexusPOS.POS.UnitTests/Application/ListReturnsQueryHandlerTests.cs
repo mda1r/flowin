@@ -36,7 +36,7 @@ public sealed class ListReturnsQueryHandlerTests
         DateTime from = new(2026, 10, 30, 21, 0, 0, DateTimeKind.Utc);
         DateTime to = from.AddDays(1);
         _repository
-            .Setup(r => r.FindByBranchAsync(_branchId, from, to, It.IsAny<CancellationToken>()))
+            .Setup(r => r.FindByBranchAsync(_branchId, from, to, It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         ErrorOr<IReadOnlyList<ReturnOrderResponse>> result =
@@ -44,14 +44,14 @@ public sealed class ListReturnsQueryHandlerTests
 
         result.IsError.Should().BeFalse();
         result.Value.Should().BeEmpty();
-        _repository.Verify(r => r.FindByBranchAsync(_branchId, from, to, It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.FindByBranchAsync(_branchId, from, to, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task Handle_WithoutDateRange_ListsWholeBranch()
     {
         _repository
-            .Setup(r => r.FindByBranchAsync(_branchId, null, null, It.IsAny<CancellationToken>()))
+            .Setup(r => r.FindByBranchAsync(_branchId, null, null, It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([CreateReturn(10m, 2m, 0.15m)]);
         _repository
             .Setup(r => r.FindOriginalLineCostsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
@@ -80,7 +80,7 @@ public sealed class ListReturnsQueryHandlerTests
         result.IsError.Should().BeTrue();
         result.FirstError.Type.Should().Be(ErrorType.Validation);
         _repository.Verify(
-            r => r.FindByBranchAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()),
+            r => r.FindByBranchAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 }

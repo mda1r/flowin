@@ -11,6 +11,8 @@ using NexusPOS.POS.Application.Queries.GetShiftSummary;
 using NexusPOS.POS.Application.Queries.ListOpenShifts;
 using NexusPOS.POS.Application.Queries.ListShifts;
 using NexusPOS.POS.Presentation.Requests;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
@@ -63,7 +65,7 @@ public sealed class ShiftsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListShiftsQuery query = new(branchId, page, pageSize);
+        ListShiftsQuery query = new(branchId, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<ShiftResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -146,17 +148,5 @@ public sealed class ShiftsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

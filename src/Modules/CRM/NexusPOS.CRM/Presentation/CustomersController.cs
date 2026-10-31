@@ -13,6 +13,8 @@ using NexusPOS.CRM.Application.Queries.CountCustomers;
 using NexusPOS.CRM.Application.Queries.GetCustomer;
 using NexusPOS.CRM.Application.Queries.GetLoyaltyHistory;
 using NexusPOS.CRM.Application.Queries.ListCustomers;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.CRM.Presentation;
 
@@ -31,7 +33,7 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListCustomersQuery query = new(tenantId, search, Math.Max(page, 1), Math.Clamp(pageSize, 1, 200));
+        ListCustomersQuery query = new(tenantId, search, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<CustomerResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -141,18 +143,7 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
     private Guid? CurrentUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid id) ? id : null;
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateCustomerRequest(

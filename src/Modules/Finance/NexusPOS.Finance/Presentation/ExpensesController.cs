@@ -11,6 +11,8 @@ using NexusPOS.Finance.Application.Queries.GetExpense;
 using NexusPOS.Finance.Application.Queries.GetExpenseSummary;
 using NexusPOS.Finance.Application.Queries.ListExpenses;
 using NexusPOS.Finance.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Finance.Presentation;
 
@@ -32,7 +34,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListExpensesQuery query = new(branchId, category, status, dateFrom, dateTo, page, pageSize);
+        ListExpensesQuery query = new(branchId, category, status, dateFrom, dateTo, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<ExpenseResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -80,7 +82,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{expenseId:guid}/approve")]
-    [Authorize(Policy = "OwnerOrManager")]
+    [Authorize(Policy = "OwnerManagerOrAccountant")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -95,7 +97,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{expenseId:guid}/void")]
-    [Authorize(Policy = "OwnerOrManager")]
+    [Authorize(Policy = "OwnerManagerOrAccountant")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -110,20 +112,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateExpenseRequest(

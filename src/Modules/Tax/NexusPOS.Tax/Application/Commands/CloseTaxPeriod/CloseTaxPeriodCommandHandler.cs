@@ -26,12 +26,12 @@ internal sealed class CloseTaxPeriodCommandHandler(TaxConfigDbContext db)
 
         if (period is null)
         {
-            return Error.NotFound("TaxPeriod.NotFound", "Tax period not found.");
+            return Error.NotFound("TaxPeriod.NotFound", "الفترة الضريبية غير موجودة");
         }
 
         if (period.Status == TaxPeriodStatus.Closed)
         {
-            return Error.Conflict("TaxPeriod.AlreadyClosed", "Tax period is already closed.");
+            return Error.Conflict("TaxPeriod.AlreadyClosed", "الفترة الضريبية مغلقة مسبقاً");
         }
 
         period.Close();

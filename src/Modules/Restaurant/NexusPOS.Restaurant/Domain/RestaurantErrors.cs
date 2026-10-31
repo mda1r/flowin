@@ -6,50 +6,50 @@ public static class RestaurantErrors
 {
     // ── Menu ────────────────────────────────────────────────────────────────
     public static readonly Error MenuItemNotFound =
-        Error.NotFound("MenuItem.NotFound", "Menu item not found.");
+        Error.NotFound("MenuItem.NotFound", "الصنف غير موجود في القائمة");
 
     public static readonly Error InvalidPrice =
-        Error.Validation("MenuItem.InvalidPrice", "Price must be greater than zero.");
+        Error.Validation("MenuItem.InvalidPrice", "السعر يجب أن يكون أكبر من صفر");
 
     public static readonly Error MenuItemUnavailable =
         Error.Conflict("MenuItem.Unavailable", "A menu item in this order is not available.");
 
     // ── Restaurant Orders ────────────────────────────────────────────────────
     public static readonly Error OrderNotFound =
-        Error.NotFound("RestaurantOrder.NotFound", "Restaurant order not found.");
+        Error.NotFound("RestaurantOrder.NotFound", "الطلب غير موجود");
 
     public static readonly Error EmptyOrder =
-        Error.Validation("RestaurantOrder.Empty", "Order must contain at least one item.");
+        Error.Validation("RestaurantOrder.Empty", "أضف صنفاً واحداً على الأقل");
 
     public static readonly Error InvalidTableNumber =
-        Error.Validation("RestaurantOrder.InvalidTableNumber", "Table number must be greater than zero.");
+        Error.Validation("RestaurantOrder.InvalidTableNumber", "رقم الطاولة يجب أن يكون أكبر من صفر");
 
     public static readonly Error OrderNotPending =
-        Error.Conflict("RestaurantOrder.NotPending", "Order must be in Pending status to send to kitchen.");
+        Error.Conflict("RestaurantOrder.NotPending", "لا يُرسل للمطبخ إلا طلب بالانتظار");
 
     public static readonly Error OrderNotInKitchen =
-        Error.Conflict("RestaurantOrder.NotInKitchen", "Order must be in InKitchen status to mark as ready.");
+        Error.Conflict("RestaurantOrder.NotInKitchen", "لا يُجهّز إلا طلب في المطبخ");
 
     public static readonly Error OrderNotReady =
-        Error.Conflict("RestaurantOrder.NotReady", "Order must be in Ready status to serve.");
+        Error.Conflict("RestaurantOrder.NotReady", "لا يُقدّم إلا طلب جاهز");
 
     public static readonly Error OrderNotModifiable =
-        Error.Conflict("RestaurantOrder.NotModifiable", "Order cannot be modified in its current status.");
+        Error.Conflict("RestaurantOrder.NotModifiable", "لا يمكن تعديل الطلب في حالته الحالية");
 
     public static readonly Error OrderAlreadyPaid =
-        Error.Conflict("RestaurantOrder.AlreadyPaid", "Order has already been paid.");
+        Error.Conflict("RestaurantOrder.AlreadyPaid", "الطلب مدفوع مسبقاً");
 
     public static readonly Error KitchenTicketNotPayable =
         Error.Conflict("RestaurantOrder.KitchenTicketNotPayable", "هذه تذكرة مطبخ لطلب مدفوع من الكاشير، لا تُدفع مرة أخرى.");
 
     public static readonly Error OrderAlreadyCancelled =
-        Error.Conflict("RestaurantOrder.AlreadyCancelled", "Order has already been cancelled.");
+        Error.Conflict("RestaurantOrder.AlreadyCancelled", "الطلب ملغى مسبقاً");
 
     public static readonly Error InsufficientPayment =
-        Error.Validation("RestaurantOrder.InsufficientPayment", "Payment amount is less than the order total.");
+        Error.Validation("RestaurantOrder.InsufficientPayment", "المبلغ المدفوع أقل من إجمالي الطلب");
 
     public static readonly Error OrderItemNotFound =
-        Error.NotFound("RestaurantOrderItem.NotFound", "Order item not found.");
+        Error.NotFound("RestaurantOrderItem.NotFound", "البند غير موجود في الطلب");
 
     public static readonly Error OrderItemAlreadyReady =
         Error.Conflict("RestaurantOrderItem.AlreadyReady", "This item is already prepared and cannot be removed.");
@@ -71,26 +71,26 @@ public static class RestaurantErrors
 
     // ── Discount Codes ───────────────────────────────────────────────────────
     public static readonly Error DiscountCodeNotFound =
-        Error.NotFound("DiscountCode.NotFound", "Discount code not found.");
+        Error.NotFound("DiscountCode.NotFound", "كود الخصم غير موجود");
 
     public static readonly Error InvalidDiscountCode =
-        Error.Validation("DiscountCode.InvalidCode", "Discount code cannot be empty.");
+        Error.Validation("DiscountCode.InvalidCode", "كود الخصم مطلوب");
 
     public static readonly Error InvalidDiscountValue =
-        Error.Validation("DiscountCode.InvalidValue", "Discount value must be greater than zero.");
+        Error.Validation("DiscountCode.InvalidValue", "قيمة الخصم يجب أن تكون أكبر من صفر");
 
     public static readonly Error DiscountPercentageExceedsHundred =
-        Error.Validation("DiscountCode.PercentageExceedsHundred", "Percentage discount cannot exceed 100%.");
+        Error.Validation("DiscountCode.PercentageExceedsHundred", "نسبة الخصم لا يمكن أن تتجاوز 100%");
 
     public static readonly Error DiscountCodeInactive =
-        Error.Validation("DiscountCode.Inactive", "This discount code is no longer active.");
+        Error.Validation("DiscountCode.Inactive", "كود الخصم غير مفعّل");
 
     public static readonly Error DiscountCodeExpired =
-        Error.Validation("DiscountCode.Expired", "This discount code has expired.");
+        Error.Validation("DiscountCode.Expired", "كود الخصم منتهي الصلاحية");
 
     public static readonly Error DiscountCodeMaxUsesReached =
-        Error.Validation("DiscountCode.MaxUsesReached", "This discount code has reached its maximum usage limit.");
+        Error.Validation("DiscountCode.MaxUsesReached", "كود الخصم استُخدم الحد الأقصى من المرات");
 
     public static readonly Error DiscountCodeMinOrderAmountNotMet =
-        Error.Validation("DiscountCode.MinOrderAmountNotMet", "Order amount does not meet the minimum required for this code.");
+        Error.Validation("DiscountCode.MinOrderAmountNotMet", "مبلغ الطلب أقل من الحد الأدنى لهذا الكود");
 }

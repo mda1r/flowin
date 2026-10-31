@@ -5,22 +5,22 @@ namespace NexusPOS.Catalog.Domain;
 public static class CatalogErrors
 {
     public static readonly Error CategoryNotFound =
-        Error.NotFound("Catalog.CategoryNotFound", "Category was not found.");
+        Error.NotFound("Catalog.CategoryNotFound", "التصنيف غير موجود");
 
     public static readonly Error CategoryNameExists =
-        Error.Conflict("Catalog.CategoryNameExists", "A category with this name already exists.");
+        Error.Conflict("Catalog.CategoryNameExists", "يوجد تصنيف بنفس الاسم");
 
     public static readonly Error ProductNotFound =
-        Error.NotFound("Catalog.ProductNotFound", "Product was not found.");
+        Error.NotFound("Catalog.ProductNotFound", "المنتج غير موجود");
 
     public static readonly Error SkuAlreadyExists =
-        Error.Conflict("Catalog.SkuAlreadyExists", "A product variant with this SKU already exists.");
+        Error.Conflict("Catalog.SkuAlreadyExists", "يوجد منتج آخر بنفس رمز SKU");
 
     public static readonly Error ProductInactive =
-        Error.Forbidden("Catalog.ProductInactive", "This product has been deactivated.");
+        Error.Forbidden("Catalog.ProductInactive", "هذا المنتج موقوف");
 
     public static readonly Error VariantNotFound =
-        Error.NotFound("Catalog.VariantNotFound", "Product variant was not found.");
+        Error.NotFound("Catalog.VariantNotFound", "خيار المنتج غير موجود");
 
     public static readonly Error BarcodeAlreadyExists =
         Error.Conflict("Catalog.BarcodeAlreadyExists", "Another product already uses this barcode.");
@@ -29,5 +29,5 @@ public static class CatalogErrors
         Error.Conflict("Catalog.LastActiveVariant", "A product needs at least one active variant; deactivate the product instead.");
 
     public static readonly Error InvalidPrice =
-        Error.Validation("Catalog.InvalidPrice", "Price must be a non-negative value.");
+        Error.Validation("Catalog.InvalidPrice", "السعر لا يمكن أن يكون سالباً");
 }

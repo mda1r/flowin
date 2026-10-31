@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, FileText, Lock, Printer, Receipt, RotateCcw, UserCheck } from 'lucide-react'
 import { shiftsApi } from '@/api/shifts'
-import { ordersApi } from '@/api/orders'
+import { ordersApi, RETURNS_MAX_LIMIT } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
 import { cn, formatCurrency } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -58,13 +58,18 @@ export function ShiftReportsPage() {
     },
     enabled: !!branchId && canManage,
   })
+  // Only refunds since the oldest shift listed can land in any shift card.
+  const since = useMemo(() => {
+    const opened = [...shifts, ...(current ? [current] : [])].map((s) => new Date(s.openedAt).getTime())
+    return opened.length ? new Date(Math.min(...opened)).toISOString() : undefined
+  }, [shifts, current])
   const { data: returns = [] } = useQuery({
-    queryKey: ['returns', branchId],
+    queryKey: ['returns', branchId, 'shifts', since],
     queryFn: async () => {
-      const { data } = await ordersApi.listReturns(branchId!)
+      const { data } = await ordersApi.listReturns(branchId!, { from: since, limit: RETURNS_MAX_LIMIT })
       return (Array.isArray(data) ? data : []) as ReturnOrderResponse[]
     },
-    enabled: !!branchId,
+    enabled: !!branchId && !!since,
   })
 
   // Managers see every open shift in the branch; a cashier sees their own.

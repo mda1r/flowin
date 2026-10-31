@@ -21,12 +21,12 @@ internal sealed class UnlinkTenantFromBrandCommandHandler(
 
         if (membership is null)
         {
-            return Error.NotFound("Membership.NotFound", "Membership not found");
+            return Error.NotFound("Membership.NotFound", "الارتباط غير موجود");
         }
 
         if (membership.Status == Organization.Domain.Entities.MembershipStatus.Unlinked)
         {
-            return Error.Conflict("Membership.AlreadyUnlinked", "Tenant is already unlinked from this brand");
+            return Error.Conflict("Membership.AlreadyUnlinked", "المنشأة غير مرتبطة بهذه العلامة");
         }
 
         membership.Unlink(request.ActorId);

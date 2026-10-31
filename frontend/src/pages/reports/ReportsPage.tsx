@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { toast } from '@/components/ui/Toast'
+import { localDaysToUtcRange } from '@/lib/dates'
 import { cn, formatCurrency } from '@/lib/utils'
 import { downloadCsv } from '@/lib/csv'
 import { invoiceNo } from '@/lib/invoiceNumber'
@@ -327,8 +328,8 @@ function ReportsContent() {
   })
 
   const { data: rawReturns, isLoading: returnsLoading, isError: returnsError } = useQuery({
-    queryKey: ['reports-returns', branchId],
-    queryFn: () => ordersApi.listReturns(branchId!),
+    queryKey: ['reports-returns', branchId, dateFrom, dateTo],
+    queryFn: () => ordersApi.listReturns(branchId!, localDaysToUtcRange(dateFrom, dateTo)),
     enabled: !!branchId,
   })
 

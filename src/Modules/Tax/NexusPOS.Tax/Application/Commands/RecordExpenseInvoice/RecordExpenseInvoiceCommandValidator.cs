@@ -17,6 +17,6 @@ internal sealed class RecordExpenseInvoiceCommandValidator : AbstractValidator<R
         RuleFor(x => x.SupplierVatNumber)
             .Matches(@"^3\d{14}$")
             .When(x => !string.IsNullOrEmpty(x.SupplierVatNumber))
-            .WithMessage("Supplier VAT number must be 15 digits starting with 3 (ZATCA format)");
+            .WithMessage("الرقم الضريبي للمورد 15 رقماً يبدأ بـ 3");
     }
 }

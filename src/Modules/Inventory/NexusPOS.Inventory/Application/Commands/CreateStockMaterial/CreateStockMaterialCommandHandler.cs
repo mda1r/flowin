@@ -29,7 +29,7 @@ internal sealed class CreateStockMaterialCommandHandler(InventoryDbContext db)
 
         if (existingIsActive == true)
         {
-            return Error.Conflict("Inventory.MaterialCodeExists", "A stock material with this code already exists.");
+            return Error.Conflict("Inventory.MaterialCodeExists", "يوجد مادة أخرى بنفس الكود");
         }
 
         StockMaterial material = StockMaterial.Create(

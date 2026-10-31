@@ -48,6 +48,9 @@ export const posSettingsApi = {
     apiClient.put<PosBranchSettings>(`/api/v1/branches/${branchId}/pos-settings`, data),
 }
 
+// Mirrors ListReturnsQuery.MaxLimit on the server.
+export const RETURNS_MAX_LIMIT = 2000
+
 export const ordersApi = {
   // Whole sale in one request; resending the same clientReference returns the same order.
   // A short timeout so a weak connection falls back to offline selling quickly instead of holding the queue.
@@ -130,7 +133,7 @@ export const ordersApi = {
       data,
     ),
 
-  // from/to are UTC instants ([from, to)); omit both for every return the branch has.
-  listReturns: (branchId: string, params?: { from?: string; to?: string }) =>
+  // Newest first; the server caps the list (default 1000, at most RETURNS_MAX_LIMIT) so pass from/to.
+  listReturns: (branchId: string, params?: { from?: string; to?: string; limit?: number }) =>
     apiClient.get<ReturnOrderResponse[]>(`/api/v1/branches/${branchId}/returns`, { params }),
 }

@@ -8,6 +8,7 @@ using NexusPOS.Organization.Application.Commands.UpdateTenantProfile;
 using NexusPOS.Organization.Application.Common;
 using NexusPOS.Organization.Application.Queries.GetTenantById;
 using NexusPOS.Organization.Presentation.Requests;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Organization.Presentation;
 
@@ -41,9 +42,7 @@ public sealed class TenantsController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
-    // Route values are named {tenantId} so TenantRouteGuardFilter compares them with the caller's tenant_id claim.
-
-    /// <summary>Get a tenant by ID.</summary>
+    /// <summary>Get a tenant by ID. The {tenantId} route value is checked against the caller's tenant claim.</summary>
     [HttpGet("{tenantId:guid}")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -82,30 +81,5 @@ public sealed class TenantsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

@@ -10,6 +10,8 @@ using NexusPOS.Hotel.Application.Common;
 using NexusPOS.Hotel.Application.Queries.GetRoom;
 using NexusPOS.Hotel.Application.Queries.ListRooms;
 using NexusPOS.Hotel.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Hotel.Presentation;
 
@@ -29,7 +31,7 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListRoomsQuery query = new(branchId, roomType, status, page, pageSize);
+        ListRoomsQuery query = new(branchId, roomType, status, Paging.Page(page), Paging.Size(pageSize, 500));
         ErrorOr<IReadOnlyList<RoomResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -100,18 +102,7 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateRoomRequest(

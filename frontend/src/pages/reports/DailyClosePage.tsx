@@ -106,8 +106,8 @@ export function DailyClosePage() {
     enabled: !!branchId,
   })
   const returnsQ = useQuery({
-    queryKey: ['daily-close', 'returns', branchId],
-    queryFn: () => ordersApi.listReturns(branchId!),
+    queryKey: ['daily-close', 'returns', branchId, day],
+    queryFn: () => ordersApi.listReturns(branchId!, range),
     enabled: !!branchId,
   })
   const shiftsQ = useQuery({

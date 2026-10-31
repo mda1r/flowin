@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Banknote, CalendarSearch, CreditCard, Download, Receipt, RotateCcw, Search, Shuffle } from 'lucide-react'
-import { ordersApi } from '@/api/orders'
+import { ordersApi, RETURNS_MAX_LIMIT } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useI18n } from '@/i18n'
@@ -68,9 +68,10 @@ export function InvoicesPage() {
   })
 
   const { data: returns = [] } = useQuery({
-    queryKey: ['returns', branchId],
+    // A refund always comes after its sale, so the range start bounds the refunds these invoices can have.
+    queryKey: ['returns', branchId, 'invoices', range.from],
     queryFn: async () => {
-      const { data } = await ordersApi.listReturns(branchId!)
+      const { data } = await ordersApi.listReturns(branchId!, { from: range.from, limit: RETURNS_MAX_LIMIT })
       return (Array.isArray(data) ? data : []) as ReturnOrderResponse[]
     },
     enabled: !!branchId,

@@ -9,6 +9,7 @@ using NexusPOS.Restaurant.Application.Queries.ListDiscountCodes;
 using NexusPOS.Restaurant.Application.Queries.ValidateDiscountCode;
 using NexusPOS.Restaurant.Domain.Enums;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Restaurant.Presentation;
 
@@ -83,28 +84,7 @@ public sealed class DiscountCodesController(ISender mediator, ITenantContext ten
             MapErrors);
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateDiscountCodeRequest(
