@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { X, Send, Loader2, Sparkles, Bot, FileText, AlertTriangle, Calculator, RefreshCw } from 'lucide-react'
 import { taxApi } from '@/api/tax'
+import { useI18n } from '@/i18n'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -9,32 +10,16 @@ interface Message {
 }
 
 interface QuickPrompt {
-  label: string
+  key: 'summary' | 'violations' | 'filing' | 'readiness'
   icon: React.ReactNode
-  prompt: string
 }
 
+// Labels and prompt text come from t.ai.tax.quickPrompts / t.ai.tax.prompts.
 const QUICK_PROMPTS: QuickPrompt[] = [
-  {
-    label: 'ملخص الضريبة',
-    icon: <Calculator className="h-3.5 w-3.5" />,
-    prompt: 'اعطني ملخصاً كاملاً عن وضعي الضريبي في هذه الفترة والضريبة المستحقة.',
-  },
-  {
-    label: 'شرح المخالفات',
-    icon: <AlertTriangle className="h-3.5 w-3.5" />,
-    prompt: 'اشرح لي المخالفات الضريبية الموجودة وكيف أحلها.',
-  },
-  {
-    label: 'الإقرار الضريبي',
-    icon: <FileText className="h-3.5 w-3.5" />,
-    prompt: 'هل أنا جاهز لتقديم الإقرار الضريبي؟ وما الخطوات المطلوبة؟',
-  },
-  {
-    label: 'تحسين الجاهزية',
-    icon: <RefreshCw className="h-3.5 w-3.5" />,
-    prompt: 'ما الإجراءات التي أحتاج اتخاذها لرفع درجة جاهزيتي الضريبية إلى 100؟',
-  },
+  { key: 'summary',    icon: <Calculator className="h-3.5 w-3.5" /> },
+  { key: 'violations', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+  { key: 'filing',     icon: <FileText className="h-3.5 w-3.5" /> },
+  { key: 'readiness',  icon: <RefreshCw className="h-3.5 w-3.5" /> },
 ]
 
 interface TaxAiDrawerProps {
@@ -44,6 +29,7 @@ interface TaxAiDrawerProps {
 }
 
 export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
+  const { t } = useI18n()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -67,7 +53,7 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
     onError: () => {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.' },
+        { role: 'assistant', content: t.ai.tax.error },
       ])
     },
   })
@@ -110,8 +96,8 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>ضريبي</p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>المستشار الضريبي الذكي</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t.ai.tax.name}</p>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t.ai.tax.subtitle}</p>
             </div>
           </div>
           <button
@@ -134,23 +120,23 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
                   <Bot className="h-7 w-7" />
                 </div>
                 <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  مرحباً، أنا ضريبي
+                  {t.ai.tax.greeting}
                 </p>
                 <p className="mt-1 text-xs max-w-xs" style={{ color: 'var(--text-secondary)' }}>
-                  مستشارك الضريبي الذكي — اسألني عن الفترة الضريبية أو المخالفات أو الإقرار الضريبي
+                  {t.ai.tax.intro}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 {QUICK_PROMPTS.map((q) => (
                   <button
-                    key={q.label}
-                    onClick={() => send(q.prompt)}
+                    key={q.key}
+                    onClick={() => send(t.ai.tax.prompts[q.key])}
                     className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-start text-xs font-medium transition-colors hover:bg-black/5"
                     style={{ borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
                   >
                     <span style={{ color: 'var(--accent)' }}>{q.icon}</span>
-                    {q.label}
+                    {t.ai.tax.quickPrompts[q.key]}
                   </button>
                 ))}
               </div>
@@ -180,7 +166,7 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
                 style={{ borderColor: 'var(--card-border)', color: 'var(--text-secondary)' }}
               >
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                يفكر…
+                {t.ai.tax.thinking}
               </div>
             </div>
           )}
@@ -199,7 +185,7 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="اسألني عن الضريبة…"
+              placeholder={t.ai.tax.placeholder}
               rows={1}
               className="flex-1 resize-none bg-transparent text-sm outline-none"
               style={{ color: 'var(--text-primary)', maxHeight: '120px' }}
@@ -213,7 +199,7 @@ export function TaxAiDrawer({ open, onClose, periodId }: TaxAiDrawerProps) {
             </button>
           </div>
           <p className="mt-1.5 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-            Enter للإرسال • Shift+Enter لسطر جديد
+            {t.ai.tax.hint}
           </p>
         </div>
       </div>

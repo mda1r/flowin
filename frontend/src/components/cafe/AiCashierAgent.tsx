@@ -26,8 +26,7 @@ export function AiCashierAgent({
   onCompleteOrder,
   onDeactivate,
 }: AiCashierAgentProps) {
-  const { lang } = useI18n()
-  const speechLang = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const { t } = useI18n()
   const [sessionStarted, setSessionStarted] = useState(false)
   const [messages, setMessages] = useState<AiCashierMessage[]>([])
   const [displayMessages, setDisplayMessages] = useState<DisplayMessage[]>([])
@@ -57,8 +56,8 @@ export function AiCashierAgent({
     }
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
-    // The assistant may answer in Arabic whatever the UI language, so the voice follows the text.
-    utterance.lang = /[\u0600-\u06FF]/.test(text) ? 'ar-SA' : speechLang
+    // Saad speaks Arabic only (see AiCashierCommandHandler), whatever the cashier's UI language.
+    utterance.lang = 'ar-SA'
     utterance.rate = 0.95
     utterance.pitch = 1.05
     setIsSpeaking(true)
@@ -71,7 +70,7 @@ export function AiCashierAgent({
       onEnd?.()
     }
     window.speechSynthesis.speak(utterance)
-  }, [speechLang])
+  }, [])
 
   const startListening = useCallback(
     (currentMessages: AiCashierMessage[]) => {
@@ -80,7 +79,8 @@ export function AiCashierAgent({
       if (!SR) return
 
       const recognition: any = new SR()
-      recognition.lang = speechLang
+      // The customer is the one talking, and the agent's conversation is Arabic.
+      recognition.lang = 'ar-SA'
       recognition.interimResults = false
       recognition.maxAlternatives = 1
       recognitionRef.current = recognition
@@ -101,7 +101,7 @@ export function AiCashierAgent({
     },
     // sendToAI is defined below; ESLint disabled since it's circular
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addDisplay, speechLang],
+    [addDisplay],
   )
 
   const sendToAI = useCallback(
@@ -137,6 +137,7 @@ export function AiCashierAgent({
           }
         })
       } catch {
+        // Spoken to the customer, so it stays Arabic like the rest of the conversation.
         addDisplay('assistant', 'عذراً، حدث خطأ. هل تودّ تكرار طلبك؟')
         speak('عذراً، حدث خطأ. هل تودّ تكرار طلبك؟', () => startListening(msgs))
       } finally {
@@ -177,12 +178,12 @@ export function AiCashierAgent({
         <div className="flex items-center justify-between bg-gradient-to-l from-info/20 to-info/10 px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info text-lg font-bold text-fg">
-              س
+              {t.ai.cashier.name.charAt(0)}
             </div>
             <div>
-              <p className="text-sm font-bold text-info">سعد — كاشير AI</p>
+              <p className="text-sm font-bold text-info">{t.ai.cashier.title}</p>
               <p className="text-xs text-muted">
-                {isListening ? 'يستمع...' : isSpeaking ? 'يتكلم...' : isLoading ? 'يفكر...' : 'جاهز'}
+                {isListening ? t.ai.cashier.listening : isSpeaking ? t.ai.cashier.speaking : isLoading ? t.ai.cashier.thinking : t.ai.cashier.ready}
               </p>
             </div>
           </div>
@@ -202,10 +203,10 @@ export function AiCashierAgent({
                 🎙️
               </div>
               <div>
-                <p className="text-base font-semibold text-white">كاشير AI</p>
-                <p className="mt-1 text-sm text-muted">اضغط لبدء جلسة مع سعد</p>
+                <p className="text-base font-semibold text-white">{t.ai.cashier.heading}</p>
+                <p className="mt-1 text-sm text-muted">{t.ai.cashier.startHint}</p>
                 {!speechSupported && (
-                  <p className="mt-2 text-xs text-danger">⚠ المتصفح لا يدعم التعرف على الصوت</p>
+                  <p className="mt-2 text-xs text-danger">{t.ai.cashier.noSpeech}</p>
                 )}
               </div>
               <button
@@ -213,7 +214,7 @@ export function AiCashierAgent({
                 disabled={isLoading}
                 className="rounded-2xl bg-info px-8 py-3 text-sm font-bold text-fg transition-transform active:scale-95 disabled:opacity-60"
               >
-                {isLoading ? 'جاري التحميل...' : 'ابدأ الجلسة'}
+                {isLoading ? t.ai.cashier.loading : t.ai.cashier.start}
               </button>
             </div>
           )}
@@ -230,7 +231,7 @@ export function AiCashierAgent({
               dir="auto"
             >
               {msg.role === 'assistant' && (
-                <span className="mb-1 block text-xs font-semibold text-info">سعد</span>
+                <span className="mb-1 block text-xs font-semibold text-info">{t.ai.cashier.name}</span>
               )}
               {msg.text}
             </div>
@@ -239,7 +240,7 @@ export function AiCashierAgent({
           {isLoading && (
             <div className="flex items-center gap-2 text-info">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-xs">يفكر...</span>
+              <span className="text-xs">{t.ai.cashier.thinking}</span>
             </div>
           )}
         </div>
@@ -252,7 +253,7 @@ export function AiCashierAgent({
               {isListening && (
                 <span className="flex items-center gap-1 text-xs text-success">
                   <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-success" />
-                  يستمع
+                  {t.ai.cashier.listeningShort}
                 </span>
               )}
             </div>
@@ -269,12 +270,12 @@ export function AiCashierAgent({
               {isListening ? (
                 <>
                   <MicOff className="h-4 w-4" />
-                  إيقاف
+                  {t.ai.cashier.stop}
                 </>
               ) : (
                 <>
                   <Mic className="h-4 w-4" />
-                  تحدث
+                  {t.ai.cashier.talk}
                 </>
               )}
             </button>

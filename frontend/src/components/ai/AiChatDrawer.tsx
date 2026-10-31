@@ -8,36 +8,20 @@ import { aiApi, type AiChatMessage } from '@/api/ai'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/utils'
 import { intlLocale } from '@/lib/locale'
+import { useI18n } from '@/i18n'
 
 // ── Quick prompts for each "agent" role ───────────────────────────────────────
 
-interface QuickPrompt { label: string; icon: React.ReactNode; prompt: string; color: string }
+type QuickPromptKey = 'sales' | 'inventory' | 'profit' | 'topProducts'
 
+interface QuickPrompt { key: QuickPromptKey; icon: React.ReactNode; color: string }
+
+// Labels and prompt text come from t.ai.chat.quickPrompts / t.ai.chat.prompts.
 const QUICK_PROMPTS: QuickPrompt[] = [
-  {
-    label: 'تحليل المبيعات',
-    icon: <TrendingUp className="h-4 w-4" />,
-    prompt: 'حلّل مبيعات اليوم وأعطني ملخصاً عن الأداء مقارنة بالمعدل المعتاد.',
-    color: 'bg-info/10 text-info dark:bg-info/15',
-  },
-  {
-    label: 'مراقبة المخزون',
-    icon: <Package className="h-4 w-4" />,
-    prompt: 'راجع حالة المخزون وأخبرني بالمنتجات التي تحتاج إعادة طلب أو قريبة من النفاد.',
-    color: 'bg-success/10 text-success dark:bg-success/15',
-  },
-  {
-    label: 'تقرير الأرباح',
-    icon: <DollarSign className="h-4 w-4" />,
-    prompt: 'اعمل لي تقريراً مالياً مختصراً عن إيرادات الشهر الحالي والضريبة المستحقة.',
-    color: 'bg-warning/10 text-warning dark:bg-warning/15',
-  },
-  {
-    label: 'أفضل المنتجات',
-    icon: <BarChart2 className="h-4 w-4" />,
-    prompt: 'أخبرني بالمنتجات الأكثر مبيعاً هذا الشهر ونصائح لزيادة الإيرادات.',
-    color: 'bg-brand-soft text-brand-ink dark:bg-brand/20',
-  },
+  { key: 'sales',       icon: <TrendingUp className="h-4 w-4" />, color: 'bg-info/10 text-info dark:bg-info/15' },
+  { key: 'inventory',   icon: <Package className="h-4 w-4" />,    color: 'bg-success/10 text-success dark:bg-success/15' },
+  { key: 'profit',      icon: <DollarSign className="h-4 w-4" />, color: 'bg-warning/10 text-warning dark:bg-warning/15' },
+  { key: 'topProducts', icon: <BarChart2 className="h-4 w-4" />,  color: 'bg-brand-soft text-brand-ink dark:bg-brand/20' },
 ]
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -47,6 +31,7 @@ type Tab = 'insights' | 'chat'
 // ── Insights panel ────────────────────────────────────────────────────────────
 
 function InsightsPanel({ branchId }: { branchId: string }) {
+  const { t, lang } = useI18n()
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['ai-insights', branchId],
     queryFn: () => aiApi.getInsights(branchId).then(r => r.data),
@@ -72,35 +57,35 @@ function InsightsPanel({ branchId }: { branchId: string }) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
         <Sparkles className="h-8 w-8 text-muted/50" />
-        <p className="text-sm text-muted">تعذّر تحميل التحليلات</p>
+        <p className="text-sm text-muted">{t.ai.chat.loadFailed}</p>
         <button
           onClick={() => refetch()}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-surface-2"
         >
           <RefreshCw className="h-3 w-3" />
-          إعادة المحاولة
+          {t.ai.chat.retry}
         </button>
       </div>
     )
   }
 
   const cards = [
-    { icon: <TrendingUp className="h-4 w-4 text-info" />, bg: 'bg-info/10 dark:bg-info/15', title: 'تحليل المبيعات', body: data.salesInsight },
-    { icon: <BarChart2  className="h-4 w-4 text-brand-ink" />, bg: 'bg-brand-soft dark:bg-brand/20', title: 'الاتجاهات', body: data.trendInsight },
-    { icon: <Lightbulb className="h-4 w-4 text-warning" />, bg: 'bg-warning/10 dark:bg-warning/15', title: 'التوصيات', body: data.recommendation },
+    { icon: <TrendingUp className="h-4 w-4 text-info" />, bg: 'bg-info/10 dark:bg-info/15', title: t.ai.chat.salesCard, body: data.salesInsight },
+    { icon: <BarChart2  className="h-4 w-4 text-brand-ink" />, bg: 'bg-brand-soft dark:bg-brand/20', title: t.ai.chat.trendsCard, body: data.trendInsight },
+    { icon: <Lightbulb className="h-4 w-4 text-warning" />, bg: 'bg-warning/10 dark:bg-warning/15', title: t.ai.chat.tipsCard, body: data.recommendation },
   ]
 
   return (
     <div className="flex flex-col gap-3 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">تحليلات تلقائية</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t.ai.chat.autoInsights}</p>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
           className="flex items-center gap-1 text-xs text-muted hover:text-brand-ink disabled:opacity-40"
         >
           <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
-          تحديث
+          {t.ai.chat.refresh}
         </button>
       </div>
       {cards.map((card) => (
@@ -114,7 +99,10 @@ function InsightsPanel({ branchId }: { branchId: string }) {
       ))}
       {data.generatedAt && (
         <p className="text-center text-xs text-muted/50">
-          آخر تحديث: {new Date(data.generatedAt).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
+          {t.ai.chat.lastUpdated.replace(
+            '{time}',
+            new Date(data.generatedAt).toLocaleTimeString(intlLocale(lang), { hour: '2-digit', minute: '2-digit' }),
+          )}
         </p>
       )}
     </div>
@@ -133,12 +121,13 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
     const next = typeof v === 'function' ? v(open) : v
     if (!next) onClose()
   }
+  const { t } = useI18n()
   const branchId = useAuthStore(s => s.branchId ?? '')
   const [tab, setTab] = useState<Tab>('insights')
   const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       role: 'assistant',
-      content: 'مرحباً! أنا سعد، مساعدك المالي الذكي. يمكنني تحليل مبيعاتك، مراقبة المخزون، وتقديم تقارير محاسبية. استخدم الأزرار السريعة أو اسألني مباشرة.',
+      content: t.ai.chat.greeting,
     },
   ])
   const [input, setInput] = useState('')
@@ -167,7 +156,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
     onError: () => {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.',
+        content: t.ai.chat.error,
       }])
     },
   })
@@ -207,10 +196,10 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                 <Sparkles className="h-4 w-4 text-brand-ink" />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-bold text-fg">سعد</div>
+                <div className="text-sm font-bold text-fg">{t.ai.chat.name}</div>
                 <div className="flex items-center gap-1.5 text-xs text-muted">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
-                  محاسب · مبيعات · مخزون
+                  {t.ai.chat.roles}
                 </div>
               </div>
               <button
@@ -224,21 +213,21 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
             {/* Tabs */}
             <div className="flex border-b border-border">
               {([
-                { key: 'insights', label: 'تحليلات', icon: <BarChart2 className="h-3.5 w-3.5" /> },
-                { key: 'chat',     label: 'محادثة',  icon: <Bot       className="h-3.5 w-3.5" /> },
-              ] as { key: Tab; label: string; icon: React.ReactNode }[]).map(t => (
+                { key: 'insights', label: t.ai.chat.tabInsights, icon: <BarChart2 className="h-3.5 w-3.5" /> },
+                { key: 'chat',     label: t.ai.chat.tabChat,     icon: <Bot       className="h-3.5 w-3.5" /> },
+              ] as { key: Tab; label: string; icon: React.ReactNode }[]).map(item => (
                 <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
+                  key={item.key}
+                  onClick={() => setTab(item.key)}
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors',
-                    tab === t.key
+                    tab === item.key
                       ? 'border-b-2 border-brand text-brand-ink'
                       : 'text-muted hover:text-fg',
                   )}
                 >
-                  {t.icon}
-                  {t.label}
+                  {item.icon}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -254,12 +243,12 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                   {/* Quick prompts */}
                   {messages.length <= 1 && (
                     <div className="border-b border-border p-3">
-                      <p className="mb-2 text-xs font-medium text-muted">إجراء سريع</p>
+                      <p className="mb-2 text-xs font-medium text-muted">{t.ai.chat.quickAction}</p>
                       <div className="grid grid-cols-2 gap-2">
                         {QUICK_PROMPTS.map((qp) => (
                           <button
-                            key={qp.label}
-                            onClick={() => sendMessage(qp.prompt)}
+                            key={qp.key}
+                            onClick={() => sendMessage(t.ai.chat.prompts[qp.key])}
                             disabled={chatMutation.isPending}
                             className={cn(
                               'flex items-center gap-2 rounded-xl px-3 py-2 text-start text-xs font-medium transition-opacity disabled:opacity-40',
@@ -267,7 +256,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                             )}
                           >
                             {qp.icon}
-                            {qp.label}
+                            {t.ai.chat.quickPrompts[qp.key]}
                           </button>
                         ))}
                       </div>
@@ -298,7 +287,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                       <div className="flex justify-end">
                         <div className="flex items-center gap-2 rounded-2xl rounded-se-sm bg-surface-2 px-3.5 py-2.5">
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />
-                          <span className="text-xs text-muted">جارٍ التحليل...</span>
+                          <span className="text-xs text-muted">{t.ai.chat.thinking}</span>
                         </div>
                       </div>
                     )}
@@ -318,7 +307,7 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="اسأل عن مبيعاتك أو المخزون..."
+                    placeholder={t.ai.chat.placeholder}
                     className="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-muted"
                     disabled={chatMutation.isPending}
                   />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,27 +11,31 @@ import { superAdminApi } from '@/api/superadmin'
 import { toast } from '@/components/ui/Toast'
 import type { BusinessType, TenantWithSubscriptionResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
+import type { Translations } from '@/i18n/en'
+import { apiErrorMessage } from '@/lib/apiError'
 
-const schema = z.object({
-  name: z.string().min(1, 'الاسم مطلوب'),
-  subdomain: z
-    .string()
-    .min(1, 'النطاق مطلوب')
-    .max(63)
-    .regex(/^[a-z0-9-]+$/, 'أحرف لاتينية صغيرة وأرقام وشرطات فقط'),
-  adminEmail: z.string().email('بريد إلكتروني غير صالح'),
-  businessType: z.enum(['Retail', 'Supermarket', 'Restaurant', 'Hotel', 'Gaming', 'Cafe']),
-  currency: z.string().length(3, 'رمز العملة 3 أحرف'),
-  timeZone: z.string().min(1, 'المنطقة الزمنية مطلوبة'),
-})
+const makeSchema = (m: Translations['admin']['createTenant']) =>
+  z.object({
+    name: z.string().min(1, m.nameRequired),
+    subdomain: z
+      .string()
+      .min(1, m.subdomainRequired)
+      .max(63)
+      .regex(/^[a-z0-9-]+$/, m.subdomainFormat),
+    adminEmail: z.string().email(m.invalidEmail),
+    businessType: z.enum(['Retail', 'Supermarket', 'Restaurant', 'Hotel', 'Gaming', 'Cafe']),
+    currency: z.string().length(3, m.currencyLength),
+    timeZone: z.string().min(1, m.timeZoneRequired),
+  })
 
-type FormData = z.infer<typeof schema>
+type FormData = z.infer<ReturnType<typeof makeSchema>>
 
 interface Props {
   onClose: () => void
 }
 
 function CredentialRow({ label, value }: { label: string; value: string }) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
   const copy = () => {
     navigator.clipboard.writeText(value)
@@ -47,7 +51,7 @@ function CredentialRow({ label, value }: { label: string; value: string }) {
       <button
         onClick={copy}
         className="rounded-lg p-1.5 text-muted hover:text-fg hover:bg-border transition-colors"
-        title="نسخ"
+        title={t.admin.createTenant.copy}
       >
         {copied ? <CheckCircle className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
       </button>
@@ -62,13 +66,14 @@ export function CreateTenantModal({ onClose }: Props) {
 
   const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
     Retail:      t.admin.dashboard.business.retail,
-    Supermarket: 'سوبرماركت',
+    Supermarket: t.admin.dashboard.business.supermarket,
     Restaurant:  t.admin.dashboard.business.restaurant,
     Hotel:       t.admin.dashboard.business.hotel,
     Gaming:      t.admin.dashboard.business.gaming,
     Cafe:        t.admin.dashboard.business.cafe,
   }
 
+  const schema = useMemo(() => makeSchema(t.admin.createTenant), [t])
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -84,12 +89,13 @@ export function CreateTenantModal({ onClose }: Props) {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
       setCreated(res.data)
     },
-    onError: (err: { message?: string }) => {
-      toast.error('فشل إنشاء المستأجر', err?.message ?? '')
+    onError: (err) => {
+      toast.error(t.admin.createTenant.failed, apiErrorMessage(err))
     },
   })
 
   if (created) {
+    const [createdBefore, createdAfter = ''] = t.admin.createTenant.created.split('{name}')
     return (
       <Modal
         open
@@ -101,15 +107,14 @@ export function CreateTenantModal({ onClose }: Props) {
           <div className="flex items-center gap-3 rounded-xl bg-success/15 border border-success/50 px-4 py-3">
             <CheckCircle className="h-5 w-5 text-success shrink-0" />
             <p className="text-sm text-success">
-              تم إنشاء حساب <span className="font-semibold">{created.name}</span> وتعيين كلمة مرور افتراضية.
-              شارك بيانات الدخول مع المدير.
+              {createdBefore}<span className="font-semibold">{created.name}</span>{createdAfter}
             </p>
           </div>
           <div className="space-y-2">
             <CredentialRow label={t.admin.createTenant.email} value={created.adminEmail} />
             <CredentialRow label={t.admin.createTenant.password} value={created.defaultPassword ?? 'Nexus@123!'} />
           </div>
-          <p className="text-xs text-muted text-center">يُنصح بتغيير كلمة المرور عند أول تسجيل دخول.</p>
+          <p className="text-xs text-muted text-center">{t.admin.createTenant.changePasswordHint}</p>
         </div>
       </Modal>
     )
@@ -135,13 +140,13 @@ export function CreateTenantModal({ onClose }: Props) {
       <form className="space-y-4">
         <Input
           label={t.admin.createTenant.businessName}
-          placeholder="مثال: سوبرماركت الأمين"
+          placeholder={t.admin.createTenant.namePlaceholder}
           error={errors.name?.message}
           {...register('name')}
         />
         <Input
-          label="النطاق الفرعي"
-          placeholder="مثال: alamin"
+          label={t.admin.createTenant.subdomain}
+          placeholder={t.admin.createTenant.subdomainPlaceholder}
           error={errors.subdomain?.message}
           {...register('subdomain')}
         />
@@ -159,13 +164,13 @@ export function CreateTenantModal({ onClose }: Props) {
         </Select>
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="العملة"
+            label={t.admin.createTenant.currency}
             placeholder="SAR"
             error={errors.currency?.message}
             {...register('currency')}
           />
           <Input
-            label="المنطقة الزمنية"
+            label={t.admin.createTenant.timeZone}
             placeholder="Asia/Riyadh"
             error={errors.timeZone?.message}
             {...register('timeZone')}

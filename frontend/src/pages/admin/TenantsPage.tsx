@@ -167,7 +167,7 @@ export function TenantsPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="بحث باسم المستأجر أو البريد أو النطاق..."
+          placeholder={t.admin.tenants.searchPlaceholder}
           className="w-full rounded-xl border border-border bg-surface py-2.5 ps-10 pe-4 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
         />
       </div>

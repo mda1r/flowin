@@ -50,7 +50,7 @@ export function AdminDashboard() {
 
   const BIZ_LABEL: Record<BusinessType, string> = {
     Retail:      t.admin.dashboard.business.retail,
-    Supermarket: 'سوبرماركت',
+    Supermarket: t.admin.dashboard.business.supermarket,
     Restaurant:  t.admin.dashboard.business.restaurant,
     Hotel:       t.admin.dashboard.business.hotel,
     Gaming:      t.admin.dashboard.business.gaming,
@@ -86,7 +86,7 @@ export function AdminDashboard() {
     <div className="space-y-8 p-8">
       <div>
         <h1 className="text-2xl font-bold text-fg">{t.admin.dashboard.title}</h1>
-        <p className="mt-1 text-muted">نظرة شاملة على الإيرادات والمستأجرين</p>
+        <p className="mt-1 text-muted">{t.admin.dashboard.subtitle}</p>
       </div>
 
       {/* Revenue KPIs */}
@@ -100,17 +100,17 @@ export function AdminDashboard() {
             <p className="text-xs font-medium uppercase tracking-wider text-success">MRR — {t.admin.dashboard.mrr}</p>
             <p className="mt-3 text-4xl font-black tabular-nums text-fg">
               {stats.mrr.toLocaleString(locale)}
-              <span className="ms-1 text-lg font-medium text-muted">ر.س</span>
+              <span className="ms-1 text-lg font-medium text-muted">{t.common.sar}</span>
             </p>
-            <p className="mt-1 text-xs text-muted">من {stats.active} {t.admin.dashboard.activeTenants}</p>
+            <p className="mt-1 text-xs text-muted">{t.admin.dashboard.fromActive.replace('{n}', stats.active.toLocaleString(locale))}</p>
           </div>
           <div className="rounded-2xl border border-info/60 bg-info/15 p-6">
             <p className="text-xs font-medium uppercase tracking-wider text-info">ARR — {t.admin.dashboard.arr}</p>
             <p className="mt-3 text-4xl font-black tabular-nums text-fg">
               {stats.arr.toLocaleString(locale)}
-              <span className="ms-1 text-lg font-medium text-muted">ر.س</span>
+              <span className="ms-1 text-lg font-medium text-muted">{t.common.sar}</span>
             </p>
-            <p className="mt-1 text-xs text-muted">تقدير سنوي بناءً على MRR × 12</p>
+            <p className="mt-1 text-xs text-muted">{t.admin.dashboard.arrHint}</p>
           </div>
         </div>
       </div>
@@ -123,7 +123,7 @@ export function AdminDashboard() {
         </h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
-            label="إجمالي المستأجرين"
+            label={t.admin.dashboard.totalTenants}
             value={stats.total}
             icon={<Building2 className="h-5 w-5 text-muted" />}
             color="slate"
@@ -135,13 +135,13 @@ export function AdminDashboard() {
             color="emerald"
           />
           <StatCard
-            label="تجريبي"
+            label={t.admin.dashboard.trial}
             value={stats.trial}
             icon={<BarChart3 className="h-5 w-5 text-warning" />}
             color="amber"
           />
           <StatCard
-            label="معلّق / منتهي"
+            label={t.admin.dashboard.suspendedExpired}
             value={stats.suspended + stats.expired}
             icon={<PauseCircle className="h-5 w-5 text-danger" />}
             color="rose"
@@ -153,7 +153,7 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Business type breakdown */}
         <div className="rounded-2xl border border-border bg-surface p-6">
-          <h2 className="mb-5 text-base font-semibold text-fg">توزيع أنواع الأعمال</h2>
+          <h2 className="mb-5 text-base font-semibold text-fg">{t.admin.dashboard.byType}</h2>
           {Object.keys(stats.byType).length === 0 ? (
             <p className="text-sm text-muted">{t.common.noData}</p>
           ) : (
@@ -185,11 +185,11 @@ export function AdminDashboard() {
 
         {/* Expiring soon */}
         <div className="rounded-2xl border border-border bg-surface p-6">
-          <h2 className="mb-5 text-base font-semibold text-fg">اشتراكات تنتهي قريباً</h2>
+          <h2 className="mb-5 text-base font-semibold text-fg">{t.admin.dashboard.expiringSoon}</h2>
           {expiringTenants.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-muted">
               <CheckCircle className="h-8 w-8 text-success" />
-              <p className="text-sm">لا توجد اشتراكات تنتهي خلال 7 أيام</p>
+              <p className="text-sm">{t.admin.dashboard.noneExpiring}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -209,7 +209,7 @@ export function AdminDashboard() {
                         : 'bg-warning/15 text-warning'
                     }`}
                   >
-                    {ten.activeSubscription?.daysRemaining} يوم
+                    {t.admin.dashboard.daysLeft.replace('{n}', String(ten.activeSubscription?.daysRemaining ?? 0))}
                   </span>
                 </div>
               ))}
@@ -223,9 +223,9 @@ export function AdminDashboard() {
         <div className="flex items-center gap-3 rounded-xl border border-danger/60 bg-danger/15 px-4 py-3">
           <XCircle className="h-4 w-4 flex-shrink-0 text-danger" />
           <p className="text-sm text-danger">
-            {stats.expired} مستأجر بدون اشتراك نشط — يحتاج متابعة
+            {t.admin.dashboard.noSubscription.replace('{n}', String(stats.expired))}
           </p>
-          <TrendingDown className="mr-auto h-4 w-4 flex-shrink-0 text-danger" />
+          <TrendingDown className="ms-auto h-4 w-4 flex-shrink-0 text-danger" />
         </div>
       )}
     </div>

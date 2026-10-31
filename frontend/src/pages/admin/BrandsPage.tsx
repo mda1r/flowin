@@ -161,12 +161,12 @@ export function BrandsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder={t.admin.brands.search}
-            className="w-full rounded-lg bg-surface-2 pl-9 pr-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
+            className="w-full rounded-lg bg-surface-2 ps-9 pe-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
             dir="ltr"
           />
         </div>
@@ -187,11 +187,11 @@ export function BrandsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-xs font-medium text-muted">
-              <th className="px-4 py-3 text-right">{t.admin.brands.nameAr} / {t.admin.brands.nameEn}</th>
-              <th className="px-4 py-3 text-right">{t.admin.brands.code}</th>
-              <th className="px-4 py-3 text-right">{t.admin.brands.memberCount}</th>
-              <th className="px-4 py-3 text-right">{t.admin.brands.status}</th>
-              <th className="px-4 py-3 text-right">{t.admin.brands.createdAt}</th>
+              <th className="px-4 py-3 text-start">{t.admin.brands.nameAr} / {t.admin.brands.nameEn}</th>
+              <th className="px-4 py-3 text-start">{t.admin.brands.code}</th>
+              <th className="px-4 py-3 text-start">{t.admin.brands.memberCount}</th>
+              <th className="px-4 py-3 text-start">{t.admin.brands.status}</th>
+              <th className="px-4 py-3 text-start">{t.admin.brands.createdAt}</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -220,7 +220,7 @@ export function BrandsPage() {
                     <td className="px-4 py-3 text-xs text-muted">
                       {new Date(brand.createdAt).toLocaleDateString(intlLocale())}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-end">
                       <Link
                         to="/admin/brands/$id"
                         params={{ id: brand.id }}
