@@ -290,6 +290,10 @@ internal static class DatabaseInitializerExtensions
         foreach (string sql in patches)
         {
             try { await restaurantDb.Database.ExecuteSqlRawAsync(sql); }
+            catch (PostgresException ex) when (ex.SqlState == "42P01")
+            {
+                // undefined_table: this tenant never got the restaurant tables (provisioned before every tenant had them).
+            }
             catch (Exception ex) { logger.LogWarning(ex, "Restaurant migration skipped: {Sql}", sql); }
         }
     }
@@ -1140,8 +1144,9 @@ internal static class DatabaseInitializerExtensions
                 if (bizType is BusinessType.Restaurant or BusinessType.Cafe)
                 {
                     await EnsureCreatedAsync<RestaurantDbContext>(sp, logger);
-                    await MigrateRestaurantColumnsAsync(sp, logger);
                 }
+
+                await MigrateRestaurantColumnsAsync(sp, logger);
 
                 if (bizType == BusinessType.Hotel)
                 {

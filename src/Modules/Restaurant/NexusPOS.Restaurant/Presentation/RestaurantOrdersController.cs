@@ -16,6 +16,7 @@ using NexusPOS.Restaurant.Application.Commands.SendToKitchen;
 using NexusPOS.Restaurant.Application.Commands.ServeOrder;
 using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Application.Queries.ListActiveOrders;
+using NexusPOS.Restaurant.Application.Queries.ListKitchenOrders;
 using NexusPOS.Restaurant.Application.Queries.ListPaidOrders;
 using NexusPOS.Restaurant.Application.Queries.ListTableOrders;
 using NexusPOS.SharedKernel.Application;
@@ -28,7 +29,7 @@ namespace NexusPOS.Restaurant.Presentation;
 [Authorize]
 public sealed class RestaurantOrdersController(ISender mediator) : ControllerBase
 {
-    /// <summary>List all active (non-paid, non-cancelled) orders for a branch.</summary>
+    /// <summary>List the floor's open (non-paid, non-cancelled) table orders from the last day.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<RestaurantOrderResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListActiveOrders(
@@ -36,6 +37,18 @@ public sealed class RestaurantOrdersController(ISender mediator) : ControllerBas
         CancellationToken cancellationToken)
     {
         ListActiveOrdersQuery query = new(branchId);
+        ErrorOr<IReadOnlyList<RestaurantOrderResponse>> result = await mediator.Send(query, cancellationToken);
+        return result.Match(Ok, MapErrors);
+    }
+
+    /// <summary>List what the kitchen screen shows: pending, in-kitchen and ready orders from the last day.</summary>
+    [HttpGet("kitchen")]
+    [ProducesResponseType(typeof(IReadOnlyList<RestaurantOrderResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListKitchenOrders(
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        ListKitchenOrdersQuery query = new(branchId);
         ErrorOr<IReadOnlyList<RestaurantOrderResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrors);
     }

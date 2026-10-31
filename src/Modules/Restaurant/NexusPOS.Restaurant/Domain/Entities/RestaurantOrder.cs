@@ -12,6 +12,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public int TableNumber { get; private set; }
+
     public RestaurantOrderStatus Status { get; private set; }
     public string? Notes { get; private set; }
     public string? AppliedDiscountCode { get; private set; }

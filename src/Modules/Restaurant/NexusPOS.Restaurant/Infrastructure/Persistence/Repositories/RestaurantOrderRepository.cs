@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Enums;
 using NexusPOS.Restaurant.Domain.Repositories;
@@ -16,8 +17,6 @@ internal sealed class RestaurantOrderRepository(RestaurantDbContext dbContext) :
         RestaurantOrderStatus.Served,
     ];
 
-    private static readonly TimeSpan _kitchenTicketLifetime = TimeSpan.FromHours(12);
-
     public async Task<RestaurantOrder?> FindByIdAsync(
         RestaurantOrderId id,
         CancellationToken cancellationToken = default)
@@ -29,14 +28,12 @@ internal sealed class RestaurantOrderRepository(RestaurantDbContext dbContext) :
 
     public async Task<IReadOnlyList<RestaurantOrder>> FindActiveByBranchAsync(
         Guid branchId,
+        DateTime since,
         CancellationToken cancellationToken = default)
     {
-        // A cafe kitchen ticket leaves the board once served, and a forgotten one stops showing after a day's work.
-        DateTime staleBefore = DateTime.UtcNow - _kitchenTicketLifetime;
         return await dbContext.RestaurantOrders
             .Include(o => o.Items)
-            .Where(o => o.BranchId == branchId && _activeStatuses.Contains(o.Status))
-            .Where(o => !o.KitchenOnly || (o.Status != RestaurantOrderStatus.Served && o.CreatedAt >= staleBefore))
+            .Where(RestaurantOrderQueries.Floor(branchId, since))
             .OrderBy(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -52,6 +49,18 @@ internal sealed class RestaurantOrderRepository(RestaurantDbContext dbContext) :
                 && o.TableNumber == tableNumber
                 && !o.KitchenOnly
                 && _activeStatuses.Contains(o.Status))
+            .OrderBy(o => o.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RestaurantOrder>> FindKitchenByBranchAsync(
+        Guid branchId,
+        DateTime since,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.RestaurantOrders
+            .Include(o => o.Items)
+            .Where(RestaurantOrderQueries.Kitchen(branchId, since))
             .OrderBy(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
     }

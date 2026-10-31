@@ -18,4 +18,8 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="NexusPOS.Restaurant.UnitTests" />
+  </ItemGroup>
+
 </Project>

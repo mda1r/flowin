@@ -770,6 +770,12 @@ export const en = {
     minutes: 'min',
     seconds: 's',
     connectionError: 'Connection error — refreshing…',
+    enableSound: 'Tap to enable sound',
+    soundOn: 'Sound on',
+    soundOff: 'Sound muted',
+    soundUnsupported: 'Sound not supported',
+    order: 'Order',
+    waitingLong: 'Waiting {n} min',
   },
 
   restaurant: {
