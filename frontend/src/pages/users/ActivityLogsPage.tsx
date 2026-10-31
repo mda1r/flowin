@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Activity, Download, Filter, AlertTriangle, Loader2, RefreshCw } from 'lucide-react'
 import { activityLogsApi } from '@/api/activityLogs'
 import { resolveDisplayName } from '@/lib/activityLog'
@@ -25,6 +25,12 @@ const CATEGORY_COLORS: Record<LogCategory, string> = {
   user:          'bg-danger/10 text-danger dark:bg-danger/15',
   other:         'bg-surface-2 text-muted',
 }
+
+const PAGE_SIZE = 200
+
+// Saudi Arabia is UTC+3 all year (no DST), so a picked day maps to a fixed window.
+const dayStart = (day: string) => `${day}T00:00:00+03:00`
+const dayEnd = (day: string) => `${day}T23:59:59.999+03:00`
 
 function categoryLabel(cat: string): string {
   return CATEGORY_LABELS[cat as LogCategory] ?? cat
@@ -74,28 +80,35 @@ export function ActivityLogsPage() {
   const [filterUser, setFilterUser] = useState('')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
+  const [allBranches, setAllBranches] = useState(false)
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['activity-logs', branchId],
-    queryFn: () => activityLogsApi.list({ branchId: branchId ?? undefined, pageSize: 500 })
-      .then((r) => r.data),
+  // Category and dates are filtered on the server so older entries stay reachable;
+  // tenant-wide entries (staff changes) come back with every branch.
+  const scopeBranch = allBranches ? undefined : branchId ?? undefined
+  const { data, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ['activity-logs', scopeBranch ?? 'all', filterCategory, filterFrom, filterTo],
+    queryFn: ({ pageParam }) => activityLogsApi.list({
+      branchId: scopeBranch,
+      category: filterCategory === 'all' ? undefined : filterCategory,
+      from: filterFrom ? dayStart(filterFrom) : undefined,
+      to: filterTo ? dayEnd(filterTo) : undefined,
+      pageSize: PAGE_SIZE,
+      skip: pageParam,
+    }).then((r) => r.data),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => (last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE),
     staleTime: 30_000,
-    enabled: !!branchId,
+    enabled: allBranches || !!branchId,
   })
 
-  const allLogs = data ?? []
-
   const logs = useMemo(() => {
-    return allLogs.filter((l) => {
-      if (filterCategory !== 'all' && l.category !== filterCategory) return false
-      if (filterUser && !l.userName.toLowerCase().includes(filterUser.toLowerCase())) return false
-      if (filterFrom && l.timestamp.slice(0, 10) < filterFrom) return false
-      if (filterTo && l.timestamp.slice(0, 10) > filterTo) return false
-      return true
-    })
-  }, [allLogs, filterCategory, filterUser, filterFrom, filterTo])
+    const all = data?.pages.flat() ?? []
+    if (!filterUser) return all
+    const q = filterUser.toLowerCase()
+    return all.filter((l) => l.userName.toLowerCase().includes(q) || (l.userEmail ?? '').toLowerCase().includes(q))
+  }, [data, filterUser])
 
-  const hasFilters = filterCategory !== 'all' || filterUser || filterFrom || filterTo
+  const hasFilters = filterCategory !== 'all' || filterUser || filterFrom || filterTo || allBranches
 
   return (
     <div className="p-6 md:p-8" dir="rtl">
@@ -107,7 +120,7 @@ export function ActivityLogsPage() {
             {t.activityLogs.title}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            {isLoading ? t.common.loading : `${logs.length} سجل`}
+            {isLoading ? t.common.loading : t.activityLogs.xEntries.replace('{n}', String(logs.length))}
           </p>
         </div>
         <div className="flex gap-2">
@@ -149,6 +162,18 @@ export function ActivityLogsPage() {
         </div>
 
         <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted">{t.activityLogs.branch}</label>
+          <select
+            value={allBranches ? 'all' : 'current'}
+            onChange={(e) => setAllBranches(e.target.value === 'all')}
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm focus:outline-none text-fg"
+          >
+            <option value="current">{t.activityLogs.currentBranch}</option>
+            <option value="all">{t.activityLogs.allBranches}</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-muted">{t.activityLogs.user}</label>
           <input
             type="text"
@@ -181,7 +206,7 @@ export function ActivityLogsPage() {
 
         {hasFilters && (
           <button
-            onClick={() => { setFilterCategory('all'); setFilterUser(''); setFilterFrom(''); setFilterTo('') }}
+            onClick={() => { setFilterCategory('all'); setFilterUser(''); setFilterFrom(''); setFilterTo(''); setAllBranches(false) }}
             className="rounded-lg px-3 py-1.5 text-sm text-muted hover:text-fg mt-5"
           >
             إعادة تعيين
@@ -247,8 +272,7 @@ export function ActivityLogsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-brand-fg"
-                            style={{ background: isDeficit ? '#ef4444' : 'var(--accent)' }}
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isDeficit ? 'bg-danger text-white' : 'bg-brand text-brand-fg'}`}
                           >
                             {displayName[0]?.toUpperCase() ?? '؟'}
                           </div>
@@ -279,6 +303,18 @@ export function ActivityLogsPage() {
               </tbody>
             </table>
           </div>
+          {hasNextPage && (
+            <div className="flex justify-center border-t border-border p-3">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2 disabled:opacity-40"
+              >
+                {isFetchingNextPage && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t.activityLogs.loadMore}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

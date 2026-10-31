@@ -638,6 +638,12 @@ export interface CreateUserRequest {
   role: string
 }
 
+export interface UpdateUserRequest {
+  firstName: string
+  lastName: string
+  role: string
+}
+
 export interface CreateSubscriptionPlanRequest {
   name: string
   businessType?: string
