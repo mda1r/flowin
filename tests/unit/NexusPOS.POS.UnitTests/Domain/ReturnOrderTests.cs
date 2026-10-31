@@ -6,6 +6,7 @@ using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.POS.UnitTests.Domain;
 
@@ -222,5 +223,49 @@ public sealed class ReturnOrderTests
         ret.NetAmount.Should().Be(80m);
         ret.TaxAmount.Should().Be(12m);
         (ret.NetAmount + ret.TaxAmount).Should().Be(ret.RefundAmount);
+    }
+
+    // ── The barista board ────────────────────────────────────────────────────
+
+    [Fact]
+    public void Create_FullReturn_AsksTheKitchenToVoidTheTicket()
+    {
+        Order order = NewOrder();
+        OrderLine latte = order.AddLine(Guid.NewGuid(), "لاتيه", "كبير", 20m, 0m, 2m).Value;
+        OrderLine cake = order.AddLine(Guid.NewGuid(), "كيك", "", 15m, 0m, 1m).Value;
+        Complete(order);
+
+        ReturnOrder ret = Return(order, [], (latte, 2m), (cake, 1m)).Value;
+
+        KitchenTicketVoidRequestedDomainEvent e = ret.DomainEvents.OfType<KitchenTicketVoidRequestedDomainEvent>().Should().ContainSingle().Subject;
+        e.SourceOrderId.Should().Be(order.Id.Value);
+        e.TenantId.Should().Be(order.TenantId);
+        e.BranchId.Should().Be(order.BranchId);
+        e.Reason.Should().Be("استرجاع البيع");
+    }
+
+    [Fact]
+    public void Create_PartialReturn_KeepsTheTicket()
+    {
+        Order order = NewOrder();
+        OrderLine latte = order.AddLine(Guid.NewGuid(), "لاتيه", "كبير", 20m, 0m, 2m).Value;
+        Complete(order);
+
+        ReturnOrder ret = Return(order, [], (latte, 1m)).Value;
+
+        ret.DomainEvents.OfType<KitchenTicketVoidRequestedDomainEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Create_LastPartOfTheSale_VoidsTheTicket()
+    {
+        Order order = NewOrder();
+        OrderLine latte = order.AddLine(Guid.NewGuid(), "لاتيه", "كبير", 20m, 0m, 2m).Value;
+        Complete(order);
+        ReturnOrder first = Return(order, [], (latte, 1m)).Value;
+
+        ReturnOrder rest = Return(order, [first], (latte, 1m)).Value;
+
+        rest.DomainEvents.OfType<KitchenTicketVoidRequestedDomainEvent>().Should().ContainSingle();
     }
 }

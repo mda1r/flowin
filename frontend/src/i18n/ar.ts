@@ -1160,6 +1160,12 @@ export const ar: Translations = {
     soundUnsupported: 'الصوت غير مدعوم',
     order: 'طلب',
     waitingLong: 'ينتظر منذ {n} د',
+    activeCount: '{n} طلب نشط',
+    autoRefresh: 'يتحدث كل 5 ثوانٍ',
+    dismiss: 'إزالة',
+    returnToPrep: 'إرجاع للتحضير',
+    startPreparing: 'ابدأ التحضير',
+    tapItemDone: 'اضغط الصنف عند تجهيزه',
   },
 
   restaurant: {

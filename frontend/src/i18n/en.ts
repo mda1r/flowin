@@ -1158,6 +1158,12 @@ export const en = {
     soundUnsupported: 'Sound not supported',
     order: 'Order',
     waitingLong: 'Waiting {n} min',
+    activeCount: '{n} active',
+    autoRefresh: 'Refreshes every 5 seconds',
+    dismiss: 'Remove',
+    returnToPrep: 'Back to preparing',
+    startPreparing: 'Start preparing',
+    tapItemDone: 'Tap an item when it is made',
   },
 
   restaurant: {

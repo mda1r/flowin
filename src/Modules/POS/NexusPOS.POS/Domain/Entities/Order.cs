@@ -269,6 +269,9 @@ public sealed class Order : AggregateRoot<OrderId>
         UpdatedAt = DateTime.UtcNow;
 
         RaiseDomainEvent(new OrderCancelledDomainEvent(Id.Value, TenantId, BranchId, reason));
+        // Takes the sale's drinks off the barista board, if it ever sent any.
+        RaiseDomainEvent(new KitchenTicketVoidRequestedDomainEvent(
+            TenantId, BranchId, Id.Value, KitchenTicketVoidRequestedDomainEvent.CancelledReason));
         return Result.Success;
     }
 

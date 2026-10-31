@@ -9,28 +9,13 @@ import type { RestaurantOrderResponse, OrderItemStatus } from '@/types/api'
 import { TAKEAWAY_TABLE } from '@/lib/kitchenTables'
 import { useKitchenSound, useNewOrderAlert, useNow } from '@/lib/kitchenSound'
 import { KitchenSoundToggle } from '@/components/kitchen/KitchenSoundToggle'
+import { minutesSince, timeBorderColor, timeColor } from '@/lib/kitchenTime'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // A pending order nobody has picked up for this long rings again, once a minute, until someone does.
 const REMIND_AFTER_MINUTES = 3
 const REMIND_EVERY_MS = 60_000
-
-function minutesSince(isoDate: string, now: number): number {
-  return Math.max(0, Math.floor((now - new Date(isoDate).getTime()) / 60000))
-}
-
-function timeColor(minutes: number): string {
-  if (minutes < 10) return 'text-success'
-  if (minutes < 20) return 'text-warning'
-  return 'text-danger'
-}
-
-function timeBorderColor(minutes: number): string {
-  if (minutes < 10) return 'border-success'
-  if (minutes < 20) return 'border-warning'
-  return 'border-danger'
-}
 
 function itemStatusLabel(status: OrderItemStatus, t: { kitchen: { ready: string; preparing: string } }): string {
   if (status === 'Ready') return t.kitchen.ready

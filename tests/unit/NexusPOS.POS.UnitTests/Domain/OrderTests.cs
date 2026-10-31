@@ -5,6 +5,7 @@ using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.ValueObjects;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.POS.UnitTests.Domain;
 
@@ -234,6 +235,19 @@ public sealed class OrderTests
         order.Status.Should().Be(OrderStatus.Cancelled);
         order.Notes.Should().Be("Customer request");
         order.DomainEvents.Should().ContainSingle(e => e is OrderCancelledDomainEvent);
+    }
+
+    [Fact]
+    public void Cancel_AsksTheKitchenToVoidTheSalesTicket()
+    {
+        Order order = Order.Create(_tenantId, _branchId, "SAR");
+        order.ClearDomainEvents();
+
+        order.Cancel("Customer request").IsError.Should().BeFalse();
+
+        KitchenTicketVoidRequestedDomainEvent e = order.DomainEvents.OfType<KitchenTicketVoidRequestedDomainEvent>().Should().ContainSingle().Subject;
+        e.SourceOrderId.Should().Be(order.Id.Value);
+        e.Reason.Should().Be("إلغاء البيع");
     }
 
     [Fact]

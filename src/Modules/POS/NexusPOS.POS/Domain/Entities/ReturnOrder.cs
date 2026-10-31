@@ -3,6 +3,7 @@ using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.Events;
 using NexusPOS.POS.Domain.ValueObjects;
 using NexusPOS.SharedKernel.Domain;
+using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.POS.Domain.Entities;
 
@@ -137,6 +138,15 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
         returnOrder.RaiseDomainEvent(new ReturnOrderCompletedDomainEvent(
             returnOrder.Id.Value, returnOrder.OriginalOrderId, returnOrder.TenantId, returnOrder.BranchId,
             refundAmount, returnOrder.Currency, lineItems, restockItems, refundTax, eventLoyalty));
+
+        // Nothing of the sale is left to hand over, so the barista stops making it. A partial return keeps the
+        // ticket: the rest of the order is still owed to the customer.
+        if (returnsEverything)
+        {
+            returnOrder.RaiseDomainEvent(new KitchenTicketVoidRequestedDomainEvent(
+                returnOrder.TenantId, returnOrder.BranchId, returnOrder.OriginalOrderId,
+                KitchenTicketVoidRequestedDomainEvent.ReturnedReason));
+        }
 
         return returnOrder;
     }
