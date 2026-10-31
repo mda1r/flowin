@@ -46,10 +46,11 @@ export const inventoryApi = {
       reorderQuantity: 0,
     }),
 
-  getAlerts: (branchId: string, daysAhead = 7) =>
+  // Without daysAhead each item uses its own expiry notification window.
+  getAlerts: (branchId: string, daysAhead?: number) =>
     apiClient.get<InventoryAlertsResponse>(
       `/api/v1/branches/${branchId}/inventory/alerts`,
-      { params: { daysAhead } },
+      { params: daysAhead === undefined ? undefined : { daysAhead } },
     ),
 
   // The item's stock card, newest first. from/to are calendar days (YYYY-MM-DD) in store time.

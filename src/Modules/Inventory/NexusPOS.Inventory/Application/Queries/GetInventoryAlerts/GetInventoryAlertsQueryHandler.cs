@@ -17,7 +17,7 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
         DateTime now = DateTime.UtcNow;
 
         IReadOnlyList<StockItem> expiringItems = await stockItemRepository
-            .FindExpiringAsync(request.BranchId, cancellationToken);
+            .FindExpiringAsync(request.BranchId, request.ExpiryDaysAhead, cancellationToken);
 
         IReadOnlyList<StockItem> lowStockItems = await stockItemRepository
             .FindLowStockAsync(request.BranchId, cancellationToken);
@@ -27,9 +27,9 @@ internal sealed class GetInventoryAlertsQueryHandler(IStockItemRepository stockI
 
         foreach (StockItem item in expiringItems)
         {
-            // Calendar days in Riyadh: 0 is the expiry day itself, negative means already expired.
+            // Calendar days in Riyadh time, so an item expiring today reads 0 and yesterday's reads -1.
             int? daysUntilExpiry = item.ExpiryDate.HasValue
-                ? StoreCalendar.DaysUntilExpiry(item.ExpiryDate.Value, now)
+                ? ExpiryCalendar.DaysUntilExpiry(item.ExpiryDate.Value, now)
                 : null;
 
             bool isExpired = daysUntilExpiry < 0;

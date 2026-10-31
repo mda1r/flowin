@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/apiError'
 import { printElement } from '@/lib/print'
 import { logActivity } from '@/lib/activityLog'
+import { shiftOpenHours, staleShiftReason } from '@/lib/shifts'
 import { useI18n } from '@/i18n'
 import { CashCountField } from './CashCountGrid'
 import { ShiftReportDocument, shiftDuration, topProductsOf, type TopProduct } from './ShiftReportDocument'
@@ -502,11 +503,14 @@ export function useShift() {
 export function ShiftGate({
   children,
   onOpenShift,
+  onCloseShift,
 }: {
   children: React.ReactNode
   onOpenShift: () => void
+  onCloseShift?: () => void
 }) {
   const { shift, isLoading, isError, isFetching, refetch } = useShift()
+  const { t, lang } = useI18n()
 
   if (isLoading) {
     return (
@@ -521,6 +525,10 @@ export function ShiftGate({
       ? <ShiftUnavailable onRetry={() => void refetch()} retrying={isFetching} />
       : <ShiftLockScreen onOpen={onOpenShift} />
   }
+
+  // A shift left open from yesterday (or for most of a day) is prompted to close before it spoils the daily close.
+  const stale = staleShiftReason(shift.openedAt)
+  const hours = Math.floor(shiftOpenHours(shift.openedAt)).toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US')
 
   return (
     <>
@@ -539,6 +547,24 @@ export function ShiftGate({
             <RefreshCw className={isFetching ? 'h-3.5 w-3.5 animate-spin motion-reduce:animate-none' : 'h-3.5 w-3.5'} />
             إعادة المحاولة
           </button>
+        </div>
+      )}
+      {stale && (
+        <div role="status" className="flex shrink-0 flex-wrap items-center gap-3 border-b border-warning/30 bg-warning/10 px-4 py-2.5 text-sm text-warning">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="font-semibold">
+              {stale === 'long' ? t.shiftGate.staleLong.replace('{hours}', hours) : t.shiftGate.stalePreviousDay}
+            </span>
+            {' · '}
+            {t.shiftGate.staleHint}
+          </span>
+          {onCloseShift && (
+            <Button size="sm" variant="secondary" onClick={onCloseShift} className="gap-1">
+              <Lock className="h-3.5 w-3.5" />
+              {t.shiftGate.closeNow}
+            </Button>
+          )}
         </div>
       )}
       {children}

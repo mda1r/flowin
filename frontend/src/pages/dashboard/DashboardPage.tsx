@@ -52,6 +52,8 @@ import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { salesApi } from '@/api/sales'
 import { useI18n } from '@/i18n'
+import { shiftOpenHours, staleShiftReason } from '@/lib/shifts'
+import { expiryText } from '@/lib/expiry'
 
 /* ────────────────────────────────────────────────────────────────
    animated number counter — snappy ease-out + elastic settle pop.
@@ -886,6 +888,17 @@ function TodayMoneyCard({ orders, returns, loading }: { orders: OrderResponse[];
    dashboard page
    ──────────────────────────────────────────────────────────────── */
 
+// "and N more" row under a capped alert group, linking to the filtered list.
+function MoreLine({ count, href }: { count: number; href: string }) {
+  const { t, lang } = useI18n()
+  if (count <= 0) return null
+  return (
+    <a href={href} className="row-hover block px-6 py-2.5 text-center text-xs font-medium text-info">
+      {t.dashboard.moreItems.replace('{n}', count.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US'))}
+    </a>
+  )
+}
+
 export function DashboardPage() {
   const { t, lang } = useI18n()
   const { user, branchId, tenantId } = useAuthStore()
@@ -956,6 +969,13 @@ export function DashboardPage() {
     refetchInterval: 300_000,
   })
   const lowMaterials = lowMaterialsData?.data ?? []
+  const canPurchase = !!businessType && (BUSINESS_TYPE_ROUTES[businessType] ?? []).includes('/purchasing')
+  const num = (v: number) => v.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US')
+
+  // The branch's open shift, flagged when it was left open from a previous day or for most of a day.
+  const { shift: openShift } = useShift()
+  const usesShifts = !!businessType && (BUSINESS_TYPE_ROUTES[businessType] ?? []).includes('/shifts')
+  const staleShift = usesShifts && openShift ? staleShiftReason(openShift.openedAt) : null
 
   const { data: productsData } = useQuery({
     queryKey: ['products-map', tenantId],
@@ -1003,6 +1023,7 @@ export function DashboardPage() {
   const lowMaterialsCount = lowMaterials.length
   const hasAlerts = nearExpiryCount > 0 || lowStockCount > 0 || lowMaterialsCount > 0
   const alertsHref = nearExpiryCount + lowStockCount === 0 && lowMaterialsCount > 0 ? '/stock-materials?lowStock=1' : '/inventory'
+  const itemName = (variantId: string) => variantNameMap.get(variantId) ?? t.inventory.unknownItem
 
   /* ── the moment: witnessed 0 → 1+ transition, once per day ── */
   const [celebration, setCelebration] = useState<{ amount: number } | null>(null)
@@ -1327,6 +1348,32 @@ export function DashboardPage() {
           </div>
         </div>
 
+        {/* ── Shift left open ─────────────────────────────────────────── */}
+        {openShift && staleShift && (
+          <div className="entrance-5" role="status">
+            <a
+              href="/shifts"
+              className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-5 py-3.5 text-warning transition-colors hover:bg-warning/15"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/15">
+                <Clock className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">
+                  {staleShift === 'long'
+                    ? t.dashboard.shiftOpenLong.replace('{hours}', num(Math.floor(shiftOpenHours(openShift.openedAt))))
+                    : t.dashboard.shiftFromPreviousDay}
+                </p>
+                <p className="text-xs text-fg/70">{t.dashboard.shiftCloseHint}</p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold">
+                {t.dashboard.goToShifts}
+                <ChevronLeft className="h-3.5 w-3.5 ltr:rotate-180" />
+              </span>
+            </a>
+          </div>
+        )}
+
         {/* ── Inventory alerts ────────────────────────────────────────── */}
         {hasAlerts && (
           <div className="entrance-5">
@@ -1339,15 +1386,26 @@ export function DashboardPage() {
                   <AlertTriangle className="h-4 w-4 text-warning" />
                   <h2 className="text-sm font-semibold text-fg">{t.dashboard.inventoryAlerts}</h2>
                 </div>
-                <a href={alertsHref} className="text-xs text-brand-ink hover:underline">
-                  {t.dashboard.viewAll}
-                </a>
+                <div className="flex items-center gap-3">
+                  {canPurchase && (lowStockCount > 0 || lowMaterialsCount > 0) && (
+                    <a
+                      href="/purchasing?reorder=1"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-brand-ink hover:bg-surface-2"
+                    >
+                      <ShoppingCart className="h-3.5 w-3.5" />
+                      {t.dashboard.reorderShortages}
+                    </a>
+                  )}
+                  <a href={alertsHref} className="text-xs text-brand-ink hover:underline">
+                    {t.dashboard.viewAll}
+                  </a>
+                </div>
               </div>
               <div className="divide-y divide-border">
                 {alerts?.expired.slice(0, 3).map((a) => (
                   <a
                     key={a.stockItemId}
-                    href="/inventory"
+                    href="/inventory?filter=expired"
                     className="row-hover flex items-center justify-between px-6 py-3"
                   >
                     <div className="flex items-center gap-3">
@@ -1355,9 +1413,7 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-danger" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-fg">
-                          {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
-                        </p>
+                        <p className="text-sm font-medium text-fg">{itemName(a.variantId)}</p>
                         <p className="text-xs text-muted">{t.inventory.expiredLabel} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
                       </div>
                     </div>
@@ -1366,10 +1422,11 @@ export function DashboardPage() {
                     </span>
                   </a>
                 ))}
+                <MoreLine count={(alerts?.expired.length ?? 0) - 3} href="/inventory?filter=expired" />
                 {alerts?.expiringSoon.slice(0, 3).map((a) => (
                   <a
                     key={a.stockItemId}
-                    href="/inventory"
+                    href="/inventory?filter=expiring"
                     className="row-hover flex items-center justify-between px-6 py-3"
                   >
                     <div className="flex items-center gap-3">
@@ -1377,10 +1434,8 @@ export function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-warning" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-fg">
-                          {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
-                        </p>
-                        <p className="text-xs text-muted">{t.inventory.expiresIn.replace('{days}', String(a.daysUntilExpiry))} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
+                        <p className="text-sm font-medium text-fg">{itemName(a.variantId)}</p>
+                        <p className="text-xs text-muted">{expiryText(t, a.daysUntilExpiry ?? 0)} · {t.inventory.quantity.replace('{n}', String(a.quantity))}</p>
                       </div>
                     </div>
                     <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning dark:bg-warning/15">
@@ -1388,10 +1443,11 @@ export function DashboardPage() {
                     </span>
                   </a>
                 ))}
+                <MoreLine count={(alerts?.expiringSoon.length ?? 0) - 3} href="/inventory?filter=expiring" />
                 {alerts?.lowStock.slice(0, 3).map((a) => (
                   <a
                     key={a.stockItemId}
-                    href="/inventory"
+                    href="/inventory?filter=lowStock"
                     className="row-hover flex items-center justify-between px-6 py-3"
                   >
                     <div className="flex items-center gap-3">
@@ -1399,9 +1455,7 @@ export function DashboardPage() {
                         <Package className="h-4 w-4 text-warning" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-fg">
-                          {variantNameMap.get(a.variantId) ?? a.variantId.slice(0, 8)}
-                        </p>
+                        <p className="text-sm font-medium text-fg">{itemName(a.variantId)}</p>
                         <p className="text-xs text-muted">{t.inventory.quantity.replace('{n}', String(a.quantity))} · {t.inventory.reorderPoint.replace('{n}', String(a.reorderPoint))}</p>
                       </div>
                     </div>
@@ -1410,6 +1464,7 @@ export function DashboardPage() {
                     </span>
                   </a>
                 ))}
+                <MoreLine count={lowStockCount - 3} href="/inventory?filter=lowStock" />
                 {lowMaterials.slice(0, 3).map((m) => (
                   <a
                     key={m.id}
@@ -1424,20 +1479,20 @@ export function DashboardPage() {
                         <p className="text-sm font-medium text-fg">{m.nameAr}</p>
                         <p className="text-xs text-muted">
                           <span className={m.currentQuantityInStorageUnits < 0 ? 'text-danger' : undefined}>
-                            {m.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {m.storageUnit}
+                            {num(m.currentQuantityInStorageUnits)} {m.storageUnit}
                           </span>
-                          {m.reorderLevel != null && ` · حد الطلب ${m.reorderLevel.toLocaleString('ar-SA')}`}
+                          {m.reorderLevel != null && ` · ${t.dashboard.materialReorderLevel.replace('{n}', num(m.reorderLevel))}`}
                         </p>
                       </div>
                     </div>
                     <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
-                      {m.currentQuantityInStorageUnits <= 0 ? 'نفدت المادة' : 'مادة خام منخفضة'}
+                      {m.currentQuantityInStorageUnits <= 0 ? t.dashboard.materialOut : t.dashboard.materialLow}
                     </span>
                   </a>
                 ))}
                 {lowMaterialsCount > 3 && (
                   <a href="/stock-materials?lowStock=1" className="row-hover block px-6 py-2.5 text-center text-xs font-medium text-info">
-                    و{(lowMaterialsCount - 3).toLocaleString('ar-SA')} مواد أخرى تحت حد الطلب
+                    {t.dashboard.moreMaterials.replace('{n}', num(lowMaterialsCount - 3))}
                   </a>
                 )}
               </div>

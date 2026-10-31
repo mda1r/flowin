@@ -47,6 +47,11 @@ export function sessionSecondsLeft(session: GameSessionSummary, now: number): nu
   return Math.floor((endMs - now) / 1000)
 }
 
+// Identity used to fire each alert once: extending a session changes its duration and so re-arms its alerts.
+export function sessionAlertKey(session: GameSessionSummary) {
+  return `${session.sessionId}:${session.durationMinutes ?? 0}`
+}
+
 export function formatClock(totalSeconds: number) {
   const sec = Math.abs(totalSeconds)
   const h = Math.floor(sec / 3600)

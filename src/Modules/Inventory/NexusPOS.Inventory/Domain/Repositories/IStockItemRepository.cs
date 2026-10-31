@@ -10,7 +10,8 @@ public interface IStockItemRepository
     Task<StockItem?> FindByVariantAndBranchAsync(Guid variantId, Guid branchId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StockItem>> FindByBranchAsync(Guid branchId, bool includeArchived = false, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StockItem>> FindLowStockAsync(Guid branchId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<StockItem>> FindExpiringAsync(Guid branchId, CancellationToken cancellationToken = default);
+    // Items in stock that are expired or inside their expiry window; daysAhead overrides each item's own NotifyDaysBeforeExpiry.
+    Task<IReadOnlyList<StockItem>> FindExpiringAsync(Guid branchId, int? daysAhead = null, CancellationToken cancellationToken = default);
     Task<bool> HasMovementsAsync(StockItemId id, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<StockMovement> Items, int TotalCount)> FindMovementsAsync(
         StockItemId id,

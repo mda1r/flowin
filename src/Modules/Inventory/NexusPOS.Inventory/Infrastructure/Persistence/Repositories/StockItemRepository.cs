@@ -35,7 +35,7 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockItem>> FindExpiringAsync(
-        Guid branchId, CancellationToken cancellationToken = default)
+        Guid branchId, int? daysAhead = null, CancellationToken cancellationToken = default)
     {
         DateTime now = DateTime.UtcNow;
         List<StockItem> allWithExpiry = await dbContext.StockItems
@@ -43,8 +43,9 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
             .OrderBy(s => s.ExpiryDate)
             .ToListAsync(cancellationToken);
 
-        return [.. allWithExpiry
-            .Where(s => StoreCalendar.DaysUntilExpiry(s.ExpiryDate!.Value, now) <= s.NotifyDaysBeforeExpiry)];
+        return allWithExpiry
+            .Where(s => ExpiryCalendar.IsDue(s.ExpiryDate!.Value, now, daysAhead ?? s.NotifyDaysBeforeExpiry))
+            .ToList();
     }
 
     public Task<bool> HasMovementsAsync(StockItemId id, CancellationToken cancellationToken = default) =>

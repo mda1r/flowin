@@ -138,10 +138,11 @@ public sealed class StockController(ISender mediator) : ControllerBase
     [ProducesResponseType(typeof(InventoryAlertsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAlerts(
         Guid branchId,
-        [FromQuery] int daysAhead = 7,
+        [FromQuery] int? daysAhead = null,
         CancellationToken cancellationToken = default)
     {
-        GetInventoryAlertsQuery query = new(branchId, daysAhead);
+        // Without daysAhead each item uses its own NotifyDaysBeforeExpiry window.
+        GetInventoryAlertsQuery query = new(branchId, daysAhead is null ? null : Math.Clamp(daysAhead.Value, 0, 365));
         ErrorOr<InventoryAlertsResponse> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);

@@ -18,6 +18,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { logActivity } from '@/lib/activityLog'
 import { CashCountField } from './CashCountGrid'
 import { ShiftReportDocument, n, reconcile, shiftDuration as duration, topProductsOf } from './ShiftReportDocument'
+import { staleShiftReason } from '@/lib/shifts'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 
 type Period = '7d' | '30d' | 'all'
@@ -25,7 +26,6 @@ type Period = '7d' | '30d' | 'all'
 const time = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
 const day = (iso: string) => new Date(iso).toLocaleDateString('ar-SA', { weekday: 'short', day: 'numeric', month: 'short' })
 
-const LONG_OPEN_HOURS = 16
 
 export function ShiftReportsPage() {
   const { branchId, user } = useAuthStore()
@@ -203,7 +203,6 @@ function ShiftCard({ shift: stored, returns, isCurrent = false, isOwn = false, o
   const digital = shift.totalDigitalSales ?? 0
   const cashRefunds = shift.totalCashRefunds ?? 0
   const share = (v: number) => (shift.totalSales ? (v / shift.totalSales) * 100 : 0)
-  const openHours = (Date.now() - new Date(shift.openedAt).getTime()) / 3_600_000
 
   const refundsInShift = useMemo(() => {
     const until = shift.closedAt ? new Date(shift.closedAt).getTime() : Date.now()
@@ -252,7 +251,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false, isOwn = false, o
           )}
         </div>
 
-        {isCurrent && openHours > LONG_OPEN_HOURS && (
+        {isCurrent && staleShiftReason(shift.openedAt) !== null && (
           <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {isOwn

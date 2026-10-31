@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Search, ArrowUpDown, Clock, XCircle, TrendingDown, Trash2, History, ArchiveRestore } from 'lucide-react'
+import { AlertTriangle, Search, ArrowUpDown, Clock, XCircle, TrendingDown, Trash2, History, ArchiveRestore, ShoppingCart, X } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -18,6 +18,8 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
 import { apiErrorMessage } from '@/lib/apiError'
+import { expiryText } from '@/lib/expiry'
+import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import { useI18n } from '@/i18n'
 import type { StockAlertItemResponse, StockItemResponse } from '@/types/api'
 import { StockCardModal } from './StockCardModal'
@@ -34,11 +36,11 @@ const adjustSchema = z.object({
 
 type AdjustFormData = z.infer<typeof adjustSchema>
 
-function expiryLabel(days: number, t: ReturnType<typeof useI18n>['t']) {
-  if (days < 0) return t.inventory.expired
-  if (days === 0) return t.inventory.today
-  if (days === 1) return t.inventory.tomorrow
-  return t.inventory.expiresIn.replace('{days}', String(days))
+// Deep links from the dashboard: /inventory?filter=expired|expiring|lowStock
+type AlertFilter = 'expired' | 'expiring' | 'lowStock'
+const readAlertFilter = (): AlertFilter | null => {
+  const f = new URLSearchParams(window.location.search).get('filter')
+  return f === 'expired' || f === 'expiring' || f === 'lowStock' ? f : null
 }
 
 function AlertCard({
@@ -48,6 +50,8 @@ function AlertCard({
   colorClass,
   alerts,
   variantMap,
+  defaultExpanded = false,
+  action,
 }: {
   icon: React.ReactNode
   label: string
@@ -55,8 +59,10 @@ function AlertCard({
   colorClass: string
   alerts: StockAlertItemResponse[]
   variantMap: Map<string, { productName: string; variantName: string; sku: string; unitType?: string }>
+  defaultExpanded?: boolean
+  action?: (alert: StockAlertItemResponse) => React.ReactNode
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const { t, lang } = useI18n()
 
   if (count === 0) return null
@@ -70,7 +76,7 @@ function AlertCard({
         <div className="flex items-center gap-2">
           {icon}
           <span className="font-semibold">{label}</span>
-          <span className="rounded-full bg-surface/60 px-2 py-0.5 text-xs font-bold">
+          <span className="rounded-full bg-surface/70 px-2 py-0.5 text-xs font-bold tabular-nums">
             {count}
           </span>
         </div>
@@ -84,20 +90,21 @@ function AlertCard({
             return (
               <div
                 key={a.stockItemId}
-                className="flex items-center justify-between rounded-lg bg-surface/50 px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-3 rounded-lg bg-surface/60 px-3 py-2 text-sm"
               >
-                <div>
-                  <p className="font-medium">{info?.productName ?? a.variantId}</p>
+                <div className="min-w-0">
+                  <p className="font-medium">{info?.productName ?? t.inventory.unknownItem}</p>
                   <p className="text-xs opacity-70">
                     {info?.sku} · {t.inventory.quantity.replace('{n}', String(a.quantity))}
                     {a.expiryDate && ` · ${formatExpiry(a.expiryDate, lang)}`}
                   </p>
                 </div>
-                {a.daysUntilExpiry !== undefined && a.daysUntilExpiry !== null && (
-                  <span className="ms-4 shrink-0 text-xs font-bold">
-                    {expiryLabel(a.daysUntilExpiry, t)}
-                  </span>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {a.daysUntilExpiry !== undefined && a.daysUntilExpiry !== null && (
+                    <span className="ms-4 text-xs font-bold">{expiryText(t, a.daysUntilExpiry)}</span>
+                  )}
+                  {action?.(a)}
+                </div>
               </div>
             )
           })}
@@ -114,11 +121,13 @@ export function InventoryPage() {
   const [archiveTarget, setArchiveTarget] = useState<StockItemResponse | null>(null)
   const [historyItem, setHistoryItem] = useState<StockItemResponse | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  const [alertFilter, setAlertFilter] = useState<AlertFilter | null>(readAlertFilter)
   const { branchId, user, tenantId } = useAuthStore()
   // Adjusting, deleting and archiving stock are limited to owners and managers on the server too.
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const qc = useQueryClient()
   const { t, lang } = useI18n()
+  const canPurchase = !!user?.businessType && (BUSINESS_TYPE_ROUTES[user.businessType] ?? []).includes('/purchasing')
 
   const { data: stockData, isLoading } = useQuery({
     queryKey: ['stock', branchId, { showArchived }],
@@ -227,13 +236,49 @@ export function InventoryPage() {
   const items = stockData?.data ?? []
   const alerts = alertsData?.data
 
-  const filtered = search
-    ? items.filter((i) => {
-        const info = variantMap.get(i.variantId)
-        return info?.productName.toLowerCase().includes(search.toLowerCase()) ||
-               info?.sku.toLowerCase().includes(search.toLowerCase())
-      })
-    : items
+  const filterAlerts = !alertFilter || !alerts
+    ? null
+    : alertFilter === 'expired'
+    ? alerts.expired
+    : alertFilter === 'expiring'
+    ? alerts.expiringSoon
+    : alerts.lowStock
+  const filterIds = filterAlerts ? new Set(filterAlerts.map((a) => a.stockItemId)) : null
+  const filterLabel = alertFilter === 'expired'
+    ? t.inventory.expiredLabel
+    : alertFilter === 'expiring'
+    ? t.inventory.expiringSoonLabel
+    : t.inventory.lowStock
+
+  const filtered = items.filter((i) => {
+    if (filterIds && !filterIds.has(i.id)) return false
+    if (!search) return true
+    const info = variantMap.get(i.variantId)
+    return info?.productName.toLowerCase().includes(search.toLowerCase()) ||
+           info?.sku.toLowerCase().includes(search.toLowerCase())
+  })
+
+  // Expired stock is written off by adjusting it to zero with a waste reference, so it leaves the alerts.
+  const openWriteOff = async (stockItemId: string) => {
+    // The alerts can arrive before the stock list, so fall back to loading the single item.
+    let item = items.find((i) => i.id === stockItemId)
+    if (!item) {
+      try {
+        item = (await inventoryApi.getItem(branchId!, stockItemId)).data
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t.inventory.failed))
+        return
+      }
+    }
+    openAdjust(item)
+    reset({
+      newQuantity: 0,
+      expiryDate: item.expiryDate ? item.expiryDate.slice(0, 10) : '',
+      reorderPoint: item.reorderPoint ?? 0,
+      notifyDaysBeforeExpiry: item.notifyDaysBeforeExpiry ?? 7,
+      reference: t.inventory.writeOffReference,
+    })
+  }
 
   const openAdjust = (item: StockItemResponse) => {
     setAdjustItem(item)
@@ -277,6 +322,18 @@ export function InventoryPage() {
               colorClass="border-danger/30 bg-danger/10 text-danger dark:border-danger/60 dark:bg-danger/15"
               alerts={alerts.expired}
               variantMap={variantMap}
+              defaultExpanded={alertFilter === 'expired'}
+              action={(a) => (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void openWriteOff(a.stockItemId)}
+                  className="text-danger hover:bg-danger/10 hover:text-danger"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t.inventory.writeOff}
+                </Button>
+              )}
             />
 
             <AlertCard
@@ -286,6 +343,7 @@ export function InventoryPage() {
               colorClass="border-warning/30 bg-warning/10 text-warning dark:border-warning/60 dark:bg-warning/15"
               alerts={alerts.expiringSoon}
               variantMap={variantMap}
+              defaultExpanded={alertFilter === 'expiring'}
             />
 
             <AlertCard
@@ -295,7 +353,17 @@ export function InventoryPage() {
               colorClass="border-warning/30 bg-warning/10 text-warning dark:border-warning/60 dark:bg-warning/15"
               alerts={alerts.lowStock}
               variantMap={variantMap}
+              defaultExpanded={alertFilter === 'lowStock'}
             />
+            {canPurchase && alerts.lowStock.length > 0 && (
+              <a
+                href="/purchasing?reorder=1"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-brand-ink hover:bg-surface-2"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                {t.dashboard.reorderShortages}
+              </a>
+            )}
           </div>
         )}
 
@@ -312,6 +380,17 @@ export function InventoryPage() {
                 className="input ps-9"
               />
             </div>
+            {alertFilter && (
+              <button
+                type="button"
+                onClick={() => setAlertFilter(null)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-fg hover:bg-border"
+                title={t.inventory.showAll}
+              >
+                {t.inventory.showingOnly.replace('{label}', filterLabel)}
+                <X className="h-3.5 w-3.5 text-muted" />
+              </button>
+            )}
             {canManage ? (
               <label className="flex items-center gap-2 text-sm text-muted">
                 <input
@@ -386,7 +465,7 @@ export function InventoryPage() {
                   return (
                     <span className={`text-sm tabular-nums ${colorClass}`}>
                       {formatExpiry(r.expiryDate, lang)}
-                      {daysLeft <= 7 ? ` (${expiryLabel(daysLeft, t)})` : ''}
+                      {daysLeft <= 7 ? ` (${expiryText(t, daysLeft)})` : ''}
                     </span>
                   )
                 },
