@@ -12,7 +12,8 @@ using NexusPOS.SharedKernel.Domain;
 namespace NexusPOS.CRM.Application.EventHandlers;
 
 // On a completed sale for a known customer: deduct the points redeemed on the order, then add the points earned
-// on the amount paid under the store's programme (none while it is switched off). Failures are logged and never undo the sale.
+// on the amount paid under the store's programme (none while it is switched off). Both are written to the points ledger,
+// which is what a later refund reverses. Failures are logged and never undo the sale.
 internal sealed class OrderCompletedLoyaltyHandler(CrmDbContext db, ILogger<OrderCompletedLoyaltyHandler> logger)
     : INotificationHandler<OrderCompletedDomainEvent>
 {
@@ -43,6 +44,12 @@ internal sealed class OrderCompletedLoyaltyHandler(CrmDbContext db, ILogger<Orde
                         "Order {OrderId} redeemed {Points} points but customer {CustomerId} could not cover them: {Error}",
                         notification.OrderId, notification.LoyaltyPointsRedeemed, customerId, redeemed.FirstError.Description);
                 }
+                else
+                {
+                    db.LoyaltyTransactions.Add(LoyaltyTransaction.Create(
+                        notification.TenantId, customerId, -notification.LoyaltyPointsRedeemed,
+                        LoyaltyTransactionKind.Redeem, notification.OrderId));
+                }
             }
 
             LoyaltyRules rules = await CustomerLoyaltyDirectory.LoadRulesAsync(db, notification.TenantId, cancellationToken);
@@ -50,6 +57,8 @@ internal sealed class OrderCompletedLoyaltyHandler(CrmDbContext db, ILogger<Orde
             if (earned > 0)
             {
                 customer.AddLoyaltyPoints(earned);
+                db.LoyaltyTransactions.Add(LoyaltyTransaction.Create(
+                    notification.TenantId, customerId, earned, LoyaltyTransactionKind.Earn, notification.OrderId));
             }
 
             await db.SaveChangesAsync(cancellationToken);

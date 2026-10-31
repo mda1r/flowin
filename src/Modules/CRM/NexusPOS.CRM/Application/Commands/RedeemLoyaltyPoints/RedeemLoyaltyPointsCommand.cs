@@ -3,4 +3,6 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.CRM.Application.Commands.RedeemLoyaltyPoints;
 
-public sealed record RedeemLoyaltyPointsCommand(Guid CustomerId, Guid TenantId, int Points) : ICommand<CustomerResponse>;
+// A manual change by a manager; the reason and who made it are kept in the points ledger.
+public sealed record RedeemLoyaltyPointsCommand(
+    Guid CustomerId, Guid TenantId, int Points, string Reason, Guid? UserId = null) : ICommand<CustomerResponse>;

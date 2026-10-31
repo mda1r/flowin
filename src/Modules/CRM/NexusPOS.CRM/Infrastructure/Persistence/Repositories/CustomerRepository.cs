@@ -17,6 +17,18 @@ internal sealed class CustomerRepository(CrmDbContext dbContext) : ICustomerRepo
 
     public async Task<IReadOnlyList<Customer>> FindByTenantAsync(
         Guid tenantId, string? search, int page, int pageSize, CancellationToken cancellationToken = default)
+        => await Matching(tenantId, search)
+            .OrderBy(c => c.Name)
+            .ThenBy(c => c.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+    public async Task<int> CountByTenantAsync(Guid tenantId, string? search, CancellationToken cancellationToken = default)
+        => await Matching(tenantId, search).CountAsync(cancellationToken);
+
+    // The active customers the list and its count both see for a search.
+    private IQueryable<Customer> Matching(Guid tenantId, string? search)
     {
         IQueryable<Customer> query = dbContext.Customers
             .Where(c => c.TenantId == tenantId && c.IsActive);
@@ -30,11 +42,7 @@ internal sealed class CustomerRepository(CrmDbContext dbContext) : ICustomerRepo
                 (c.Phone != null && c.Phone.Contains(trimmed)));
         }
 
-        return await query
-            .OrderBy(c => c.Name)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        return query;
     }
 
     public async Task<bool> ExistsByEmailAsync(Guid tenantId, string email, CancellationToken cancellationToken = default)

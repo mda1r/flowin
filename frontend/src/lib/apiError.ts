@@ -15,6 +15,8 @@ const CODE_MESSAGES: Record<string, string> = {
   'Inventory.StockCountNoItems': 'لا توجد أصناف في مخزون هذا الفرع لجردها',
   'Inventory.StockCountNotInProgress': 'هذا الجرد لم يعد مفتوحاً',
   'Inventory.StockCountAlreadyCompleted': 'هذا الجرد مكتمل ولا يمكن إلغاؤه',
+  'Customer.EmailTaken': 'يوجد عميل آخر بنفس البريد الإلكتروني',
+  'Customer.InsufficientLoyaltyPoints': 'رصيد النقاط لا يكفي',
 }
 
 // Turns an API failure (ProblemDetails / ValidationProblemDetails) into one readable line.

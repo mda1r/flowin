@@ -28,7 +28,8 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
         RefundMethod refundMethod,
         IEnumerable<(Guid lineId, Guid variantId, string productName, string variantName, decimal quantity, decimal unitPrice, ReturnReason reason)> returnLines,
         bool restockItems = true,
-        decimal taxRate = 0m)
+        decimal taxRate = 0m,
+        ReturnOrderCompletedDomainEvent.CustomerLoyalty? loyalty = null)
     {
         List<ReturnOrderLine> lines = returnLines
             .Select(l => ReturnOrderLine.Create(l.lineId, l.variantId, l.productName, l.variantName, l.quantity, l.unitPrice, l.reason))
@@ -59,9 +60,12 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
         var lineItems = lines
             .Select(l => new ReturnOrderCompletedDomainEvent.LineItem(l.VariantId, l.Quantity))
             .ToList();
+        // The caller passes what earlier returns refunded; this return's refund is added here.
+        ReturnOrderCompletedDomainEvent.CustomerLoyalty? eventLoyalty =
+            loyalty is null ? null : loyalty with { RefundedToDate = loyalty.RefundedToDate + refundAmount };
         returnOrder.RaiseDomainEvent(new ReturnOrderCompletedDomainEvent(
             returnOrder.Id.Value, originalOrderId, tenantId, branchId,
-            refundAmount, currency.ToUpperInvariant(), lineItems, restockItems));
+            refundAmount, currency.ToUpperInvariant(), lineItems, restockItems, eventLoyalty));
 
         return returnOrder;
     }

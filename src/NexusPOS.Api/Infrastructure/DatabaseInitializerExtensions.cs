@@ -305,6 +305,8 @@ internal static class DatabaseInitializerExtensions
         string[] patches =
         [
             "ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
+            // Recorded once, the first time this runs: sales completed before it predate the points ledger.
+            "INSERT INTO loyalty_ledger_start (id, started_at) VALUES (1, now()) ON CONFLICT (id) DO NOTHING",
         ];
 
         foreach (string sql in patches)
