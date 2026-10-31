@@ -104,4 +104,17 @@ public sealed class SalesSummaryTests
         summary.TotalRevenue.Should().Be(-46m);
         summary.TotalTax.Should().Be(-6m);
     }
+
+    [Fact]
+    public void RecordReturn_FullRefund_RemovesRevenueAndTax()
+    {
+        SalesSummary summary = SalesSummary.CreateForDate(_branchId, _today, "SAR");
+
+        summary.RecordSale(115m, 0m, 15m);
+        summary.RecordReturn(115m, 15m);
+
+        summary.TotalRevenue.Should().Be(0m);
+        summary.TotalTax.Should().Be(0m);
+        summary.TotalOrders.Should().Be(1);
+    }
 }
