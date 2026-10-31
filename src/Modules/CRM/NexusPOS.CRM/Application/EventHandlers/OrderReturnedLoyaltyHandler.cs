@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using NexusPOS.CRM.Application.Services;
 using NexusPOS.CRM.Domain.Entities;
@@ -12,7 +13,8 @@ namespace NexusPOS.CRM.Application.EventHandlers;
 
 // On a refund of a customer's sale: take back the points it earned in proportion to the goods returned (never below
 // zero) and give back redeemed points the refund did not already pay out in cash. The sale's own ledger rows say what
-// it earned and spent; sales from before the ledger fall back to the current programme. Failures never undo the refund.
+// it earned and spent; sales from before the ledger fall back to the current programme. Refunds for the same customer
+// run one at a time, so each sees the reversals before it and a fresh balance. Failures never undo the refund.
 internal sealed class OrderReturnedLoyaltyHandler(CrmDbContext db, ILogger<OrderReturnedLoyaltyHandler> logger)
     : INotificationHandler<ReturnOrderCompletedDomainEvent>
 {
@@ -25,6 +27,17 @@ internal sealed class OrderReturnedLoyaltyHandler(CrmDbContext db, ILogger<Order
 
         try
         {
+            // Two refunds of one sale must not both reverse it in full: lock the customer before reading its ledger.
+            await using IDbContextTransaction? transaction = db.Database.IsNpgsql() && db.Database.CurrentTransaction is null
+                ? await db.Database.BeginTransactionAsync(cancellationToken)
+                : null;
+            if (transaction is not null)
+            {
+                await db.Database
+                    .SqlQuery<Guid>($"SELECT id AS \"Value\" FROM customers WHERE id = {loyalty.CustomerId} FOR UPDATE")
+                    .ToListAsync(cancellationToken);
+            }
+
             CustomerId id = new(loyalty.CustomerId);
             Customer? customer = await db.Customers
                 .FirstOrDefaultAsync(c => c.TenantId == notification.TenantId && c.Id == id, cancellationToken);
@@ -40,7 +53,7 @@ internal sealed class OrderReturnedLoyaltyHandler(CrmDbContext db, ILogger<Order
 
             int earned;
             int redeemed;
-            if (await IsFromBeforeLedgerAsync(history, notification.TenantId, loyalty.OrderCompletedAt, cancellationToken))
+            if (await IsFromBeforeLedgerAsync(history, loyalty.OrderCompletedAt, cancellationToken))
             {
                 LoyaltyRules rules = await CustomerLoyaltyDirectory.LoadRulesAsync(db, notification.TenantId, cancellationToken);
                 earned = rules.PointsEarned(loyalty.OrderTotal);
@@ -93,6 +106,11 @@ internal sealed class OrderReturnedLoyaltyHandler(CrmDbContext db, ILogger<Order
             {
                 await db.SaveChangesAsync(cancellationToken);
             }
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
         }
         catch (Exception ex)
         {
@@ -101,19 +119,20 @@ internal sealed class OrderReturnedLoyaltyHandler(CrmDbContext db, ILogger<Order
         }
     }
 
-    // A sale with no earn or redeem rows either earned nothing or was completed before the ledger began; only the
-    // second is read from the programme, so a sale that truly earned nothing never loses points it was not given.
+    // Every sale since the ledger began has its earn and redeem rows, so one without any earned and spent nothing.
+    // Only a sale completed before the recorded start is read from the programme; with no start recorded, none is.
     private async Task<bool> IsFromBeforeLedgerAsync(
-        List<LoyaltyTransaction> history, Guid tenantId, DateTime? completedAt, CancellationToken cancellationToken)
+        List<LoyaltyTransaction> history, DateTime? completedAt, CancellationToken cancellationToken)
     {
-        if (history.Any(t => t.Kind is LoyaltyTransactionKind.Earn or LoyaltyTransactionKind.Redeem))
+        if (completedAt is null || history.Any(t => t.Kind is LoyaltyTransactionKind.Earn or LoyaltyTransactionKind.Redeem))
         {
             return false;
         }
 
-        DateTime? ledgerStart = await db.LoyaltyTransactions
-            .Where(t => t.TenantId == tenantId && (t.Kind == LoyaltyTransactionKind.Earn || t.Kind == LoyaltyTransactionKind.Redeem))
-            .MinAsync(t => (DateTime?)t.CreatedAt, cancellationToken);
-        return ledgerStart is null || completedAt is null || completedAt < ledgerStart;
+        DateTime? ledgerStart = await db.LoyaltyLedgerStart
+            .AsNoTracking()
+            .Select(s => (DateTime?)s.StartedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        return ledgerStart is DateTime start && completedAt < start;
     }
 }

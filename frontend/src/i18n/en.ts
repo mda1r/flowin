@@ -313,6 +313,7 @@ export const en = {
     nextPage: 'Next',
     pointsHistory: 'Points history',
     noPointsHistory: 'No points activity yet',
+    retryHistory: 'Try again',
     adjustPoints: 'Adjust points',
     addPoints: 'Add',
     removePoints: 'Deduct',

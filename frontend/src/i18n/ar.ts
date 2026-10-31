@@ -315,6 +315,7 @@ export const ar: Translations = {
     nextPage: 'التالي',
     pointsHistory: 'سجل النقاط',
     noPointsHistory: 'لا توجد حركات نقاط بعد',
+    retryHistory: 'إعادة المحاولة',
     adjustPoints: 'تعديل النقاط',
     addPoints: 'إضافة',
     removePoints: 'خصم',

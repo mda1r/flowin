@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Minus, Plus, Star } from 'lucide-react'
+import { Minus, Plus, RotateCw, Star } from 'lucide-react'
 import { customersApi, type LoyaltyTransaction, type LoyaltyTransactionKind } from '@/api/customers'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toast'
@@ -24,7 +24,7 @@ export function CustomerLoyaltyCard({ customer, canManage, onChanged }: Customer
   const [points, setPoints] = useState('')
   const [reason, setReason] = useState('')
 
-  const { data: history = [], isLoading } = useQuery({
+  const { data: history = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['customers', tenantId, 'loyalty-history', customer.id],
     queryFn: () => customersApi.loyaltyHistory(tenantId!, customer.id),
     enabled: !!tenantId,
@@ -127,6 +127,14 @@ export function CustomerLoyaltyCard({ customer, canManage, onChanged }: Customer
 
       {isLoading ? (
         <div className="h-10 animate-pulse rounded-lg bg-border" />
+      ) : isError ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 text-xs text-danger">{apiErrorMessage(error)}</p>
+          <Button type="button" size="sm" variant="secondary" disabled={isFetching} onClick={() => refetch()}>
+            <RotateCw className="h-3.5 w-3.5" />
+            {t.customers.retryHistory}
+          </Button>
+        </div>
       ) : history.length === 0 ? (
         <p className="text-xs text-muted">{t.customers.noPointsHistory}</p>
       ) : (

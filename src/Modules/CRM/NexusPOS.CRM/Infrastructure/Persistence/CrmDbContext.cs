@@ -11,6 +11,7 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options, MediatR
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<LoyaltySettings> LoyaltySettings => Set<LoyaltySettings>();
     public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
+    public DbSet<LoyaltyLedgerStart> LoyaltyLedgerStart => Set<LoyaltyLedgerStart>();
     public DbSet<MarketingCampaign> MarketingCampaigns => Set<MarketingCampaign>();
     public DbSet<MarketingMedia> MarketingMedia => Set<MarketingMedia>();
     public DbSet<WhatsAppSettings> WhatsAppSettings => Set<WhatsAppSettings>();
