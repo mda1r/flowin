@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
@@ -21,6 +22,10 @@ internal sealed class RefreshTaxLedgerCommandHandler(
         RefreshTaxLedgerCommand request,
         CancellationToken cancellationToken)
     {
+        // Held until commit, so a parallel sync of this period reads what this one wrote.
+        await using IDbContextTransaction? periodLock =
+            await TaxPeriodLock.AcquireAsync(db, request.PeriodId, cancellationToken);
+
         TaxPeriod? period = await db.TaxPeriods
             .AsNoTracking()
             .FirstOrDefaultAsync(
@@ -53,7 +58,7 @@ internal sealed class RefreshTaxLedgerCommandHandler(
             logger.LogError(ex,
                 "RefreshTaxLedger: failed to read sales and returns for tenant {TenantId} period {PeriodId}",
                 request.TenantId, request.PeriodId);
-            return 0;
+            return TaxErrors.LedgerSyncFailed;
         }
 
         List<TaxLedgerEntry> importedInPeriod = await db.TaxLedgerEntries
@@ -75,11 +80,23 @@ internal sealed class RefreshTaxLedgerCommandHandler(
         LedgerSyncPlan plan = TaxLedgerSync.Plan(
             request.TenantId, request.PeriodId, source, importedInPeriod, importedElsewhere);
 
-        if (plan.ToAdd.Count > 0 || plan.ToRemove.Count > 0)
+        // Outdated rows go first so their replacements never collide with them on ux_tax_ledger_import;
+        // both saves share the lock's transaction.
+        if (plan.ToRemove.Count > 0)
         {
             db.TaxLedgerEntries.RemoveRange(plan.ToRemove);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        if (plan.ToAdd.Count > 0)
+        {
             db.TaxLedgerEntries.AddRange(plan.ToAdd);
             await db.SaveChangesAsync(cancellationToken);
+        }
+
+        if (periodLock is not null)
+        {
+            await periodLock.CommitAsync(cancellationToken);
         }
 
         logger.LogInformation(

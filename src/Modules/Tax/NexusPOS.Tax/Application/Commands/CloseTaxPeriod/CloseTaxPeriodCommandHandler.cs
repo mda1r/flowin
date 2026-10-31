@@ -1,5 +1,6 @@
 using ErrorOr;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using NexusPOS.SharedKernel.Application.Messaging;
 using NexusPOS.Tax.Application.Common;
 using NexusPOS.Tax.Domain.Entities;
@@ -14,6 +15,10 @@ internal sealed class CloseTaxPeriodCommandHandler(TaxConfigDbContext db)
         CloseTaxPeriodCommand request,
         CancellationToken cancellationToken)
     {
+        // Waits for any ledger sync of this period to finish before freezing its figures.
+        await using IDbContextTransaction? periodLock =
+            await TaxPeriodLock.AcquireAsync(db, request.PeriodId, cancellationToken);
+
         TaxPeriod? period = await db.TaxPeriods
             .FirstOrDefaultAsync(
                 p => p.Id == request.PeriodId && p.TenantId == request.TenantId,
@@ -31,6 +36,11 @@ internal sealed class CloseTaxPeriodCommandHandler(TaxConfigDbContext db)
 
         period.Close();
         await db.SaveChangesAsync(cancellationToken);
+
+        if (periodLock is not null)
+        {
+            await periodLock.CommitAsync(cancellationToken);
+        }
 
         return new TaxPeriodResponse(
             period.Id, period.StartDate, period.EndDate,

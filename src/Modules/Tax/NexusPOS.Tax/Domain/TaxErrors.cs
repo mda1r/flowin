@@ -10,4 +10,9 @@ public static class TaxErrors
     public static Error PeriodClosed => Error.Conflict(
         "TaxPeriod.Closed",
         "This tax period is closed and can no longer be changed.");
+
+    // The POS sales or returns could not be read, so the ledger may be missing transactions.
+    public static Error LedgerSyncFailed => Error.Unexpected(
+        "TaxLedger.SyncFailed",
+        "Sales and returns could not be read right now. Try again shortly.");
 }

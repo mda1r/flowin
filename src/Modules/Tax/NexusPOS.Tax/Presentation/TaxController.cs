@@ -62,7 +62,12 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
     public async Task<IActionResult> ClosePeriod(Guid periodId, CancellationToken cancellationToken)
     {
         // Pull in the last sales and refunds so the locked figures match what is filed.
-        await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
+        // If they cannot be read, the period stays open rather than freezing incomplete VAT.
+        ErrorOr<int> refresh = await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
+        if (refresh.IsError)
+        {
+            return MapErrors(refresh.Errors);
+        }
 
         CloseTaxPeriodCommand command = new(periodId, TenantId);
         ErrorOr<TaxPeriodResponse> result = await mediator.Send(command, cancellationToken);
@@ -77,14 +82,18 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
         [FromQuery] Guid periodId,
         CancellationToken cancellationToken)
     {
-        try
+        // Only roles allowed to sync the ledger trigger one here; everyone else reads it as it stands.
+        if (User.IsInRole("Owner") || User.IsInRole("Manager"))
         {
-            // Closed periods answer with a conflict and stay as filed.
-            await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
-        }
-        catch
-        {
-            // Refresh is best-effort; a failure must not block the overview read.
+            try
+            {
+                // Closed periods answer with a conflict and stay as filed.
+                await mediator.Send(new RefreshTaxLedgerCommand(periodId, TenantId), cancellationToken);
+            }
+            catch
+            {
+                // Refresh is best-effort; a failure must not block the overview read.
+            }
         }
 
         ErrorOr<TaxOverviewResponse> result =
@@ -230,6 +239,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Unexpected => StatusCodes.Status503ServiceUnavailable,
             _ => StatusCodes.Status500InternalServerError,
         };
 

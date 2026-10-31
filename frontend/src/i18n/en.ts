@@ -919,6 +919,7 @@ export const en = {
       done: 'Period closed', failed: 'Could not close the period',
       lockedNotice: 'This period is closed; figures are locked as filed',
       closedError: 'This period is closed and cannot be changed',
+      syncFailed: 'Sales could not be loaded right now. Try again shortly',
     },
     tabs: {
       overview: 'Overview', vatReturn: 'VAT Return', sales: 'Sales',

@@ -139,6 +139,42 @@ public sealed class ClosedPeriodGuardTests
         vat.Box11NetVatDue.Should().Be(60m);
     }
 
+    [Fact]
+    public async Task VatReturn_SaleAtNonStandardRate_StillCountsInTotalOutputVat()
+    {
+        await using TaxConfigDbContext db = CreateDb();
+        TaxPeriod period = AddPeriod(db, _tenantId, closed: false);
+        DateOnly day = new(2026, 10, 10);
+        db.TaxLedgerEntries.AddRange(
+            Output(period.Id, LedgerTransactionType.Sale, 1000m, 150m, 0.15m, day),
+            Output(period.Id, LedgerTransactionType.Sale, 200m, 10m, 0.05m, day),
+            TaxLedgerEntry.Create(_tenantId, period.Id, LedgerEntryType.Input, LedgerTransactionType.PurchaseInvoice,
+                400m, 60m, 0.15m, day, Guid.NewGuid(), LedgerReferenceType.ExpenseInvoice));
+        await db.SaveChangesAsync();
+
+        VatReturnResponse vat = (await new GetVatReturnDataQueryHandler(db)
+            .Handle(new GetVatReturnDataQuery(period.Id, _tenantId), CancellationToken.None)).Value;
+
+        vat.Box1OutputVat.Should().Be(150m);
+        vat.Box9TotalOutputVat.Should().Be(160m);
+        vat.Box11NetVatDue.Should().Be(100m);
+    }
+
+    [Fact]
+    public async Task RefreshLedger_WhenSalesCannotBeRead_ReturnsErrorInsteadOfZero()
+    {
+        // The in-memory provider has no connection string, so reading the POS tables fails.
+        await using TaxConfigDbContext db = CreateDb();
+        TaxPeriod period = AddPeriod(db, _tenantId, closed: false);
+        await db.SaveChangesAsync();
+
+        RefreshTaxLedgerCommandHandler handler = new(db, NullLogger<RefreshTaxLedgerCommandHandler>.Instance);
+        ErrorOr<int> result = await handler.Handle(new RefreshTaxLedgerCommand(period.Id, _tenantId), CancellationToken.None);
+
+        result.IsError.Should().BeTrue();
+        result.FirstError.Code.Should().Be("TaxLedger.SyncFailed");
+    }
+
     private static TaxConfigDbContext CreateDb() =>
         new(new DbContextOptionsBuilder<TaxConfigDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())

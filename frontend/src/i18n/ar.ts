@@ -921,6 +921,7 @@ export const ar: Translations = {
       done: 'تم إغلاق الفترة', failed: 'تعذّر إغلاق الفترة',
       lockedNotice: 'الفترة مغلقة، والأرقام مثبّتة كما قُدِّمت',
       closedError: 'الفترة مغلقة ولا يمكن تعديلها',
+      syncFailed: 'تعذّر جلب المبيعات الآن، حاول بعد قليل',
     },
     tabs: {
       overview: 'نظرة عامة', vatReturn: 'إقرار الضريبة', sales: 'المبيعات',

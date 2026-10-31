@@ -68,10 +68,12 @@ function useCanManageTax() {
 
 function useTaxErrorMessage() {
   const { t } = useI18n()
-  return (err: unknown, fallback: string) =>
-    isAxiosError(err) && err.response?.data?.title === 'TaxPeriod.Closed'
-      ? t.taxes.close.closedError
-      : apiErrorMessage(err, fallback)
+  return (err: unknown, fallback: string) => {
+    const code = isAxiosError(err) ? err.response?.data?.title : undefined
+    if (code === 'TaxPeriod.Closed') return t.taxes.close.closedError
+    if (code === 'TaxLedger.SyncFailed') return t.taxes.close.syncFailed
+    return apiErrorMessage(err, fallback)
+  }
 }
 
 // ── UI Primitives ─────────────────────────────────────────────────────────────
@@ -1203,7 +1205,7 @@ export function TaxCenterPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 pb-4">
+        <div className="flex flex-wrap items-center gap-3 pb-4">
           {periodsLoading ? (
             <div className="h-10 w-48 animate-pulse rounded-xl" style={{ background: 'var(--card-bg)' }} />
           ) : (

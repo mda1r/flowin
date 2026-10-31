@@ -207,6 +207,7 @@ internal static class DatabaseInitializerExtensions
         IamDbContext iamDb2 = sp.GetRequiredService<IamDbContext>();
         OrganizationDbContext orgDb2 = sp.GetRequiredService<OrganizationDbContext>();
         SuperAdminDbContext superAdminDb2 = sp.GetRequiredService<SuperAdminDbContext>();
+        TaxConfigDbContext taxDb = sp.GetRequiredService<TaxConfigDbContext>();
 
         (DbContext ctx, string sql)[] patches =
         [
@@ -218,6 +219,8 @@ internal static class DatabaseInitializerExtensions
             (iamDb2,        "ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID"),
             (iamDb2,        $"UPDATE users SET tenant_id = '10000000-0000-0000-0000-000000000001' WHERE email = 'admin@nexuspos.com' AND tenant_id IS NULL"),
             (superAdminDb2, "ALTER TABLE superadmin.subscription_plans ADD COLUMN IF NOT EXISTS business_type VARCHAR(50) NULL"),
+            // A sale or refund is imported into a period once; a second concurrent sync fails instead of doubling its VAT.
+            (taxDb,         "CREATE UNIQUE INDEX IF NOT EXISTS ux_tax_ledger_import ON tax_config.tax_ledger_entries (period_id, reference_type, reference_id) WHERE reference_type IN ('SaleRecord', 'ReturnOrder')"),
         ];
 
         foreach ((DbContext ctx, string sql) in patches)
