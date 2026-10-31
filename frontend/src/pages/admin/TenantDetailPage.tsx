@@ -253,7 +253,7 @@ export function TenantDetailPage() {
                     <p className="mt-1 text-xs italic text-muted">{s.notes}</p>
                   )}
                 </div>
-                <div className="text-left">
+                <div className="text-end">
                   <p className="text-sm font-semibold text-fg">
                     {s.planPrice.toLocaleString(locale)} ر.س
                   </p>

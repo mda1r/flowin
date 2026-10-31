@@ -163,12 +163,12 @@ export function TenantsPage() {
 
       {/* Search */}
       <div className="mb-5 relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="بحث باسم المستأجر أو البريد أو النطاق..."
-          className="w-full rounded-xl border border-border bg-surface py-2.5 pr-10 pl-4 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
+          className="w-full rounded-xl border border-border bg-surface py-2.5 ps-10 pe-4 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
         />
       </div>
 
@@ -190,7 +190,7 @@ export function TenantsPage() {
               ].map((h) => (
                 <th
                   key={h}
-                  className="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider"
+                  className="px-4 py-3 text-start text-xs font-semibold text-muted uppercase tracking-wider"
                 >
                   {h}
                 </th>

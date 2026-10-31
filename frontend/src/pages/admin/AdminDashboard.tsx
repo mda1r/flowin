@@ -100,7 +100,7 @@ export function AdminDashboard() {
             <p className="text-xs font-medium uppercase tracking-wider text-success">MRR — {t.admin.dashboard.mrr}</p>
             <p className="mt-3 text-4xl font-black tabular-nums text-fg">
               {stats.mrr.toLocaleString(locale)}
-              <span className="mr-1 text-lg font-medium text-muted">ر.س</span>
+              <span className="ms-1 text-lg font-medium text-muted">ر.س</span>
             </p>
             <p className="mt-1 text-xs text-muted">من {stats.active} {t.admin.dashboard.activeTenants}</p>
           </div>
@@ -108,7 +108,7 @@ export function AdminDashboard() {
             <p className="text-xs font-medium uppercase tracking-wider text-info">ARR — {t.admin.dashboard.arr}</p>
             <p className="mt-3 text-4xl font-black tabular-nums text-fg">
               {stats.arr.toLocaleString(locale)}
-              <span className="mr-1 text-lg font-medium text-muted">ر.س</span>
+              <span className="ms-1 text-lg font-medium text-muted">ر.س</span>
             </p>
             <p className="mt-1 text-xs text-muted">تقدير سنوي بناءً على MRR × 12</p>
           </div>
