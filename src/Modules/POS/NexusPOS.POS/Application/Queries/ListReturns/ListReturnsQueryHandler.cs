@@ -14,7 +14,7 @@ internal sealed class ListReturnsQueryHandler(IReturnOrderRepository returnOrder
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ReturnOrderEntity> returns = await returnOrderRepository
-            .FindByBranchAsync(request.BranchId, cancellationToken);
+            .FindByBranchAsync(request.BranchId, request.From, request.To, request.Limit, cancellationToken);
 
         IReadOnlyList<ReturnOrderResponse> responses = returns
             .Select(r => new ReturnOrderResponse(

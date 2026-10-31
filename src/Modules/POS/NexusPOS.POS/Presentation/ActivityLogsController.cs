@@ -7,6 +7,7 @@ using NexusPOS.POS.Application.Commands.LogActivity;
 using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Application.Queries.GetActivityLogs;
 using NexusPOS.POS.Presentation.Requests;
+using NexusPOS.SharedKernel.Application;
 using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
@@ -70,7 +71,7 @@ public sealed class ActivityLogsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 500,
         CancellationToken cancellationToken = default)
     {
-        GetActivityLogsQuery query = new(branchId, category, from, to, pageSize);
+        GetActivityLogsQuery query = new(branchId, category, from, to, Paging.Size(pageSize, 500));
         ErrorOr<IReadOnlyList<ActivityLogResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, errors => Problem(title: errors[0].Code, detail: errors[0].Description));

@@ -10,6 +10,7 @@ using NexusPOS.Hotel.Application.Common;
 using NexusPOS.Hotel.Application.Queries.GetRoom;
 using NexusPOS.Hotel.Application.Queries.ListRooms;
 using NexusPOS.Hotel.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Hotel.Presentation;
 
@@ -29,7 +30,7 @@ public sealed class RoomsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListRoomsQuery query = new(branchId, roomType, status, page, pageSize);
+        ListRoomsQuery query = new(branchId, roomType, status, Paging.Page(page), Paging.Size(pageSize, 500));
         ErrorOr<IReadOnlyList<RoomResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

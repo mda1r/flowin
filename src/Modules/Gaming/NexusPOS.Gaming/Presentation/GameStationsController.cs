@@ -11,6 +11,7 @@ using NexusPOS.Gaming.Application.Common;
 using NexusPOS.Gaming.Application.Queries.GetStation;
 using NexusPOS.Gaming.Application.Queries.ListStations;
 using NexusPOS.Gaming.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Gaming.Presentation;
 
@@ -30,7 +31,7 @@ public sealed class GameStationsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListStationsQuery query = new(branchId, stationType, status, page, pageSize);
+        ListStationsQuery query = new(branchId, stationType, status, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<GameStationResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

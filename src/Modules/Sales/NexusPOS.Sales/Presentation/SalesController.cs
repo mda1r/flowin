@@ -7,6 +7,7 @@ using NexusPOS.Sales.Application.Common;
 using NexusPOS.Sales.Application.Queries.GetDailySummary;
 using NexusPOS.Sales.Application.Queries.GetSummaryRange;
 using NexusPOS.Sales.Application.Queries.ListSaleRecords;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Sales.Presentation;
 
@@ -57,7 +58,7 @@ public sealed class SalesController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        ListSaleRecordsQuery query = new(branchId, dateFrom, dateTo, page, pageSize);
+        ListSaleRecordsQuery query = new(branchId, dateFrom, dateTo, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<SaleRecordResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);

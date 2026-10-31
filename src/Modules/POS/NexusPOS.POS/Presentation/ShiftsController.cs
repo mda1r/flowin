@@ -9,6 +9,7 @@ using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Application.Queries.GetCurrentShift;
 using NexusPOS.POS.Application.Queries.ListShifts;
 using NexusPOS.POS.Presentation.Requests;
+using NexusPOS.SharedKernel.Application;
 using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
@@ -58,7 +59,7 @@ public sealed class ShiftsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListShiftsQuery query = new(branchId, page, pageSize);
+        ListShiftsQuery query = new(branchId, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<ShiftResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);

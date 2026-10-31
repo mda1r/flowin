@@ -49,6 +49,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Create a new product with an initial variant.</summary>
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -71,6 +72,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Update a product's name, description, category and pricing settings.</summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -90,6 +92,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Update a variant's name, pricing, and barcode.</summary>
     [HttpPatch("{id:guid}/variants/{variantId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductVariantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateVariant(
@@ -108,6 +111,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Add a variant (SKU) to an existing product.</summary>
     [HttpPost("{id:guid}/variants")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ProductVariantResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -129,6 +133,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
 
     /// <summary>Deactivate a product and all its variants.</summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateProduct(Guid id, CancellationToken cancellationToken)

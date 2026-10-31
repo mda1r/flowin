@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.SharedKernel.Application;
 using NexusPOS.SuperAdmin.Application.Commands.ActivateTenant;
 using NexusPOS.SuperAdmin.Application.Commands.CreateBrand;
 using NexusPOS.SuperAdmin.Application.Commands.CreateSubscription;
@@ -218,7 +219,7 @@ public sealed class SuperAdminController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await mediator.Send(new ListBrandsQuery(status, search, page, pageSize), cancellationToken);
+        var result = await mediator.Send(new ListBrandsQuery(status, search, Paging.Page(page), Paging.Size(pageSize)), cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 

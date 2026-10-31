@@ -92,6 +92,7 @@ export const ordersApi = {
       data,
     ),
 
-  listReturns: (branchId: string) =>
-    apiClient.get<ReturnOrderResponse[]>(`/api/v1/branches/${branchId}/returns`),
+  // Newest first; the server caps the list (default 1000) so pass from/to for older periods.
+  listReturns: (branchId: string, params?: { from?: string; to?: string; limit?: number }) =>
+    apiClient.get<ReturnOrderResponse[]>(`/api/v1/branches/${branchId}/returns`, { params }),
 }

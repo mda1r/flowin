@@ -45,6 +45,7 @@ public sealed class DiscountCodesController(ISender mediator) : ControllerBase
 
     /// <summary>Create a new discount code.</summary>
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(DiscountCodeResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CreateDiscountCode(

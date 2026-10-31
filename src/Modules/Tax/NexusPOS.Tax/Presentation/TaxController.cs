@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.SharedKernel.Application;
 using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
 using NexusPOS.Tax.Application.Commands.CloseTaxPeriod;
@@ -97,7 +98,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
         CancellationToken cancellationToken = default)
     {
         ErrorOr<TaxLedgerResult> result =
-            await mediator.Send(new GetTaxLedgerQuery(periodId, TenantId, page, pageSize), cancellationToken);
+            await mediator.Send(new GetTaxLedgerQuery(periodId, TenantId, Paging.Page(page), Paging.Size(pageSize)), cancellationToken);
         return result.Match(Ok, MapErrors);
     }
 

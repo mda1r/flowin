@@ -14,6 +14,7 @@ using NexusPOS.Purchasing.Application.Common;
 using NexusPOS.Purchasing.Application.Queries.GetPurchaseOrder;
 using NexusPOS.Purchasing.Application.Queries.ListPurchaseOrders;
 using NexusPOS.Purchasing.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Purchasing.Presentation;
 
@@ -33,7 +34,7 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListPurchaseOrdersQuery query = new(branchId, status, supplierId, page, pageSize);
+        ListPurchaseOrdersQuery query = new(branchId, status, supplierId, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<PurchaseOrderResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

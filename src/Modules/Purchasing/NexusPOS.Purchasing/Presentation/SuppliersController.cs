@@ -9,6 +9,7 @@ using NexusPOS.Purchasing.Application.Commands.UpdateSupplier;
 using NexusPOS.Purchasing.Application.Common;
 using NexusPOS.Purchasing.Application.Queries.GetSupplier;
 using NexusPOS.Purchasing.Application.Queries.ListSuppliers;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Purchasing.Presentation;
 
@@ -26,7 +27,7 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListSuppliersQuery query = new(tenantId, page, pageSize);
+        ListSuppliersQuery query = new(tenantId, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<SupplierResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -42,6 +43,7 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(SupplierResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -58,6 +60,7 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
     }
 
     [HttpPut("{supplierId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(SupplierResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -73,6 +76,7 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
     }
 
     [HttpDelete("{supplierId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(SupplierResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateSupplier(Guid tenantId, Guid supplierId, CancellationToken cancellationToken)

@@ -37,36 +37,37 @@ public sealed class TenantsController(ISender mediator) : ControllerBase
         ErrorOr<TenantResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(
-            tenant => CreatedAtAction(nameof(GetTenant), new { id = tenant.Id }, tenant),
+            tenant => CreatedAtAction(nameof(GetTenant), new { tenantId = tenant.Id }, tenant),
             MapErrorsToResult);
     }
 
-    /// <summary>Get a tenant by ID.</summary>
-    [HttpGet("{id:guid}")]
+    /// <summary>Get a tenant by ID. The {tenantId} route value is checked against the caller's tenant claim.</summary>
+    [HttpGet("{tenantId:guid}")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetTenant(
-        Guid id,
+        Guid tenantId,
         CancellationToken cancellationToken)
     {
-        GetTenantByIdQuery query = new(id);
+        GetTenantByIdQuery query = new(tenantId);
         ErrorOr<TenantResponse> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
     }
 
     /// <summary>Update a tenant's profile information.</summary>
-    [HttpPut("{id:guid}/profile")]
+    [HttpPut("{tenantId:guid}/profile")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> UpdateProfile(
-        Guid id,
+        Guid tenantId,
         [FromBody] UpdateTenantProfileRequest request,
         CancellationToken cancellationToken)
     {
         UpdateTenantProfileCommand command = new(
-            id,
+            tenantId,
             request.Name,
             request.Currency,
             request.TimeZone,

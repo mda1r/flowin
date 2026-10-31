@@ -49,6 +49,7 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
 
     /// <summary>Create a new branch for a tenant.</summary>
     [HttpPost]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(BranchResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -80,6 +81,7 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
 
     /// <summary>Update an existing branch.</summary>
     [HttpPut("{branchId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(BranchResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -109,6 +111,7 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
 
     /// <summary>Deactivate a branch.</summary>
     [HttpDelete("{branchId:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateBranch(

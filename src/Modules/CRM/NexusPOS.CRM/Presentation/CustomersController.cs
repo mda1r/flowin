@@ -10,6 +10,7 @@ using NexusPOS.CRM.Application.Commands.UpdateCustomer;
 using NexusPOS.CRM.Application.Common;
 using NexusPOS.CRM.Application.Queries.GetCustomer;
 using NexusPOS.CRM.Application.Queries.ListCustomers;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.CRM.Presentation;
 
@@ -28,7 +29,7 @@ public sealed class CustomersController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListCustomersQuery query = new(tenantId, search, page, pageSize);
+        ListCustomersQuery query = new(tenantId, search, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<CustomerResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

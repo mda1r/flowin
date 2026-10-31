@@ -10,6 +10,7 @@ using NexusPOS.Hotel.Application.Common;
 using NexusPOS.Hotel.Application.Queries.GetRentalContract;
 using NexusPOS.Hotel.Application.Queries.ListRentalContracts;
 using NexusPOS.Hotel.Presentation.Requests;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Hotel.Presentation;
 
@@ -27,7 +28,7 @@ public sealed class RentalContractsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new ListRentalContractsQuery(branchId, page, pageSize), ct);
+        var result = await mediator.Send(new ListRentalContractsQuery(branchId, Paging.Page(page), Paging.Size(pageSize)), ct);
         return result.Match(Ok, MapErrors);
     }
 

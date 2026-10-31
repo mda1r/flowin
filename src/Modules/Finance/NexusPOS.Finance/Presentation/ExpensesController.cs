@@ -10,6 +10,7 @@ using NexusPOS.Finance.Application.Common;
 using NexusPOS.Finance.Application.Queries.GetExpense;
 using NexusPOS.Finance.Application.Queries.ListExpenses;
 using NexusPOS.Finance.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Finance.Presentation;
 
@@ -31,7 +32,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListExpensesQuery query = new(branchId, category, status, dateFrom, dateTo, page, pageSize);
+        ListExpensesQuery query = new(branchId, category, status, dateFrom, dateTo, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<ExpenseResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
@@ -64,6 +65,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{expenseId:guid}/approve")]
+    [Authorize(Policy = "OwnerManagerOrAccountant")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -79,6 +81,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{expenseId:guid}/void")]
+    [Authorize(Policy = "OwnerManagerOrAccountant")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

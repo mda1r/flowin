@@ -42,6 +42,7 @@ public sealed class ZatcaController(ISender mediator) : ControllerBase
 
     /// <summary>حفظ إعدادات زاتكا للمستأجر</summary>
     [HttpPut("zatca/settings")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ZatcaSettingsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveSettings(
         [FromBody] SaveZatcaSettingsRequest request,

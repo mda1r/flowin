@@ -37,7 +37,7 @@ public sealed class GamingController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        ListStationsQuery query = new(branchId, stationType, status, page, pageSize);
+        ListStationsQuery query = new(branchId, stationType, status, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<GameStationResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

@@ -10,6 +10,7 @@ using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Application.Queries.GetMenuItem;
 using NexusPOS.Restaurant.Application.Queries.ListMenuItems;
 using NexusPOS.Restaurant.Domain.Enums;
+using NexusPOS.SharedKernel.Application;
 
 namespace NexusPOS.Restaurant.Presentation;
 
@@ -29,7 +30,7 @@ public sealed class MenuItemsController(ISender mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        ListMenuItemsQuery query = new(branchId, category, includeUnavailable, page, pageSize);
+        ListMenuItemsQuery query = new(branchId, category, includeUnavailable, Paging.Page(page), Paging.Size(pageSize));
         ErrorOr<IReadOnlyList<MenuItemResponse>> result = await mediator.Send(query, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

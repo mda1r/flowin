@@ -41,7 +41,7 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken = default)
     {
         ListOrdersQuery query = new(
-            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Math.Max(page, 1), Math.Clamp(pageSize, 1, 500));
+            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Paging.Page(page), Paging.Size(pageSize, 500));
         ErrorOr<IReadOnlyList<OrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
@@ -219,14 +219,18 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             MapErrorsToResult);
     }
 
-    /// <summary>List returns for a branch.</summary>
+    /// <summary>List returns for a branch, newest first, optionally within a date range.</summary>
     [HttpGet("/api/v1/branches/{branchId:guid}/returns")]
     [ProducesResponseType(typeof(IReadOnlyList<ReturnOrderResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListReturns(
         Guid branchId,
-        CancellationToken cancellationToken)
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] int limit = ListReturnsQuery.DefaultLimit,
+        CancellationToken cancellationToken = default)
     {
-        ListReturnsQuery query = new(branchId);
+        ListReturnsQuery query = new(
+            branchId, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Paging.Size(limit, ListReturnsQuery.MaxLimit));
         ErrorOr<IReadOnlyList<ReturnOrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
