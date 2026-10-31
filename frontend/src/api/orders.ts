@@ -92,6 +92,7 @@ export const ordersApi = {
       data,
     ),
 
-  listReturns: (branchId: string) =>
-    apiClient.get<ReturnOrderResponse[]>(`/api/v1/branches/${branchId}/returns`),
+  // from/to are UTC instants ([from, to)); omit both for every return the branch has.
+  listReturns: (branchId: string, params?: { from?: string; to?: string }) =>
+    apiClient.get<ReturnOrderResponse[]>(`/api/v1/branches/${branchId}/returns`, { params }),
 }

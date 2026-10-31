@@ -21,12 +21,26 @@ internal sealed class ReturnOrderRepository(PosDbContext dbContext) : IReturnOrd
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<ReturnOrder>> FindByBranchAsync(
-        Guid branchId, CancellationToken cancellationToken = default) =>
-        await dbContext.ReturnOrders
+        Guid branchId, DateTime? dateFrom, DateTime? dateTo, CancellationToken cancellationToken = default)
+    {
+        IQueryable<ReturnOrder> query = dbContext.ReturnOrders
             .Include(r => r.Lines)
-            .Where(r => r.BranchId == branchId)
+            .Where(r => r.BranchId == branchId);
+
+        if (dateFrom.HasValue)
+        {
+            query = query.Where(r => r.CreatedAt >= dateFrom.Value);
+        }
+
+        if (dateTo.HasValue)
+        {
+            query = query.Where(r => r.CreatedAt < dateTo.Value);
+        }
+
+        return await query
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
+    }
 
     public void Add(ReturnOrder returnOrder) => dbContext.ReturnOrders.Add(returnOrder);
 }

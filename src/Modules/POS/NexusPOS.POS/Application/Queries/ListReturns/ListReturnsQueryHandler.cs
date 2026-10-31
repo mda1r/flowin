@@ -13,8 +13,13 @@ internal sealed class ListReturnsQueryHandler(IReturnOrderRepository returnOrder
         ListReturnsQuery request,
         CancellationToken cancellationToken)
     {
+        if (request.DateFrom > request.DateTo)
+        {
+            return Error.Validation("Returns.InvalidDateRange", "The start of the date range must be before its end.");
+        }
+
         IReadOnlyList<ReturnOrderEntity> returns = await returnOrderRepository
-            .FindByBranchAsync(request.BranchId, cancellationToken);
+            .FindByBranchAsync(request.BranchId, request.DateFrom, request.DateTo, cancellationToken);
 
         IReadOnlyList<ReturnOrderResponse> responses = returns
             .Select(r => new ReturnOrderResponse(
