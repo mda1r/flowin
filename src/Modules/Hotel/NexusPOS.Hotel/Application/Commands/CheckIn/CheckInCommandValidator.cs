@@ -14,6 +14,6 @@ public sealed class CheckInCommandValidator : AbstractValidator<CheckInCommand>
         RuleFor(x => x.GuestPhone).NotEmpty().MaximumLength(64);
         RuleFor(x => x.RatePerNight).GreaterThan(0);
         RuleFor(x => x.CheckOut).GreaterThan(x => x.CheckIn)
-            .WithMessage("Check-out must be after check-in.");
+            .WithMessage("تاريخ المغادرة يجب أن يكون بعد الوصول");
     }
 }

@@ -34,6 +34,8 @@ public sealed class ValidationBehavior<TRequest, TResponse>
         var failures = validationResults
             .SelectMany(r => r.Errors)
             .Where(f => f is not null)
+            // Two validators can flag the same field with the same text; send it once.
+            .DistinctBy(f => (f.PropertyName, f.ErrorMessage))
             .ToList();
 
         if (failures.Count == 0)

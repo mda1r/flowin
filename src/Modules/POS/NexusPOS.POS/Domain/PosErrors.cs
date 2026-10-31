@@ -5,40 +5,40 @@ namespace NexusPOS.POS.Domain;
 public static class PosErrors
 {
     public static readonly Error OrderNotFound =
-        Error.NotFound("POS.OrderNotFound", "Order was not found.");
+        Error.NotFound("POS.OrderNotFound", "الطلب غير موجود");
 
     public static readonly Error OrderNotOpen =
-        Error.Conflict("POS.OrderNotOpen", "Order is not in an open state.");
+        Error.Conflict("POS.OrderNotOpen", "الطلب غير مفتوح");
 
     public static readonly Error OrderLineNotFound =
-        Error.NotFound("POS.OrderLineNotFound", "Order line was not found.");
+        Error.NotFound("POS.OrderLineNotFound", "البند غير موجود في الطلب");
 
     public static readonly Error InvalidQuantity =
-        Error.Validation("POS.InvalidQuantity", "Quantity must be greater than zero.");
+        Error.Validation("POS.InvalidQuantity", "الكمية يجب أن تكون أكبر من صفر");
 
     public static readonly Error InvalidDiscountValue =
-        Error.Validation("POS.InvalidDiscountValue", "Discount value must not be negative.");
+        Error.Validation("POS.InvalidDiscountValue", "قيمة الخصم لا يمكن أن تكون سالبة");
 
     public static readonly Error DiscountPercentageExceedsHundred =
-        Error.Validation("POS.DiscountPercentageExceedsHundred", "Discount percentage cannot exceed 100%.");
+        Error.Validation("POS.DiscountPercentageExceedsHundred", "نسبة الخصم لا يمكن أن تتجاوز 100%");
 
     public static readonly Error InsufficientPayment =
-        Error.Validation("POS.InsufficientPayment", "Payment amount is less than the order total.");
+        Error.Validation("POS.InsufficientPayment", "المبلغ المدفوع أقل من إجمالي الطلب");
 
     public static readonly Error EmptyOrder =
-        Error.Validation("POS.EmptyOrder", "Cannot complete an order with no line items.");
+        Error.Validation("POS.EmptyOrder", "لا يمكن إتمام طلب فارغ");
 
     public static readonly Error DuplicateVariant =
-        Error.Conflict("POS.DuplicateVariant", "This variant is already on the order.");
+        Error.Conflict("POS.DuplicateVariant", "هذا الصنف مضاف للطلب مسبقاً");
 
     public static readonly Error ShiftNotFound =
-        Error.NotFound("POS.ShiftNotFound", "Shift was not found.");
+        Error.NotFound("POS.ShiftNotFound", "الوردية غير موجودة");
 
     public static readonly Error ShiftNotOpen =
-        Error.Conflict("POS.ShiftNotOpen", "Shift is not in an open state.");
+        Error.Conflict("POS.ShiftNotOpen", "الوردية غير مفتوحة");
 
     public static readonly Error ShiftAlreadyOpen =
-        Error.Conflict("POS.ShiftAlreadyOpen", "You already have an open shift.");
+        Error.Conflict("POS.ShiftAlreadyOpen", "لديك وردية مفتوحة مسبقاً");
 
     public static readonly Error LoyaltyRequiresCustomer =
         Error.Validation("POS.LoyaltyRequiresCustomer", "اختر العميل أولاً لاستبدال النقاط.");

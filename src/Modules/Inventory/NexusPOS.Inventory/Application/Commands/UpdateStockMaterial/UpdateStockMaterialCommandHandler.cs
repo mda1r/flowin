@@ -22,7 +22,7 @@ internal sealed class UpdateStockMaterialCommandHandler(InventoryDbContext db, I
 
         if (material is null)
         {
-            return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
+            return Error.NotFound("Inventory.MaterialNotFound", "المادة غير موجودة");
         }
 
         string newCode = request.Code.Trim().ToUpperInvariant();
@@ -31,7 +31,7 @@ internal sealed class UpdateStockMaterialCommandHandler(InventoryDbContext db, I
 
         if (codeConflict)
         {
-            return Error.Conflict("Inventory.MaterialCodeExists", "A stock material with this code already exists.");
+            return Error.Conflict("Inventory.MaterialCodeExists", "يوجد مادة أخرى بنفس الكود");
         }
 
         decimal quantityBefore = material.CurrentQuantityInStorageUnits;

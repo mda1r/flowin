@@ -8,6 +8,7 @@ using NexusPOS.POS.Application.Common;
 using NexusPOS.POS.Application.Queries.GetActivityLogs;
 using NexusPOS.POS.Presentation.Requests;
 using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 using System.Security.Claims;
 
 namespace NexusPOS.POS.Presentation;
@@ -57,7 +58,7 @@ public sealed class ActivityLogsController(ISender mediator) : ControllerBase
 
         return result.Match(
             log => Created(string.Empty, log),
-            errors => Problem(title: errors[0].Code, detail: errors[0].Description));
+            this.ToProblem);
     }
 
     /// <summary>List activity logs for the authenticated tenant (schema-isolated).</summary>
@@ -74,6 +75,6 @@ public sealed class ActivityLogsController(ISender mediator) : ControllerBase
         GetActivityLogsQuery query = new(branchId, category, from, to, Paging.Size(pageSize, 500));
         ErrorOr<IReadOnlyList<ActivityLogResponse>> result = await mediator.Send(query, cancellationToken);
 
-        return result.Match(Ok, errors => Problem(title: errors[0].Code, detail: errors[0].Description));
+        return result.Match(Ok, this.ToProblem);
     }
 }

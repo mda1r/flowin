@@ -36,7 +36,7 @@ public sealed class ReturnOrder : AggregateRoot<ReturnOrderId>
 
         if (lines.Count == 0)
         {
-            return Error.Validation("ReturnOrder.NoLines", "At least one line is required for a return.");
+            return Error.Validation("ReturnOrder.NoLines", "اختر صنفاً واحداً على الأقل للإرجاع");
         }
 
         // UnitPrice is stored pre-tax; multiply by (1 + taxRate) to refund the tax-inclusive amount

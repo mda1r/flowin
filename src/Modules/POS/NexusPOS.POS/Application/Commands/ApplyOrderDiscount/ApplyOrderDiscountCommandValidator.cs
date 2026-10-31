@@ -13,6 +13,6 @@ internal sealed class ApplyOrderDiscountCommandValidator : AbstractValidator<App
         RuleFor(x => x.DiscountValue)
             .LessThanOrEqualTo(100)
             .When(x => x.DiscountType == DiscountType.Percentage)
-            .WithMessage("Percentage discount cannot exceed 100%.");
+            .WithMessage("نسبة الخصم لا يمكن أن تتجاوز 100%");
     }
 }

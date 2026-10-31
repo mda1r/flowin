@@ -5,17 +5,17 @@ namespace NexusPOS.Finance.Domain;
 public static class FinanceErrors
 {
     public static readonly Error ExpenseNotFound =
-        Error.NotFound("Expense.NotFound", "Expense not found.");
+        Error.NotFound("Expense.NotFound", "المصروف غير موجود");
 
     public static readonly Error ExpenseAlreadyApproved =
-        Error.Conflict("Expense.AlreadyApproved", "Expense has already been approved.");
+        Error.Conflict("Expense.AlreadyApproved", "تم اعتماد المصروف مسبقاً");
 
     public static readonly Error ExpenseAlreadyVoided =
-        Error.Conflict("Expense.AlreadyVoided", "Expense has already been voided.");
+        Error.Conflict("Expense.AlreadyVoided", "تم إلغاء المصروف مسبقاً");
 
     public static readonly Error ExpenseNotPending =
-        Error.Conflict("Expense.NotPending", "Only pending expenses can be modified.");
+        Error.Conflict("Expense.NotPending", "لا يمكن تعديل المصروف إلا وهو بانتظار الاعتماد");
 
     public static readonly Error InvalidAmount =
-        Error.Validation("Expense.InvalidAmount", "Expense amount must be greater than zero.");
+        Error.Validation("Expense.InvalidAmount", "مبلغ المصروف يجب أن يكون أكبر من صفر");
 }

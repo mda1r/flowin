@@ -20,7 +20,7 @@ internal sealed class DeleteExpenseInvoiceCommandHandler(TaxConfigDbContext db)
 
         if (invoice is null)
         {
-            return Error.NotFound("TaxExpenseInvoice.NotFound", "Expense invoice not found.");
+            return Error.NotFound("TaxExpenseInvoice.NotFound", "فاتورة المصروف غير موجودة");
         }
 
         db.TaxExpenseInvoices.Remove(invoice);

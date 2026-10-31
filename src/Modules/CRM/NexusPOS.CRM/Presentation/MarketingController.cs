@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.CRM.Application.Marketing;
 using NexusPOS.CRM.Domain.Marketing;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.CRM.Presentation;
 
@@ -67,18 +68,11 @@ public sealed class MarketingController(ISender mediator) : ControllerBase
         return (await mediator.Send(command, ct)).Match(Ok, Problem);
     }
 
-    private IActionResult Problem(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Failure => StatusCodes.Status502BadGateway,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    // The WhatsApp provider failing is an upstream error, not ours; everything else uses the shared mapping.
+    private IActionResult Problem(List<Error> errors) =>
+        errors is [{ Type: ErrorType.Failure } first, ..]
+            ? Problem(title: first.Code, detail: first.Description, statusCode: StatusCodes.Status502BadGateway)
+            : this.ToProblem(errors);
 }
 
 public sealed record UploadMediaRequest(string ContentType, string Base64);

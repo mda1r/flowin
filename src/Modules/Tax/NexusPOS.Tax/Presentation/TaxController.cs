@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using NexusPOS.SharedKernel.Application;
 using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Infrastructure.Persistence;
+using NexusPOS.SharedKernel.Presentation;
 using NexusPOS.Tax.Application.Commands.CloseTaxPeriod;
 using NexusPOS.Tax.Application.Commands.CreateTaxPeriod;
 using NexusPOS.Tax.Application.Commands.DeleteExpenseInvoice;
@@ -213,19 +214,7 @@ public sealed class TaxController(ISender mediator, ITenantContext tenantContext
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────

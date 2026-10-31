@@ -12,6 +12,7 @@ using NexusPOS.Inventory.Application.Queries.GetInventoryAlerts;
 using NexusPOS.Inventory.Application.Queries.GetStockItem;
 using NexusPOS.Inventory.Application.Queries.ListBranchStock;
 using NexusPOS.Inventory.Presentation.Requests;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Inventory.Presentation;
 
@@ -132,28 +133,5 @@ public sealed class StockController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

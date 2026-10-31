@@ -10,6 +10,7 @@ using NexusPOS.Purchasing.Application.Common;
 using NexusPOS.Purchasing.Application.Queries.GetSupplier;
 using NexusPOS.Purchasing.Application.Queries.ListSuppliers;
 using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Purchasing.Presentation;
 
@@ -86,18 +87,7 @@ public sealed class SuppliersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record CreateSupplierRequest(

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NexusPOS.SharedKernel.Presentation;
 using NexusPOS.Zatca.Application.Commands.SaveZatcaSettings;
 using NexusPOS.Zatca.Application.Common;
 using NexusPOS.Zatca.Application.Queries.GetZatcaInvoice;
@@ -99,29 +100,5 @@ public sealed class ZatcaController(ISender mediator) : ControllerBase
         return File(xmlBytes, "application/xml", $"invoice-{invoice.InvoiceNumber}.xml");
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails pd = new();
-            foreach (Error error in errors)
-            {
-                pd.Errors[error.Code] = [error.Description];
-            }
-
-            return ValidationProblem(pd);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }

@@ -27,7 +27,7 @@ internal sealed class RefreshTaxLedgerCommandHandler(
 
         if (period is null)
         {
-            return Error.NotFound("TaxPeriod.NotFound", "Tax period not found.");
+            return Error.NotFound("TaxPeriod.NotFound", "الفترة الضريبية غير موجودة");
         }
 
         string schemaName = $"tenant_{request.TenantId:N}";

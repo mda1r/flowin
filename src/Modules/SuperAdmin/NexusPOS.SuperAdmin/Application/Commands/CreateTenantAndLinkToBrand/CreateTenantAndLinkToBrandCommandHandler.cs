@@ -28,7 +28,7 @@ internal sealed class CreateTenantAndLinkToBrandCommandHandler(
 
         if (!brandExists)
         {
-            return Error.NotFound("Brand.NotFound", "Brand not found");
+            return Error.NotFound("Brand.NotFound", "العلامة التجارية غير موجودة");
         }
 
         string subdomain = request.Subdomain.ToLowerInvariant();
@@ -37,7 +37,7 @@ internal sealed class CreateTenantAndLinkToBrandCommandHandler(
 
         if (subdomainTaken)
         {
-            return Error.Conflict("Tenant.SubdomainTaken", $"Subdomain '{request.Subdomain}' is already in use");
+            return Error.Conflict("Tenant.SubdomainTaken", $"النطاق الفرعي '{request.Subdomain}' مستخدم مسبقاً");
         }
 
         string adminEmail = request.AdminEmail.ToLowerInvariant();
@@ -46,12 +46,12 @@ internal sealed class CreateTenantAndLinkToBrandCommandHandler(
 
         if (emailTaken)
         {
-            return Error.Conflict("Tenant.EmailTaken", $"Email '{request.AdminEmail}' is already in use");
+            return Error.Conflict("Tenant.EmailTaken", $"البريد '{request.AdminEmail}' مستخدم مسبقاً");
         }
 
         if (!Enum.TryParse<BusinessType>(request.BusinessType, out BusinessType businessType))
         {
-            return Error.Validation("Tenant.InvalidBusinessType", "Invalid business type");
+            return Error.Validation("Tenant.InvalidBusinessType", "نوع النشاط غير صالح");
         }
 
         Tenant tenant = Tenant.Create(

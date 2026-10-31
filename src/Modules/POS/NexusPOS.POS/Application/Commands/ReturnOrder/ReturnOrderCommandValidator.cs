@@ -8,11 +8,11 @@ internal sealed class ReturnOrderCommandValidator : AbstractValidator<ReturnOrde
     {
         RuleFor(x => x.OriginalOrderId).NotEmpty();
         RuleFor(x => x.BranchId).NotEmpty();
-        RuleFor(x => x.Lines).NotEmpty().WithMessage("At least one line must be selected for return.");
+        RuleFor(x => x.Lines).NotEmpty().WithMessage("اختر صنفاً واحداً على الأقل للإرجاع");
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(l => l.LineId).NotEmpty();
-            line.RuleFor(l => l.Quantity).GreaterThan(0).WithMessage("Return quantity must be greater than zero.");
+            line.RuleFor(l => l.Quantity).GreaterThan(0).WithMessage("كمية الإرجاع يجب أن تكون أكبر من صفر");
         });
     }
 }

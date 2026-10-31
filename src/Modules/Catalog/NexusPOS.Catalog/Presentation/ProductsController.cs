@@ -12,6 +12,7 @@ using NexusPOS.Catalog.Application.Common;
 using NexusPOS.Catalog.Application.Queries.GetProductById;
 using NexusPOS.Catalog.Application.Queries.ListProducts;
 using NexusPOS.Catalog.Presentation.Requests;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Catalog.Presentation;
 
@@ -144,29 +145,5 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

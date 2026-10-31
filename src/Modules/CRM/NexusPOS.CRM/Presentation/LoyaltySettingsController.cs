@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using NexusPOS.CRM.Application.Commands.UpdateLoyaltySettings;
 using NexusPOS.CRM.Application.Common;
 using NexusPOS.CRM.Application.Queries.GetLoyaltySettings;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.CRM.Presentation;
 
@@ -37,14 +38,7 @@ public sealed class LoyaltySettingsController(ISender mediator) : ControllerBase
         return result.Match(Ok, Problem);
     }
 
-    private IActionResult Problem(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type == ErrorType.Validation
-            ? StatusCodes.Status422UnprocessableEntity
-            : StatusCodes.Status500InternalServerError;
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult Problem(List<Error> errors) => this.ToProblem(errors);
 }
 
 public sealed record UpdateLoyaltySettingsRequest(

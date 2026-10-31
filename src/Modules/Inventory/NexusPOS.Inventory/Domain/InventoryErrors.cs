@@ -5,26 +5,26 @@ namespace NexusPOS.Inventory.Domain;
 public static class InventoryErrors
 {
     public static readonly Error StockItemNotFound =
-        Error.NotFound("Inventory.StockItemNotFound", "Stock item was not found.");
+        Error.NotFound("Inventory.StockItemNotFound", "الصنف غير موجود في المخزون");
 
     public static readonly Error InsufficientStock =
-        Error.Validation("Inventory.InsufficientStock", "Insufficient stock for this operation.");
+        Error.Validation("Inventory.InsufficientStock", "الكمية في المخزون لا تكفي");
 
     public static readonly Error InvalidQuantity =
-        Error.Validation("Inventory.InvalidQuantity", "Quantity must be greater than zero.");
+        Error.Validation("Inventory.InvalidQuantity", "الكمية يجب أن تكون أكبر من صفر");
 
     public static readonly Error NegativeReorderPoint =
-        Error.Validation("Inventory.NegativeReorderPoint", "Reorder point must not be negative.");
+        Error.Validation("Inventory.NegativeReorderPoint", "حد إعادة الطلب لا يمكن أن يكون سالباً");
 
     public static readonly Error StockCountNotFound =
-        Error.NotFound("Inventory.StockCountNotFound", "Stock count session was not found.");
+        Error.NotFound("Inventory.StockCountNotFound", "الجرد غير موجود");
 
     public static readonly Error StockCountItemNotFound =
-        Error.NotFound("Inventory.StockCountItemNotFound", "Stock count item was not found.");
+        Error.NotFound("Inventory.StockCountItemNotFound", "الصنف غير موجود في الجرد");
 
     public static readonly Error StockCountNotInProgress =
-        Error.Validation("Inventory.StockCountNotInProgress", "Stock count session is not in progress.");
+        Error.Validation("Inventory.StockCountNotInProgress", "الجرد غير جارٍ");
 
     public static readonly Error StockCountAlreadyCompleted =
-        Error.Validation("Inventory.StockCountAlreadyCompleted", "Stock count session is already completed.");
+        Error.Validation("Inventory.StockCountAlreadyCompleted", "تم إنهاء الجرد مسبقاً");
 }

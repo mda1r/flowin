@@ -10,6 +10,7 @@ using NexusPOS.Organization.Application.Common;
 using NexusPOS.Organization.Application.Queries.GetBranchById;
 using NexusPOS.Organization.Application.Queries.ListBranches;
 using NexusPOS.Organization.Presentation.Requests;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Organization.Presentation;
 
@@ -125,30 +126,5 @@ public sealed class BranchesController(ISender mediator) : ControllerBase
         return result.Match(_ => NoContent(), MapErrorsToResult);
     }
 
-    private IActionResult MapErrorsToResult(List<Error> errors)
-    {
-        if (errors.TrueForAll(e => e.Type == ErrorType.Validation))
-        {
-            ValidationProblemDetails problemDetails = new();
-            foreach (Error error in errors)
-            {
-                problemDetails.Errors[error.Code] = [error.Description];
-            }
-
-            return ValidationProblem(problemDetails);
-        }
-
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
-            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }

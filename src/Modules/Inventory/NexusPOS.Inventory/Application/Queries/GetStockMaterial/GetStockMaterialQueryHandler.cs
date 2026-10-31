@@ -20,7 +20,7 @@ internal sealed class GetStockMaterialQueryHandler(InventoryDbContext db)
 
         if (material is null)
         {
-            return Error.NotFound("Inventory.MaterialNotFound", "Stock material was not found.");
+            return Error.NotFound("Inventory.MaterialNotFound", "المادة غير موجودة");
         }
 
         string? categoryName = null;

@@ -7,12 +7,12 @@ internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
     public LoginCommandValidator()
     {
         RuleFor(x => x.Email)
-            .NotEmpty().WithMessage("Email is required.")
-            .EmailAddress().WithMessage("A valid email address is required.")
+            .NotEmpty().WithMessage("البريد الإلكتروني مطلوب")
+            .EmailAddress().WithMessage("البريد الإلكتروني غير صالح")
             .MaximumLength(256);
 
         RuleFor(x => x.Password)
-            .NotEmpty().WithMessage("Password is required.")
+            .NotEmpty().WithMessage("كلمة المرور مطلوبة")
             .MaximumLength(128);
     }
 }

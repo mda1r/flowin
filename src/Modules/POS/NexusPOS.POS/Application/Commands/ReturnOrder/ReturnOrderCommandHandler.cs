@@ -32,7 +32,7 @@ internal sealed class ReturnOrderCommandHandler(
 
         if (order.Status != OrderStatus.Completed)
         {
-            return Error.Validation("ReturnOrder.OrderNotCompleted", "Only completed orders can be returned.");
+            return Error.Validation("ReturnOrder.OrderNotCompleted", "لا يمكن إرجاع إلا الطلبات المكتملة");
         }
 
         // Aggregate quantities already returned for each line
@@ -61,7 +61,7 @@ internal sealed class ReturnOrderCommandHandler(
             if (lineInput.Quantity > remainingReturnable)
             {
                 return Error.Validation("ReturnOrder.QuantityExceeded",
-                    $"Return quantity for line {lineInput.LineId} exceeds the remaining returnable quantity ({remainingReturnable}).");
+                    $"كمية الإرجاع أكبر من المتبقي القابل للإرجاع ({remainingReturnable})");
             }
 
             returnLines.Add((

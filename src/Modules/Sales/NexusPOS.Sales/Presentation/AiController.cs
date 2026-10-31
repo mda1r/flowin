@@ -9,6 +9,7 @@ using NexusPOS.Sales.Application.Queries.GetAiInsights;
 // using NexusPOS.Sales.Application.Services; // moved to SharedKernel
 using NexusPOS.Sales.Presentation.Requests;
 using NexusPOS.SharedKernel.Application.Services;
+using NexusPOS.SharedKernel.Presentation;
 using System.Security.Claims;
 
 namespace NexusPOS.Sales.Presentation;
@@ -97,15 +98,5 @@ public sealed class AiController(ISender mediator, ITenantSubscriptionChecker su
         return result.Match(Ok, MapErrors);
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        Error first = errors[0];
-        int statusCode = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }

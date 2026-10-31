@@ -11,6 +11,7 @@ using NexusPOS.Hotel.Application.Queries.GetRentalContract;
 using NexusPOS.Hotel.Application.Queries.ListRentalContracts;
 using NexusPOS.Hotel.Presentation.Requests;
 using NexusPOS.SharedKernel.Application;
+using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.Hotel.Presentation;
 
@@ -119,16 +120,5 @@ public sealed class RentalContractsController(ISender mediator) : ControllerBase
         return claim is not null && Guid.TryParse(claim, out var id) ? id : Guid.Empty;
     }
 
-    private IActionResult MapErrors(List<Error> errors)
-    {
-        var first = errors[0];
-        int status = first.Type switch
-        {
-            ErrorType.NotFound => StatusCodes.Status404NotFound,
-            ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
-            ErrorType.Conflict => StatusCodes.Status409Conflict,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-        return Problem(title: first.Code, detail: first.Description, statusCode: status);
-    }
+    private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }

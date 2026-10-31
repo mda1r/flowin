@@ -5,23 +5,23 @@ namespace NexusPOS.Organization.Domain;
 public static class OrganizationErrors
 {
     public static readonly Error TenantNotFound =
-        Error.NotFound("Organization.TenantNotFound", "Tenant was not found.");
+        Error.NotFound("Organization.TenantNotFound", "المنشأة غير موجودة");
 
     public static readonly Error SubdomainAlreadyExists =
-        Error.Conflict("Organization.SubdomainAlreadyExists", "A tenant with this subdomain already exists.");
+        Error.Conflict("Organization.SubdomainAlreadyExists", "النطاق الفرعي مستخدم مسبقاً");
 
     public static readonly Error TenantSuspended =
-        Error.Forbidden("Organization.TenantSuspended", "This tenant account has been suspended.");
+        Error.Forbidden("Organization.TenantSuspended", "حساب المنشأة موقوف");
 
     public static readonly Error BranchNotFound =
-        Error.NotFound("Organization.BranchNotFound", "Branch was not found.");
+        Error.NotFound("Organization.BranchNotFound", "الفرع غير موجود");
 
     public static readonly Error BranchAlreadyExists =
-        Error.Conflict("Organization.BranchAlreadyExists", "A branch with this name already exists for the tenant.");
+        Error.Conflict("Organization.BranchAlreadyExists", "يوجد فرع بنفس الاسم");
 
     public static readonly Error BranchInactive =
-        Error.Forbidden("Organization.BranchInactive", "This branch is currently inactive.");
+        Error.Forbidden("Organization.BranchInactive", "هذا الفرع غير نشط");
 
     public static readonly Error InvalidSubdomain =
-        Error.Validation("Organization.InvalidSubdomain", "Subdomain must be 3-63 characters, lowercase alphanumeric or hyphens, and cannot start or end with a hyphen.");
+        Error.Validation("Organization.InvalidSubdomain", "النطاق الفرعي من 3 إلى 63 حرفاً: حروف إنجليزية صغيرة وأرقام وشرطات، ولا يبدأ أو ينتهي بشرطة");
 }

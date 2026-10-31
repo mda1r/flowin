@@ -13,6 +13,6 @@ internal sealed class UpdateBrandCommandValidator : AbstractValidator<UpdateBran
         string[] validStatuses = [BrandStatus.Active, BrandStatus.Suspended, BrandStatus.Archived];
         RuleFor(x => x.Status)
             .Must(s => s is null || validStatuses.Contains(s))
-            .WithMessage("Status must be one of: active, suspended, archived");
+            .WithMessage("الحالة غير صالحة");
     }
 }
