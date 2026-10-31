@@ -268,6 +268,9 @@ export interface OrderResponse {
   createdAt: string
   completedAt?: string
   lines: OrderLineResponse[]
+  // Points spent on this sale and their pre-tax value; already part of discountAmount.
+  loyaltyPointsRedeemed?: number
+  loyaltyDiscountAmount?: number
   source?: 'Pos' | 'Gaming' | 'Restaurant'
 }
 
@@ -283,6 +286,7 @@ export interface ReturnOrderLineResponse {
   productName: string
   variantName: string
   quantity: number
+  // Pre-tax, like order lines; the refund adds VAT on top.
   unitPrice: number
   lineTotal: number
   reason: ReturnReason
@@ -294,6 +298,7 @@ export interface ReturnOrderResponse {
   tenantId: string
   branchId: string
   currency: string
+  // VAT included.
   refundAmount: number
   refundMethod: RefundMethod
   createdAt: string

@@ -17,6 +17,7 @@ import type { OrderLineResponse, OrderResponse, RefundMethod, ReturnOrderRespons
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { apiErrorMessage } from '@/lib/apiError'
 import { newClientReference } from '@/lib/offlineSales'
+import { CreditNoteModal } from '@/components/pos/CreditNoteModal'
 
 type DateRange = 'today' | 'week' | 'month' | 'year'
 
@@ -40,10 +41,13 @@ function ReturnModal({
   order,
   existingReturns,
   onClose,
+  onReturned,
 }: {
   order: OrderResponse
   existingReturns: ReturnOrderResponse[]
   onClose: () => void
+  /** The return went through; the page then shows its credit note. */
+  onReturned: (ret: ReturnOrderResponse) => void
 }) {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
@@ -105,11 +109,11 @@ function ReturnModal({
         clientReference,
       })
     },
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
       qc.invalidateQueries({ queryKey: ['orders', branchId] })
       qc.invalidateQueries({ queryKey: ['returns', branchId] })
       toast.success(t.sales.returnSuccess)
-      onClose()
+      onReturned(data)
     },
     onError: (err) => {
       submitting.current = false
@@ -379,6 +383,7 @@ function ReturnModal({
 export function SalesPage() {
   const [range, setRange] = useState<DateRange>('today')
   const [returnOrder, setReturnOrder] = useState<OrderResponse | null>(null)
+  const [creditNote, setCreditNote] = useState<{ ret: ReturnOrderResponse; order: OrderResponse } | null>(null)
   const { branchId, user } = useAuthStore()
   const { t } = useI18n()
   // Refunds are for owners and managers; the server enforces the same rule.
@@ -681,8 +686,14 @@ export function SalesPage() {
           order={returnOrder}
           existingReturns={returnsList.filter((r) => r.originalOrderId === returnOrder.id)}
           onClose={() => setReturnOrder(null)}
+          onReturned={(ret) => {
+            setCreditNote({ ret, order: returnOrder })
+            setReturnOrder(null)
+          }}
         />
       )}
+
+      {creditNote && <CreditNoteModal ret={creditNote.ret} order={creditNote.order} onClose={() => setCreditNote(null)} />}
     </div>
   )
 }
