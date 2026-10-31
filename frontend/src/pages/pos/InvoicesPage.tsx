@@ -121,7 +121,7 @@ export function InvoicesPage() {
   // when it is not among the sales loaded for this period.
   const searchedNo = /^#?\d+$/.test(search.trim()) ? Number(search.trim().replace(/^#/, '')) : null
   const loadedMatch = searchedNo != null ? ordersRaw.find((o) => o.number === searchedNo) : undefined
-  const { data: lookedUp, isFetching: lookingUp } = useQuery({
+  const { data: lookedUp, isFetching: lookingUp, isError: lookupFailed } = useQuery({
     queryKey: ['invoice-by-number', branchId, searchedNo],
     queryFn: async () => {
       const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', number: searchedNo!, pageSize: 1 })
@@ -266,9 +266,12 @@ export function InvoicesPage() {
             <p className="text-muted">
               {lookingUp ? 'جارٍ البحث في كل التواريخ…' : search || method !== 'all' || status !== 'all' ? 'لا توجد فواتير تطابق البحث' : 'لا توجد فواتير في هذه الفترة'}
             </p>
-            {searchedNo != null && !lookingUp && !elsewhere && !loadedMatch && (
+            {/* "Not found" only once the all-dates lookup actually answered; a failed lookup proves nothing. */}
+            {searchedNo != null && !lookingUp && !loadedMatch && !elsewhere && (lookupFailed ? (
+              <p className="text-xs text-danger">تعذّر البحث في التواريخ الأخرى، حاول مرة أخرى</p>
+            ) : lookedUp !== undefined && (
               <p className="text-xs text-muted">لا توجد فاتورة بهذا الرقم في هذا الفرع</p>
-            )}
+            ))}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
