@@ -30,7 +30,7 @@ export const salesApi = {
   },
 
   getSummary: (branchId: string, dateFrom: string, dateTo: string) =>
-    apiClient.get<SalesSummaryResponse>(`/api/v1/branches/${branchId}/sales/summary/range`, {
+    apiClient.get<SalesSummaryResponse[]>(`/api/v1/branches/${branchId}/sales/summary/range`, {
       params: { dateFrom, dateTo },
     }),
 

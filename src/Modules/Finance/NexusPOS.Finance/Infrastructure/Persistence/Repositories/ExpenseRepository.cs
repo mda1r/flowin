@@ -52,6 +52,17 @@ internal sealed class ExpenseRepository(FinanceDbContext dbContext) : IExpenseRe
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ExpenseTotal>> SumByCategoryAndStatusAsync(
+        Guid branchId,
+        DateOnly dateFrom,
+        DateOnly dateTo,
+        CancellationToken cancellationToken = default)
+        => await dbContext.Expenses
+            .Where(e => e.BranchId == branchId && e.ExpenseDate >= dateFrom && e.ExpenseDate <= dateTo)
+            .GroupBy(e => new { e.Category, e.Status })
+            .Select(g => new ExpenseTotal(g.Key.Category, g.Key.Status, g.Count(), g.Sum(e => e.Amount)))
+            .ToListAsync(cancellationToken);
+
     public void Add(Expense expense) => dbContext.Expenses.Add(expense);
 
     public void Update(Expense expense) => dbContext.Expenses.Update(expense);

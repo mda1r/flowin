@@ -16,6 +16,12 @@ public static class FinanceErrors
     public static readonly Error ExpenseNotPending =
         Error.Conflict("Expense.NotPending", "Only pending expenses can be modified.");
 
+    public static readonly Error NoTenant =
+        Error.Unauthorized("Finance.NoTenant", "Tenant context is required.");
+
+    public static readonly Error NoUser =
+        Error.Unauthorized("Finance.NoUser", "A signed-in user is required.");
+
     public static readonly Error InvalidAmount =
         Error.Validation("Expense.InvalidAmount", "Expense amount must be greater than zero.");
 }

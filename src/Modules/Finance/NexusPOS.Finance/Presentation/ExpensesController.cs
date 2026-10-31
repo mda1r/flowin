@@ -8,6 +8,7 @@ using NexusPOS.Finance.Application.Commands.CreateExpense;
 using NexusPOS.Finance.Application.Commands.VoidExpense;
 using NexusPOS.Finance.Application.Common;
 using NexusPOS.Finance.Application.Queries.GetExpense;
+using NexusPOS.Finance.Application.Queries.GetExpenseSummary;
 using NexusPOS.Finance.Application.Queries.ListExpenses;
 using NexusPOS.Finance.Domain.Enums;
 
@@ -36,6 +37,21 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
+    /// <summary>Totals by status and by category (approved only) for a date range.</summary>
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(ExpenseSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> GetSummary(
+        Guid branchId,
+        [FromQuery] DateOnly dateFrom,
+        [FromQuery] DateOnly dateTo,
+        CancellationToken cancellationToken = default)
+    {
+        GetExpenseSummaryQuery query = new(branchId, dateFrom, dateTo);
+        ErrorOr<ExpenseSummaryResponse> result = await mediator.Send(query, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
     [HttpGet("{expenseId:guid}")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -55,7 +71,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken)
     {
         CreateExpenseCommand command = new(
-            request.TenantId, branchId, request.Category, request.Amount,
+            branchId, request.Category, request.Amount,
             request.Currency, request.Description, request.ExpenseDate, request.Notes);
         ErrorOr<ExpenseResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
@@ -64,21 +80,22 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{expenseId:guid}/approve")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ApproveExpense(
         Guid branchId,
         Guid expenseId,
-        [FromBody] ApproveExpenseRequest request,
         CancellationToken cancellationToken)
     {
-        ApproveExpenseCommand command = new(expenseId, branchId, request.ApprovedBy);
+        ApproveExpenseCommand command = new(expenseId, branchId);
         ErrorOr<ExpenseResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
     [HttpPost("{expenseId:guid}/void")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -101,6 +118,8 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Validation => StatusCodes.Status422UnprocessableEntity,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
             _ => StatusCodes.Status500InternalServerError,
         };
         return Problem(title: first.Code, detail: first.Description, statusCode: statusCode);
@@ -108,14 +127,11 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
 }
 
 public sealed record CreateExpenseRequest(
-    Guid TenantId,
     ExpenseCategory Category,
     decimal Amount,
     string Currency,
     string Description,
     DateOnly ExpenseDate,
     string? Notes = null);
-
-public sealed record ApproveExpenseRequest(Guid ApprovedBy);
 
 public sealed record VoidExpenseRequest(string? Reason = null);

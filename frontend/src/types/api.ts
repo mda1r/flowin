@@ -280,12 +280,15 @@ export interface ReturnOrderResponse {
 
 // ── Sales ────────────────────────────────────────────────────────────────────
 
+// One day of GET sales/summary/range. totalRevenue includes VAT and is reduced by refunds.
 export interface SalesSummaryResponse {
   branchId: string
-  dateFrom: string
-  dateTo: string
+  summaryDate: string
+  currency: string
   totalOrders: number
   totalRevenue: number
+  totalDiscounts: number
+  totalTax: number
   averageOrderValue: number
 }
 
@@ -358,13 +361,15 @@ export interface CustomerResponse {
 // ── Finance ──────────────────────────────────────────────────────────────────
 
 export type ExpenseStatus = 'Pending' | 'Approved' | 'Voided'
+// Must match NexusPOS.Finance.Domain.Enums.ExpenseCategory (sent as strings).
 export type ExpenseCategory =
   | 'Rent'
   | 'Utilities'
-  | 'Salaries'
+  | 'Wages'
   | 'Supplies'
-  | 'Maintenance'
+  | 'Equipment'
   | 'Marketing'
+  | 'Maintenance'
   | 'Other'
 
 export interface ExpenseResponse {
@@ -377,8 +382,20 @@ export interface ExpenseResponse {
   description: string
   expenseDate: string
   status: ExpenseStatus
+  approvedBy?: string | null
+  voidReason?: string | null
   notes?: string
   createdAt: string
+}
+
+export interface ExpenseSummaryResponse {
+  dateFrom: string
+  dateTo: string
+  approved: { status: ExpenseStatus; count: number; total: number }
+  pending: { status: ExpenseStatus; count: number; total: number }
+  voided: { status: ExpenseStatus; count: number; total: number }
+  byCategory: { category: ExpenseCategory; count: number; total: number }[]
+  groups: { category: ExpenseCategory; status: ExpenseStatus; count: number; total: number }[]
 }
 
 // ── Restaurant ────────────────────────────────────────────────────────────────

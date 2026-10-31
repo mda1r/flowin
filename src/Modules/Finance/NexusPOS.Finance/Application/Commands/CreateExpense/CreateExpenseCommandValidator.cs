@@ -6,11 +6,11 @@ internal sealed class CreateExpenseCommandValidator : AbstractValidator<CreateEx
 {
     public CreateExpenseCommandValidator()
     {
-        RuleFor(x => x.TenantId).NotEmpty();
         RuleFor(x => x.BranchId).NotEmpty();
-        RuleFor(x => x.Amount).GreaterThan(0);
+        RuleFor(x => x.Amount).GreaterThan(0).WithMessage("المبلغ يجب أن يكون أكبر من صفر");
+        RuleFor(x => x.Category).IsInEnum();
         RuleFor(x => x.Currency).NotEmpty().Length(3);
-        RuleFor(x => x.Description).NotEmpty().MaximumLength(512);
+        RuleFor(x => x.Description).NotEmpty().WithMessage("اكتب وصف المصروف").MaximumLength(512);
         RuleFor(x => x.Notes).MaximumLength(1024).When(x => x.Notes is not null);
     }
 }
