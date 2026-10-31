@@ -25,7 +25,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     /// <summary>Register a new user account.</summary>
     [HttpPost("register")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(AuthRateLimiting.RegisterPolicy)]
     [ProducesResponseType(typeof(RegisterResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -44,7 +44,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     /// <summary>Authenticate with email and password to obtain tokens.</summary>
     [HttpPost("login")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(AuthRateLimiting.LoginPolicy)]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -61,7 +61,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     /// <summary>Exchange a refresh token for a new token pair.</summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
+    [EnableRateLimiting(AuthRateLimiting.RefreshPolicy)]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh(
@@ -102,9 +102,11 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         return Ok(new CurrentUserResponse(id, email, firstName ?? string.Empty, lastName ?? string.Empty, role ?? "Staff", tenantId, branchId, businessType));
     }
 
-    /// <summary>Revoke the current session or all sessions for the authenticated user.</summary>
+    /// <summary>Revoke this session (or every session of its user). The refresh token in the body is the
+    /// credential, so this still works after the short-lived access token has expired.</summary>
     [HttpPost("logout")]
-    [Authorize]
+    [AllowAnonymous]
+    [EnableRateLimiting(AuthRateLimiting.RefreshPolicy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Logout(

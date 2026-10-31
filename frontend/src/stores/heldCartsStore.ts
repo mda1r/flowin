@@ -18,6 +18,7 @@ interface HeldCartsState {
   hold: (scope: string, lines: CartLine[], note?: string, discount?: CartDiscount | null) => string
   restore: (id: string) => HeldCart | null
   dismiss: (id: string) => void
+  clear: () => void
 }
 
 // A held cart nobody came back for in a week is dropped the next time something is held.
@@ -47,6 +48,8 @@ export const useHeldCartsStore = create<HeldCartsState>()(
       },
 
       dismiss: (id) => set((s) => ({ carts: s.carts.filter((c) => c.id !== id) })),
+
+      clear: () => set({ carts: [] }),
     }),
     {
       name: 'flowin-held-carts',

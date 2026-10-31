@@ -96,8 +96,14 @@ export const ar: Translations = {
     emailInvalid: 'البريد الإلكتروني غير صالح',
     passwordMin: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
     loginFailed: 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.',
+    cannotSignIn: 'تعذّر تسجيل الدخول',
     serverUnreachable: 'لا يمكن الوصول إلى الخادم',
     serverUnreachableHint: 'تحقق من اتصالك بالإنترنت، أو حاول بعد قليل إذا كان الخادم متوقفاً مؤقتاً',
+    accountLocked: 'الحساب مقفل مؤقتاً، حاول بعد 15 دقيقة',
+    accountInactive: 'تم إيقاف هذا الحساب، تواصل مع المالك',
+    tooManyAttempts: 'محاولات كثيرة، انتظر دقيقة ثم حاول',
+    showPassword: 'إظهار كلمة المرور',
+    hidePassword: 'إخفاء كلمة المرور',
   },
 
   dashboard: {

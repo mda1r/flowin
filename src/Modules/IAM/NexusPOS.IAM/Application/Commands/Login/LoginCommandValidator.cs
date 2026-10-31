@@ -14,5 +14,8 @@ internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Password is required.")
             .MaximumLength(128);
+
+        RuleFor(x => x.DeviceInfo)
+            .MaximumLength(512);
     }
 }
