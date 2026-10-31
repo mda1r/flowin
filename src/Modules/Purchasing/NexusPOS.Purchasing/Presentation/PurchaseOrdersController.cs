@@ -109,7 +109,9 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
+    // Receiving moves stock and cost averages, so it is limited to owners and managers.
     [HttpPost("{purchaseOrderId:guid}/receive")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(PurchaseOrderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -121,6 +123,7 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{purchaseOrderId:guid}/retry-receipt")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(PurchaseOrderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -132,6 +135,7 @@ public sealed class PurchaseOrdersController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{purchaseOrderId:guid}/cancel")]
+    [Authorize(Policy = "OwnerOrManager")]
     [ProducesResponseType(typeof(PurchaseOrderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
