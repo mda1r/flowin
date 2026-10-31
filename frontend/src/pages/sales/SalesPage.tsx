@@ -14,6 +14,7 @@ import { toast } from '@/components/ui/Toast'
 import { useI18n } from '@/i18n'
 import type { OrderLineResponse, OrderResponse, RefundMethod, ReturnOrderResponse, ReturnReason } from '@/types/api'
 import { invoiceNo } from '@/lib/invoiceNumber'
+import { CreditNoteModal } from '@/components/pos/CreditNoteModal'
 
 type DateRange = 'today' | 'week' | 'month' | 'year'
 
@@ -29,10 +30,13 @@ function ReturnModal({
   order,
   existingReturns,
   onClose,
+  onReturned,
 }: {
   order: OrderResponse
   existingReturns: ReturnOrderResponse[]
   onClose: () => void
+  /** The return went through; the page then shows its credit note. */
+  onReturned: (ret: ReturnOrderResponse) => void
 }) {
   const { branchId } = useAuthStore()
   const qc = useQueryClient()
@@ -84,11 +88,11 @@ function ReturnModal({
 
       return ordersApi.returnOrder(branchId!, order.id, { refundMethod, lines, restockItems })
     },
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
       qc.invalidateQueries({ queryKey: ['orders', branchId] })
       qc.invalidateQueries({ queryKey: ['returns', branchId] })
       toast.success(t.sales.returnSuccess)
-      onClose()
+      onReturned(data)
     },
     onError: () => toast.error(t.sales.returnFailed),
   })
@@ -124,7 +128,7 @@ function ReturnModal({
     <Modal
       open={!!order}
       onClose={onClose}
-      title={`${t.sales.returnOrder} — ${order.id.slice(0, 8).toUpperCase()}`}
+      title={`${t.sales.returnOrder} — #${invoiceNo(order)}`}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
@@ -294,6 +298,7 @@ function ReturnModal({
 export function SalesPage() {
   const [range, setRange] = useState<DateRange>('today')
   const [returnOrder, setReturnOrder] = useState<OrderResponse | null>(null)
+  const [creditNote, setCreditNote] = useState<{ ret: ReturnOrderResponse; order: OrderResponse } | null>(null)
   const { branchId } = useAuthStore()
   const { t } = useI18n()
 
@@ -531,8 +536,14 @@ export function SalesPage() {
           order={returnOrder}
           existingReturns={returnsList.filter((r) => r.originalOrderId === returnOrder.id)}
           onClose={() => setReturnOrder(null)}
+          onReturned={(ret) => {
+            setCreditNote({ ret, order: returnOrder })
+            setReturnOrder(null)
+          }}
         />
       )}
+
+      {creditNote && <CreditNoteModal ret={creditNote.ret} order={creditNote.order} onClose={() => setCreditNote(null)} />}
     </div>
   )
 }

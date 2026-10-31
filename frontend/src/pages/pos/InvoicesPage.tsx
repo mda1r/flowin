@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Banknote, CreditCard, Download, Receipt, RotateCcw, Search, Shuffle } from 'lucide-react'
+import { Banknote, CalendarSearch, CreditCard, Download, Receipt, RotateCcw, Search, Shuffle } from 'lucide-react'
 import { ordersApi } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -8,14 +8,14 @@ import { useI18n } from '@/i18n'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { InvoiceReceiptModal } from '@/components/pos/InvoiceReceiptModal'
 import { invoiceNo, matchesInvoiceNo } from '@/lib/invoiceNumber'
-import { paymentLabel } from '@/lib/orderReceipt'
+import { paymentLabel, refundState, type RefundState } from '@/lib/orderReceipt'
 import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { downloadCsv } from '@/lib/csv'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 
 type Period = 'today' | 'yesterday' | '7d' | '30d' | 'custom'
 type MethodFilter = 'all' | 'Cash' | 'Card' | 'Split'
-type StatusFilter = 'all' | 'completed' | 'refunded'
+type StatusFilter = 'all' | 'completed' | 'partial' | 'refunded'
 
 const PAGE_CAP = 500
 
@@ -76,22 +76,30 @@ export function InvoicesPage() {
     enabled: !!branchId,
   })
 
-  const refunds = useMemo(() => {
-    const map = new Map<string, ReturnOrderResponse>()
-    for (const r of returns) {
-      const prev = map.get(r.originalOrderId)
-      map.set(r.originalOrderId, prev ? { ...prev, refundAmount: prev.refundAmount + r.refundAmount } : r)
-    }
+  const returnsByOrder = useMemo(() => {
+    const map = new Map<string, ReturnOrderResponse[]>()
+    for (const r of returns) map.set(r.originalOrderId, [...(map.get(r.originalOrderId) ?? []), r])
     return map
   }, [returns])
+
+  // Per sale: how much went back, and whether that was all of it or only some lines.
+  const refunds = useMemo(() => {
+    const map = new Map<string, { amount: number; state: RefundState }>()
+    for (const o of ordersRaw) {
+      const rs = returnsByOrder.get(o.id)
+      if (rs) map.set(o.id, { amount: rs.reduce((s, r) => s + r.refundAmount, 0), state: refundState(o, rs) })
+    }
+    return map
+  }, [ordersRaw, returnsByOrder])
 
   const orders = useMemo(() => {
     const q = search.trim().toLowerCase()
     return ordersRaw.filter((o) => {
       if (method !== 'all' && o.paymentMethod !== method) return false
-      const refunded = refunds.has(o.id)
-      if (status === 'completed' && refunded) return false
-      if (status === 'refunded' && !refunded) return false
+      const state = refunds.get(o.id)?.state ?? 'none'
+      if (status === 'completed' && state !== 'none') return false
+      if (status === 'partial' && state !== 'partial') return false
+      if (status === 'refunded' && state !== 'full') return false
       if (!q) return true
       return (
         matchesInvoiceNo(o, q) ||
@@ -105,9 +113,31 @@ export function InvoicesPage() {
     const total = orders.reduce((s, o) => s + o.totalAmount, 0)
     const vat = orders.reduce((s, o) => s + o.taxAmount, 0)
     const refunded = orders.filter((o) => refunds.has(o.id))
-    const refundedAmount = refunded.reduce((s, o) => s + (refunds.get(o.id)?.refundAmount ?? 0), 0)
+    const refundedAmount = refunded.reduce((s, o) => s + (refunds.get(o.id)?.amount ?? 0), 0)
     return { count: orders.length, total, vat, refundedCount: refunded.length, refundedAmount, net: total - refundedAmount, avg: orders.length ? total / orders.length : 0 }
   }, [orders, refunds])
+
+  // A customer back with an older receipt: a typed invoice number is looked up across all dates
+  // when it is not among the sales loaded for this period.
+  const searchedNo = /^#?\d+$/.test(search.trim()) ? Number(search.trim().replace(/^#/, '')) : null
+  const loadedMatch = searchedNo != null ? ordersRaw.find((o) => o.number === searchedNo) : undefined
+  const { data: lookedUp, isFetching: lookingUp } = useQuery({
+    queryKey: ['invoice-by-number', branchId, searchedNo],
+    queryFn: async () => {
+      const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', number: searchedNo!, pageSize: 1 })
+      return (Array.isArray(data) ? data[0] : undefined) ?? null
+    },
+    enabled: !!branchId && searchedNo != null && searchedNo > 0 && !loadedMatch,
+    staleTime: 60_000,
+  })
+  const elsewhere = searchedNo != null && !loadedMatch && lookedUp?.number === searchedNo ? lookedUp : null
+
+  const jumpTo = (o: OrderResponse) => {
+    const day = localYmd(new Date(o.createdAt))
+    setFrom(day)
+    setTo(day)
+    setPeriod('custom')
+  }
 
   const exportCsv = () =>
     downloadCsv(
@@ -121,7 +151,7 @@ export function InvoicesPage() {
         (o.totalAmount - o.taxAmount).toFixed(2),
         o.taxAmount.toFixed(2),
         o.totalAmount.toFixed(2),
-        (refunds.get(o.id)?.refundAmount ?? 0).toFixed(2),
+        (refunds.get(o.id)?.amount ?? 0).toFixed(2),
       ]),
     )
 
@@ -171,16 +201,27 @@ export function InvoicesPage() {
           <select className="input w-auto" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)} aria-label="الحالة">
             <option value="all">كل الحالات</option>
             <option value="completed">مكتملة</option>
+            <option value="partial">مستردة جزئياً</option>
             <option value="refunded">مستردة</option>
           </select>
           <div className="relative ms-auto w-full sm:w-64">
             <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input className="input ps-9" placeholder="رقم الفاتورة أو منتج أو مبلغ" value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t.invoices.search} />
+            <input
+              className="input ps-9"
+              placeholder="رقم الفاتورة أو منتج أو مبلغ"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                const hit = loadedMatch ?? elsewhere
+                if (e.key === 'Enter' && hit) setSelected(hit)
+              }}
+              aria-label={t.invoices.search}
+            />
           </div>
         </div>
 
         {/* summary */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
           <Stat label="عدد الفواتير" value={summary.count.toLocaleString('ar-SA')} />
           <Stat label="إجمالي المبيعات" value={formatCurrency(summary.total)} strong />
           <Stat label="ضريبة القيمة المضافة" value={formatCurrency(summary.vat)} />
@@ -190,9 +231,28 @@ export function InvoicesPage() {
             value={formatCurrency(summary.refundedAmount)}
             tone={summary.refundedAmount > 0 ? 'danger' : undefined}
           />
+          <Stat label="الصافي بعد الاسترداد" value={formatCurrency(summary.net)} strong />
         </div>
         {ordersRaw.length >= PAGE_CAP && (
           <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">يظهر أول {PAGE_CAP.toLocaleString('ar-SA')} فاتورة في هذه الفترة؛ اختر فترة أقصر لرؤية الكل.</p>
+        )}
+
+        {elsewhere && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm">
+            <CalendarSearch className="h-4 w-4 shrink-0 text-info" />
+            <p className="min-w-0 flex-1 text-fg">
+              الفاتورة <bdi dir="ltr" className="font-semibold tabular-nums">#{invoiceNo(elsewhere)}</bdi> في تاريخ آخر:{' '}
+              <span className="text-muted tabular-nums">
+                {new Date(elsewhere.completedAt ?? elsewhere.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}
+              </span>
+            </p>
+            <button type="button" onClick={() => setSelected(elsewhere)} className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-fg hover:opacity-90">
+              فتح الفاتورة
+            </button>
+            <button type="button" onClick={() => jumpTo(elsewhere)} className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg hover:bg-surface-2">
+              عرض يومها
+            </button>
+          </div>
         )}
 
         {/* list */}
@@ -203,7 +263,12 @@ export function InvoicesPage() {
         ) : orders.length === 0 ? (
           <div className="flex min-h-[30vh] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border">
             <Receipt className="h-10 w-10 text-muted/50" />
-            <p className="text-muted">{search || method !== 'all' || status !== 'all' ? 'لا توجد فواتير تطابق البحث' : 'لا توجد فواتير في هذه الفترة'}</p>
+            <p className="text-muted">
+              {lookingUp ? 'جارٍ البحث في كل التواريخ…' : search || method !== 'all' || status !== 'all' ? 'لا توجد فواتير تطابق البحث' : 'لا توجد فواتير في هذه الفترة'}
+            </p>
+            {searchedNo != null && !lookingUp && !elsewhere && !loadedMatch && (
+              <p className="text-xs text-muted">لا توجد فاتورة بهذا الرقم في هذا الفرع</p>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
@@ -250,9 +315,12 @@ export function InvoicesPage() {
                       <td className="px-4 py-3 text-end font-display font-semibold tabular-nums text-fg">{formatCurrency(o.totalAmount)}</td>
                       <td className="px-4 py-3">
                         {refund ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger">
+                          <span className={cn(
+                            'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                            refund.state === 'full' ? 'bg-danger/10 text-danger' : 'bg-warning/10 text-warning',
+                          )}>
                             <RotateCcw className="h-3 w-3" />
-                            مستردة {formatCurrency(refund.refundAmount)}
+                            {refund.state === 'full' ? 'مستردة' : 'مستردة جزئياً'} {formatCurrency(refund.amount)}
                           </span>
                         ) : (
                           <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand-ink">{t.invoices.completed}</span>
@@ -267,7 +335,7 @@ export function InvoicesPage() {
         )}
       </div>
 
-      {selected && <InvoiceReceiptModal order={selected} refund={refunds.get(selected.id)} onClose={() => setSelected(null)} />}
+      {selected && <InvoiceReceiptModal order={selected} returns={returnsByOrder.get(selected.id)} onClose={() => setSelected(null)} />}
     </div>
   )
 }

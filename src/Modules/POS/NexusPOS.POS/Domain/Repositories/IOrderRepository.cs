@@ -7,7 +7,7 @@ namespace NexusPOS.POS.Domain.Repositories;
 public interface IOrderRepository
 {
     Task<Order?> FindByIdAsync(OrderId id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Order>> FindByBranchAsync(Guid branchId, OrderStatus? status, DateTime? dateFrom, DateTime? dateTo, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Order>> FindByBranchAsync(Guid branchId, OrderStatus? status, DateTime? dateFrom, DateTime? dateTo, int page, int pageSize, long? number = null, CancellationToken cancellationToken = default);
     void Add(Order order);
     void Update(Order order);
 }

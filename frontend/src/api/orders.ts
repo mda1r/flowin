@@ -22,7 +22,8 @@ export const ordersApi = {
 
   listOrders: (
     branchId: string,
-    params?: { status?: OrderStatus; page?: number; pageSize?: number; from?: string; to?: string },
+    // number finds one invoice by its number across all dates (from/to are ignored then).
+    params?: { status?: OrderStatus; page?: number; pageSize?: number; from?: string; to?: string; number?: number },
   ) =>
     apiClient.get<OrderResponse[]>(`/api/v1/branches/${branchId}/orders`, {
       params: { pageSize: 20, ...params },

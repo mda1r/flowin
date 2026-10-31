@@ -28,7 +28,7 @@ namespace NexusPOS.POS.Presentation;
 [Authorize]
 public sealed class OrdersController(ISender mediator) : ControllerBase
 {
-    /// <summary>List orders for a branch.</summary>
+    /// <summary>List orders for a branch; <c>number</c> finds one invoice by its number across all dates.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<OrderResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListOrders(
@@ -38,10 +38,11 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         [FromQuery] DateTime? to = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] long? number = null,
         CancellationToken cancellationToken = default)
     {
         ListOrdersQuery query = new(
-            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Math.Max(page, 1), Math.Clamp(pageSize, 1, 500));
+            branchId, status, UtcDates.AsUtc(from), UtcDates.AsUtc(to), Math.Max(page, 1), Math.Clamp(pageSize, 1, 500), number);
         ErrorOr<IReadOnlyList<OrderResponse>> result = await mediator.Send(query, cancellationToken);
 
         return result.Match(Ok, MapErrorsToResult);
