@@ -10,3 +10,11 @@ export function matchesInvoiceNo(order: { id: string; number?: number | null }, 
   if (!q) return true
   return invoiceNo(order).toLowerCase() === q || order.id.toLowerCase().includes(q)
 }
+
+// The number a kitchen ticket is called by: a cafe ticket carries its sale's invoice number, so the barista
+// and the pickup screen use the number printed on the receipt; a restaurant ticket gets a short code.
+export function kitchenTicketNo(order: { id: string; kitchenOnly?: boolean; sourceOrderId?: string | null; ticketNumber?: number | null }) {
+  return order.kitchenOnly && order.sourceOrderId
+    ? invoiceNo({ id: order.sourceOrderId, number: order.ticketNumber })
+    : order.id.slice(-4).toUpperCase()
+}

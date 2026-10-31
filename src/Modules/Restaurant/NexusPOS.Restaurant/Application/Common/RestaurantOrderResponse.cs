@@ -24,4 +24,5 @@ public sealed record RestaurantOrderResponse(
     Guid? SourceOrderId = null,
     long? TicketNumber = null,
     string? CancelReason = null,
-    DateTime? CancelledAt = null);
+    DateTime? CancelledAt = null,
+    string? CallName = null);

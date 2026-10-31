@@ -37,7 +37,8 @@ internal sealed class KitchenTicketRequestedRestaurantHandler(
                     l.ItemId,
                     ItemName(l),
                     (int)Math.Ceiling(l.Quantity),
-                    l.Notes)));
+                    l.Notes)),
+                notification.CallName);
             if (ticket.IsError)
             {
                 logger.LogWarning("Kitchen ticket for order {OrderId} rejected: {Error}",

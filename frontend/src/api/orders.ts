@@ -31,7 +31,8 @@ export interface CheckoutPayload {
   // Manager PIN for a cashier discount past the branch cap. Never stored with an offline sale.
   approvalPin?: string
   // Sends the paid sale to the kitchen screen; no table number means takeaway or no table.
-  kitchen?: { tableNumber: number | null; takeaway: boolean }
+  // callName is the name the barista calls out at pickup (40 characters at most).
+  kitchen?: { tableNumber: number | null; takeaway: boolean; callName?: string }
 }
 
 // The branch till rules: how far a cashier may discount alone, and whether a manager PIN can approve more.

@@ -190,7 +190,7 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
             ByOwnerOrManager: User.IsInRole("Owner") || User.IsInRole("Manager"),
             UserId: Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId) ? userId : Guid.Empty,
             UserName: CurrentUserName,
-            Kitchen: request.Kitchen is { } k ? new CheckoutOrderCommand.KitchenTicket(k.TableNumber, k.Takeaway) : null);
+            Kitchen: request.Kitchen is { } k ? new CheckoutOrderCommand.KitchenTicket(k.TableNumber, k.Takeaway, k.CallName) : null);
         ErrorOr<OrderResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }

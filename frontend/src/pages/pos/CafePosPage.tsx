@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot,
-  Gamepad2, Clock, Play, Square, Search, Percent, RotateCcw,
+  Gamepad2, Clock, Play, Square, Search, Percent, RotateCcw, Megaphone,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi, posSettingsApi } from '@/api/orders'
@@ -40,6 +40,7 @@ import { isAxiosError } from 'axios'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage, toAsciiDigits } from '@/lib/whatsapp'
+import { CALL_NAME_MAX, callNameFrom } from '@/lib/callName'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,8 @@ interface KitchenTicketData {
   tableNumber: number | null
   // The sale's invoice number, the same one the kitchen screen shows.
   ticketNo: string
+  // The name the barista calls out at pickup.
+  callName?: string
   offline?: boolean
   createdAt: string
 }
@@ -94,6 +97,7 @@ interface CustomerReceiptData {
   orderType: 'here' | 'takeaway'
   completedAt: string
   offline?: boolean
+  callName?: string
   customerName?: string
   customerPhone?: string
   discount?: number
@@ -283,6 +287,9 @@ function KitchenTicketModal({
             <p className="text-xs text-muted">
               {new Date(ticket.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
             </p>
+            {ticket.callName && (
+              <p className="mt-2 break-words text-3xl font-black leading-tight text-fg"><bdi>{ticket.callName}</bdi></p>
+            )}
             <div className="mt-2 flex items-center justify-center gap-2">
               <span className={cn(
                 'rounded-full px-3 py-0.5 text-sm font-bold',
@@ -398,6 +405,7 @@ function CustomerReceiptModal({
                   : undefined
             }
             customer={receipt.customerName ? { name: receipt.customerName, pointsEarned: receipt.pointsEarned } : undefined}
+            callName={receipt.callName}
             badge={
               receipt.offline
                 ? 'رقم مؤقت · تصدر الفاتورة عند المزامنة'
@@ -486,6 +494,15 @@ export function CafePosPage() {
   const [orderType, setOrderType] = useState<'here' | 'takeaway'>('here')
   const [tableNumber, setTableNumber] = useState<number | null>(null)
   const [showTablePicker, setShowTablePicker] = useState(false)
+  // Tapping the type already picked keeps the table; switching type starts without one.
+  const pickOrderType = (type: 'here' | 'takeaway') => {
+    if (type === orderType) return
+    setOrderType(type)
+    setTableNumber(null)
+  }
+  // The name the barista calls out. A picked loyalty customer fills it in unless the cashier typed another.
+  const [callName, setCallName] = useState('')
+  const callNameAutoRef = useRef('')
 
   // Products
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')
@@ -505,6 +522,11 @@ export function CafePosPage() {
   const [loyaltyCustomer, setLoyaltyCustomer] = useState<CustomerResponse | null>(null)
   const loyaltyRules = useLoyaltyRules()
   const [redeemPoints, setRedeemPoints] = useState(0)
+  useEffect(() => {
+    const suggested = callNameFrom(loyaltyCustomer?.name)
+    setCallName((current) => (current.trim() === '' || current === callNameAutoRef.current ? suggested : current))
+    callNameAutoRef.current = suggested
+  }, [loyaltyCustomer?.id, loyaltyCustomer?.name])
   const [discountMode, setDiscountMode] = useState<DiscountMode>('Percentage')
   const [discountInput, setDiscountInput] = useState('')
   const [showDiscount, setShowDiscount] = useState(false)
@@ -982,7 +1004,11 @@ export function CafePosPage() {
           : { discountType: 'Fixed' as const, discountValue: Math.round((discountGross / preTaxRate) * 10000) / 10000 })),
         ...(needsPin && { approvalPin: approvalPin.trim() }),
         // The kitchen screen gets the paid sale as a ticket; dine-in without a table goes as "no table".
-        kitchen: { tableNumber: orderType === 'here' ? tableNumber : null, takeaway: orderType === 'takeaway' },
+        kitchen: {
+          tableNumber: orderType === 'here' ? tableNumber : null,
+          takeaway: orderType === 'takeaway',
+          callName: callName.trim().slice(0, CALL_NAME_MAX) || undefined,
+        },
         loyaltyPoints: appliedPoints,
         paymentMethod: mode as PaymentMethod,
         // A split records the cash part as what is left after the card, so it adds up to the total; a larger
@@ -1035,6 +1061,7 @@ export function CafePosPage() {
           : mode === 'Split' && splitChange > 0 ? splitCashNum : undefined,
         tableNumber: orderType === 'here' ? tableNumber : null,
         orderType,
+        callName: callName.trim().slice(0, CALL_NAME_MAX) || undefined,
         customerName: loyaltyCustomer?.name,
         customerPhone: loyaltyCustomer?.phone ?? undefined,
         discount: discountGross || undefined,
@@ -1049,6 +1076,7 @@ export function CafePosPage() {
         orderType,
         tableNumber: snapshot.tableNumber,
         ticketNo: invoiceNo({ id: orderId, number }),
+        callName: snapshot.callName,
         offline,
         createdAt: completedAt,
       })
@@ -1061,6 +1089,8 @@ export function CafePosPage() {
       setQtyEdit(null)
       lastLineRef.current = null
       setTableNumber(null)
+      setCallName('')
+      callNameAutoRef.current = ''
       setSplitCash('')
       setSplitCard('')
       setSplitCardTyped(false)
@@ -1278,6 +1308,8 @@ export function CafePosPage() {
           setQtyEdit(null)
           setConfirmClearCart(false)
           lastLineRef.current = null
+          setCallName('')
+          callNameAutoRef.current = ''
           setDiscountInput('')
           setShowDiscount(false)
         }}
@@ -1314,6 +1346,18 @@ export function CafePosPage() {
               <span className="tabular-nums" dir="ltr">#{lastKitchenTicket.ticketNo}</span>
             </button>
           )}
+          {/* The pickup screen runs on its own TV, so it opens in a new tab. */}
+          <a
+            href="/cafe/ready"
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t.pos.readyDisplay}
+            aria-label={t.pos.readyDisplay}
+            className="flex min-h-9 items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
+          >
+            <Megaphone className="h-4 w-4 text-brand-strong" />
+            <span className="hidden sm:inline">{t.pos.readyDisplay}</span>
+          </a>
           {aiCashierAvailable && (
             <button
               onClick={() => setAiCashierActive((v) => !v)}
@@ -1379,7 +1423,8 @@ export function CafePosPage() {
             <div className="space-y-2 border-b border-border p-3">
               <div className="flex overflow-hidden rounded-xl border border-border">
                 <button
-                  onClick={() => { setOrderType('here'); setTableNumber(null) }}
+                  onClick={() => pickOrderType('here')}
+                  aria-pressed={orderType === 'here'}
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-semibold transition-colors',
                     orderType === 'here'
@@ -1390,7 +1435,8 @@ export function CafePosPage() {
                   {t.pos.dineIn}
                 </button>
                 <button
-                  onClick={() => { setOrderType('takeaway'); setTableNumber(null) }}
+                  onClick={() => pickOrderType('takeaway')}
+                  aria-pressed={orderType === 'takeaway'}
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-semibold transition-colors',
                     orderType === 'takeaway'
@@ -1416,6 +1462,21 @@ export function CafePosPage() {
                   {tableNumber ? `${t.pos.tableNumber} ${tableNumber} ✏️` : '+ اختر طاولة'}
                 </button>
               )}
+
+              <label className="block">
+                <span className="sr-only">{t.pos.callName}</span>
+                <input
+                  type="text"
+                  value={callName}
+                  onChange={(e) => setCallName(e.target.value)}
+                  maxLength={CALL_NAME_MAX}
+                  enterKeyHint="done"
+                  autoComplete="off"
+                  placeholder={t.pos.callNamePlaceholder}
+                  title={t.pos.callName}
+                  className="min-h-10 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold text-fg placeholder:font-normal placeholder:text-muted focus:border-brand focus:outline-none"
+                />
+              </label>
             </div>
 
             {/* Cart header; the sheet has its own title */}

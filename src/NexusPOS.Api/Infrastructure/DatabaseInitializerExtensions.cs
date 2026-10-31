@@ -305,6 +305,8 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancel_reason VARCHAR(256)",
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_by UUID",
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE",
+            // The name the barista calls out at the pickup counter (cafe tickets only).
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS call_name VARCHAR(40)",
         ];
 
         foreach (string sql in patches)

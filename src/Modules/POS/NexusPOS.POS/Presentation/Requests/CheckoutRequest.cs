@@ -26,4 +26,5 @@ public sealed record CheckoutLineRequest(
     DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m, string? Notes = null);
 
 // Sends the sale to the kitchen screen; no table number means takeaway or a guest without a table.
-public sealed record CheckoutKitchenRequest(int? TableNumber, bool Takeaway);
+// CallName is the name the barista calls out at pickup; older tills and offline payloads leave it out.
+public sealed record CheckoutKitchenRequest(int? TableNumber, bool Takeaway, string? CallName = null);

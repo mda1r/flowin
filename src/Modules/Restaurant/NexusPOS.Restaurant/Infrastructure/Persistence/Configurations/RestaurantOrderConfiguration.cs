@@ -41,6 +41,7 @@ internal sealed class RestaurantOrderConfiguration : IEntityTypeConfiguration<Re
         builder.Property(o => o.KitchenOnly).HasColumnName("kitchen_only").IsRequired();
         builder.Property(o => o.SourceOrderId).HasColumnName("source_order_id");
         builder.Property(o => o.TicketNumber).HasColumnName("ticket_number");
+        builder.Property(o => o.CallName).HasColumnName("call_name").HasMaxLength(RestaurantOrder.CallNameMaxLength);
         builder.Property(o => o.CancelReason).HasColumnName("cancel_reason").HasMaxLength(256);
         builder.Property(o => o.CancelledBy).HasColumnName("cancelled_by");
         builder.Property(o => o.CancelledAt).HasColumnName("cancelled_at");

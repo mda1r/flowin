@@ -216,6 +216,9 @@ export const en = {
     repeatNothing: 'No previous order to repeat',
     draftRestored: 'Your cart was restored',
     draftDropped: '{n} item(s) left the menu and were removed',
+    callName: 'Name to call',
+    callNamePlaceholder: 'Customer name to call (optional)',
+    readyDisplay: 'Pickup screen',
     splitChange: 'Change due',
     splitCashShort: 'Cash short',
     splitCardTooHigh: 'The card covers the whole total; pay by card instead',
@@ -1203,6 +1206,11 @@ export const en = {
     returnToPrep: 'Back to preparing',
     startPreparing: 'Start preparing',
     tapItemDone: 'Tap an item when it is made',
+    readyBoard: 'Pickup screen',
+    inProgress: 'Being prepared',
+    readyForPickup: 'Ready for pickup',
+    nothingInProgress: 'No orders being prepared',
+    nothingReady: 'Nothing ready right now',
   },
 
   restaurant: {

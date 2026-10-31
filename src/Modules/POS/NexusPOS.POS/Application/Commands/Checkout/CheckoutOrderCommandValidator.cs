@@ -5,6 +5,9 @@ namespace NexusPOS.POS.Application.Commands.Checkout;
 
 internal sealed class CheckoutOrderCommandValidator : AbstractValidator<CheckoutOrderCommand>
 {
+    // Matches the call_name column on restaurant_orders.
+    public const int KitchenCallNameMaxLength = 40;
+
     public CheckoutOrderCommandValidator()
     {
         RuleFor(x => x.ClientReference).NotEmpty();
@@ -36,5 +39,8 @@ internal sealed class CheckoutOrderCommandValidator : AbstractValidator<Checkout
         RuleFor(x => x.CashAmount).GreaterThanOrEqualTo(0).WithMessage("المبلغ النقدي لا يكون سالباً.");
         RuleFor(x => x.CardAmount).GreaterThanOrEqualTo(0).WithMessage("مبلغ البطاقة لا يكون سالباً.");
         RuleFor(x => x.TaxRate).InclusiveBetween(0m, 1m);
+        RuleFor(x => x.Kitchen!.CallName).Must(n => n is null || n.Trim().Length <= KitchenCallNameMaxLength)
+            .When(x => x.Kitchen is not null)
+            .WithMessage($"اسم المناداة لا يتجاوز {KitchenCallNameMaxLength} حرفاً.");
     }
 }

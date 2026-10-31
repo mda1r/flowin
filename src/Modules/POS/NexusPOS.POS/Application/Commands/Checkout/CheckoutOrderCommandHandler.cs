@@ -170,7 +170,8 @@ internal sealed class CheckoutOrderCommandHandler(
                 kitchen.Takeaway ? null : kitchen.TableNumber,
                 kitchen.Takeaway,
                 [.. order.Lines.Select(l => new KitchenTicketRequestedDomainEvent.Line(
-                    l.VariantId, l.ProductName, l.VariantName, l.Quantity, l.Notes))]), ct);
+                    l.VariantId, l.ProductName, l.VariantName, l.Quantity, l.Notes))],
+                string.IsNullOrWhiteSpace(kitchen.CallName) ? null : kitchen.CallName.Trim()), ct);
         }
 
         return OrderMapper.ToResponse(order);

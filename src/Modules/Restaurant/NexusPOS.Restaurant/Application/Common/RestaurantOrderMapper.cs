@@ -38,7 +38,8 @@ internal static class RestaurantOrderMapper
             SourceOrderId: order.SourceOrderId,
             TicketNumber: order.TicketNumber,
             CancelReason: order.CancelReason,
-            CancelledAt: order.CancelledAt);
+            CancelledAt: order.CancelledAt,
+            CallName: order.CallName);
     }
 
     public static DiscountCodeResponse ToResponse(DiscountCode code)

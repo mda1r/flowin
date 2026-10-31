@@ -34,6 +34,7 @@ import { ReceiptSettingsPage } from '@/pages/settings/ReceiptSettingsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { ActivityLogsPage } from '@/pages/users/ActivityLogsPage'
 import { CafeKitchenPage } from '@/pages/pos/CafeKitchenPage'
+import { CafeReadyDisplayPage } from '@/pages/pos/CafeReadyDisplayPage'
 import { ShiftReportsPage } from '@/pages/pos/ShiftReportsPage'
 import { DailyClosePage } from '@/pages/reports/DailyClosePage'
 import { InvoicesPage } from '@/pages/pos/InvoicesPage'
@@ -266,6 +267,13 @@ const cafeKitchenRoute = createRoute({
   component: CafeKitchenPage,
 })
 
+// The pickup-counter TV: who is being prepared and who can collect.
+const cafeReadyRoute = createRoute({
+  getParentRoute: () => kitchenShellRoute,
+  path: '/cafe/ready',
+  component: CafeReadyDisplayPage,
+})
+
 const shiftReportsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/shifts',
@@ -347,7 +355,7 @@ const routeTree = rootRoute.addChildren([
     adminBrandsRoute,
     adminBrandDetailRoute,
   ]),
-  kitchenShellRoute.addChildren([restaurantKitchenRoute, cafeKitchenRoute]),
+  kitchenShellRoute.addChildren([restaurantKitchenRoute, cafeKitchenRoute, cafeReadyRoute]),
 ])
 
 export const router = createRouter({ routeTree })

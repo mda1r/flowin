@@ -35,6 +35,10 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
     public Guid? SourceOrderId { get; private set; }
     public long? TicketNumber { get; private set; }
 
+    // The customer name the barista calls out at pickup; kept apart from Notes so the takeaway note stays as it is.
+    public string? CallName { get; private set; }
+    public const int CallNameMaxLength = 40;
+
     public string? CancelReason { get; private set; }
     public Guid? CancelledBy { get; private set; }
     public DateTime? CancelledAt { get; private set; }
@@ -100,7 +104,8 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         long? ticketNumber,
         int? tableNumber,
         bool takeaway,
-        IEnumerable<(Guid ItemId, string ItemName, int Quantity, string? Notes)> itemsData)
+        IEnumerable<(Guid ItemId, string ItemName, int Quantity, string? Notes)> itemsData,
+        string? callName = null)
     {
         var items = itemsData.Where(i => i.Quantity > 0).ToList();
         if (items.Count == 0)
@@ -124,6 +129,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
             KitchenOnly = true,
             SourceOrderId = sourceOrderId,
             TicketNumber = ticketNumber,
+            CallName = CleanCallName(callName),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             Items = [.. items.Select(i => RestaurantOrderItem.Create(i.ItemId, i.ItemName, i.Quantity, 0m, i.Notes))],
@@ -131,6 +137,13 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
 
         order.RaiseDomainEvent(new RestaurantOrderCreatedDomainEvent(order.Id.Value, tenantId, branchId, table));
         return order;
+    }
+
+    // Trimmed and capped to the column; blank means no name.
+    internal static string? CleanCallName(string? callName)
+    {
+        string name = callName?.Trim() ?? string.Empty;
+        return name.Length == 0 ? null : name.Length > CallNameMaxLength ? name[..CallNameMaxLength].TrimEnd() : name;
     }
 
     // Menu prices include VAT, as on the cafe menu: the customer pays the listed price less any discount,

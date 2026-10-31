@@ -518,6 +518,8 @@ export interface RestaurantOrderResponse {
   ticketNumber?: number | null
   cancelReason?: string
   cancelledAt?: string
+  // The name the barista calls out at pickup (cafe tickets only).
+  callName?: string | null
 }
 
 export interface DiscountCodeResponse {

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { ChefHat, Clock, CheckCircle, Circle, Coffee, X, WifiOff, ArrowRight, RotateCcw } from 'lucide-react'
+import { ChefHat, Clock, CheckCircle, Circle, Coffee, X, WifiOff, ArrowRight, RotateCcw, Megaphone } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from '@/i18n'
 import { restaurantApi } from '@/api/restaurant'
 import type { RestaurantOrderResponse } from '@/types/api'
 import { cn } from '@/lib/utils'
-import { invoiceNo } from '@/lib/invoiceNumber'
+import { kitchenTicketNo } from '@/lib/invoiceNumber'
 import { TAKEAWAY_TABLE } from '@/lib/kitchenTables'
 import { useKitchenSound, useNewOrderAlert, useNow } from '@/lib/kitchenSound'
 import { CAFE_TIME_LIMITS, minutesSince, timeBorderColor, timeColor } from '@/lib/kitchenTime'
@@ -75,10 +75,7 @@ function TicketCard({
   }
   const minutes = minutesSince(order.createdAt, now)
   const isTakeaway = order.tableNumber === TAKEAWAY_TABLE
-  // Cafe tickets carry the sale's invoice number, so the kitchen calls out the number printed on the receipt.
-  const ticketNo = order.kitchenOnly && order.sourceOrderId
-    ? invoiceNo({ id: order.sourceOrderId, number: order.ticketNumber })
-    : order.id.slice(-4).toUpperCase()
+  const ticketNo = kitchenTicketNo(order)
   // Items are ticked off one by one while the drinks are being made.
   const canTick = status === 'preparing'
 
@@ -92,13 +89,23 @@ function TicketCard({
     >
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <span className={cn('self-start rounded-full px-2.5 py-0.5 text-xs font-bold', cfg.color)}>
             {cfg.label}
           </span>
-          <span className="text-3xl font-black tabular-nums leading-none text-fg" aria-label={`${t.kitchen.order} ${ticketNo}`}>
-            #{ticketNo}
-          </span>
+          {/* The name the barista calls out leads; the receipt number sits under it. */}
+          {order.callName ? (
+            <>
+              <span className="break-words text-3xl font-black leading-tight text-fg"><bdi>{order.callName}</bdi></span>
+              <span className="text-base font-bold tabular-nums leading-none text-muted" dir="ltr" aria-label={`${t.kitchen.order} ${ticketNo}`}>
+                #{ticketNo}
+              </span>
+            </>
+          ) : (
+            <span className="text-3xl font-black tabular-nums leading-none text-fg" aria-label={`${t.kitchen.order} ${ticketNo}`}>
+              #{ticketNo}
+            </span>
+          )}
         </div>
         <span
           className={cn(
@@ -395,6 +402,15 @@ export function CafeKitchenPage() {
             </span>
           )}
           <KitchenSoundToggle enabled={sound.enabled} muted={sound.muted} onToggle={sound.toggleMute} supported={sound.supported} />
+          <a
+            href="/cafe/ready"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-bold text-muted transition-colors hover:text-fg"
+          >
+            <Megaphone className="h-3.5 w-3.5" />
+            {t.kitchen.readyBoard}
+          </a>
           <p className="hidden text-xs text-muted sm:block">{t.kitchen.autoRefresh}</p>
         </div>
       </div>

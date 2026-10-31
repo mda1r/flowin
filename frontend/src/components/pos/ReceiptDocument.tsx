@@ -33,6 +33,8 @@ export interface ReceiptDocumentProps {
   customer?: { name: string; pointsEarned?: number }
   /** A short status under the header: table number, takeaway, refunded, provisional number. */
   badge?: ReactNode
+  /** The name the barista calls out at pickup, printed large so the customer can match the cup. */
+  callName?: string
   qr: string
   /** 'credit' prints a credit note for a return: lines, VAT and total are what went back to the customer. */
   kind?: 'invoice' | 'credit'
@@ -69,6 +71,7 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
         <p className="receipt-small">
           {new Date(p.issuedAt).toLocaleString(intlLocale('ar'), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </p>
+        {p.callName && <p className="receipt-call"><bdi>{p.callName}</bdi></p>}
         {p.badge && <div className="receipt-badge">{p.badge}</div>}
       </div>
 

@@ -35,5 +35,5 @@ public sealed record CheckoutOrderCommand(
         Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity,
         DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m, string? Notes = null);
 
-    public sealed record KitchenTicket(int? TableNumber, bool Takeaway);
+    public sealed record KitchenTicket(int? TableNumber, bool Takeaway, string? CallName = null);
 }

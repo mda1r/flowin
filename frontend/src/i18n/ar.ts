@@ -218,6 +218,9 @@ export const ar: Translations = {
     repeatNothing: 'لا يوجد طلب سابق لتكراره',
     draftRestored: 'استعدنا الطلب الذي كان في السلة',
     draftDropped: '{n} من الأصناف لم تعد في القائمة فحُذفت',
+    callName: 'اسم المناداة',
+    callNamePlaceholder: 'اسم العميل للنداء (اختياري)',
+    readyDisplay: 'شاشة الاستلام',
     splitChange: 'الباقي للعميل',
     splitCashShort: 'النقد ناقص',
     splitCardTooHigh: 'مبلغ البطاقة يغطي الإجمالي كله، اختر الدفع بالبطاقة',
@@ -1205,6 +1208,11 @@ export const ar: Translations = {
     returnToPrep: 'إرجاع للتحضير',
     startPreparing: 'ابدأ التحضير',
     tapItemDone: 'اضغط الصنف عند تجهيزه',
+    readyBoard: 'شاشة الاستلام',
+    inProgress: 'قيد التحضير',
+    readyForPickup: 'جاهز للاستلام',
+    nothingInProgress: 'لا طلبات قيد التحضير',
+    nothingReady: 'لا طلبات جاهزة الآن',
   },
 
   restaurant: {
