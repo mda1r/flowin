@@ -324,7 +324,7 @@ function ReportsContent() {
 
   const { data: rawOrders, isLoading: ordersLoading, isError: ordersError } = useQuery({
     queryKey: ['reports', branchId, dateFrom, dateTo],
-    queryFn: () => salesApi.listAllCompletedOrders(branchId!, dateFrom, dateTo).then((data) => ({ data })),
+    queryFn: () => salesApi.listAllCompletedOrders(branchId!, dateFrom, dateTo).then(({ orders, truncated }) => ({ data: orders, truncated })),
     enabled: !!branchId,
   })
 
@@ -468,6 +468,13 @@ function ReportsContent() {
                 className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-sm text-fg"
               />
             </div>
+          </div>
+        )}
+
+        {!isLoading && !isError && rawOrders?.truncated && (
+          <div role="alert" className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span><strong>{t.reports.partialData}:</strong> {t.reports.partialDataHint}</span>
           </div>
         )}
 

@@ -1,4 +1,5 @@
 using ErrorOr;
+using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.ValueObjects;
@@ -15,8 +16,13 @@ internal static class CheckoutBuilder
     // A stamp this close to the request is an online sale (or one that only just missed the server): dated now.
     private static readonly TimeSpan _offlineGrace = TimeSpan.FromMinutes(1);
 
+    // The till and the server round the total separately, so they may differ by a halala; anything more is real money.
+    internal const decimal HalalaTolerance = 0.01m;
+
     // notBefore is the branch's latest shift boundary: a synced sale is never dated into a shift whose totals are closed.
-    public static ErrorOr<Order> Build(CheckoutOrderCommand cmd, LoyaltyRules loyalty, long? number = null, DateTime? notBefore = null)
+    // offline: the sale already happened, so a payment that does not add up is kept (and logged by the handler) instead of refused.
+    public static ErrorOr<Order> Build(
+        CheckoutOrderCommand cmd, LoyaltyRules loyalty, long? number = null, DateTime? notBefore = null, bool offline = false)
     {
         DateTime? offlineAt = AsUtc(cmd.OfflineCreatedAt);
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
@@ -58,16 +64,41 @@ internal static class CheckoutBuilder
             }
         }
 
-        // The till computes the total in two decimals; never let a fraction of a halala reject the payment.
         if (number is long n)
         {
             order.AssignNumber(n);
         }
 
-        decimal tendered = Math.Max(cmd.AmountTendered, Math.Round(order.TotalAmount, 2));
+        // The till computes the total in two decimals; a halala of rounding is lifted to the total, never refused.
+        decimal total = Math.Round(order.TotalAmount, 2);
+        if (!offline && PaymentProblem(cmd, total) is { } problem)
+        {
+            return problem.Error;
+        }
+
+        decimal tendered = Math.Max(cmd.AmountTendered, total);
         ErrorOr<Success> completed = order.Complete(
             cmd.PaymentMethod, tendered, cmd.CashAmount, cmd.CardAmount, SaleTime(offlineAt, DateTime.UtcNow, notBefore));
         return completed.IsError ? completed.Errors : order;
+    }
+
+    // Cash handed over short of the total, or a split whose parts do not add up to it. Online the sale is refused
+    // with Error; a sale made offline is kept and Review goes to the manager. Card and digital charge the total.
+    internal static (Error Error, string Review)? PaymentProblem(CheckoutOrderCommand cmd, decimal total)
+    {
+        if (cmd.PaymentMethod == PaymentMethod.Cash && cmd.AmountTendered < total - HalalaTolerance)
+        {
+            return (PosErrors.InsufficientPayment, $"نقد مستلم {cmd.AmountTendered:0.00} أقل من الإجمالي {total:0.00}");
+        }
+
+        decimal cash = cmd.CashAmount ?? 0m;
+        decimal card = cmd.CardAmount ?? 0m;
+        if (cmd.PaymentMethod == PaymentMethod.Split && Math.Abs(cash + card - total) > HalalaTolerance)
+        {
+            return (PosErrors.SplitMismatch, $"دفع مقسّم نقد {cash:0.00} وبطاقة {card:0.00} لا يساوي الإجمالي {total:0.00}");
+        }
+
+        return null;
     }
 
     // A sale rung up offline keeps the time it happened, but never earlier than the start of a shift still open

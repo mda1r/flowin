@@ -199,6 +199,9 @@ export const en = {
     fromPrice: 'From {price}',
     sizesCount: '{n} sizes',
     sizeOutOfStock: 'Out',
+    splitChange: 'Change due',
+    splitCashShort: 'Cash short',
+    splitCardTooHigh: 'The card covers the whole total; pay by card instead',
     subtotal: 'Subtotal',
     tax: 'VAT (15%)',
     total: 'Total',
@@ -820,6 +823,8 @@ export const en = {
     notAllowed: 'Reports are for owners, managers and accountants',
     notAllowedHint: 'Reports include costs and profit. Ask the store owner if you need them.',
     returnsFailed: "Couldn't load returns, so the figures are hidden rather than shown incomplete. Refresh the page.",
+    partialData: 'Partial data',
+    partialDataHint: 'This period has more orders than one report loads, so the figures leave some out. Pick a shorter period.',
     csv: {
       type: 'Type',
       invoice: 'Invoice',

@@ -201,6 +201,9 @@ export const ar: Translations = {
     fromPrice: 'من {price}',
     sizesCount: '{n} أحجام',
     sizeOutOfStock: 'نفد',
+    splitChange: 'الباقي للعميل',
+    splitCashShort: 'النقد ناقص',
+    splitCardTooHigh: 'مبلغ البطاقة يغطي الإجمالي كله، اختر الدفع بالبطاقة',
     subtotal: 'المجموع الجزئي',
     tax: 'ضريبة القيمة المضافة (15%)',
     total: 'الإجمالي',
@@ -822,6 +825,8 @@ export const ar: Translations = {
     notAllowed: 'التقارير متاحة للمالك والمدير والمحاسب',
     notAllowedHint: 'تحتوي التقارير على التكلفة والأرباح. تواصل مع مالك المتجر إن احتجت إليها.',
     returnsFailed: 'تعذّر تحميل المرتجعات، فأخفينا الأرقام كي لا تظهر ناقصة. حدّث الصفحة.',
+    partialData: 'بيانات جزئية',
+    partialDataHint: 'الفترة فيها طلبات أكثر مما يُحمَّل مرة واحدة، فالأرقام لا تشملها كلها. اختر فترة أقصر.',
     csv: {
       type: 'النوع',
       invoice: 'فاتورة',

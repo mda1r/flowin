@@ -25,6 +25,9 @@ public static class PosErrors
     public static readonly Error InsufficientPayment =
         Error.Validation("POS.InsufficientPayment", "المبلغ المدفوع أقل من إجمالي الطلب");
 
+    public static readonly Error SplitMismatch =
+        Error.Validation("POS.SplitMismatch", "مجموع النقد والبطاقة لا يساوي إجمالي الطلب");
+
     public static readonly Error EmptyOrder =
         Error.Validation("POS.EmptyOrder", "لا يمكن إتمام طلب فارغ");
 

@@ -67,7 +67,7 @@ internal sealed class CheckoutOrderCommandHandler(
                 .MaxAsync(s => (DateTime?)(s.ClosedAt ?? s.OpenedAt), cancellationToken);
 
         // Build once without a number first, so a rejected sale never uses up an invoice number.
-        ErrorOr<Order> draft = CheckoutBuilder.Build(request, rules.Value, notBefore: shiftBoundary);
+        ErrorOr<Order> draft = CheckoutBuilder.Build(request, rules.Value, notBefore: shiftBoundary, offline: offline);
         if (draft.IsError)
         {
             return draft.Errors;
@@ -79,6 +79,11 @@ internal sealed class CheckoutOrderCommandHandler(
             if (overCap is not null)
             {
                 review.Add(overCap);
+            }
+
+            if (CheckoutBuilder.PaymentProblem(request, Math.Round(draft.Value.TotalAmount, 2)) is { } payment)
+            {
+                review.Add(payment.Review);
             }
         }
         else
@@ -93,7 +98,7 @@ internal sealed class CheckoutOrderCommandHandler(
         // The number and the sale commit together: if the save fails, the counter rolls back with it.
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         long number = await numbers.NextAsync(request.TenantId, cancellationToken);
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, shiftBoundary);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, shiftBoundary, offline);
         if (built.IsError)
         {
             return built.Errors;

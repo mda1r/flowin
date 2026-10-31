@@ -67,6 +67,25 @@ function write(next: QueuedSale[]): boolean {
 // Read and write in one synchronous step, on the latest copy in storage.
 const update = (change: (sales: QueuedSale[]) => QueuedSale[]) => write(change(read()))
 
+// The manager PIN only approves a discount live; a sale that syncs later is reviewed by the manager instead,
+// so the PIN is never kept on the device.
+export function withoutApprovalPin<T extends { approvalPin?: string }>(payload: T): T {
+  if (!('approvalPin' in payload)) return payload
+  const copy = { ...payload }
+  delete copy.approvalPin
+  return copy
+}
+
+// Sales queued by an earlier build may still hold a PIN: drop it once, as soon as this module loads.
+try {
+  const queued = read()
+  if (queued.some((s) => s.payload && 'approvalPin' in s.payload)) {
+    write(queued.map((s) => (s.payload ? { ...s, payload: withoutApprovalPin(s.payload) } : s)))
+  }
+} catch {
+  // Storage is blocked, so there is nothing stored to clean.
+}
+
 export const newClientReference = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -101,7 +120,7 @@ export function savedOnDeviceMessage(): [string, string] {
 export function queueSale(sale: Omit<QueuedSale, 'queuedAt'>) {
   const saved = update((sales) => [
     ...sales.filter((s) => s.clientReference !== sale.clientReference),
-    { ...sale, queuedAt: new Date().toISOString() },
+    { ...sale, payload: withoutApprovalPin(sale.payload), queuedAt: new Date().toISOString() },
   ])
   if (!saved) throw new Error('offline-storage')
   // Queued while online: the server did not take it, so the banner should not say the connection is fine.

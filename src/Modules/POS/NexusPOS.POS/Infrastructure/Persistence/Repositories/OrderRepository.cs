@@ -39,18 +39,21 @@ internal sealed class OrderRepository(PosDbContext dbContext) : IOrderRepository
             query = query.Where(o => o.Status == status.Value);
         }
 
+        // A sale counts on the day it was made: one synced late from an offline till has CompletedAt set to when it
+        // happened, while CreatedAt is when it reached the server. Open orders have no CompletedAt yet.
         if (dateFrom.HasValue)
         {
-            query = query.Where(o => o.CreatedAt >= dateFrom.Value);
+            query = query.Where(o => (o.CompletedAt ?? o.CreatedAt) >= dateFrom.Value);
         }
 
         if (dateTo.HasValue)
         {
-            query = query.Where(o => o.CreatedAt <= dateTo.Value);
+            query = query.Where(o => (o.CompletedAt ?? o.CreatedAt) <= dateTo.Value);
         }
 
         return await query
-            .OrderByDescending(o => o.CreatedAt)
+            .OrderByDescending(o => o.CompletedAt ?? o.CreatedAt)
+            .ThenByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

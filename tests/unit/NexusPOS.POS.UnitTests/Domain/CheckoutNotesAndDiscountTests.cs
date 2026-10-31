@@ -19,7 +19,7 @@ public sealed class CheckoutNotesAndDiscountTests
         decimal lattePrice = 20m, int points = 0, Guid? customer = null) =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "SAR", 0.15m, customer,
             [new(_latte, "لاتيه", "كبير", lattePrice, 4m, 2m, Notes: "حليب شوفان"), new(_cookie, "كوكيز", "", 10m, 2m, 1m)],
-            points, PaymentMethod.Cash, 0m, null, null, null,
+            points, PaymentMethod.Cash, 100m, null, null, null,
             discountType, discountValue);
 
     // ── Notes ────────────────────────────────────────────────────────────────

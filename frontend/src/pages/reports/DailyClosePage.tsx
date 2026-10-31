@@ -139,7 +139,7 @@ export function DailyClosePage() {
     || (hasRestaurant && restaurantQ.isError) || (hasGaming && gamingQ.isError)
 
   const report = useMemo(() => {
-    const dayOrders: OrderResponse[] = (ordersQ.data ?? []).filter((o) => localYmd(new Date(o.completedAt ?? o.createdAt)) === day)
+    const dayOrders: OrderResponse[] = (ordersQ.data?.orders ?? []).filter((o) => localYmd(new Date(o.completedAt ?? o.createdAt)) === day)
     // Gaming and restaurant payments are also recorded as orders; they appear in their own sections below.
     const orders = dayOrders.filter((o) => !o.source || o.source === 'Pos')
     const returns: ReturnOrderResponse[] = (Array.isArray(returnsQ.data?.data) ? returnsQ.data!.data : [])
@@ -266,6 +266,12 @@ export function DailyClosePage() {
           <div role="alert" className="flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             تعذّر تحميل بعض بيانات اليوم. الأرقام أدناه قد تكون ناقصة؛ أعد المحاولة.
+          </div>
+        )}
+        {ordersQ.data?.truncated && (
+          <div role="alert" className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span><strong>بيانات جزئية:</strong> طلبات اليوم أكثر مما يُحمَّل مرة واحدة، فالأرقام أدناه لا تشملها كلها.</span>
           </div>
         )}
 

@@ -279,6 +279,8 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE return_orders ADD COLUMN IF NOT EXISTS client_reference UUID",
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_return_orders_client_reference ON return_orders (client_reference) WHERE client_reference IS NOT NULL",
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
+            // Order lists and reports filter by when the sale was made (an offline sale synced late keeps its time).
+            "CREATE INDEX IF NOT EXISTS ix_orders_branch_sold_at ON orders (branch_id, (COALESCE(completed_at, created_at)))",
         ];
 
         foreach (string sql in patches)

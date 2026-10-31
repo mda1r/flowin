@@ -26,7 +26,15 @@ internal sealed class CheckoutOrderCommandValidator : AbstractValidator<Checkout
             .WithMessage("نسبة الخصم لا تتجاوز 100%.");
         RuleFor(x => x.ApprovalPin).MaximumLength(12);
         RuleFor(x => x.LoyaltyPoints).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.AmountTendered).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.AmountTendered).GreaterThanOrEqualTo(0).WithMessage("المبلغ المدفوع لا يكون سالباً.");
+
+        // A split names both parts; whether they add up to the total is checked once the total is known.
+        RuleFor(x => x.CashAmount).NotNull().When(x => x.PaymentMethod == PaymentMethod.Split)
+            .WithMessage("أدخل المبلغ النقدي في الدفع المقسّم.");
+        RuleFor(x => x.CardAmount).NotNull().When(x => x.PaymentMethod == PaymentMethod.Split)
+            .WithMessage("أدخل مبلغ البطاقة في الدفع المقسّم.");
+        RuleFor(x => x.CashAmount).GreaterThanOrEqualTo(0).WithMessage("المبلغ النقدي لا يكون سالباً.");
+        RuleFor(x => x.CardAmount).GreaterThanOrEqualTo(0).WithMessage("مبلغ البطاقة لا يكون سالباً.");
         RuleFor(x => x.TaxRate).InclusiveBetween(0m, 1m);
     }
 }

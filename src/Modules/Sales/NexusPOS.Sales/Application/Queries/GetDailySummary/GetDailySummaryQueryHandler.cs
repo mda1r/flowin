@@ -19,7 +19,7 @@ internal sealed class GetDailySummaryQueryHandler(ISalesSummaryRepository salesS
         if (summary is null)
         {
             return new SalesSummaryResponse(
-                request.BranchId, request.Date, "USD", 0, 0m, 0m, 0m, 0m);
+                request.BranchId, request.Date, "SAR", 0, 0m, 0m, 0m, 0m);
         }
 
         return new SalesSummaryResponse(

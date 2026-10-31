@@ -776,7 +776,7 @@ function TodayMoneyCard({ orders, returns, loading }: { orders: OrderResponse[];
     queryKey: ['dashboard-shift-drawer', branchId, shift?.id],
     queryFn: async () => {
       const opened = new Date(shift!.openedAt)
-      const shiftOrders = await salesApi.listAllCompletedOrdersBetween(branchId!, shift!.openedAt)
+      const { orders: shiftOrders } = await salesApi.listAllCompletedOrdersBetween(branchId!, shift!.openedAt)
       return shiftExpectedCash(shift!, shiftOrders.filter((o) => orderTime(o) >= opened))
     },
     enabled: !!branchId && !!shift,
@@ -908,7 +908,7 @@ export function DashboardPage() {
   const today = localToday()
   const ordersQuery = useQuery({
     queryKey: ['dashboard-orders', branchId, today],
-    queryFn: () => salesApi.listAllCompletedOrders(branchId!, today, today).then((data) => ({ data })),
+    queryFn: () => salesApi.listAllCompletedOrders(branchId!, today, today).then(({ orders }) => ({ data: orders })),
     enabled: !!branchId,
     refetchInterval: 60_000,
   })
@@ -927,7 +927,7 @@ export function DashboardPage() {
       const yesterday = localYmd(cutoff)
       const { from } = localDaysToUtcRange(yesterday, yesterday)
       const to = cutoff.toISOString()
-      const [orders, returns] = await Promise.all([
+      const [{ orders }, returns] = await Promise.all([
         salesApi.listAllCompletedOrdersBetween(branchId!, from, to),
         ordersApi.listReturns(branchId!, { from, to }).then((r) => asList<ReturnOrderResponse>(r.data)),
       ])

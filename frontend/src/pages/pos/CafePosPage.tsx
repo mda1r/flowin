@@ -35,7 +35,7 @@ import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { printElement } from '@/lib/print'
 import { OfflineBanner } from '@/components/pos/OfflineBanner'
-import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage } from '@/lib/offlineSales'
+import { isTransientError, newClientReference, queueSale, savedOnDeviceMessage, withoutApprovalPin } from '@/lib/offlineSales'
 import { isAxiosError } from 'axios'
 import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
@@ -109,6 +109,8 @@ type DiscountMode = 'Percentage' | 'Fixed'
 const DEFAULT_POS_SETTINGS = { maxCashierDiscountPercent: 10, hasApprovalPin: false }
 
 const newLineKey = () => Math.random().toString(36).slice(2, 10)
+
+const round2 = (n: number) => Math.round(n * 100) / 100
 
 // One line per drink and notes: equal items with equal notes fold together, keeping the first line's place.
 function mergeCartLines(lines: CafeCartItem[]): CafeCartItem[] {
@@ -330,7 +332,11 @@ function CustomerReceiptModal({
             discount={receipt.discount}
             loyalty={receipt.loyaltyDiscount ? { amount: receipt.loyaltyDiscount, points: receipt.pointsRedeemed ?? 0 } : undefined}
             paymentLabel={payLabel}
-            tendered={receipt.payMode === 'Cash' ? receipt.cashTendered : undefined}
+            tendered={
+              receipt.payMode === 'Cash' ? receipt.cashTendered
+                : receipt.payMode === 'Split' && receipt.cashTendered != null ? round2(receipt.cashTendered + (receipt.splitCard ?? 0))
+                  : undefined
+            }
             customer={receipt.customerName ? { name: receipt.customerName, pointsEarned: receipt.pointsEarned } : undefined}
             badge={
               receipt.offline
@@ -461,9 +467,11 @@ export function CafePosPage() {
   const [showOpenShift, setShowOpenShift] = useState(false)
   const [showCloseShift, setShowCloseShift] = useState(false)
 
-  // Split payment
+  // Split payment. splitCash is the cash handed over, which may be a larger note than the cash part; once the
+  // card part is typed it stays put, so the note can be entered and the change shown.
   const [splitCash, setSplitCash] = useState<string>('')
   const [splitCard, setSplitCard] = useState<string>('')
+  const [splitCardTyped, setSplitCardTyped] = useState(false)
 
   // Kitchen ticket & customer receipt. The last sale's ticket is kept so the cashier can reprint it.
   const [lastKitchenTicket, setLastKitchenTicket] = useState<KitchenTicketData | null>(null)
@@ -799,21 +807,23 @@ export function CafePosPage() {
         kitchen: { tableNumber: orderType === 'here' ? tableNumber : null, takeaway: orderType === 'takeaway' },
         loyaltyPoints: appliedPoints,
         paymentMethod: mode as PaymentMethod,
-        amountTendered: Math.max(grandTotal, handed),
+        // A split records the cash part as what is left after the card, so it adds up to the total; a larger
+        // note shows up as change through the amount tendered.
+        amountTendered: mode === 'Split' ? Math.max(grandTotal, round2(splitCashNum + splitCardNum)) : Math.max(grandTotal, handed),
         ...(mode === 'Split' && {
-          cashAmount: parseFloat(splitCash) || 0,
-          cardAmount: parseFloat(splitCard) || 0,
+          cashAmount: splitCashDue,
+          cardAmount: splitCardNum,
         }),
       }
 
       // Keep selling without a connection: the sale waits on this device and syncs when the network returns,
-      // and the kitchen ticket goes with it.
+      // and the kitchen ticket goes with it. The manager PIN stays off the device; the manager reviews the sale.
       const saveOffline = () => {
         queueSale({
           clientReference,
           tenantId,
           branchId,
-          payload: { ...payload, offlineCreatedAt: new Date().toISOString() },
+          payload: { ...withoutApprovalPin(payload), offlineCreatedAt: new Date().toISOString() },
           total: grandTotal,
           itemCount: cart.reduce((s, i) => s + i.quantity, 0),
         })
@@ -840,9 +850,11 @@ export function CafePosPage() {
         tax,
         subtotal,
         payMode: mode,
-        splitCash: mode === 'Split' ? splitCashNum || undefined : undefined,
+        splitCash: mode === 'Split' ? splitCashDue || undefined : undefined,
         splitCard: mode === 'Split' ? splitCardNum || undefined : undefined,
-        cashTendered: mode === 'Cash' && !viaAi && parseFloat(cashTendered) > 0 ? parseFloat(cashTendered) : undefined,
+        cashTendered: mode === 'Cash' && !viaAi && parseFloat(cashTendered) > 0
+          ? parseFloat(cashTendered)
+          : mode === 'Split' && splitChange > 0 ? splitCashNum : undefined,
         tableNumber: orderType === 'here' ? tableNumber : null,
         orderType,
         customerName: loyaltyCustomer?.name,
@@ -870,6 +882,7 @@ export function CafePosPage() {
       setTableNumber(null)
       setSplitCash('')
       setSplitCard('')
+      setSplitCardTyped(false)
       setCashTendered('')
       setPayMode('Cash')
       setDiscountInput('')
@@ -910,9 +923,11 @@ export function CafePosPage() {
 
   const splitCashNum = parseFloat(splitCash) || 0
   const splitCardNum = parseFloat(splitCard) || 0
+  // What the cash has to cover once the card is charged; the server gets exactly this, so card + cash is the total.
+  const splitCashDue = round2(grandTotal - splitCardNum)
+  const splitChange = round2(splitCashNum - splitCashDue)
   const splitValid = payMode !== 'Split' || (
-    splitCashNum > 0 && splitCardNum > 0 &&
-    Math.abs(splitCashNum + splitCardNum - grandTotal) < 0.01
+    splitCardNum > 0 && splitCashDue > 0 && splitChange >= 0
   )
   const cashShort = payMode === 'Cash' && cashTendered !== '' && (parseFloat(cashTendered) || 0) < grandTotal
   const canCheckout = cart.length > 0 && splitValid && !cashShort && !discountOverCap && (!needsPin || approvalPin.trim().length >= 4)
@@ -1383,7 +1398,7 @@ export function CafePosPage() {
                   {(['Cash', 'Card', 'Split'] as PayMode[]).map((m) => (
                     <button
                       key={m}
-                      onClick={() => { setPayMode(m); setSplitCash(''); setSplitCard('') }}
+                      onClick={() => { setPayMode(m); setSplitCash(''); setSplitCard(''); setSplitCardTyped(false) }}
                       className={cn(
                         'flex flex-1 items-center justify-center gap-1 py-2 text-xs font-medium transition-colors',
                         payMode === m
@@ -1420,6 +1435,7 @@ export function CafePosPage() {
                           value={splitCash}
                           onChange={(e) => {
                             setSplitCash(e.target.value)
+                            if (splitCardTyped) return
                             const cash = parseFloat(e.target.value) || 0
                             const remaining = grandTotal - cash
                             setSplitCard(remaining > 0 ? remaining.toFixed(2) : '')
@@ -1437,6 +1453,7 @@ export function CafePosPage() {
                           value={splitCard}
                           onChange={(e) => {
                             setSplitCard(e.target.value)
+                            setSplitCardTyped(e.target.value !== '')
                             const card = parseFloat(e.target.value) || 0
                             const remaining = grandTotal - card
                             setSplitCash(remaining > 0 ? remaining.toFixed(2) : '')
@@ -1445,10 +1462,21 @@ export function CafePosPage() {
                         />
                       </div>
                     </div>
-                    {splitCashNum + splitCardNum > 0 && Math.abs(splitCashNum + splitCardNum - grandTotal) > 0.01 && (
-                      <p className="text-center text-[10px] font-semibold text-danger">
-                        الفرق: {(grandTotal - splitCashNum - splitCardNum).toFixed(2)} ر.س
-                      </p>
+                    {splitCardNum > 0 && splitCashDue > 0 && splitCash !== '' && (
+                      splitChange >= 0 ? (
+                        <div className="flex items-baseline justify-between rounded-lg bg-success/10 px-3 py-1.5" aria-live="polite">
+                          <span className="text-xs font-medium text-success">{t.pos.splitChange}</span>
+                          <span className="text-lg font-bold tabular-nums text-success">{formatCurrency(splitChange)}</span>
+                        </div>
+                      ) : (
+                        <div role="alert" className="flex items-baseline justify-between rounded-lg bg-danger/10 px-3 py-1.5">
+                          <span className="text-xs font-medium text-danger">{t.pos.splitCashShort}</span>
+                          <span className="text-lg font-bold tabular-nums text-danger">{formatCurrency(-splitChange)}</span>
+                        </div>
+                      )
+                    )}
+                    {splitCardNum > 0 && splitCashDue <= 0 && (
+                      <p role="alert" className="text-center text-[10px] font-semibold text-danger">{t.pos.splitCardTooHigh}</p>
                     )}
                   </div>
                 )}
