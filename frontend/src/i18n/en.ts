@@ -554,8 +554,9 @@ export const en = {
     invoiceCount: 'Invoices',
     returnCount: 'Returns',
     nothingToExport: 'No sales in this period',
-    notAllowed: 'Reports are for owners and managers',
+    notAllowed: 'Reports are for owners, managers and accountants',
     notAllowedHint: 'Reports include costs and profit. Ask the store owner if you need them.',
+    returnsFailed: "Couldn't load returns, so the figures are hidden rather than shown incomplete. Refresh the page.",
     csv: {
       type: 'Type',
       invoice: 'Invoice',

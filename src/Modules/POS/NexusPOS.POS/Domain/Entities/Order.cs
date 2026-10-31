@@ -254,6 +254,24 @@ public sealed class Order : AggregateRoot<OrderId>
         return Result.Success;
     }
 
+    // The pre-tax price one unit of this line really sold for: after its own discount and its share of
+    // the order's manual and loyalty discounts. Returns credit this, so the refund matches what was paid.
+    public decimal EffectiveUnitNet(OrderLine line)
+    {
+        if (line.Quantity <= 0)
+        {
+            return 0m;
+        }
+
+        decimal unitNet = line.LineTotal / line.Quantity;
+        if (SubtotalAmount > 0)
+        {
+            unitNet *= Math.Max(SubtotalAmount - DiscountAmount, 0m) / SubtotalAmount;
+        }
+
+        return Math.Round(unitNet, 4);
+    }
+
     private void RecalculateTotals()
     {
         SubtotalAmount = Lines.Sum(l => l.LineTotal);

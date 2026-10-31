@@ -70,7 +70,7 @@ internal sealed class ReturnOrderCommandHandler(
                 originalLine.ProductName,
                 originalLine.VariantName,
                 lineInput.Quantity,
-                originalLine.UnitPrice.Amount,
+                order.EffectiveUnitNet(originalLine),
                 lineInput.Reason));
         }
 

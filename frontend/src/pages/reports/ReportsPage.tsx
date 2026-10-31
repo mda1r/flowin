@@ -320,17 +320,21 @@ function ReportsContent() {
     [period, customFrom, customTo],
   )
 
-  const { data: rawOrders, isLoading, isError } = useQuery({
+  const { data: rawOrders, isLoading: ordersLoading, isError: ordersError } = useQuery({
     queryKey: ['reports', branchId, dateFrom, dateTo],
     queryFn: () => salesApi.listAllCompletedOrders(branchId!, dateFrom, dateTo).then((data) => ({ data })),
     enabled: !!branchId,
   })
 
-  const { data: rawReturns } = useQuery({
+  const { data: rawReturns, isLoading: returnsLoading, isError: returnsError } = useQuery({
     queryKey: ['reports-returns', branchId],
     queryFn: () => ordersApi.listReturns(branchId!),
     enabled: !!branchId,
   })
+
+  // Returns are credit notes on these figures, so nothing is shown, exported or printed without them.
+  const isLoading = ordersLoading || returnsLoading
+  const isError = ordersError || returnsError
 
   const orders = useMemo<OrderResponse[]>(() => {
     const raw = rawOrders?.data
@@ -412,11 +416,11 @@ function ReportsContent() {
           description={periodLabel}
           action={
             <>
-              <Button variant="secondary" size="sm" onClick={exportCsv} disabled={isLoading}>
+              <Button variant="secondary" size="sm" onClick={exportCsv} disabled={isLoading || isError}>
                 <Download className="h-4 w-4" />
                 {t.reports.exportCsv}
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => setVatOpen(true)} disabled={isLoading}>
+              <Button variant="secondary" size="sm" onClick={() => setVatOpen(true)} disabled={isLoading || isError}>
                 <Printer className="h-4 w-4" />
                 {t.reports.printVat}
               </Button>
@@ -474,7 +478,7 @@ function ReportsContent() {
           </div>
         ) : isError ? (
           <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger dark:border-danger/60 dark:bg-danger/15">
-            {t.common.noData}
+            {ordersError ? t.common.noData : t.reports.returnsFailed}
           </div>
         ) : (
           <>
