@@ -282,6 +282,9 @@ internal static class DatabaseInitializerExtensions
             // Unpaid copies the cafe cashier used to open for the kitchen hold no real menu item; mark them kitchen-only
             // so they leave the open tables and can no longer be paid a second time.
             "UPDATE restaurant_orders o SET kitchen_only = TRUE WHERE o.kitchen_only = FALSE AND o.status NOT IN ('Paid', 'Cancelled') AND NOT EXISTS (SELECT 1 FROM restaurant_order_items i JOIN menu_items m ON m.id = i.menu_item_id WHERE i.restaurant_order_id = o.id)",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancel_reason VARCHAR(256)",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_by UUID",
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE",
         ];
 
         foreach (string sql in patches)
@@ -463,23 +466,6 @@ internal static class DatabaseInitializerExtensions
         {
             try { await gamingDb.Database.ExecuteSqlRawAsync(sql); }
             catch (Exception ex) { logger.LogWarning(ex, "Gaming migration skipped: {Sql}", sql); }
-        }
-    }
-
-    internal static async Task MigrateRestaurantColumnsAsync(IServiceProvider sp, ILogger logger)
-    {
-        RestaurantDbContext restaurantDb = sp.GetRequiredService<RestaurantDbContext>();
-        string[] patches =
-        [
-            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancel_reason VARCHAR(256)",
-            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_by UUID",
-            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE",
-        ];
-
-        foreach (string sql in patches)
-        {
-            try { await restaurantDb.Database.ExecuteSqlRawAsync(sql); }
-            catch (Exception ex) { logger.LogWarning(ex, "Restaurant migration skipped: {Sql}", sql); }
         }
     }
 
