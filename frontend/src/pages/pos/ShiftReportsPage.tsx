@@ -12,6 +12,7 @@ import { invoiceNo } from '@/lib/invoiceNumber'
 import { paymentLabel } from '@/lib/orderReceipt'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { printElement } from '@/lib/print'
+import { staleShiftReason } from '@/lib/shifts'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 
 type Period = '7d' | '30d' | 'all'
@@ -29,8 +30,6 @@ function duration(fromIso: string, toIso?: string | null) {
   const m = mins % 60
   return d > 0 ? `${n(d)} يوم ${n(h)} س` : `${n(h)} س ${n(m)} د`
 }
-
-const LONG_OPEN_HOURS = 16
 
 function reconcile(s: ShiftResponse) {
   const expectedCash = s.expectedCash ?? s.openingCash + s.totalCashSales
@@ -180,8 +179,6 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
   const r = reconcile(shift)
   const avg = shift.totalOrders ? shift.totalSales / shift.totalOrders : 0
   const cashShare = shift.totalSales ? (shift.totalCashSales / shift.totalSales) * 100 : 0
-  const openHours = (Date.now() - new Date(shift.openedAt).getTime()) / 3_600_000
-
 
   const refundsInShift = useMemo(() => {
     const until = shift.closedAt ? new Date(shift.closedAt).getTime() : Date.now()
@@ -239,7 +236,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false }: { shift: Shift
           )}
         </div>
 
-        {isCurrent && openHours > LONG_OPEN_HOURS && (
+        {isCurrent && staleShiftReason(shift.openedAt) !== null && (
           <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             الشفت مفتوح منذ {duration(shift.openedAt)}. أغلقه وطابق الدرج في نهاية كل يوم حتى تصح التقارير.

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NexusPOS.Inventory.Domain.Entities;
 using NexusPOS.Inventory.Domain.Repositories;
+using NexusPOS.Inventory.Domain.Services;
 using NexusPOS.Inventory.Domain.ValueObjects;
 
 namespace NexusPOS.Inventory.Infrastructure.Persistence.Repositories;
@@ -33,7 +34,7 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockItem>> FindExpiringAsync(
-        Guid branchId, CancellationToken cancellationToken = default)
+        Guid branchId, int? daysAhead = null, CancellationToken cancellationToken = default)
     {
         DateTime now = DateTime.UtcNow;
         List<StockItem> allWithExpiry = await dbContext.StockItems
@@ -42,7 +43,7 @@ internal sealed class StockItemRepository(InventoryDbContext dbContext) : IStock
             .ToListAsync(cancellationToken);
 
         return allWithExpiry
-            .Where(s => s.ExpiryDate!.Value <= now.AddDays(s.NotifyDaysBeforeExpiry))
+            .Where(s => ExpiryCalendar.IsDue(s.ExpiryDate!.Value, now, daysAhead ?? s.NotifyDaysBeforeExpiry))
             .ToList();
     }
 

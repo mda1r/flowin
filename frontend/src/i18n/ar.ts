@@ -150,6 +150,16 @@ export const ar: Translations = {
     contracts: 'العقود',
     restaurant: 'المطعم',
     gaming: 'الألعاب',
+    moreItems: 'و{n} أخرى',
+    reorderShortages: 'أمر شراء للنواقص',
+    materialReorderLevel: 'حد الطلب {n}',
+    materialOut: 'نفدت المادة',
+    materialLow: 'مادة خام منخفضة',
+    moreMaterials: 'و{n} مواد أخرى تحت حد الطلب',
+    shiftOpenLong: 'الشفت مفتوح منذ {hours} ساعة',
+    shiftFromPreviousDay: 'شفت مفتوح من يوم سابق',
+    shiftCloseHint: 'أغلقه حتى يصح إقفال اليوم وجرد الصندوق',
+    goToShifts: 'الشفتات',
   },
 
   pos: {
@@ -293,6 +303,14 @@ export const ar: Translations = {
     deleteItemConfirm: 'هل تريد حذف هذا السجل من المخزون نهائياً؟',
     itemDeleted: 'تم حذف سجل المخزون',
     deleteFailed: 'فشل الحذف',
+    expiresToday: 'تنتهي اليوم',
+    expiresTomorrow: 'تنتهي غداً',
+    unknownItem: 'صنف غير معروف',
+    writeOff: 'إتلاف',
+    writeOffReference: 'إتلاف - منتهي الصلاحية',
+    showingOnly: 'المعروض: {label}',
+    showAll: 'عرض الكل',
+    reorder: 'طلب شراء',
   },
 
   customers: {
@@ -756,6 +774,10 @@ export const ar: Translations = {
     shiftSummary: 'ملخص الشفت',
     cashVariance: 'فرق النقد',
     cardVariance: 'فرق البطاقة',
+    staleLong: 'الشفت مفتوح منذ {hours} ساعة',
+    stalePreviousDay: 'هذا الشفت مفتوح من يوم سابق',
+    staleHint: 'أغلقه وافتح شفتاً جديداً ليبقى تقرير اليوم والصندوق مضبوطين.',
+    closeNow: 'إغلاق الشفت الآن',
   },
 
   kitchen: {

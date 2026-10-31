@@ -400,7 +400,7 @@ function RetailPosPage() {
           </div>
         }
       />
-      <ShiftGate onOpenShift={() => setShowOpenShift(true)}>
+      <ShiftGate onOpenShift={() => setShowOpenShift(true)} onCloseShift={() => setShowCloseShift(true)}>
       <div className="flex flex-1 overflow-hidden">
         {/* Product shelf */}
         <div className="flex flex-1 flex-col overflow-hidden border-e" style={{ borderColor: 'var(--card-border)' }}>

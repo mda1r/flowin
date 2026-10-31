@@ -948,7 +948,7 @@ export function CafePosPage() {
         </div>
       </div>
 
-      <ShiftGate onOpenShift={() => setShowOpenShift(true)}>
+      <ShiftGate onOpenShift={() => setShowOpenShift(true)} onCloseShift={() => setShowCloseShift(true)}>
         <div className="flex flex-1 overflow-hidden">
           {/* ── Cart sidebar (appears RIGHT in RTL) ── */}
           <aside className="flex w-72 flex-shrink-0 flex-col border-l border-border bg-surface">

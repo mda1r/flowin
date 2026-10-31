@@ -148,6 +148,16 @@ export const en = {
     contracts: 'Contracts',
     restaurant: 'Restaurant',
     gaming: 'Gaming',
+    moreItems: '+{n} more',
+    reorderShortages: 'Reorder shortages',
+    materialReorderLevel: 'Reorder level {n}',
+    materialOut: 'Out of stock',
+    materialLow: 'Low raw material',
+    moreMaterials: '+{n} more materials below reorder level',
+    shiftOpenLong: 'Shift open for {hours} hours',
+    shiftFromPreviousDay: 'Shift left open from a previous day',
+    shiftCloseHint: "Close it so the daily close and drawer count are right",
+    goToShifts: 'Shifts',
   },
 
   pos: {
@@ -291,6 +301,14 @@ export const en = {
     deleteItemConfirm: 'Remove this stock record permanently?',
     itemDeleted: 'Stock record removed',
     deleteFailed: 'Failed to remove',
+    expiresToday: 'Expires today',
+    expiresTomorrow: 'Expires tomorrow',
+    unknownItem: 'Unknown item',
+    writeOff: 'Write off',
+    writeOffReference: 'Write-off - expired',
+    showingOnly: 'Showing: {label}',
+    showAll: 'Show all',
+    reorder: 'Reorder',
   },
 
   customers: {
@@ -754,6 +772,10 @@ export const en = {
     shiftSummary: 'Shift Summary',
     cashVariance: 'Cash Variance',
     cardVariance: 'Card Variance',
+    staleLong: 'This shift has been open for {hours} hours',
+    stalePreviousDay: 'This shift was opened on a previous day',
+    staleHint: "Close it and open a new one so today's report and drawer stay accurate.",
+    closeNow: 'Close shift now',
   },
 
   kitchen: {
