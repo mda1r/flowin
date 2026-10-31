@@ -13,6 +13,7 @@ public sealed class PosDbContext(DbContextOptions<PosDbContext> options, MediatR
     public DbSet<ReturnOrderLine> ReturnOrderLines => Set<ReturnOrderLine>();
     public DbSet<CashierShift> CashierShifts => Set<CashierShift>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<PosBranchSettings> PosBranchSettings => Set<PosBranchSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

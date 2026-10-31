@@ -17,10 +17,16 @@ export const catalogApi = {
     search?: string
     page?: number
     pageSize?: number
+    // Server-side cap on the number of products returned (1–500); omitted returns the whole catalogue.
+    limit?: number
   }) =>
     apiClient.get<ProductResponse[]>(`/api/v1/products`, {
       params: { pageSize: 100, ...params },
     }),
+
+  // Exact barcode or SKU match on an active variant (scanner lookup); 404 when nothing matches.
+  findByBarcode: (code: string) =>
+    apiClient.get<ProductResponse>('/api/v1/products/by-barcode', { params: { code } }),
 
   getProduct: (_tenantId: string, productId: string) =>
     apiClient.get<ProductResponse>(`/api/v1/products/${productId}`),

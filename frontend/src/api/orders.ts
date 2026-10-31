@@ -1,18 +1,48 @@
 import { apiClient } from './client'
 import type { OrderResponse, OrderStatus, PaymentMethod, RefundMethod, ReturnOrderResponse, ReturnReason } from '@/types/api'
 
+export type CheckoutDiscountType = 'None' | 'Percentage' | 'Fixed'
+
 export interface CheckoutPayload {
   clientReference: string
   currency: string
   taxRate: number
   customerId?: string
-  lines: { variantId: string; productName: string; variantName: string; unitPrice: number; costPrice: number; quantity: number }[]
+  lines: {
+    variantId: string
+    productName: string
+    variantName: string
+    unitPrice: number
+    costPrice: number
+    quantity: number
+    discountType?: CheckoutDiscountType
+    discountValue?: number
+  }[]
   loyaltyPoints: number
   paymentMethod: PaymentMethod
   amountTendered: number
   cashAmount?: number
   cardAmount?: number
   offlineCreatedAt?: string
+  // Cart discount; a Fixed value is net riyals like the line prices.
+  discountType?: CheckoutDiscountType
+  discountValue?: number
+  // Manager PIN for a cashier discount past the branch cap. Never stored with an offline sale.
+  approvalPin?: string
+}
+
+// The branch till rules: how far a cashier may discount alone, and whether a manager PIN can approve more.
+export interface PosBranchSettings {
+  maxCashierDiscountPercent: number
+  hasApprovalPin: boolean
+}
+
+export const posSettingsApi = {
+  get: (branchId: string) => apiClient.get<PosBranchSettings>(`/api/v1/branches/${branchId}/pos-settings`),
+
+  // Owner or Manager only. approvalPin replaces the PIN when given; clearApprovalPin removes it.
+  save: (branchId: string, data: { maxCashierDiscountPercent: number; approvalPin?: string; clearApprovalPin?: boolean }) =>
+    apiClient.put<PosBranchSettings>(`/api/v1/branches/${branchId}/pos-settings`, data),
 }
 
 export const ordersApi = {

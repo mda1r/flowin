@@ -2,6 +2,8 @@ using NexusPOS.POS.Domain.Enums;
 
 namespace NexusPOS.POS.Presentation.Requests;
 
+// Discounts use the same pre-VAT figures as the line prices: a Fixed value is net riyals, a Percentage is 0–100.
+// ApprovalPin is the branch manager PIN, needed only when a cashier's discount goes past the branch cap.
 public sealed record CheckoutRequest(
     Guid ClientReference,
     string Currency,
@@ -13,7 +15,11 @@ public sealed record CheckoutRequest(
     decimal AmountTendered,
     decimal? CashAmount = null,
     decimal? CardAmount = null,
-    DateTime? OfflineCreatedAt = null);
+    DateTime? OfflineCreatedAt = null,
+    DiscountType DiscountType = DiscountType.None,
+    decimal DiscountValue = 0m,
+    string? ApprovalPin = null);
 
 public sealed record CheckoutLineRequest(
-    Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity);
+    Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity,
+    DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m);

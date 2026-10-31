@@ -15,17 +15,17 @@ internal sealed class ListProductsQueryHandler(IProductRepository productReposit
         CancellationToken cancellationToken)
     {
         IReadOnlyList<Product> products = !string.IsNullOrWhiteSpace(request.Search)
-            ? await productRepository.SearchAsync(request.Search, cancellationToken)
+            ? await productRepository.SearchAsync(request.Search, request.Limit, cancellationToken)
             : request.CategoryId.HasValue
-                ? await productRepository.FindByCategoryAsync(new CategoryId(request.CategoryId.Value), cancellationToken)
-                : await productRepository.FindAllActiveAsync(cancellationToken);
+                ? await productRepository.FindByCategoryAsync(new CategoryId(request.CategoryId.Value), request.Limit, cancellationToken)
+                : await productRepository.FindAllActiveAsync(request.Limit, cancellationToken);
 
         IReadOnlyList<ProductResponse> responses = products.Select(MapToResponse).ToList();
 
         return ErrorOrFactory.From(responses);
     }
 
-    private static ProductResponse MapToResponse(Product p) => new(
+    internal static ProductResponse MapToResponse(Product p) => new(
         p.Id.Value,
         p.Name,
         p.Description,

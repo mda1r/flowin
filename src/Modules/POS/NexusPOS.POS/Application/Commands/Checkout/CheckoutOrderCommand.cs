@@ -4,7 +4,8 @@ using NexusPOS.SharedKernel.Application.Messaging;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
 
-// One request for a whole sale: lines, optional loyalty redemption and payment. Used online and to sync offline sales.
+// One request for a whole sale: lines, optional discounts and loyalty redemption, and payment. Used online and to sync offline sales.
+// ByOwnerOrManager comes from the caller's role (Owner or Manager), never from the request body.
 public sealed record CheckoutOrderCommand(
     Guid TenantId,
     Guid BranchId,
@@ -18,7 +19,13 @@ public sealed record CheckoutOrderCommand(
     decimal AmountTendered,
     decimal? CashAmount,
     decimal? CardAmount,
-    DateTime? OfflineCreatedAt) : ICommand<OrderResponse>
+    DateTime? OfflineCreatedAt,
+    DiscountType DiscountType = DiscountType.None,
+    decimal DiscountValue = 0m,
+    string? ApprovalPin = null,
+    bool ByOwnerOrManager = false) : ICommand<OrderResponse>
 {
-    public sealed record Line(Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity);
+    public sealed record Line(
+        Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity,
+        DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m);
 }

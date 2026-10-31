@@ -9,6 +9,7 @@ using NexusPOS.Catalog.Application.Commands.DeactivateProduct;
 using NexusPOS.Catalog.Application.Commands.UpdateProduct;
 using NexusPOS.Catalog.Application.Commands.UpdateVariant;
 using NexusPOS.Catalog.Application.Common;
+using NexusPOS.Catalog.Application.Queries.GetProductByBarcode;
 using NexusPOS.Catalog.Application.Queries.GetProductById;
 using NexusPOS.Catalog.Application.Queries.ListProducts;
 using NexusPOS.Catalog.Presentation.Requests;
@@ -27,11 +28,22 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
     public async Task<IActionResult> ListProducts(
         [FromQuery] Guid? categoryId,
         [FromQuery] string? search,
+        [FromQuery] int? limit,
         CancellationToken cancellationToken)
     {
-        ListProductsQuery query = new(categoryId, search);
+        ListProductsQuery query = new(categoryId, search, limit is int n ? Math.Clamp(n, 1, 500) : null);
         ErrorOr<IReadOnlyList<ProductResponse>> result = await mediator.Send(query, cancellationToken);
 
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>Find the product whose active variant has exactly this barcode or SKU (scanner lookup).</summary>
+    [HttpGet("by-barcode")]
+    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByBarcode([FromQuery] string? code, CancellationToken cancellationToken)
+    {
+        ErrorOr<ProductResponse> result = await mediator.Send(new GetProductByBarcodeQuery(code ?? string.Empty), cancellationToken);
         return result.Match(Ok, MapErrorsToResult);
     }
 
