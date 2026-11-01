@@ -59,9 +59,9 @@ internal sealed class ModifierOptionDirectory(CatalogDbContext db) : IModifierOp
             ILookup<ModifierGroupId, Guid> productsByGroup = groupLinks.ToLookup(l => l.GroupId, l => l.ProductId.Value);
 
             HashSet<ModifierGroupId> picked = [.. options.Select(o => o.GroupId)];
+            // A picked option's group comes back even when switched off, so checkout can refuse it; a group
+            // reached only through a product counts only while active.
             Dictionary<Guid, ModifierGroupRules> rules = groups
-                // A picked option's group comes back even when switched off, so checkout can refuse it; a group
-                // reached only through a product counts only while active.
                 .Where(g => g.IsActive || picked.Contains(g.Id))
                 .ToDictionary(
                     g => g.Id.Value,
