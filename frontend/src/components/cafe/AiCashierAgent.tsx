@@ -13,7 +13,8 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { cn, formatCurrency } from '@/lib/utils'
 
 /** What happened when the agent tried to change the POS cart. */
-export type AiCartResult = 'ok' | 'not_found' | 'out_of_stock' | 'not_in_cart'
+// needs_options: the drink has an add-on the customer must pick (e.g. milk), so the cashier picks it on the till.
+export type AiCartResult = 'ok' | 'not_found' | 'out_of_stock' | 'not_in_cart' | 'needs_options'
 
 interface AiCashierAgentProps {
   branchId: string
@@ -172,6 +173,7 @@ export function AiCashierAgent(props: AiCashierAgentProps) {
     switch (result) {
       case 'out_of_stock': return `عذراً، الكمية المطلوبة من ${name} غير متوفرة.`
       case 'not_in_cart': return `${name} مو موجود في الطلب.`
+      case 'needs_options': return `${name} يحتاج اختيار إضافة، اختارها من الشاشة.`
       default: return 'عذراً، أحد الأصناف غير متوفر حالياً.'
     }
   }

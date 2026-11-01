@@ -1953,6 +1953,7 @@ export const en = {
       'POS.ShiftAlreadyOpen': 'You already have an open shift',
       'POS.ShiftNotFound': 'Shift not found',
       'POS.ShiftNotOpen': 'This shift is not open',
+      'POS.DiscountCodeChanged': 'The discount code has changed. Apply it again',
       'POS.DiscountCodeMinOrder': 'The order is below the minimum for this code',
       'DiscountCode.Exists': 'A discount code with this text already exists',
     } as Record<string, string>,

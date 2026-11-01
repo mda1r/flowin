@@ -200,6 +200,8 @@ public sealed class DiscountCodeTests
         (await directory.FindAsync(tenantId, "nope")).Should().BeNull();
         (await directory.FindAsync(tenantId, "  ")).Should().BeNull();
         (await directory.FindAsync(tenantId, "old"))!.Problem.Should().Be(RestaurantErrors.DiscountCodeExpired.Description);
+        (await directory.FindAsync(tenantId, "old", DateTime.UtcNow.AddDays(-2)))!.Problem
+            .Should().BeNull("a sale made offline before the expiry could still use it");
         (await directory.FindAsync(tenantId, "off"))!.Problem.Should().Be(RestaurantErrors.DiscountCodeInactive.Description);
         (await directory.FindAsync(tenantId, "once"))!.Problem.Should().Be(RestaurantErrors.DiscountCodeMaxUsesReached.Description);
     }

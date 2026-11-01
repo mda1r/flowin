@@ -11,9 +11,10 @@ namespace NexusPOS.POS.Application.Commands.Checkout;
 // Line.CostPrice is still accepted so older till and offline payloads bind, but it is ignored: the server sets the cost.
 // Line.ModifierOptionIds are the add-ons picked for the item; the server prices and checks them. Older payloads leave
 // it out, which is the same as picking none.
-// DiscountCode is an owner's code typed at the till: the server sets the order discount from it, whatever
-// DiscountType and DiscountValue say, and it needs no cap or PIN. A queued offline sale keeps the till's values too,
-// which are used only when the code has been deleted since.
+// DiscountCode is an owner's code typed at the till, sent with the DiscountType and DiscountValue the till charged for
+// it. Online the server prices the sale from the code and refuses it when the till's values no longer match; a usable
+// code needs no cap or PIN. A queued offline sale keeps the till's values, and leaves a review note when the code was
+// deleted, unusable at the sale's time or changed since.
 public sealed record CheckoutOrderCommand(
     Guid TenantId,
     Guid BranchId,

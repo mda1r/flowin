@@ -64,6 +64,9 @@ export function ProductsPage() {
   const { branchId, tenantId, user } = useAuthStore()
   // Catalog writes are Owner/Manager-only on the server; cashiers get a read-only list.
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
+  // Only the cafe till (Cafe and Gaming) lets the cashier pick add-ons; elsewhere a required group would
+  // refuse every sale of that product, so the editor stays hidden.
+  const canEditAddOns = canManage && (user?.businessType === 'Cafe' || user?.businessType === 'Gaming')
   const qc = useQueryClient()
   const { t } = useI18n()
   const [recipeVariant, setRecipeVariant] = useState<
@@ -133,7 +136,7 @@ export function ProductsPage() {
   const { data: modifierGroups } = useQuery({
     queryKey: ['modifier-groups'],
     queryFn: () => catalogApi.listModifierGroups(),
-    enabled: canManage && !!editingProduct,
+    enabled: canEditAddOns && !!editingProduct,
   })
 
   const createForm = useForm<CreateFormData>({
@@ -370,10 +373,12 @@ export function ProductsPage() {
         description={t.products.subtitle}
         action={canManage && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setShowModifiers(true)}>
-              <Layers className="h-4 w-4" />
-              {t.products.modifiers}
-            </Button>
+            {canEditAddOns && (
+              <Button variant="secondary" onClick={() => setShowModifiers(true)}>
+                <Layers className="h-4 w-4" />
+                {t.products.modifiers}
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => { categoryForm.reset(); setShowCategoryModal(true) }}>
               <Plus className="h-4 w-4" />
               {t.products.newCategory}
@@ -610,7 +615,7 @@ export function ProductsPage() {
         </Card>
       </div>
 
-      {canManage && <ModifierGroupsModal open={showModifiers} onClose={() => setShowModifiers(false)} />}
+      {canEditAddOns && <ModifierGroupsModal open={showModifiers} onClose={() => setShowModifiers(false)} />}
 
       {recipeVariant && (
         <RecipeModal variant={recipeVariant} copySources={recipeVariant.copySources} onClose={() => setRecipeVariant(null)} />
@@ -733,7 +738,7 @@ export function ProductsPage() {
             <input type="checkbox" {...editProductForm.register('trackInventory')} className="rounded" />
             {t.products.trackInventory}
           </label>
-          {canManage && (
+          {canEditAddOns && (
             <fieldset className="space-y-2 rounded-xl border border-border p-3">
               <legend className="px-1 text-sm font-medium text-fg">{t.products.productGroups}</legend>
               {(modifierGroups?.data ?? []).length === 0 ? (

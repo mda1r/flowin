@@ -20,7 +20,7 @@ internal static class CheckoutDirectories
     public static IDiscountCodeDirectory NoCodes()
     {
         Mock<IDiscountCodeDirectory> codes = new();
-        codes.Setup(c => c.FindAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        codes.Setup(c => c.FindAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DiscountCodeLookup?)null);
         return codes.Object;
     }

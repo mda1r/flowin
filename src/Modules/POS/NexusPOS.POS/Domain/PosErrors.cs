@@ -29,6 +29,10 @@ public static class PosErrors
     public static Error DiscountCodeRejected(string? reason) =>
         Error.Validation("POS.DiscountCodeInvalid", string.IsNullOrWhiteSpace(reason) ? "كود الخصم غير صالح أو منتهي" : reason);
 
+    // The owner edited the code after the till applied it; the till checks it again before the customer pays.
+    public static readonly Error DiscountCodeChanged =
+        Error.Validation("POS.DiscountCodeChanged", "تغيّرت قيمة كود الخصم، أعد تطبيقه");
+
     public static readonly Error DiscountCodeMinOrder =
         Error.Validation("POS.DiscountCodeMinOrder", "مبلغ الطلب أقل من الحد الأدنى لهذا الكود");
 

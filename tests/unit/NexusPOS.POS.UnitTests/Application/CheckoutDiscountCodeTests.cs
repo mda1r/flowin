@@ -17,8 +17,9 @@ using NexusPOS.SharedKernel.Domain.Events;
 
 namespace NexusPOS.POS.UnitTests.Application;
 
-// An owner's discount code at the cafe till: the server takes the percentage from the code, the cashier needs no
-// cap or PIN for it, one sale counts one use, and a 100% code gives a free sale that still completes.
+// An owner's discount code at the cafe till: the server takes the percentage from the code and refuses a sale whose
+// till charged another value, the cashier needs no cap or PIN for it, one sale counts one use, and a 100% code gives a
+// free sale that still completes. Offline, the till's discount stands and anything the code no longer backs is reviewed.
 public sealed class CheckoutDiscountCodeTests
 {
     private static readonly Guid _latte = Guid.NewGuid();
@@ -53,8 +54,8 @@ public sealed class CheckoutDiscountCodeTests
         recipes.Setup(r => r.GetCostsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal>());
         Mock<IDiscountCodeDirectory> directory = new();
-        directory.Setup(d => d.FindAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Guid _, string code, CancellationToken _) =>
+        directory.Setup(d => d.FindAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid _, string code, DateTime? _, CancellationToken _) =>
                 codes.FirstOrDefault(c => string.Equals(c.Code, code.Trim(), StringComparison.OrdinalIgnoreCase)));
         directory.Setup(d => d.RedeemAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         Mock<IPublisher> publisher = new();
@@ -77,14 +78,13 @@ public sealed class CheckoutDiscountCodeTests
             0, method, tendered, null, null, offlineAt, type, value, UserName: "سارة", DiscountCode: code);
 
     [Fact]
-    public async Task ValidCode_SetsTheDiscountFromTheCode_AndIgnoresTheTillsValues()
+    public async Task ValidCode_IsPricedFromTheCode()
     {
         await using PosDbContext db = CreateDb();
         (CheckoutOrderCommandHandler handler, _, _) = Setup(db, _staff);
 
-        // The till claims a 60% discount next to the code; the code is 10%.
         ErrorOr<OrderResponse> result = await handler.Handle(
-            Sale("  staff ", DiscountType.Percentage, 60m), CancellationToken.None);
+            Sale("  staff ", DiscountType.Percentage, 10m), CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         result.Value.DiscountAmount.Should().Be(4m);
@@ -96,13 +96,32 @@ public sealed class CheckoutDiscountCodeTests
         order.OrderDiscount.Value.Should().Be(10m);
     }
 
+    [Theory]
+    [InlineData(60)]
+    [InlineData(5)]
+    [InlineData(0)]
+    public async Task OnlineSale_WhoseTillChargedAnotherValue_IsRefused(int tillPercent)
+    {
+        await using PosDbContext db = CreateDb();
+        (CheckoutOrderCommandHandler handler, Mock<IDiscountCodeDirectory> codes, _) = Setup(db, _staff);
+
+        // The owner changed STAFF to 10% after the till applied it at another value.
+        ErrorOr<OrderResponse> result = await handler.Handle(
+            Sale("STAFF", tillPercent == 0 ? DiscountType.None : DiscountType.Percentage, tillPercent), CancellationToken.None);
+
+        result.FirstError.Should().Be(PosErrors.DiscountCodeChanged);
+        result.FirstError.Description.Should().Be("تغيّرت قيمة كود الخصم، أعد تطبيقه");
+        (await db.Orders.CountAsync()).Should().Be(0);
+        codes.Verify(c => c.RedeemAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task ValidCode_PastTheCashierCap_NeedsNoPin()
     {
         await using PosDbContext db = CreateDb();
         (CheckoutOrderCommandHandler handler, _, _) = Setup(db, _half);
 
-        ErrorOr<OrderResponse> withCode = await handler.Handle(Sale("HALF"), CancellationToken.None);
+        ErrorOr<OrderResponse> withCode = await handler.Handle(Sale("HALF", DiscountType.Percentage, 50m), CancellationToken.None);
         ErrorOr<OrderResponse> byHand = await handler.Handle(Sale(null, DiscountType.Percentage, 50m), CancellationToken.None);
 
         withCode.IsError.Should().BeFalse();
@@ -118,7 +137,7 @@ public sealed class CheckoutDiscountCodeTests
         (CheckoutOrderCommandHandler handler, _, Mock<IPublisher> publisher) = Setup(db, _free);
 
         ErrorOr<OrderResponse> result = await handler.Handle(
-            Sale("free", method: PaymentMethod.Cash, tendered: 0m), CancellationToken.None);
+            Sale("free", DiscountType.Percentage, 100m, PaymentMethod.Cash, 0m), CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         result.Value.Status.Should().Be(OrderStatus.Completed);
@@ -137,7 +156,7 @@ public sealed class CheckoutDiscountCodeTests
     {
         await using PosDbContext db = CreateDb();
         (CheckoutOrderCommandHandler handler, _, _) = Setup(db, _free);
-        await handler.Handle(Sale("FREE", method: PaymentMethod.Cash), CancellationToken.None);
+        await handler.Handle(Sale("FREE", DiscountType.Percentage, 100m, PaymentMethod.Cash), CancellationToken.None);
         Order order = await db.Orders.Include(o => o.Lines).SingleAsync();
 
         ErrorOr<ReturnOrder> refund = ReturnOrder.Create(
@@ -153,7 +172,7 @@ public sealed class CheckoutDiscountCodeTests
     {
         await using PosDbContext db = CreateDb();
         (CheckoutOrderCommandHandler handler, Mock<IDiscountCodeDirectory> codes, _) = Setup(db, _staff);
-        CheckoutOrderCommand sale = Sale("STAFF");
+        CheckoutOrderCommand sale = Sale("STAFF", DiscountType.Percentage, 10m);
 
         ErrorOr<OrderResponse> first = await handler.Handle(sale, CancellationToken.None);
         ErrorOr<OrderResponse> again = await handler.Handle(sale, CancellationToken.None);
@@ -224,7 +243,85 @@ public sealed class CheckoutDiscountCodeTests
         result.IsError.Should().BeFalse();
         result.Value.TotalAmount.Should().Be(41.40m);
         result.Value.DiscountCode.Should().Be("OLD");
-        (await db.ActivityLogs.SingleAsync()).Details.Should().Contain("OLD").And.Contain("لم يعد موجوداً");
+        (await db.ActivityLogs.SingleAsync()).Details.Should().Contain("OLD").And.Contain("لم يعد موجوداً").And.Contain("10%");
+    }
+
+    [Fact]
+    public async Task OfflineSale_WithAMadeUpCode_IsReviewedAsACashierDiscountOverTheCap()
+    {
+        await using PosDbContext db = CreateDb();
+        (CheckoutOrderCommandHandler handler, Mock<IDiscountCodeDirectory> codes, _) = Setup(db);
+
+        ErrorOr<OrderResponse> result = await handler.Handle(
+            Sale("X1", DiscountType.Percentage, 100m, PaymentMethod.Cash, offlineAt: DateTime.UtcNow.AddHours(-1)),
+            CancellationToken.None);
+
+        result.IsError.Should().BeFalse("the sale already happened offline");
+        (await db.ActivityLogs.SingleAsync()).Details
+            .Should().Contain("X1").And.Contain("لم يعد موجوداً").And.Contain("خصم 100%").And.Contain("فوق حد الكاشير");
+        codes.Verify(c => c.RedeemAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task OfflineSale_WithACodeUsedUp_IsReviewedAsACashierDiscountOverTheCap()
+    {
+        await using PosDbContext db = CreateDb();
+        (CheckoutOrderCommandHandler handler, _, _) = Setup(db, _free with { Problem = "كود الخصم استُخدم الحد الأقصى من المرات" });
+
+        ErrorOr<OrderResponse> result = await handler.Handle(
+            Sale("FREE", DiscountType.Percentage, 100m, PaymentMethod.Cash, offlineAt: DateTime.UtcNow.AddHours(-1)),
+            CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        (await db.ActivityLogs.SingleAsync()).Details.Should().Contain("الحد الأقصى").And.Contain("فوق حد الكاشير");
+    }
+
+    [Fact]
+    public async Task OfflineSale_WhoseCodeChangedSince_KeepsWhatTheCustomerPaid_AndIsLogged()
+    {
+        await using PosDbContext db = CreateDb();
+        (CheckoutOrderCommandHandler handler, _, _) = Setup(db, _half);
+
+        // The till applied HALF at 10%; the owner has raised it to 50% since.
+        ErrorOr<OrderResponse> result = await handler.Handle(
+            Sale("HALF", DiscountType.Percentage, 10m, offlineAt: DateTime.UtcNow.AddHours(-1)), CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        result.Value.TotalAmount.Should().Be(41.40m);
+        result.Value.DiscountCode.Should().Be("HALF");
+        (await db.ActivityLogs.SingleAsync()).Details.Should().Contain("HALF").And.Contain("تغيّر").And.Contain("خصم 50%");
+    }
+
+    [Fact]
+    public async Task OfflineSale_AtMoreThanTheCodeGives_IsReviewedOverTheCap()
+    {
+        await using PosDbContext db = CreateDb();
+        (CheckoutOrderCommandHandler handler, _, _) = Setup(db, _staff);
+
+        // STAFF is 10%, but the queued sale carries 50%.
+        ErrorOr<OrderResponse> result = await handler.Handle(
+            Sale("STAFF", DiscountType.Percentage, 50m, offlineAt: DateTime.UtcNow.AddHours(-1)), CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        result.Value.TotalAmount.Should().Be(23m);
+        (await db.ActivityLogs.SingleAsync()).Details.Should().Contain("تغيّر").And.Contain("خصم 50% فوق حد الكاشير");
+    }
+
+    [Fact]
+    public async Task OfflineSale_LooksTheCodeUpAtTheSalesOwnTime()
+    {
+        await using PosDbContext db = CreateDb();
+        (CheckoutOrderCommandHandler handler, Mock<IDiscountCodeDirectory> codes, _) = Setup(db, _staff);
+        DateTime soldAt = DateTime.UtcNow.AddHours(-5);
+
+        await handler.Handle(Sale("STAFF", DiscountType.Percentage, 10m, offlineAt: soldAt), CancellationToken.None);
+        await handler.Handle(Sale("STAFF", DiscountType.Percentage, 10m), CancellationToken.None);
+
+        codes.Verify(c => c.FindAsync(
+            It.IsAny<Guid>(), "STAFF", It.Is<DateTime?>(d => d == soldAt), It.IsAny<CancellationToken>()), Times.Once);
+        codes.Verify(c => c.FindAsync(
+            It.IsAny<Guid>(), "STAFF", It.Is<DateTime?>(d => d != null && d.Value > soldAt.AddHours(4)), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -246,7 +343,7 @@ public sealed class CheckoutDiscountCodeTests
         await using PosDbContext db = CreateDb();
         (CheckoutOrderCommandHandler handler, _, _) = Setup(db, _staff with { MinOrderAmount = 50m });
 
-        ErrorOr<OrderResponse> result = await handler.Handle(Sale("STAFF"), CancellationToken.None);
+        ErrorOr<OrderResponse> result = await handler.Handle(Sale("STAFF", DiscountType.Percentage, 10m), CancellationToken.None);
 
         result.FirstError.Should().Be(PosErrors.DiscountCodeMinOrder);
     }
@@ -257,10 +354,25 @@ public sealed class CheckoutDiscountCodeTests
         await using PosDbContext db = CreateDb();
         (CheckoutOrderCommandHandler handler, _, _) = Setup(db, new DiscountCodeLookup("FIVE", null, false, 5.75m, 0m, null));
 
-        ErrorOr<OrderResponse> result = await handler.Handle(Sale("FIVE"), CancellationToken.None);
+        // The till sends the code's 5.75 with VAT as 5.00 net.
+        ErrorOr<OrderResponse> result = await handler.Handle(Sale("FIVE", DiscountType.Fixed, 5m), CancellationToken.None);
 
         result.IsError.Should().BeFalse();
         result.Value.TotalAmount.Should().Be(40.25m);
+    }
+
+    [Fact]
+    public async Task FixedCode_LargerThanTheBill_MatchesTheTillsCappedAmount()
+    {
+        await using PosDbContext db = CreateDb();
+        (CheckoutOrderCommandHandler handler, _, _) = Setup(db, new DiscountCodeLookup("GIFT", null, false, 100m, 0m, null));
+
+        // A 100 riyal code on a 46.00 bill: the till takes off the whole bill, 40.00 net.
+        ErrorOr<OrderResponse> result = await handler.Handle(
+            Sale("GIFT", DiscountType.Fixed, 40m, PaymentMethod.Cash), CancellationToken.None);
+
+        result.IsError.Should().BeFalse();
+        result.Value.TotalAmount.Should().Be(0m);
     }
 
     [Fact]
@@ -274,7 +386,7 @@ public sealed class CheckoutDiscountCodeTests
         result.IsError.Should().BeFalse();
         result.Value.TotalAmount.Should().Be(43.70m);
         result.Value.DiscountCode.Should().BeNull();
-        codes.Verify(c => c.FindAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        codes.Verify(c => c.FindAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

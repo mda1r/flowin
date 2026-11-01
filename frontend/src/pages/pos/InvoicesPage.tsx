@@ -12,12 +12,14 @@ import { paymentLabel, refundState, type RefundState } from '@/lib/orderReceipt'
 import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { downloadCsv } from '@/lib/csv'
 import { modifierSummary } from '@/lib/modifiers'
+import { lineDisplayName } from '@/lib/variantName'
 import type { OrderLineResponse, OrderResponse, ReturnOrderResponse } from '@/types/api'
 
-// "لاتيه (شوفان · شوت إضافي) ×2": a sold line with its add-ons, for the list, its tooltip and the CSV.
+// "لاتيه - كبير (شوفان · شوت إضافي) ×2": a sold line with its size and add-ons, for the list, its tooltip
+// and the CSV.
 function lineSummary(l: OrderLineResponse) {
   const addOns = modifierSummary(l.modifiers?.map((m) => m.name))
-  return `${l.productName}${addOns ? ` (${addOns})` : ''} ×${l.quantity}`
+  return `${lineDisplayName(l.productName, l.variantName)}${addOns ? ` (${addOns})` : ''} ×${l.quantity}`
 }
 
 type Period = 'today' | 'yesterday' | '7d' | '30d' | 'custom'
@@ -111,7 +113,7 @@ export function InvoicesPage() {
       if (!q) return true
       return (
         matchesInvoiceNo(o, q) ||
-        o.lines.some((l) => l.productName.toLowerCase().includes(q) || !!l.modifiers?.some((m) => m.name.toLowerCase().includes(q))) ||
+        o.lines.some((l) => lineDisplayName(l.productName, l.variantName).toLowerCase().includes(q) || !!l.modifiers?.some((m) => m.name.toLowerCase().includes(q))) ||
         !!o.discountCode?.toLowerCase().includes(q) ||
         o.totalAmount.toFixed(2).includes(q)
       )

@@ -27,11 +27,12 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
 const openDialogs: symbol[] = []
 
 /**
- * Dialog behaviour shared by Modal and OverlayDialog: initial focus, Escape to close, Tab trapped
- * inside the panel, background scroll locked, focus handed back to the opener on close.
+ * Dialog behaviour shared by Modal, OverlayDialog and custom sheets (the phone cart): initial focus,
+ * Escape to close, Tab trapped inside the panel, background scroll locked, focus handed back to the
+ * opener on close.
  */
-function useDialogBehavior(open: boolean, onClose: () => void, initialFocus: 'field' | 'panel') {
-  const panelRef = useRef<HTMLDivElement>(null)
+export function useDialogBehavior<T extends HTMLElement = HTMLDivElement>(open: boolean, onClose: () => void, initialFocus: 'field' | 'panel') {
+  const panelRef = useRef<T>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
   // remember the opener while rendering: autoFocus fields inside the panel take focus before effects run

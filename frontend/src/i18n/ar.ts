@@ -1954,6 +1954,7 @@ export const ar: Translations = {
       'POS.ShiftAlreadyOpen': 'لديك شفت مفتوح مسبقاً',
       'POS.ShiftNotFound': 'الشفت غير موجود',
       'POS.ShiftNotOpen': 'هذا الشفت غير مفتوح',
+      'POS.DiscountCodeChanged': 'تغيّرت قيمة كود الخصم، أعد تطبيقه',
       'POS.DiscountCodeMinOrder': 'مبلغ الطلب أقل من الحد الأدنى لهذا الكود',
       'DiscountCode.Exists': 'يوجد كود خصم بنفس الاسم',
     } as Record<string, string>,

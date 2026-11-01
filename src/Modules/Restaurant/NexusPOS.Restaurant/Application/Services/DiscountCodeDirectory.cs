@@ -11,7 +11,8 @@ namespace NexusPOS.Restaurant.Application.Services;
 
 internal sealed class DiscountCodeDirectory(RestaurantDbContext db, ILogger<DiscountCodeDirectory> logger) : IDiscountCodeDirectory
 {
-    public async Task<DiscountCodeLookup?> FindAsync(Guid tenantId, string code, CancellationToken cancellationToken = default)
+    public async Task<DiscountCodeLookup?> FindAsync(
+        Guid tenantId, string code, DateTime? usableAt = null, CancellationToken cancellationToken = default)
     {
         string normalised = DiscountCode.Normalize(code);
         if (normalised.Length == 0)
@@ -24,7 +25,7 @@ internal sealed class DiscountCodeDirectory(RestaurantDbContext db, ILogger<Disc
             DiscountCode? found = await db.DiscountCodes
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Code == normalised, cancellationToken);
-            return found is null ? null : ToLookup(found, DateTime.UtcNow);
+            return found is null ? null : ToLookup(found, usableAt ?? DateTime.UtcNow);
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
         {

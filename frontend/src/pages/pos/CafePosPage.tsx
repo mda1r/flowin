@@ -24,7 +24,7 @@ import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
-import { ConfirmModal, Modal, OverlayDialog } from '@/components/ui/Modal'
+import { ConfirmModal, Modal, OverlayDialog, useDialogBehavior } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
@@ -646,6 +646,9 @@ export function CafePosPage() {
 
   // Below md the cart is a bottom sheet over the menu; a quantity tapped on a line becomes a typed field.
   const [cartOpen, setCartOpen] = useState(false)
+  // The phone sheet behaves as a dialog: focus on its close button, Tab kept inside, page scroll locked,
+  // focus back on the bottom bar when it closes.
+  const cartSheetRef = useDialogBehavior<HTMLElement>(cartOpen, () => setCartOpen(false), 'panel')
   const [qtyEdit, setQtyEdit] = useState<{ lineKey: string; text: string } | null>(null)
   // Set once this branch's saved draft has been looked at, so an empty cart never overwrites it first.
   const draftBranchRef = useRef<string | null>(null)
@@ -899,6 +902,8 @@ export function CafePosPage() {
     const product = allProducts.find((p) => p.variants.some((v) => v.id === variantId))
     const variant = product?.variants.find((v) => v.id === variantId)
     if (!product || !variant) return 'not_found'
+    // A required add-on (e.g. milk) is the cashier's pick on the till; a plain line would be refused at payment.
+    if (productGroups(product.modifierGroups).some((g) => !groupSatisfied(g, 0))) return 'needs_options'
     const note = (notes ?? '').trim()
     const current = aiCartRef.current
     // The AI adds the plain drink; a line with add-ons is the cashier's and stays as it is.
@@ -1319,7 +1324,14 @@ export function CafePosPage() {
       else if (e.message === 'offline-storage') toast.error('لم تُحفظ العملية: ذاكرة الجهاز ممتلئة', 'دوّن العملية يدوياً، فهي غير مسجلة. السلة باقية كما هي')
       else if (e.message === 'offline-loyalty') toast.error('لا يمكن استبدال النقاط دون اتصال', 'ألغِ الاستبدال وأكمل البيع')
       else if (e.message === 'discount-cap') toast.error(`أقصى خصم للكاشير ${discountCap}٪`, 'اطلب من المدير إتمام البيع')
-      else if (isAxiosError(e) && ['POS.PriceBelowCatalog', 'POS.UnknownProduct'].some((code) => (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.[code])) {
+      else if (isAxiosError(e) && (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.['POS.DiscountCodeChanged']) {
+        // The owner edited the code since it was applied: take it off and offer it again, so the total is re-checked.
+        const code = appliedCode?.code ?? ''
+        clearDiscountCode()
+        setCodeInput(code)
+        setShowCodeInput(true)
+        toast.error(t.pos.paymentFailed, apiErrorMessage(e))
+      } else if (isAxiosError(e) && ['POS.PriceBelowCatalog', 'POS.UnknownProduct'].some((code) => (e.response?.data as { errors?: Record<string, unknown> } | undefined)?.errors?.[code])) {
         void repriceCart(e).catch(() => toast.error(t.pos.paymentFailed, apiErrorMessage(e)))
       } else {
         // An item that left the catalog is refused too; reload the menu so it can be picked again.
@@ -1421,13 +1433,19 @@ export function CafePosPage() {
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────
 
-  // Enter in the search: a scanned or typed barcode/SKU adds that exact size; otherwise the best match is
-  // tapped, which adds a single-size drink or opens its size picker.
+  // Enter in the search: a scanned or typed barcode/SKU adds that exact size (a drink with add-ons opens
+  // the picker on that size); otherwise the best match is tapped, which adds a single-size drink or opens
+  // its size picker.
   const addFirstMatch = () => {
     if (searchTerm) {
       for (const product of products) {
         const variant = exactCodeVariant(product, searchTerm)
         if (variant) {
+          const groups = productGroups(product.modifierGroups)
+          if (groups.length > 0) {
+            setSizePicker({ product, selectedId: variant.id, picks: initialPicks(groups, readLastModifiers(product.id)), fromSearch: true })
+            return
+          }
           if (addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)) setProductSearch('')
           return
         }
@@ -1599,6 +1617,7 @@ export function CafePosPage() {
             <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setCartOpen(false)} aria-hidden="true" />
           )}
           <aside
+            ref={cartSheetRef}
             id="cafe-cart"
             role={cartOpen ? 'dialog' : undefined}
             aria-modal={cartOpen || undefined}
@@ -1620,6 +1639,7 @@ export function CafePosPage() {
                 type="button"
                 onClick={() => setCartOpen(false)}
                 aria-label={t.pos.closeCart}
+                data-autofocus
                 className="flex h-10 w-10 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg"
               >
                 <X className="h-5 w-5" />

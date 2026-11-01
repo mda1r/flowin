@@ -137,6 +137,21 @@ export function LoyaltyPanel({
   const canSave = !!draft && draft.name.trim() !== '' && !draftPhoneInvalid && online
   const today = new Date().toISOString().slice(0, 10)
 
+  const quickAddButton = (
+    <>
+      <button
+        type="button"
+        onClick={openNewCustomer}
+        disabled={!online}
+        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand-soft px-3 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand/15 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <UserPlus className="h-4 w-4" />
+        {t.customers.quickAdd}
+      </button>
+      {!online && <p className="text-xs text-muted">{t.customers.needsInternet}</p>}
+    </>
+  )
+
   const newCustomerModal =
     draft &&
     createPortal(
@@ -244,33 +259,28 @@ export function LoyaltyPanel({
             ) : results.length === 0 ? (
               <li className="space-y-1.5 px-3 py-2">
                 <p className="text-xs text-muted">لا يوجد عميل بهذا الاسم أو الرقم</p>
-                <button
-                  type="button"
-                  onClick={openNewCustomer}
-                  disabled={!online}
-                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-brand/40 bg-brand-soft px-3 text-sm font-semibold text-brand-ink transition-colors hover:bg-brand/15 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  {t.customers.quickAdd}
-                </button>
-                {!online && <p className="text-xs text-muted">{t.customers.needsInternet}</p>}
+                {quickAddButton}
               </li>
             ) : (
-              results.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start text-sm hover:bg-surface-2"
-                    onClick={() => pick(c)}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium text-fg">{c.name}</span>
-                      {c.phone && <span className="block text-xs text-muted" dir="ltr">{c.phone}</span>}
-                    </span>
-                    <span className="shrink-0 text-xs tabular-nums text-brand-ink">{c.loyaltyPoints.toLocaleString(intlLocale())} نقطة</span>
-                  </button>
-                </li>
-              ))
+              <>
+                {results.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start text-sm hover:bg-surface-2"
+                      onClick={() => pick(c)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-fg">{c.name}</span>
+                        {c.phone && <span className="block text-xs text-muted" dir="ltr">{c.phone}</span>}
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-brand-ink">{c.loyaltyPoints.toLocaleString(intlLocale())} نقطة</span>
+                    </button>
+                  </li>
+                ))}
+                {/* A common name or the first digits match others; the new regular can still be added here. */}
+                <li className="space-y-1.5 border-t border-border px-3 py-2">{quickAddButton}</li>
+              </>
             )}
           </ul>
         )}

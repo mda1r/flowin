@@ -45,11 +45,19 @@ internal sealed class CheckoutOrderCommandHandler(
         bool offline = OfflineSale.IsOffline(request.OfflineCreatedAt, now);
         List<string> review = [];
 
-        // An owner's discount code replaces whatever discount the till sent: from here on the sale carries the
-        // code's own percentage, read for the caller's tenant only.
+        // A sale that synced after its shift closed is dated into the shift open now, so its cash is still counted.
+        DateTime? shiftBoundary = request.OfflineCreatedAt is null
+            ? null
+            : await db.CashierShifts
+                .Where(s => s.BranchId == request.BranchId)
+                .MaxAsync(s => (DateTime?)(s.ClosedAt ?? s.OpenedAt), cancellationToken);
+
+        // An owner's discount code, read for the caller's tenant only. Online the sale carries the code's own value;
+        // an offline sale must have been made while the code was usable, at the time the sale is recorded.
+        DateTime usableAt = offline ? CheckoutBuilder.SaleTime(request.OfflineCreatedAt, now, shiftBoundary) ?? now : now;
         DiscountCodeLookup? code = string.IsNullOrWhiteSpace(request.DiscountCode)
             ? null
-            : await discountCodes.FindAsync(request.TenantId, request.DiscountCode, cancellationToken);
+            : await discountCodes.FindAsync(request.TenantId, request.DiscountCode, usableAt, cancellationToken);
         DiscountCodeCheck.Outcome coded = DiscountCodeCheck.Apply(request, code, offline);
         if (coded.Error is Error codeError)
         {
@@ -107,19 +115,26 @@ internal sealed class CheckoutOrderCommandHandler(
             await recipeCosts.GetCostsAsync(request.TenantId, variantIds, cancellationToken),
             await prices.GetCostPricesAsync(variantIds, cancellationToken));
 
-        // A sale that synced after its shift closed is dated into the shift open now, so its cash is still counted.
-        DateTime? shiftBoundary = request.OfflineCreatedAt is null
-            ? null
-            : await db.CashierShifts
-                .Where(s => s.BranchId == request.BranchId)
-                .MaxAsync(s => (DateTime?)(s.ClosedAt ?? s.OpenedAt), cancellationToken);
-
         // Build once without a number first, so a rejected sale never uses up an invoice number.
         ErrorOr<Order> draft = CheckoutBuilder.Build(
             request, rules.Value, notBefore: shiftBoundary, offline: offline, unitCosts: unitCosts, modifiers: modifiers);
         if (draft.IsError)
         {
             return draft.Errors;
+        }
+
+        // Online, a code edited after the till applied it would charge the customer one amount and record another, so
+        // the till checks the code again. Offline the customer paid the till's amount: it stands, as a cashier discount.
+        bool approvedByCode = coded.ApprovedByCode;
+        if (DiscountCodeCheck.Changed(coded, draft.Value))
+        {
+            if (!offline)
+            {
+                return PosErrors.DiscountCodeChanged;
+            }
+
+            approvedByCode = false;
+            review.Add($"كود الخصم {code!.Code} تغيّر: الكاشير طبّق {DiscountCodeCheck.Describe(request.DiscountType, request.DiscountValue, request.TaxRate)} وقيمته الآن {DiscountCodeCheck.Describe(coded.MustMatch!.Type, coded.MustMatch.Value, request.TaxRate)}");
         }
 
         if (DiscountCodeCheck.BelowMinimum(code, draft.Value))
@@ -134,7 +149,7 @@ internal sealed class CheckoutOrderCommandHandler(
 
         if (offline)
         {
-            string? overCap = await OverCapAsync(request, draft.Value, cancellationToken);
+            string? overCap = await OverCapAsync(request, draft.Value, approvedByCode, cancellationToken);
             if (overCap is not null)
             {
                 review.Add(overCap);
@@ -147,7 +162,7 @@ internal sealed class CheckoutOrderCommandHandler(
         }
         else
         {
-            ErrorOr<Success> approved = await ApproveDiscountAsync(request, draft.Value, now, cancellationToken);
+            ErrorOr<Success> approved = await ApproveDiscountAsync(request, draft.Value, approvedByCode, now, cancellationToken);
             if (approved.IsError)
             {
                 return approved.Errors;
@@ -235,10 +250,11 @@ internal sealed class CheckoutOrderCommandHandler(
         return OrderMapper.ToResponse(order);
     }
 
+    // approvedByCode: the cart discount came from a usable discount code at its own value, so only line discounts count.
     private async Task<ErrorOr<Success>> ApproveDiscountAsync(
-        CheckoutOrderCommand request, Order draft, DateTime now, CancellationToken ct)
+        CheckoutOrderCommand request, Order draft, bool approvedByCode, DateTime now, CancellationToken ct)
     {
-        decimal percent = DiscountApproval.ManualDiscountPercent(draft, request.DiscountCode is not null);
+        decimal percent = DiscountApproval.ManualDiscountPercent(draft, approvedByCode);
         if (percent <= 0 || request.ByOwnerOrManager)
         {
             return Result.Success;
@@ -288,10 +304,11 @@ internal sealed class CheckoutOrderCommandHandler(
         return Result.Success;
     }
 
-    // For a sale made offline: a cashier discount past today's cap, described for the manager's review.
-    private async Task<string?> OverCapAsync(CheckoutOrderCommand request, Order draft, CancellationToken ct)
+    // For a sale made offline: a cashier discount past today's cap, described for the manager's review. A code that was
+    // deleted, unusable at the sale's time or charged at another value counts as a cashier discount here.
+    private async Task<string?> OverCapAsync(CheckoutOrderCommand request, Order draft, bool approvedByCode, CancellationToken ct)
     {
-        decimal percent = DiscountApproval.ManualDiscountPercent(draft, request.DiscountCode is not null);
+        decimal percent = DiscountApproval.ManualDiscountPercent(draft, approvedByCode);
         if (percent <= 0 || request.ByOwnerOrManager)
         {
             return null;
