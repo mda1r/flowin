@@ -20,6 +20,7 @@ internal sealed class CheckoutOrderCommandHandler(
     IVariantPriceDirectory prices,
     IRecipeCostDirectory recipeCosts,
     IModifierOptionDirectory modifierOptions,
+    IDiscountCodeDirectory discountCodes,
     IPublisher publisher)
     : ICommandHandler<CheckoutOrderCommand, OrderResponse>
 {
@@ -43,6 +44,24 @@ internal sealed class CheckoutOrderCommandHandler(
         DateTime now = DateTime.UtcNow;
         bool offline = OfflineSale.IsOffline(request.OfflineCreatedAt, now);
         List<string> review = [];
+
+        // An owner's discount code replaces whatever discount the till sent: from here on the sale carries the
+        // code's own percentage, read for the caller's tenant only.
+        DiscountCodeLookup? code = string.IsNullOrWhiteSpace(request.DiscountCode)
+            ? null
+            : await discountCodes.FindAsync(request.TenantId, request.DiscountCode, cancellationToken);
+        DiscountCodeCheck.Outcome coded = DiscountCodeCheck.Apply(request, code, offline);
+        if (coded.Error is Error codeError)
+        {
+            return codeError;
+        }
+
+        if (coded.Review is not null)
+        {
+            review.Add(coded.Review);
+        }
+
+        request = coded.Command;
 
         // The add-ons are read for the caller's tenant only, with the rules of every group on the drinks sold, so a
         // required choice the till skipped is caught as well as an option that is off or belongs to another drink.
@@ -101,6 +120,16 @@ internal sealed class CheckoutOrderCommandHandler(
         if (draft.IsError)
         {
             return draft.Errors;
+        }
+
+        if (DiscountCodeCheck.BelowMinimum(code, draft.Value))
+        {
+            if (!offline)
+            {
+                return PosErrors.DiscountCodeMinOrder;
+            }
+
+            review.Add($"كود الخصم {code!.Code} على طلب أقل من حده الأدنى {code.MinOrderAmount:0.00}");
         }
 
         if (offline)
@@ -170,6 +199,13 @@ internal sealed class CheckoutOrderCommandHandler(
             await publisher.Publish(domainEvent, cancellationToken);
         }
 
+        // One use per sale: a resend with the same reference replays above and never gets here. Counted even if the
+        // till hangs up now, because the sale is already saved.
+        if (coded.Redeem && order.DiscountCode is string usedCode)
+        {
+            await discountCodes.RedeemAsync(request.TenantId, usedCode, CancellationToken.None);
+        }
+
         return await Done(request, order, cancellationToken);
     }
 
@@ -202,7 +238,7 @@ internal sealed class CheckoutOrderCommandHandler(
     private async Task<ErrorOr<Success>> ApproveDiscountAsync(
         CheckoutOrderCommand request, Order draft, DateTime now, CancellationToken ct)
     {
-        decimal percent = DiscountApproval.ManualDiscountPercent(draft);
+        decimal percent = DiscountApproval.ManualDiscountPercent(draft, request.DiscountCode is not null);
         if (percent <= 0 || request.ByOwnerOrManager)
         {
             return Result.Success;
@@ -255,7 +291,7 @@ internal sealed class CheckoutOrderCommandHandler(
     // For a sale made offline: a cashier discount past today's cap, described for the manager's review.
     private async Task<string?> OverCapAsync(CheckoutOrderCommand request, Order draft, CancellationToken ct)
     {
-        decimal percent = DiscountApproval.ManualDiscountPercent(draft);
+        decimal percent = DiscountApproval.ManualDiscountPercent(draft, request.DiscountCode is not null);
         if (percent <= 0 || request.ByOwnerOrManager)
         {
             return null;

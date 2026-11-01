@@ -48,6 +48,9 @@ public sealed class Order : AggregateRoot<OrderId>
     // The store's sequential invoice number (1, 2, 3…), given when the sale completes and printed on the receipt.
     public long? Number { get; private set; }
 
+    // The owner's discount code that set the order discount (stored upper case), so the invoice shows which code it was.
+    public string? DiscountCode { get; private set; }
+
     public void AssignNumber(long number)
     {
         if (Number is not null || Status == OrderStatus.Cancelled)
@@ -104,6 +107,14 @@ public sealed class Order : AggregateRoot<OrderId>
     {
         ClientReference = clientReference;
         OfflineCreatedAt = offlineCreatedAt;
+    }
+
+    public const int DiscountCodeMaxLength = 64;
+
+    public void TagDiscountCode(string? code)
+    {
+        string? trimmed = string.IsNullOrWhiteSpace(code) ? null : code.Trim().ToUpperInvariant();
+        DiscountCode = trimmed is { Length: > DiscountCodeMaxLength } ? trimmed[..DiscountCodeMaxLength] : trimmed;
     }
 
     public ErrorOr<OrderLine> AddLine(

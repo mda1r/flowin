@@ -45,7 +45,7 @@ public sealed class CheckoutCostTests
         recipes.Setup(r => r.GetCostsAsync(tenantId, It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal> { [_latte] = 2.64m });
         return new CheckoutOrderCommandHandler(
-            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), new Mock<IPublisher>().Object);
+            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), CheckoutDirectories.NoCodes(), new Mock<IPublisher>().Object);
     }
 
     // The till claims a cost of 99 on every line. Card, so the payment always adds up; the manager role skips the price check.

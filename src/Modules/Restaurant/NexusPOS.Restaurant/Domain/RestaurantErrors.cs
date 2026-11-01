@@ -93,4 +93,7 @@ public static class RestaurantErrors
 
     public static readonly Error DiscountCodeMinOrderAmountNotMet =
         Error.Validation("DiscountCode.MinOrderAmountNotMet", "مبلغ الطلب أقل من الحد الأدنى لهذا الكود");
+
+    public static readonly Error DiscountCodeExists =
+        Error.Conflict("DiscountCode.Exists", "يوجد كود خصم بنفس الاسم");
 }

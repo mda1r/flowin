@@ -18,6 +18,7 @@ internal sealed class DiscountCodeConfiguration : IEntityTypeConfiguration<Disco
 
         builder.Property(c => c.TenantId).HasColumnName("tenant_id").IsRequired();
         builder.Property(c => c.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+        builder.Property(c => c.Label).HasColumnName("label").HasMaxLength(DiscountCode.LabelMaxLength);
 
         builder.Property(c => c.Type)
             .HasConversion<string>()
@@ -29,7 +30,7 @@ internal sealed class DiscountCodeConfiguration : IEntityTypeConfiguration<Disco
         builder.Property(c => c.MinOrderAmount).HasColumnName("min_order_amount").HasPrecision(18, 4).IsRequired();
         builder.Property(c => c.MaxUses).HasColumnName("max_uses").IsRequired();
         builder.Property(c => c.UsedCount).HasColumnName("used_count").IsRequired();
-        builder.Property(c => c.ExpiryDate).HasColumnName("expiry_date").IsRequired();
+        builder.Property(c => c.ExpiryDate).HasColumnName("expiry_date");
         builder.Property(c => c.IsActive).HasColumnName("is_active").IsRequired();
         builder.Property(c => c.CreatedAt).HasColumnName("created_at").IsRequired();
 

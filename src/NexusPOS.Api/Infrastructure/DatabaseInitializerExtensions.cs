@@ -283,6 +283,8 @@ internal static class DatabaseInitializerExtensions
             "CREATE INDEX IF NOT EXISTS ix_orders_branch_sold_at ON orders (branch_id, (COALESCE(completed_at, created_at)))",
             // A cafe line's add-ons as a JSON array of {id, name, priceDelta}; older lines stay null.
             "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS modifiers TEXT",
+            // The owner's discount code a sale used (stored upper case); older sales stay null.
+            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code VARCHAR(64)",
         ];
 
         foreach (string sql in patches)
@@ -309,6 +311,9 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE",
             // The name the barista calls out at the pickup counter (cafe tickets only).
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS call_name VARCHAR(40)",
+            // Discount codes get a short label ("موظفين", "VIP") and may have no expiry date (never expires).
+            "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS label VARCHAR(40)",
+            "ALTER TABLE discount_codes ALTER COLUMN expiry_date DROP NOT NULL",
         ];
 
         foreach (string sql in patches)

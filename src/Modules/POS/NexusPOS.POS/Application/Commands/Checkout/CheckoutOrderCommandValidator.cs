@@ -33,6 +33,7 @@ internal sealed class CheckoutOrderCommandValidator : AbstractValidator<Checkout
         RuleFor(x => x.DiscountValue).LessThanOrEqualTo(100).When(x => x.DiscountType == DiscountType.Percentage)
             .WithMessage("نسبة الخصم لا تتجاوز 100%.");
         RuleFor(x => x.ApprovalPin).MaximumLength(12);
+        RuleFor(x => x.DiscountCode).Must(c => c is null || c.Trim().Length <= 32).WithMessage("كود الخصم غير صالح أو منتهي");
         RuleFor(x => x.LoyaltyPoints).GreaterThanOrEqualTo(0);
         RuleFor(x => x.AmountTendered).GreaterThanOrEqualTo(0).WithMessage("المبلغ المدفوع لا يكون سالباً.");
 

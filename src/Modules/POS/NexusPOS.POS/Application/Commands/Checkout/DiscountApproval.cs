@@ -8,7 +8,8 @@ namespace NexusPOS.POS.Application.Commands.Checkout;
 internal static class DiscountApproval
 {
     // The share of the undiscounted bill given away by hand (line and cart discounts); loyalty points do not count.
-    public static decimal ManualDiscountPercent(Order order)
+    // An owner's discount code was approved when the owner made it, so with one the cart discount does not count either.
+    public static decimal ManualDiscountPercent(Order order, bool cartDiscountByCode = false)
     {
         decimal before = order.Lines.Sum(l => l.LineSubtotal);
         if (before <= 0)
@@ -16,7 +17,8 @@ internal static class DiscountApproval
             return 0m;
         }
 
-        decimal manual = order.Lines.Sum(l => l.LineDiscountAmount) + order.DiscountAmount - order.LoyaltyDiscountAmount;
+        decimal cart = cartDiscountByCode ? 0m : order.DiscountAmount - order.LoyaltyDiscountAmount;
+        decimal manual = order.Lines.Sum(l => l.LineDiscountAmount) + cart;
         return Math.Round(manual / before * 100m, 2);
     }
 

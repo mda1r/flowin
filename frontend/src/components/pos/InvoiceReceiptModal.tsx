@@ -122,6 +122,8 @@ export function InvoiceReceiptModal({
               date: new Date(issuedAt).toLocaleString(intlLocale('ar'), { dateStyle: 'medium', timeStyle: 'short' }),
               items: figures.lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total, detail: l.detail })),
               discount: (figures.discount ?? 0) + (figures.loyalty?.amount ?? 0) || undefined,
+              // The code names the discount only when no points are folded into the same line.
+              discountLabel: figures.loyalty ? undefined : figures.discountLabel,
               vat: figures.tax,
               vatIncluded: true,
               total: figures.total,

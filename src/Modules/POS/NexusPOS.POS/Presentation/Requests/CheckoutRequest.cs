@@ -4,6 +4,7 @@ namespace NexusPOS.POS.Presentation.Requests;
 
 // Discounts use the same pre-VAT figures as the line prices: a Fixed value is net riyals, a Percentage is 0–100.
 // ApprovalPin is the branch manager PIN, needed only when a cashier's discount goes past the branch cap.
+// DiscountCode is an owner's discount code: when given, the server takes the order discount from the code instead.
 public sealed record CheckoutRequest(
     Guid ClientReference,
     string Currency,
@@ -19,7 +20,8 @@ public sealed record CheckoutRequest(
     DiscountType DiscountType = DiscountType.None,
     decimal DiscountValue = 0m,
     string? ApprovalPin = null,
-    CheckoutKitchenRequest? Kitchen = null);
+    CheckoutKitchenRequest? Kitchen = null,
+    string? DiscountCode = null);
 
 // ModifierOptionIds are the add-ons picked for the item (oat milk, an extra shot); the unit price includes them.
 public sealed record CheckoutLineRequest(

@@ -317,6 +317,8 @@ export interface OrderResponse {
   loyaltyPointsRedeemed?: number
   loyaltyDiscountAmount?: number
   source?: 'Pos' | 'Gaming' | 'Restaurant'
+  // The owner's discount code that gave the order discount (upper case); null when the sale used none.
+  discountCode?: string | null
 }
 
 // ── Returns ──────────────────────────────────────────────────────────────────
@@ -568,9 +570,12 @@ export interface DiscountCodeResponse {
   minOrderAmount: number
   maxUses: number
   usedCount: number
-  expiryDate: string
+  // Null: the code never expires.
+  expiryDate: string | null
   isActive: boolean
   createdAt: string
+  // The short name the till and receipt show ("موظفين", "VIP").
+  label?: string | null
 }
 
 export interface ValidateDiscountCodeResponse {
@@ -580,6 +585,7 @@ export interface ValidateDiscountCodeResponse {
   discountAmount: number
   isValid: boolean
   errorMessage?: string
+  label?: string | null
 }
 
 // ── Hotel ────────────────────────────────────────────────────────────────────

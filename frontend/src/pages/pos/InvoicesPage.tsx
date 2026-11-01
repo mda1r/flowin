@@ -112,6 +112,7 @@ export function InvoicesPage() {
       return (
         matchesInvoiceNo(o, q) ||
         o.lines.some((l) => l.productName.toLowerCase().includes(q) || !!l.modifiers?.some((m) => m.name.toLowerCase().includes(q))) ||
+        !!o.discountCode?.toLowerCase().includes(q) ||
         o.totalAmount.toFixed(2).includes(q)
       )
     })
@@ -150,7 +151,7 @@ export function InvoicesPage() {
   const exportCsv = () =>
     downloadCsv(
       `invoices-${localYmd()}.csv`,
-      ['رقم الفاتورة', 'التاريخ', 'المنتجات', 'طريقة الدفع', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'المسترد'],
+      ['رقم الفاتورة', 'التاريخ', 'المنتجات', 'طريقة الدفع', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'المسترد', t.invoices.discountCodeColumn],
       orders.map((o) => [
         invoiceNo(o),
         new Date(o.completedAt ?? o.createdAt).toLocaleString('en-CA', { hour12: false }),
@@ -160,6 +161,7 @@ export function InvoicesPage() {
         o.taxAmount.toFixed(2),
         o.totalAmount.toFixed(2),
         (refunds.get(o.id)?.amount ?? 0).toFixed(2),
+        o.discountCode ?? '',
       ]),
     )
 
@@ -323,7 +325,15 @@ export function InvoicesPage() {
                           {paymentLabel(o.paymentMethod)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-end font-display font-semibold tabular-nums text-fg">{formatCurrency(o.totalAmount)}</td>
+                      <td className="px-4 py-3 text-end font-display font-semibold tabular-nums text-fg">
+                        {formatCurrency(o.totalAmount)}
+                        {/* Which owner's code gave this invoice its discount. */}
+                        {o.discountCode && (
+                          <span className="block font-sans text-[11px] font-normal text-success">
+                            {t.invoices.discountCode} <bdi dir="ltr" className="font-mono">{o.discountCode}</bdi>
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         {refund ? (
                           <span className={cn(

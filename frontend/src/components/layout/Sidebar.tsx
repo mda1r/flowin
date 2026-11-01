@@ -37,6 +37,7 @@ import {
   ClipboardCheck,
   Megaphone,
   ReceiptText,
+  TicketPercent,
 } from 'lucide-react'
 import { AiChatDrawer } from '@/components/ai/AiChatDrawer'
 import { BrandTagline, FlowinLockup, FlowinMark } from '@/components/brand/Brand'
@@ -74,6 +75,7 @@ const NAV_GROUP: Record<string, NavGroup> = {
   '/pos': 'main',
   '/customers': 'customers',
   '/campaigns': 'customers',
+  '/discount-codes': 'customers',
   '/sales': 'customers',
   '/invoices': 'customers',
   '/finance': 'finance',
@@ -106,6 +108,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'stockCount', to: '/stock-counts', icon: <ClipboardList className="h-[18px] w-[18px]" /> },
   { labelKey: 'customers', to: '/customers', icon: <Users className="h-[18px] w-[18px]" /> },
   { labelKey: 'campaigns', to: '/campaigns', icon: <Megaphone className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
+  { labelKey: 'discountCodes', to: '/discount-codes', icon: <TicketPercent className="h-[18px] w-[18px]" />, roles: ['Owner', 'Manager'] },
   { labelKey: 'sales', to: '/sales', icon: <TrendingUp className="h-[18px] w-[18px]" /> },
   { labelKey: 'purchasing', to: '/purchasing', icon: <ShoppingBag className="h-[18px] w-[18px]" /> },
   { labelKey: 'finance', to: '/finance', icon: <DollarSign className="h-[18px] w-[18px]" /> },

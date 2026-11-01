@@ -44,6 +44,7 @@ internal static class OrderMapper
             order.LoyaltyDiscountAmount,
             order.Source,
             order.Number,
-            order.OfflineCreatedAt);
+            order.OfflineCreatedAt,
+            order.DiscountCode);
     }
 }

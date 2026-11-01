@@ -23,6 +23,7 @@ import { formatCurrency } from '@/lib/utils'
 import { SAUDI_VAT_RATE } from '@/lib/zatca'
 import { marginPercent } from '@/lib/pricing'
 import { restaurantErrorMessage } from '@/lib/restaurantErrors'
+import { discountCodeState } from '@/lib/discountCodes'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import type {
@@ -1260,11 +1261,11 @@ function ManagerView({ branchId }: { branchId: string }) {
               <div className="text-end">
                 <span className={cn(
                   'rounded-full px-2 py-0.5 text-xs font-medium',
-                  dc.isActive && new Date(dc.expiryDate) > new Date()
+                  discountCodeState(dc) === 'active'
                     ? 'bg-success/10 text-success'
                     : 'bg-surface-2 text-muted',
                 )}>
-                  {dc.isActive && new Date(dc.expiryDate) > new Date() ? 'نشط' : 'منتهي'}
+                  {discountCodeState(dc) === 'active' ? 'نشط' : 'منتهي'}
                 </span>
               </div>
             </div>

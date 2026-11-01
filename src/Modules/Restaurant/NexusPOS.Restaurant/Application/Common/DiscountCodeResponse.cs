@@ -11,6 +11,7 @@ public sealed record DiscountCodeResponse(
     decimal MinOrderAmount,
     int MaxUses,
     int UsedCount,
-    DateTime ExpiryDate,
+    DateTime? ExpiryDate,
     bool IsActive,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? Label = null);

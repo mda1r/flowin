@@ -12,7 +12,7 @@ internal sealed class DiscountCodeRepository(RestaurantDbContext dbContext) : ID
         string code,
         CancellationToken cancellationToken = default)
     {
-        string normalised = code.Trim().ToUpperInvariant();
+        string normalised = DiscountCode.Normalize(code);
         return await dbContext.DiscountCodes
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Code == normalised, cancellationToken);
     }
@@ -35,7 +35,22 @@ internal sealed class DiscountCodeRepository(RestaurantDbContext dbContext) : ID
             .ToListAsync(cancellationToken);
     }
 
+    public Task<bool> ExistsAsync(
+        Guid tenantId,
+        string code,
+        DiscountCodeId? exceptId,
+        CancellationToken cancellationToken = default)
+    {
+        string normalised = DiscountCode.Normalize(code);
+        IQueryable<DiscountCode> same = dbContext.DiscountCodes.Where(c => c.TenantId == tenantId && c.Code == normalised);
+        return exceptId is null
+            ? same.AnyAsync(cancellationToken)
+            : same.AnyAsync(c => c.Id != exceptId, cancellationToken);
+    }
+
     public void Add(DiscountCode discountCode) => dbContext.DiscountCodes.Add(discountCode);
 
     public void Update(DiscountCode discountCode) => dbContext.DiscountCodes.Update(discountCode);
+
+    public void Remove(DiscountCode discountCode) => dbContext.DiscountCodes.Remove(discountCode);
 }

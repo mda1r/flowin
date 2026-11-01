@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Restaurant.Application.Commands.CreateDiscountCode;
+using NexusPOS.Restaurant.Application.Commands.DeleteDiscountCode;
+using NexusPOS.Restaurant.Application.Commands.UpdateDiscountCode;
 using NexusPOS.Restaurant.Application.Common;
 using NexusPOS.Restaurant.Application.Queries.ListDiscountCodes;
 using NexusPOS.Restaurant.Application.Queries.ValidateDiscountCode;
@@ -75,13 +77,60 @@ public sealed class DiscountCodesController(ISender mediator, ITenantContext ten
             request.Value,
             request.MinOrderAmount,
             request.MaxUses,
-            request.ExpiryDate);
+            request.ExpiryDate,
+            request.Label);
 
         ErrorOr<DiscountCodeResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
             code => CreatedAtAction(nameof(ValidateDiscountCode),
                 new { branchId, code = code.Code, orderAmount = 0 }, code),
             MapErrors);
+    }
+
+    /// <summary>Change a discount code, or switch it on or off; its used count is kept.</summary>
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(DiscountCodeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> UpdateDiscountCode(
+        Guid id,
+        [FromBody] UpdateDiscountCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (tenantContext.TenantId is not Guid tenantId)
+        {
+            return Unauthorized();
+        }
+
+        UpdateDiscountCodeCommand command = new(
+            tenantId,
+            id,
+            request.Code,
+            request.Label,
+            request.Type,
+            request.Value,
+            request.MinOrderAmount,
+            request.MaxUses,
+            request.ExpiryDate,
+            request.IsActive);
+
+        ErrorOr<DiscountCodeResponse> result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrors);
+    }
+
+    /// <summary>Delete a discount code; invoices that used it keep the code's text.</summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteDiscountCode(Guid id, CancellationToken cancellationToken)
+    {
+        if (tenantContext.TenantId is not Guid tenantId)
+        {
+            return Unauthorized();
+        }
+
+        ErrorOr<Deleted> result = await mediator.Send(new DeleteDiscountCodeCommand(tenantId, id), cancellationToken);
+        return result.Match(_ => NoContent(), MapErrors);
     }
 
     private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
@@ -93,4 +142,15 @@ public sealed record CreateDiscountCodeRequest(
     decimal Value,
     decimal MinOrderAmount,
     int MaxUses,
-    DateTime ExpiryDate);
+    DateTime? ExpiryDate,
+    string? Label = null);
+
+public sealed record UpdateDiscountCodeRequest(
+    string Code,
+    string? Label,
+    DiscountCodeType Type,
+    decimal Value,
+    decimal MinOrderAmount,
+    int MaxUses,
+    DateTime? ExpiryDate,
+    bool IsActive);

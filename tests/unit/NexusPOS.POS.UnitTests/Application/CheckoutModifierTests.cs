@@ -100,7 +100,7 @@ public sealed class CheckoutModifierTests
             .Returns(Task.CompletedTask);
 
         return new CheckoutOrderCommandHandler(
-            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, modifiers.Object, publisher.Object);
+            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, modifiers.Object, CheckoutDirectories.NoCodes(), publisher.Object);
     }
 
     // A cashier sale paid by card, so the payment always adds up and the price check runs.

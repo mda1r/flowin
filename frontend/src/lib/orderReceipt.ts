@@ -50,6 +50,7 @@ export function orderReceiptFigures(order: OrderResponse) {
   return {
     lines,
     discount: manualNet > 0 ? r2(manualNet * gross) : undefined,
+    discountLabel: manualNet > 0 ? order.discountCode ?? undefined : undefined,
     loyalty: loyaltyNet > 0 ? { amount: r2(loyaltyNet * gross), points: order.loyaltyPointsRedeemed ?? 0 } : undefined,
     split: order.paymentMethod === 'Split' && (order.splitCash != null || order.splitCard != null)
       ? { cash: order.splitCash ?? 0, card: order.splitCard ?? 0 }

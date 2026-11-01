@@ -8,4 +8,5 @@ public sealed record ValidateDiscountCodeResponse(
     decimal Value,
     decimal DiscountAmount,
     bool IsValid,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    string? Label = null);

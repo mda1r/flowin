@@ -55,6 +55,7 @@ internal static class RestaurantOrderMapper
             UsedCount: code.UsedCount,
             ExpiryDate: code.ExpiryDate,
             IsActive: code.IsActive,
-            CreatedAt: code.CreatedAt);
+            CreatedAt: code.CreatedAt,
+            Label: code.Label);
     }
 }

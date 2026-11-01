@@ -44,6 +44,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at");
         builder.Property(o => o.CompletedAt).HasColumnName("completed_at");
         builder.Property(o => o.Number).HasColumnName("number");
+        builder.Property(o => o.DiscountCode).HasColumnName("discount_code").HasMaxLength(Order.DiscountCodeMaxLength);
 
         builder.OwnsOne(o => o.OrderDiscount, d =>
         {

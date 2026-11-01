@@ -15,4 +15,13 @@ internal static class CheckoutDirectories
             .ReturnsAsync(ModifierLookup.Empty);
         return modifiers.Object;
     }
+
+    // A store without discount codes.
+    public static IDiscountCodeDirectory NoCodes()
+    {
+        Mock<IDiscountCodeDirectory> codes = new();
+        codes.Setup(c => c.FindAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DiscountCodeLookup?)null);
+        return codes.Object;
+    }
 }

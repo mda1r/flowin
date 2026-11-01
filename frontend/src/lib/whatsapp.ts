@@ -28,6 +28,8 @@ export interface ReceiptMessage {
   // detail is the small line under an item: its add-ons and the customer's note.
   items: { name: string; quantity: number; total: number; detail?: string }[]
   discount?: number
+  // The discount code (or its label) that gave the discount, printed next to it.
+  discountLabel?: string
   vat: number
   vatIncluded?: boolean
   total: number
@@ -53,7 +55,7 @@ export function buildReceiptMessage(r: ReceiptMessage): string {
     ...(r.items.length > MAX_ITEMS ? [`• و${r.items.length - MAX_ITEMS} أصناف أخرى`] : []),
     '',
   ]
-  if (r.discount) lines.push(`الخصم: −${sar(r.discount)}`)
+  if (r.discount) lines.push(`الخصم${r.discountLabel ? ` (${r.discountLabel})` : ''}: −${sar(r.discount)}`)
   lines.push(`${r.vatIncluded ? 'منها ضريبة القيمة المضافة' : 'ضريبة القيمة المضافة'}: ${sar(r.vat)}`, r.kind === 'credit' ? `*المبلغ المسترد: ${sar(r.total)}*` : `*الإجمالي: ${sar(r.total)}*`, `${r.kind === 'credit' ? 'الاسترداد' : 'الدفع'}: ${r.payment}`, '', 'شكراً لزيارتكم')
   return lines.join('\n')
 }

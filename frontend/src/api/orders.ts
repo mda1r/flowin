@@ -32,6 +32,9 @@ export interface CheckoutPayload {
   discountValue?: number
   // Manager PIN for a cashier discount past the branch cap. Never stored with an offline sale.
   approvalPin?: string
+  // An owner's discount code: the server takes the order discount from the code and needs no PIN for it.
+  // discountType/discountValue still go with it, so a queued sale keeps its discount if the code is deleted before sync.
+  discountCode?: string
   // Sends the paid sale to the kitchen screen; no table number means takeaway or no table.
   // callName is the name the barista calls out at pickup (40 characters at most).
   kitchen?: { tableNumber: number | null; takeaway: boolean; callName?: string }

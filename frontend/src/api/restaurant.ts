@@ -197,19 +197,29 @@ export const restaurantApi = {
       { params: { code, orderAmount } },
     ),
 
-  createDiscountCode: (
-    branchId: string,
-    data: {
-      code: string
-      type: DiscountCodeType
-      value: number
-      minOrderAmount: number
-      maxUses: number
-      expiryDate: string
-    },
-  ) =>
+  // expiryDate null: the code never expires. maxUses 0: unlimited. Owner/Manager only (the server checks).
+  createDiscountCode: (branchId: string, data: DiscountCodePayload) =>
     apiClient.post<DiscountCodeResponse>(
       `/api/v1/branches/${branchId}/restaurant/discounts`,
       data,
     ),
+
+  updateDiscountCode: (branchId: string, id: string, data: DiscountCodePayload & { isActive: boolean }) =>
+    apiClient.put<DiscountCodeResponse>(
+      `/api/v1/branches/${branchId}/restaurant/discounts/${id}`,
+      { label: null, ...data },
+    ),
+
+  deleteDiscountCode: (branchId: string, id: string) =>
+    apiClient.delete<void>(`/api/v1/branches/${branchId}/restaurant/discounts/${id}`),
+}
+
+export interface DiscountCodePayload {
+  code: string
+  label?: string | null
+  type: DiscountCodeType
+  value: number
+  minOrderAmount: number
+  maxUses: number
+  expiryDate: string | null
 }

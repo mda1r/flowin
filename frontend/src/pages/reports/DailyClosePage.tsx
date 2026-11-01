@@ -22,6 +22,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import type { CompletedSessionResponse } from '@/api/gaming'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 import { intlLocale } from '@/lib/locale'
+import { useI18n } from '@/i18n'
 
 // Payment and refund methods the server records; anything else falls back to its raw name.
 const PAYMENT_LABELS: Record<string, string> = {
@@ -94,6 +95,7 @@ function UnpaidSession({ session }: { session: CompletedSessionResponse }) {
 
 export function DailyClosePage() {
   const { branchId, user } = useAuthStore()
+  const { t } = useI18n()
   const [day, setDay] = useState(localYmd())
   const today = localYmd()
   const routes = user?.businessType ? BUSINESS_TYPE_ROUTES[user.businessType] ?? [] : []
@@ -160,6 +162,16 @@ export function DailyClosePage() {
       vat: orders.reduce((s, o) => s + o.taxAmount, 0),
       discounts: orders.reduce((s, o) => s + o.discountAmount, 0),
     }
+    // The owner's codes behind the order discounts (net, like the discounts row), largest first.
+    const codeTotals = new Map<string, { count: number; amount: number }>()
+    for (const o of orders) {
+      if (!o.discountCode) continue
+      const c = codeTotals.get(o.discountCode) ?? { count: 0, amount: 0 }
+      c.count += 1
+      c.amount += Math.max(o.discountAmount - (o.loyaltyDiscountAmount ?? 0), 0)
+      codeTotals.set(o.discountCode, c)
+    }
+    const discountCodes = [...codeTotals.entries()].sort((a, b) => b[1].amount - a[1].amount)
     const payments: Record<string, number> = {}
     const add = (k: string, v: number) => { if (v) payments[k] = (payments[k] ?? 0) + v }
     for (const o of orders) {
@@ -223,7 +235,7 @@ export function DailyClosePage() {
     const revenue = pos.gross + rest.total + gaming.total
     // VAT from every invoice recorded that day (till, restaurant and paid gaming sessions).
     const vat = dayOrders.reduce((s, o) => s + o.taxAmount, 0)
-    return { pos, payments, topProducts, refunds, rest, gaming, shifts, revenue, vat, net: revenue - refunds.total }
+    return { pos, discountCodes, payments, topProducts, refunds, rest, gaming, shifts, revenue, vat, net: revenue - refunds.total }
   }, [ordersQ.data, returnsQ.data, restaurantQ.data, gamingQ.data, shiftsQ.data, openShiftsQ.data, day, today, hasGaming, hasRestaurant])
 
   const dayLabel = new Date(`${day}T00:00:00`).toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -293,6 +305,21 @@ export function DailyClosePage() {
               <Section title="مبيعات نقطة البيع" icon={<Receipt />}>
                 <Row label="عدد الطلبات" value={report.pos.count.toLocaleString(intlLocale())} />
                 <Row label="الخصومات" value={formatCurrency(report.pos.discounts)} />
+                {report.discountCodes.length > 0 && (
+                  <div className="mb-1 rounded-lg bg-surface-2 px-3 py-1.5">
+                    <p className="text-[11px] font-medium text-muted">{t.discountCodes.byCode}</p>
+                    {report.discountCodes.map(([code, c]) => (
+                      <div key={code} className="flex items-center justify-between gap-3 py-0.5 text-xs">
+                        <span className="text-muted">
+                          <bdi dir="ltr" className="font-mono text-fg">{code}</bdi>
+                          {' · '}
+                          {t.discountCodes.ordersCount.replace('{n}', c.count.toLocaleString(intlLocale()))}
+                        </span>
+                        <span className="tabular-nums text-fg">{formatCurrency(c.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <Row label="الضريبة" value={formatCurrency(report.pos.vat)} />
                 <Row label="الإجمالي" value={formatCurrency(report.pos.gross)} strong />
                 <div className="mt-3 border-t border-border pt-3">

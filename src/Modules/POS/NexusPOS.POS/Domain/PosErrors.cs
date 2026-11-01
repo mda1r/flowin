@@ -22,6 +22,16 @@ public static class PosErrors
     public static readonly Error DiscountPercentageExceedsHundred =
         Error.Validation("POS.DiscountPercentageExceedsHundred", "نسبة الخصم لا يمكن أن تتجاوز 100%");
 
+    public static readonly Error DiscountCodeInvalid =
+        Error.Validation("POS.DiscountCodeInvalid", "كود الخصم غير صالح أو منتهي");
+
+    // Reason is the code's own problem (switched off, expired, used up) as the code store words it.
+    public static Error DiscountCodeRejected(string? reason) =>
+        Error.Validation("POS.DiscountCodeInvalid", string.IsNullOrWhiteSpace(reason) ? "كود الخصم غير صالح أو منتهي" : reason);
+
+    public static readonly Error DiscountCodeMinOrder =
+        Error.Validation("POS.DiscountCodeMinOrder", "مبلغ الطلب أقل من الحد الأدنى لهذا الكود");
+
     public static readonly Error InsufficientPayment =
         Error.Validation("POS.InsufficientPayment", "المبلغ المدفوع أقل من إجمالي الطلب");
 

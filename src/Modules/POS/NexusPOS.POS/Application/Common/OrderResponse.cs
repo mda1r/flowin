@@ -27,4 +27,5 @@ public sealed record OrderResponse(
     decimal LoyaltyDiscountAmount = 0m,
     OrderSource Source = OrderSource.Pos,
     long? Number = null,
-    DateTime? OfflineCreatedAt = null);
+    DateTime? OfflineCreatedAt = null,
+    string? DiscountCode = null);

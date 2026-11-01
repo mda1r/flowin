@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Coffee, ShoppingBag, ChefHat, X, Plus, Minus, Trash2,
   Printer, MessageSquare, CreditCard, Banknote, Bot,
-  Gamepad2, Clock, Play, Square, Search, Percent, RotateCcw, Megaphone,
+  Gamepad2, Clock, Play, Square, Search, Percent, RotateCcw, Megaphone, TicketPercent, Loader2,
 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
 import { ordersApi, posSettingsApi } from '@/api/orders'
@@ -42,6 +42,8 @@ import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage, toAsciiDigits } from '@/lib/whatsapp'
 import { CALL_NAME_MAX, callNameFrom } from '@/lib/callName'
+import { restaurantApi } from '@/api/restaurant'
+import { type AppliedDiscountCode, appliedCodeName, normalizeDiscountCode } from '@/lib/discountCodes'
 import {
   type CartModifier, grossDelta, groupSatisfied, initialPicks, lineDetail, modifierKey, modifierSummary,
   pickedModifiers, productGroups, readLastModifiers, rememberLastModifiers,
@@ -109,6 +111,8 @@ interface CustomerReceiptData {
   customerName?: string
   customerPhone?: string
   discount?: number
+  // The owner's discount code that gave the discount, printed next to it.
+  discountLabel?: string
   loyaltyDiscount?: number
   pointsRedeemed?: number
   pointsEarned?: number
@@ -248,6 +252,8 @@ interface CartDraft {
   tableNumber: number | null
   discountMode: DiscountMode
   discountInput: string
+  // Checked again by the server at checkout, so a stale one is refused there, never applied blindly.
+  discountCode?: AppliedDiscountCode | null
 }
 
 const draftKey = (branchId: string) => `cafe-cart-draft:${branchId}`
@@ -459,6 +465,7 @@ function CustomerReceiptModal({
             tax={receipt.tax}
             total={receipt.grandTotal}
             discount={receipt.discount}
+            discountLabel={receipt.discountLabel}
             loyalty={receipt.loyaltyDiscount ? { amount: receipt.loyaltyDiscount, points: receipt.pointsRedeemed ?? 0 } : undefined}
             paymentLabel={payLabel}
             tendered={
@@ -496,6 +503,7 @@ function CustomerReceiptModal({
                 total: i.unitPrice * i.quantity,
               })),
               discount: (receipt.discount ?? 0) + (receipt.loyaltyDiscount ?? 0) || undefined,
+              discountLabel: receipt.loyaltyDiscount ? undefined : receipt.discountLabel,
               vat: receipt.tax,
               vatIncluded: true,
               total: receipt.grandTotal,
@@ -600,6 +608,13 @@ export function CafePosPage() {
   const [discountInput, setDiscountInput] = useState('')
   const [showDiscount, setShowDiscount] = useState(false)
   const [approvalPin, setApprovalPin] = useState('')
+  // An owner's discount code, checked with the server when applied. One discount at a time: while a code is on,
+  // the manual discount is off, and the server takes the percentage from the code, not from this till.
+  const [appliedCode, setAppliedCode] = useState<AppliedDiscountCode | null>(null)
+  const [showCodeInput, setShowCodeInput] = useState(false)
+  const [codeInput, setCodeInput] = useState('')
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [codeChecking, setCodeChecking] = useState(false)
   const queryClient = useQueryClient()
 
   // AI Cashier
@@ -1010,15 +1025,18 @@ export function CafePosPage() {
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
   // The order discount comes off first, then loyalty points, as on the server. A fixed discount is typed
   // in riyals the customer sees (VAT included); a percentage is the same share before or after VAT.
-  const discountRaw = Math.max(0, parseFloat(discountInput) || 0)
+  // A discount code brings its own kind and value (a fixed code is VAT included, like a typed one).
+  const discountKind: DiscountMode = appliedCode ? appliedCode.type : discountMode
+  const discountRaw = appliedCode ? appliedCode.value : Math.max(0, parseFloat(discountInput) || 0)
   const discountGross = Math.round(Math.min(
-    discountMode === 'Percentage' ? cartTotal * Math.min(discountRaw, 100) / 100 : discountRaw,
+    discountKind === 'Percentage' ? cartTotal * Math.min(discountRaw, 100) / 100 : discountRaw,
     cartTotal,
   ) * 100) / 100
   const discountShare = cartTotal > 0 ? (discountGross / cartTotal) * 100 : 0
   // The branch sets how far a cashier may discount alone; past it a manager types their PIN, if the branch has one.
+  // The owner approved a discount code when they made it, so it is never over the cap.
   const discountCap = posSettings.maxCashierDiscountPercent
-  const overCap = !isManager && discountShare > discountCap + 0.01
+  const overCap = !appliedCode && !isManager && discountShare > discountCap + 0.01
   const needsPin = overCap && posSettings.hasApprovalPin && navigator.onLine
   const discountOverCap = overCap && !needsPin
   const afterDiscount = Math.round((cartTotal - discountGross) * 100) / 100
@@ -1030,6 +1048,45 @@ export function CafePosPage() {
   const vatOf = (gross: number) => Math.round((gross * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
   const tax = vatOf(grandTotal)
   const subtotal = Math.round((grandTotal - tax) * 100) / 100
+
+  // ── Discount code ─────────────────────────────────────────────────────────
+  // The server checks the code for this store and answers with its label and value; a bad code shows the
+  // server's reason under the field. The sale's checkout checks it once more.
+  const applyDiscountCode = async () => {
+    const code = normalizeDiscountCode(codeInput)
+    if (!code || !branchId || codeChecking) return
+    if (!navigator.onLine) {
+      setCodeError(t.pos.codeNeedsInternet)
+      return
+    }
+    setCodeChecking(true)
+    setCodeError(null)
+    try {
+      const { data } = await restaurantApi.validateDiscountCode(branchId, code, Math.round(cartTotal * 100) / 100)
+      if (!data.isValid) {
+        setCodeError(data.errorMessage || t.pos.codeInvalid)
+        return
+      }
+      setAppliedCode({ code: data.code, label: data.label ?? null, type: data.type, value: data.value })
+      setDiscountInput('')
+      setShowDiscount(false)
+      setApprovalPin('')
+      setShowCodeInput(false)
+      setCodeInput('')
+      toast.success(t.pos.codeApplied)
+    } catch (e) {
+      setCodeError(apiErrorMessage(e, t.pos.codeCheckFailed))
+    } finally {
+      setCodeChecking(false)
+    }
+  }
+
+  const clearDiscountCode = () => {
+    setAppliedCode(null)
+    setShowCodeInput(false)
+    setCodeInput('')
+    setCodeError(null)
+  }
 
   // ── Checkout ──────────────────────────────────────────────────────────────
 
@@ -1057,8 +1114,8 @@ export function CafePosPage() {
   // Saved on every change once this branch's draft has been read back, and dropped with an empty cart.
   useEffect(() => {
     if (!branchId || draftBranchRef.current !== branchId) return
-    writeDraft(branchId, { cart, orderType, tableNumber, discountMode, discountInput })
-  }, [branchId, cart, orderType, tableNumber, discountMode, discountInput])
+    writeDraft(branchId, { cart, orderType, tableNumber, discountMode, discountInput, discountCode: appliedCode })
+  }, [branchId, cart, orderType, tableNumber, discountMode, discountInput, appliedCode])
 
   // Read back once the menu has loaded: lines whose size or an add-on left the menu are dropped and the rest
   // take today's prices, the same repricing a refused sale gets. A cart already started here is left alone.
@@ -1098,6 +1155,10 @@ export function CafePosPage() {
     if (typeof draft.tableNumber === 'number' && draft.tableNumber >= 1 && draft.tableNumber <= TOTAL_TABLES) setTableNumber(draft.tableNumber)
     if (draft.discountMode === 'Percentage' || draft.discountMode === 'Fixed') setDiscountMode(draft.discountMode)
     if (typeof draft.discountInput === 'string') setDiscountInput(draft.discountInput)
+    const code = draft.discountCode
+    if (code && typeof code.code === 'string' && (code.type === 'Percentage' || code.type === 'Fixed') && Number(code.value) > 0) {
+      setAppliedCode({ code: code.code, label: typeof code.label === 'string' ? code.label : null, type: code.type, value: Number(code.value) })
+    }
     toast.info(t.pos.draftRestored, dropped > 0 ? t.pos.draftDropped.replace('{n}', String(dropped)) : undefined)
     // Only the menu arriving (or the branch changing) should trigger the read-back.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1131,9 +1192,12 @@ export function CafePosPage() {
           // The server prices and checks these again; an offline sale keeps them in its queued payload as they are.
           ...(item.modifiers.length > 0 && { modifierOptionIds: item.modifiers.map((m) => m.optionId) }),
         })),
-        ...(discountGross > 0 && (discountMode === 'Percentage'
+        ...(discountGross > 0 && (discountKind === 'Percentage'
           ? { discountType: 'Percentage' as const, discountValue: Math.min(discountRaw, 100) }
           : { discountType: 'Fixed' as const, discountValue: Math.round((discountGross / preTaxRate) * 10000) / 10000 })),
+        // The server sets the discount from the code; the values above only matter if the code is deleted before
+        // a queued offline sale syncs.
+        ...(appliedCode && { discountCode: appliedCode.code }),
         ...(needsPin && { approvalPin: approvalPin.trim() }),
         // The kitchen screen gets the paid sale as a ticket; dine-in without a table goes as "no table".
         kitchen: {
@@ -1197,6 +1261,7 @@ export function CafePosPage() {
         customerName: loyaltyCustomer?.name,
         customerPhone: loyaltyCustomer?.phone ?? undefined,
         discount: discountGross || undefined,
+        discountLabel: appliedCode && discountGross > 0 ? appliedCodeName(appliedCode) : undefined,
         loyaltyDiscount: loyaltyDiscount || undefined,
         pointsRedeemed: appliedPoints || undefined,
         pointsEarned: loyaltyCustomer && loyaltyRules.enabled ? pointsEarned(grandTotal, loyaltyRules) : undefined,
@@ -1231,6 +1296,7 @@ export function CafePosPage() {
       setDiscountInput('')
       setApprovalPin('')
       setShowDiscount(false)
+      clearDiscountCode()
       void queryClient.invalidateQueries({ queryKey: ['pos-stock', branchId] })
       if (loyaltyCustomer) {
         void queryClient.invalidateQueries({ queryKey: ['pos-customer-search'] })
@@ -1451,6 +1517,7 @@ export function CafePosPage() {
           callNameAutoRef.current = ''
           setDiscountInput('')
           setShowDiscount(false)
+          clearDiscountCode()
         }}
         title="تفريغ السلة"
         message="سيتم حذف كل الأصناف من السلة. هل تريد المتابعة؟"
@@ -1768,7 +1835,36 @@ export function CafePosPage() {
                   earnBase={grandTotal}
                   rules={loyaltyRules}
                 />
-                {showDiscount || discountInput ? (
+                {appliedCode ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/10 px-2.5 py-1.5">
+                      <TicketPercent className="h-4 w-4 shrink-0 text-success" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-success">
+                          <bdi>{appliedCodeName(appliedCode)}</bdi>
+                          {' · '}
+                          <span className="tabular-nums">
+                            {appliedCode.type === 'Percentage' ? `${appliedCode.value.toLocaleString('ar-SA')}٪` : formatCurrency(appliedCode.value)}
+                          </span>
+                        </p>
+                        {appliedCode.label && (
+                          <bdi dir="ltr" className="block truncate font-mono text-[11px] text-muted">{appliedCode.code}</bdi>
+                        )}
+                      </div>
+                      <button
+                        onClick={clearDiscountCode}
+                        title={t.pos.removeCode}
+                        aria-label={t.pos.removeCode}
+                        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted after:absolute after:-inset-1 hover:bg-surface hover:text-fg"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted">{t.pos.codeOneDiscount}</p>
+                  </div>
+                ) : (
+                <>
+                {(showDiscount || discountInput) && (
                   <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5">
                     <div className="flex items-center gap-2">
                       <div className="flex overflow-hidden rounded-lg border border-border bg-surface">
@@ -1831,20 +1927,79 @@ export function CafePosPage() {
                       <p className="text-[11px] text-muted">حتى {discountCap}٪ من الفاتورة</p>
                     ) : null}
                   </div>
+                )}
+                {showCodeInput ? (
+                  <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5">
+                    <div className="flex items-center gap-2">
+                      <TicketPercent className="h-4 w-4 shrink-0 text-muted" />
+                      <input
+                        type="text"
+                        dir="ltr"
+                        autoFocus
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
+                        maxLength={32}
+                        placeholder={t.pos.discountCodePlaceholder}
+                        value={codeInput}
+                        onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); setCodeError(null) }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); void applyDiscountCode() }
+                          if (e.key === 'Escape') { e.stopPropagation(); clearDiscountCode() }
+                        }}
+                        aria-label={t.pos.discountCode}
+                        aria-invalid={codeError ? true : undefined}
+                        className="w-full min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 font-mono text-sm text-fg outline-none focus:border-brand"
+                      />
+                      <button
+                        onClick={() => void applyDiscountCode()}
+                        disabled={!codeInput.trim() || codeChecking}
+                        className="flex h-9 min-w-[3.5rem] shrink-0 items-center justify-center rounded-lg bg-brand px-3 text-xs font-semibold text-brand-fg transition-colors hover:bg-brand/90 disabled:opacity-50"
+                      >
+                        {codeChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : t.pos.applyCode}
+                      </button>
+                      <button
+                        onClick={clearDiscountCode}
+                        title={t.common.cancel}
+                        aria-label={t.common.cancel}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-fg"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {codeError && <p role="alert" className="text-[11px] font-medium text-danger">{codeError}</p>}
+                  </div>
                 ) : (
-                  <button
-                    onClick={() => setShowDiscount(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-brand-ink"
-                  >
-                    <Percent className="h-3 w-3" />
-                    إضافة خصم
-                  </button>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {!(showDiscount || discountInput) && (
+                      <button
+                        onClick={() => setShowDiscount(true)}
+                        className="flex min-h-8 items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-brand-ink"
+                      >
+                        <Percent className="h-3 w-3" />
+                        إضافة خصم
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setShowCodeInput(true); setCodeError(null) }}
+                      className="flex min-h-8 items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-brand-ink"
+                    >
+                      <TicketPercent className="h-3 w-3" />
+                      {t.pos.discountCode}
+                    </button>
+                  </div>
+                )}
+                </>
                 )}
                 {/* Discounts come off the listed prices first; net and VAT below are of what is left, as on the receipt. */}
                 <div className="space-y-1 text-sm">
                   {discountGross > 0 && (
                     <div className="flex justify-between text-success">
-                      <span>الخصم{discountMode === 'Percentage' ? ` ${Math.min(discountRaw, 100).toLocaleString('ar-SA')}٪` : ''}</span>
+                      <span>
+                        الخصم
+                        {appliedCode && <> (<bdi>{appliedCodeName(appliedCode)}</bdi>)</>}
+                        {discountKind === 'Percentage' ? ` ${Math.min(discountRaw, 100).toLocaleString('ar-SA')}٪` : ''}
+                      </span>
                       <span className="tabular-nums">−{formatCurrency(discountGross)}</span>
                     </div>
                   )}

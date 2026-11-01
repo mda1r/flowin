@@ -36,7 +36,8 @@ internal sealed class ValidateDiscountCodeQueryHandler(IDiscountCodeRepository d
                 Value: code.Value,
                 DiscountAmount: 0,
                 IsValid: false,
-                ErrorMessage: validation.FirstError.Description);
+                ErrorMessage: validation.FirstError.Description,
+                Label: code.Label);
         }
 
         decimal discountAmount = code.ComputeDiscount(request.OrderAmount);
@@ -47,6 +48,7 @@ internal sealed class ValidateDiscountCodeQueryHandler(IDiscountCodeRepository d
             Value: code.Value,
             DiscountAmount: discountAmount,
             IsValid: true,
-            ErrorMessage: null);
+            ErrorMessage: null,
+            Label: code.Label);
     }
 }

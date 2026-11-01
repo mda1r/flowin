@@ -38,6 +38,7 @@ import { CafeReadyDisplayPage } from '@/pages/pos/CafeReadyDisplayPage'
 import { ShiftReportsPage } from '@/pages/pos/ShiftReportsPage'
 import { DailyClosePage } from '@/pages/reports/DailyClosePage'
 import { InvoicesPage } from '@/pages/pos/InvoicesPage'
+import { DiscountCodesPage } from '@/pages/pos/DiscountCodesPage'
 import { TaxCenterPage } from '@/pages/taxes/TaxCenterPage'
 
 const rootRoute = createRootRoute()
@@ -316,6 +317,13 @@ const stockMaterialsRoute = createRoute({
   component: StockMaterialsPage,
 })
 
+const discountCodesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/discount-codes',
+  component: DiscountCodesPage,
+  beforeLoad: requireOwnerOrManager,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -341,6 +349,7 @@ const routeTree = rootRoute.addChildren([
     activityLogsRoute,
     shiftReportsRoute,
     dailyCloseRoute,
+    discountCodesRoute,
     invoicesRoute,
     campaignsRoute,
     receiptSettingsRoute,

@@ -25,6 +25,8 @@ export interface ReceiptDocumentProps {
   tax: number
   total: number
   discount?: number
+  /** Which discount it was: the owner's discount code (or its label) when the sale used one. */
+  discountLabel?: string
   loyalty?: { amount: number; points: number }
   paymentLabel: string
   tendered?: number
@@ -96,7 +98,12 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
 
       {/* Line prices include VAT; discounts come off them, then the total is split into net + VAT. */}
       <div className="receipt-totals">
-        {!!p.discount && <div className="receipt-row"><span>الخصم</span><span className="tabular-nums">−{formatCurrency(p.discount)}</span></div>}
+        {!!p.discount && (
+          <div className="receipt-row">
+            <span>الخصم{p.discountLabel && <> (<bdi>{p.discountLabel}</bdi>)</>}</span>
+            <span className="tabular-nums">−{formatCurrency(p.discount)}</span>
+          </div>
+        )}
         {p.loyalty && p.loyalty.amount > 0 && (
           <div className="receipt-row"><span>نقاط الولاء ({n(p.loyalty.points)} نقطة)</span><span className="tabular-nums">−{formatCurrency(p.loyalty.amount)}</span></div>
         )}

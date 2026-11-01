@@ -11,7 +11,12 @@ public interface IDiscountCodeRepository
 
     Task<IReadOnlyList<DiscountCode>> FindByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);
 
+    // Whether another code of the tenant already uses this text (compared trimmed and upper-cased).
+    Task<bool> ExistsAsync(Guid tenantId, string code, DiscountCodeId? exceptId, CancellationToken cancellationToken = default);
+
     void Add(DiscountCode discountCode);
 
     void Update(DiscountCode discountCode);
+
+    void Remove(DiscountCode discountCode);
 }

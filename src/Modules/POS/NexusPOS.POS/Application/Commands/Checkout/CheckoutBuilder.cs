@@ -37,6 +37,7 @@ internal static class CheckoutBuilder
         DateTime? offlineAt = AsUtc(cmd.OfflineCreatedAt);
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
         order.TagClientReference(cmd.ClientReference, offlineAt);
+        order.TagDiscountCode(cmd.DiscountCode);
 
         foreach (CheckoutOrderCommand.Line line in cmd.Lines)
         {

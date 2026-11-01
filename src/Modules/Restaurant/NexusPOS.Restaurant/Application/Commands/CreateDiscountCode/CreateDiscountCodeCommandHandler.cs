@@ -1,5 +1,6 @@
 using ErrorOr;
 using NexusPOS.Restaurant.Application.Common;
+using NexusPOS.Restaurant.Domain;
 using NexusPOS.Restaurant.Domain.Entities;
 using NexusPOS.Restaurant.Domain.Repositories;
 using NexusPOS.Restaurant.Infrastructure.Persistence;
@@ -16,6 +17,11 @@ internal sealed class CreateDiscountCodeCommandHandler(
         CreateDiscountCodeCommand request,
         CancellationToken cancellationToken)
     {
+        if (await discountCodeRepository.ExistsAsync(request.TenantId, request.Code, null, cancellationToken))
+        {
+            return RestaurantErrors.DiscountCodeExists;
+        }
+
         ErrorOr<DiscountCode> codeResult = DiscountCode.Create(
             request.TenantId,
             request.Code,
@@ -23,7 +29,8 @@ internal sealed class CreateDiscountCodeCommandHandler(
             request.Value,
             request.MinOrderAmount,
             request.MaxUses,
-            request.ExpiryDate);
+            request.ExpiryDate,
+            request.Label);
 
         if (codeResult.IsError)
         {
