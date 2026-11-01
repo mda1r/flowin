@@ -8,6 +8,9 @@ internal sealed class CheckoutOrderCommandValidator : AbstractValidator<Checkout
     // Matches the call_name column on restaurant_orders.
     public const int KitchenCallNameMaxLength = 40;
 
+    // A drink rarely has more than a handful of add-ons; the cap keeps one request from asking for thousands.
+    public const int MaxModifiersPerLine = 20;
+
     public CheckoutOrderCommandValidator()
     {
         RuleFor(x => x.ClientReference).NotEmpty();
@@ -18,6 +21,8 @@ internal sealed class CheckoutOrderCommandValidator : AbstractValidator<Checkout
             l.RuleFor(x => x.Quantity).GreaterThan(0);
             l.RuleFor(x => x.UnitPrice).GreaterThanOrEqualTo(0);
             l.RuleFor(x => x.Notes).MaximumLength(200);
+            l.RuleFor(x => x.ModifierOptionIds).Must(ids => ids is null || ids.Count <= MaxModifiersPerLine)
+                .WithMessage($"لا تتجاوز الإضافات {MaxModifiersPerLine} لكل صنف.");
             l.RuleFor(x => x.DiscountType).IsInEnum();
             l.RuleFor(x => x.DiscountValue).GreaterThanOrEqualTo(0);
             l.RuleFor(x => x.DiscountValue).LessThanOrEqualTo(100).When(x => x.DiscountType == DiscountType.Percentage)

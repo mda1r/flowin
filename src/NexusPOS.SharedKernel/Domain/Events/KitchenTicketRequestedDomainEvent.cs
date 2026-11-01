@@ -4,6 +4,7 @@ namespace NexusPOS.SharedKernel.Domain.Events;
 // (also when the same sale is resent), and Restaurant shows it on the kitchen screen as a ticket that is already
 // paid, so it can never be settled or counted as revenue a second time. TableNumber is null for takeaway or no table.
 // CallName is the customer name the barista calls out at pickup (trimmed, or null when none was given).
+// Line.Modifiers are the add-on names picked for the item ("شوفان", "شوت إضافي"), in the order the till asked them.
 public sealed record KitchenTicketRequestedDomainEvent(
     Guid TenantId,
     Guid BranchId,
@@ -14,5 +15,6 @@ public sealed record KitchenTicketRequestedDomainEvent(
     IReadOnlyList<KitchenTicketRequestedDomainEvent.Line> Lines,
     string? CallName = null) : DomainEvent
 {
-    public sealed record Line(Guid ItemId, string Name, string VariantName, decimal Quantity, string? Notes);
+    public sealed record Line(
+        Guid ItemId, string Name, string VariantName, decimal Quantity, string? Notes, IReadOnlyList<string>? Modifiers = null);
 }

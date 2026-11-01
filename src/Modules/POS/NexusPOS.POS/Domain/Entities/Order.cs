@@ -114,7 +114,8 @@ public sealed class Order : AggregateRoot<OrderId>
         decimal costPrice,
         decimal quantity,
         Discount? lineDiscount = null,
-        string? notes = null)
+        string? notes = null,
+        IReadOnlyList<OrderLineModifier>? modifiers = null)
     {
         if (Status != OrderStatus.Open)
         {
@@ -126,9 +127,10 @@ public sealed class Order : AggregateRoot<OrderId>
             return PosErrors.InvalidQuantity;
         }
 
-        // The same item with different notes (one latte with oat milk, one without) stays on its own line.
+        // The same item with different notes or add-ons (one latte with oat milk, one without) stays on its own line.
         string? normalizedNotes = OrderLine.NormalizeNotes(notes);
-        OrderLine? existing = Lines.Find(l => l.VariantId == variantId && l.Notes == normalizedNotes);
+        OrderLine? existing = Lines.Find(l =>
+            l.VariantId == variantId && l.Notes == normalizedNotes && l.HasModifiers(modifiers));
         if (existing is not null)
         {
             existing.UpdateQuantity(existing.Quantity + quantity);
@@ -138,7 +140,8 @@ public sealed class Order : AggregateRoot<OrderId>
         }
 
         Money unitPrice = Money.Of(unitPriceAmount, Currency);
-        OrderLine line = OrderLine.Create(variantId, productName, variantName, unitPrice, costPrice, quantity, lineDiscount, normalizedNotes);
+        OrderLine line = OrderLine.Create(
+            variantId, productName, variantName, unitPrice, costPrice, quantity, lineDiscount, normalizedNotes, modifiers);
         Lines.Add(line);
         RecalculateTotals();
         UpdatedAt = DateTime.UtcNow;

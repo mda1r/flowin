@@ -19,6 +19,7 @@ internal sealed class CheckoutOrderCommandHandler(
     IOrderNumberSequence numbers,
     IVariantPriceDirectory prices,
     IRecipeCostDirectory recipeCosts,
+    IModifierOptionDirectory modifierOptions,
     IPublisher publisher)
     : ICommandHandler<CheckoutOrderCommand, OrderResponse>
 {
@@ -43,12 +44,21 @@ internal sealed class CheckoutOrderCommandHandler(
         bool offline = OfflineSale.IsOffline(request.OfflineCreatedAt, now);
         List<string> review = [];
 
+        // The add-ons are read for the caller's tenant only, with the rules of every group on the drinks sold, so a
+        // required choice the till skipped is caught as well as an option that is off or belongs to another drink.
+        List<Guid> variantIds = [.. request.Lines.Select(l => l.VariantId).Distinct()];
+        IReadOnlyDictionary<Guid, Guid> productOf = await prices.GetProductIdsAsync(variantIds, cancellationToken);
+        ModifierLookup modifiers = await modifierOptions.GetAsync(
+            request.TenantId,
+            [.. request.Lines.SelectMany(l => l.ModifierOptionIds ?? []).Distinct()],
+            [.. productOf.Values.Distinct()],
+            cancellationToken);
+
         // Managers may reprice at the till.
         if (!request.ByOwnerOrManager)
         {
-            IReadOnlyDictionary<Guid, decimal> shelf = await prices.GetSalePricesAsync(
-                [.. request.Lines.Select(l => l.VariantId)], cancellationToken);
-            ErrorOr<Success> priced = CatalogPriceCheck.Check(request, shelf);
+            IReadOnlyDictionary<Guid, decimal> shelf = await prices.GetSalePricesAsync(variantIds, cancellationToken);
+            ErrorOr<Success> priced = CatalogPriceCheck.Check(request, shelf, modifiers);
             if (priced.IsError && !offline)
             {
                 return priced.Errors;
@@ -56,13 +66,24 @@ internal sealed class CheckoutOrderCommandHandler(
 
             if (priced.IsError)
             {
-                review.Add($"سعر أقل من الكتالوج: {string.Join("، ", CatalogPriceCheck.Unverified(request, shelf))}");
+                review.Add($"سعر أقل من الكتالوج: {string.Join("، ", CatalogPriceCheck.Unverified(request, shelf, modifiers))}");
             }
+        }
+
+        // Managers too: an add-on that is off, or a required choice left out, is a drink the barista cannot make.
+        ErrorOr<Success> picked = ModifierCheck.Check(request, productOf, modifiers);
+        if (picked.IsError && !offline)
+        {
+            return picked.Errors;
+        }
+
+        if (picked.IsError)
+        {
+            review.Add($"إضافات لا تطابق الكتالوج: {string.Join("، ", ModifierCheck.Unverified(request, productOf, modifiers))}");
         }
 
         // Gross profit uses what the drink costs the store now, worked out here; whatever cost the till sends is ignored.
         // A sale synced from offline goes through the same rule, valued at the cost when it reaches the server.
-        List<Guid> variantIds = [.. request.Lines.Select(l => l.VariantId).Distinct()];
         Dictionary<Guid, decimal> unitCosts = CheckoutBuilder.UnitCosts(
             await recipeCosts.GetCostsAsync(request.TenantId, variantIds, cancellationToken),
             await prices.GetCostPricesAsync(variantIds, cancellationToken));
@@ -76,7 +97,7 @@ internal sealed class CheckoutOrderCommandHandler(
 
         // Build once without a number first, so a rejected sale never uses up an invoice number.
         ErrorOr<Order> draft = CheckoutBuilder.Build(
-            request, rules.Value, notBefore: shiftBoundary, offline: offline, unitCosts: unitCosts);
+            request, rules.Value, notBefore: shiftBoundary, offline: offline, unitCosts: unitCosts, modifiers: modifiers);
         if (draft.IsError)
         {
             return draft.Errors;
@@ -107,7 +128,7 @@ internal sealed class CheckoutOrderCommandHandler(
         // The number and the sale commit together: if the save fails, the counter rolls back with it.
         await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         long number = await numbers.NextAsync(request.TenantId, cancellationToken);
-        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, shiftBoundary, offline, unitCosts);
+        ErrorOr<Order> built = CheckoutBuilder.Build(request, rules.Value, number, shiftBoundary, offline, unitCosts, modifiers);
         if (built.IsError)
         {
             return built.Errors;
@@ -170,7 +191,8 @@ internal sealed class CheckoutOrderCommandHandler(
                 kitchen.Takeaway ? null : kitchen.TableNumber,
                 kitchen.Takeaway,
                 [.. order.Lines.Select(l => new KitchenTicketRequestedDomainEvent.Line(
-                    l.VariantId, l.ProductName, l.VariantName, l.Quantity, l.Notes))],
+                    l.VariantId, l.ProductName, l.VariantName, l.Quantity, l.Notes,
+                    l.Modifiers is null ? null : [.. l.Modifiers.Select(m => m.Name)]))],
                 string.IsNullOrWhiteSpace(kitchen.CallName) ? null : kitchen.CallName.Trim()), ct);
         }
 

@@ -184,7 +184,8 @@ public sealed class OrdersController(ISender mediator) : ControllerBase
         CheckoutOrderCommand command = new(
             tenantId, branchId, request.ClientReference, request.Currency, request.TaxRate, request.CustomerId,
             [.. (request.Lines ?? []).Select(l => new CheckoutOrderCommand.Line(
-                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity, l.DiscountType, l.DiscountValue, l.Notes))],
+                l.VariantId, l.ProductName, l.VariantName, l.UnitPrice, l.CostPrice, l.Quantity, l.DiscountType, l.DiscountValue, l.Notes,
+                l.ModifierOptionIds))],
             request.LoyaltyPoints, request.PaymentMethod, request.AmountTendered, request.CashAmount, request.CardAmount,
             UtcDates.AsUtc(request.OfflineCreatedAt), request.DiscountType, request.DiscountValue, request.ApprovalPin,
             ByOwnerOrManager: User.IsInRole("Owner") || User.IsInRole("Manager"),

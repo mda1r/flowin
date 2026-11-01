@@ -1,6 +1,7 @@
 import type { OrderResponse, RefundMethod, ReturnOrderResponse, ReturnReason } from '@/types/api'
 import type { ReceiptLine } from '@/components/pos/ReceiptDocument'
 import { lineDisplayName } from '@/lib/variantName'
+import { lineDetail } from '@/lib/modifiers'
 
 const r2 = (v: number) => Math.round(v * 100) / 100
 
@@ -40,7 +41,7 @@ export function orderReceiptFigures(order: OrderResponse) {
   const lines: ReceiptLine[] = order.lines.map((l) => ({
     key: l.id,
     name: lineName(l),
-    detail: l.notes ? `ملاحظة: ${l.notes}` : undefined,
+    detail: lineDetail(l.modifiers?.map((m) => m.name), l.notes),
     quantity: l.quantity,
     total: r2(l.lineTotal * gross),
   }))

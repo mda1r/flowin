@@ -281,6 +281,8 @@ internal static class DatabaseInitializerExtensions
             "ALTER TABLE cashier_shifts ADD COLUMN IF NOT EXISTS total_refunds NUMERIC(18,4) NOT NULL DEFAULT 0",
             // Order lists and reports filter by when the sale was made (an offline sale synced late keeps its time).
             "CREATE INDEX IF NOT EXISTS ix_orders_branch_sold_at ON orders (branch_id, (COALESCE(completed_at, created_at)))",
+            // A cafe line's add-ons as a JSON array of {id, name, priceDelta}; older lines stay null.
+            "ALTER TABLE order_lines ADD COLUMN IF NOT EXISTS modifiers TEXT",
         ];
 
         foreach (string sql in patches)

@@ -9,6 +9,8 @@ namespace NexusPOS.POS.Application.Commands.Checkout;
 // are the caller too, for the review note an offline sale can leave.
 // Kitchen, when set, sends the sale to the kitchen screen as an already-paid ticket.
 // Line.CostPrice is still accepted so older till and offline payloads bind, but it is ignored: the server sets the cost.
+// Line.ModifierOptionIds are the add-ons picked for the item; the server prices and checks them. Older payloads leave
+// it out, which is the same as picking none.
 public sealed record CheckoutOrderCommand(
     Guid TenantId,
     Guid BranchId,
@@ -33,7 +35,8 @@ public sealed record CheckoutOrderCommand(
 {
     public sealed record Line(
         Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity,
-        DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m, string? Notes = null);
+        DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m, string? Notes = null,
+        IReadOnlyList<Guid>? ModifierOptionIds = null);
 
     public sealed record KitchenTicket(int? TableNumber, bool Takeaway, string? CallName = null);
 }

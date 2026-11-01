@@ -3,6 +3,7 @@ using NexusPOS.POS.Domain;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.Enums;
 using NexusPOS.POS.Domain.ValueObjects;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Domain;
 
 namespace NexusPOS.POS.Application.Commands.Checkout;
@@ -22,14 +23,16 @@ internal static class CheckoutBuilder
     // notBefore is the branch's latest shift boundary: a synced sale is never dated into a shift whose totals are closed.
     // offline: the sale already happened, so a payment that does not add up is kept (and logged by the handler) instead of refused.
     // unitCosts is the server's net cost per unit (see UnitCosts); the cost a till sends is never used, and a variant
-    // left out costs nothing.
+    // left out costs nothing. modifiers are the catalogue's add-ons (see ModifierCheck): each line keeps the ones it
+    // picked with their name and net price; without them a line keeps none.
     public static ErrorOr<Order> Build(
         CheckoutOrderCommand cmd,
         LoyaltyRules loyalty,
         long? number = null,
         DateTime? notBefore = null,
         bool offline = false,
-        IReadOnlyDictionary<Guid, decimal>? unitCosts = null)
+        IReadOnlyDictionary<Guid, decimal>? unitCosts = null,
+        ModifierLookup? modifiers = null)
     {
         DateTime? offlineAt = AsUtc(cmd.OfflineCreatedAt);
         Order order = Order.Create(cmd.TenantId, cmd.BranchId, cmd.Currency, cmd.CustomerId, cmd.TaxRate);
@@ -45,7 +48,7 @@ internal static class CheckoutBuilder
 
             ErrorOr<OrderLine> added = order.AddLine(
                 line.VariantId, line.ProductName, line.VariantName, line.UnitPrice, unitCosts?.GetValueOrDefault(line.VariantId) ?? 0m,
-                line.Quantity, lineDiscount.Value, line.Notes);
+                line.Quantity, lineDiscount.Value, line.Notes, modifiers is null ? null : ModifierCheck.ForLine(line, modifiers));
             if (added.IsError)
             {
                 return added.Errors;

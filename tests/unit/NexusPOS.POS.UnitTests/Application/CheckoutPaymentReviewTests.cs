@@ -33,13 +33,15 @@ public sealed class CheckoutPaymentReviewTests
         Mock<IOrderNumberSequence> numbers = new();
         numbers.Setup(n => n.NextAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(1001);
         Mock<IVariantPriceDirectory> prices = new();
+        prices.Setup(p => p.GetProductIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, Guid>());
         prices.Setup(p => p.GetCostPricesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal>());
         Mock<IRecipeCostDirectory> recipes = new();
         recipes.Setup(r => r.GetCostsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal>());
         return new CheckoutOrderCommandHandler(
-            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, new Mock<IPublisher>().Object);
+            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), new Mock<IPublisher>().Object);
     }
 
     // A latte at 20 before VAT: total 23. The manager role skips the catalog price lookup.

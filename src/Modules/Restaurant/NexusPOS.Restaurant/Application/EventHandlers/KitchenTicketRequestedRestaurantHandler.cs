@@ -57,14 +57,26 @@ internal sealed class KitchenTicketRequestedRestaurantHandler(
         }
     }
 
+    // Matches the item_name column on restaurant_order_items.
+    internal const int ItemNameMaxLength = 128;
+
     // "Latte - Large" when the size matters; the default variant adds nothing. The plain-variant list
     // (empty, افتراضي, Standard, Default, the product's own name) mirrors isPlainVariant in
     // frontend/src/lib/variantName.ts, so the ticket and the till name a size the same way: change both together.
+    // Add-ons follow with a middle dot, "لاتيه - كبير · شوفان · شوت إضافي", so the barista reads the whole drink at once.
     internal static string ItemName(KitchenTicketRequestedDomainEvent.Line line)
     {
         string variant = line.VariantName.Trim();
         bool plain = variant.Length == 0 || variant is "افتراضي" or "Standard" or "Default" || variant == line.Name.Trim();
         string name = plain ? line.Name.Trim() : $"{line.Name.Trim()} - {variant}";
-        return name.Length > 128 ? name[..128] : name;
+        foreach (string modifier in line.Modifiers ?? [])
+        {
+            if (!string.IsNullOrWhiteSpace(modifier))
+            {
+                name += $" · {modifier.Trim()}";
+            }
+        }
+
+        return name.Length > ItemNameMaxLength ? name[..ItemNameMaxLength] : name;
     }
 }

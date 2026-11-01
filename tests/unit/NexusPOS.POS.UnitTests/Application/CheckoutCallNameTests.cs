@@ -75,13 +75,15 @@ public sealed class CheckoutCallNameTests
         Mock<IOrderNumberSequence> numbers = new();
         numbers.Setup(n => n.NextAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(1001);
         Mock<IVariantPriceDirectory> prices = new();
+        prices.Setup(p => p.GetProductIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, Guid>());
         prices.Setup(p => p.GetCostPricesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal>());
         Mock<IRecipeCostDirectory> recipes = new();
         recipes.Setup(r => r.GetCostsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal>());
         CheckoutOrderCommandHandler handler = new(
-            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, publisher.Object);
+            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), publisher.Object);
 
         Guid tenantId = Guid.NewGuid();
         ErrorOr<OrderResponse> result = await handler.Handle(Sale(tenantId, new(null, true, typed)), CancellationToken.None);

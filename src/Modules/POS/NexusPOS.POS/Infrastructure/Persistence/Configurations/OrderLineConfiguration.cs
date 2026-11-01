@@ -1,4 +1,8 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Unicode;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NexusPOS.POS.Domain.Entities;
 using NexusPOS.POS.Domain.ValueObjects;
@@ -7,6 +11,12 @@ namespace NexusPOS.POS.Infrastructure.Persistence.Configurations;
 
 internal sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
 {
+    // {"id","name","priceDelta"} with Arabic kept readable in the column.
+    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
+    {
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+    };
+
     public void Configure(EntityTypeBuilder<OrderLine> builder)
     {
         builder.ToTable("order_lines");
@@ -21,6 +31,17 @@ internal sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLin
         builder.Property(l => l.VariantName).HasColumnName("variant_name").HasMaxLength(256);
         builder.Property(l => l.Quantity).HasColumnName("quantity").HasPrecision(18, 4);
         builder.Property(l => l.Notes).HasColumnName("notes").HasMaxLength(256);
+
+        // A JSON array in a TEXT column (patched onto existing schemas at startup); older lines read null.
+        builder.Property(l => l.Modifiers)
+            .HasColumnName("modifiers")
+            .HasConversion(
+                m => m == null ? null : JsonSerializer.Serialize(m, _json),
+                s => s == null ? null : JsonSerializer.Deserialize<List<OrderLineModifier>>(s, _json),
+                new ValueComparer<IReadOnlyList<OrderLineModifier>?>(
+                    (a, b) => a == null ? b == null : b != null && a.SequenceEqual(b),
+                    m => m == null ? 0 : m.Aggregate(0, (h, x) => HashCode.Combine(h, x.GetHashCode())),
+                    m => m == null ? null : m.ToList()));
 
         builder.OwnsOne(l => l.UnitPrice, m =>
         {

@@ -18,6 +18,8 @@ export interface CheckoutPayload {
     discountType?: CheckoutDiscountType
     discountValue?: number
     notes?: string
+    // The add-ons picked for the item; unitPrice already includes them and the server prices them again.
+    modifierOptionIds?: string[]
   }[]
   loyaltyPoints: number
   paymentMethod: PaymentMethod

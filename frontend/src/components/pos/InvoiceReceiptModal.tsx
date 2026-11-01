@@ -120,7 +120,7 @@ export function InvoiceReceiptModal({
               storeName: sellerName || 'flowin',
               invoiceNo: number,
               date: new Date(issuedAt).toLocaleString(intlLocale('ar'), { dateStyle: 'medium', timeStyle: 'short' }),
-              items: figures.lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total })),
+              items: figures.lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total, detail: l.detail })),
               discount: (figures.discount ?? 0) + (figures.loyalty?.amount ?? 0) || undefined,
               vat: figures.tax,
               vatIncluded: true,

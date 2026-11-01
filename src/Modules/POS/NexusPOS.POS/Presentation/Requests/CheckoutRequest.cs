@@ -21,9 +21,11 @@ public sealed record CheckoutRequest(
     string? ApprovalPin = null,
     CheckoutKitchenRequest? Kitchen = null);
 
+// ModifierOptionIds are the add-ons picked for the item (oat milk, an extra shot); the unit price includes them.
 public sealed record CheckoutLineRequest(
     Guid VariantId, string ProductName, string VariantName, decimal UnitPrice, decimal CostPrice, decimal Quantity,
-    DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m, string? Notes = null);
+    DiscountType DiscountType = DiscountType.None, decimal DiscountValue = 0m, string? Notes = null,
+    IReadOnlyList<Guid>? ModifierOptionIds = null);
 
 // Sends the sale to the kitchen screen; no table number means takeaway or a guest without a table.
 // CallName is the name the barista calls out at pickup; older tills and offline payloads leave it out.

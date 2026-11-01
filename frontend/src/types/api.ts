@@ -283,6 +283,9 @@ export interface OrderLineResponse {
   notes?: string | null
   // What one unit gives back on a return, VAT included, after every discount on the sale.
   refundUnitPrice?: number
+  // The add-ons sold with the item (oat milk, an extra shot); priceDelta is net and already inside unitPrice.
+  // Null on a line without add-ons and on older sales.
+  modifiers?: { id: string; name: string; priceDelta: number }[] | null
 }
 
 export interface OrderResponse {

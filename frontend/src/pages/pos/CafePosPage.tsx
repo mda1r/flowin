@@ -18,13 +18,14 @@ import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from
 import { aiCashierApi, type AiCashierCartSnapshot } from '@/api/aiCashier'
 import { AiCashierAgent, type AiCartResult } from '@/components/cafe/AiCashierAgent'
 import { gamingApi } from '@/api/gaming'
-import type { PaymentMethod, CategoryResponse, ProductResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
+import type { PaymentMethod, CategoryResponse, ProductResponse, ProductModifierGroupResponse, GameStationResponse, GameSessionBillResponse, CustomerResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { LoyaltyPanel } from '@/components/pos/LoyaltyPanel'
 import { CashTender } from '@/components/pos/CashTender'
 import { GamingTimeAlerts } from '@/components/pos/GamingTimeAlerts'
 import { ShortcutsHelp, ShortcutsHelpButton } from '@/components/pos/ShortcutsHelp'
 import { ConfirmModal, Modal, OverlayDialog } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import { useShortcuts } from '@/lib/useShortcuts'
 import { formatClock, requestNotificationPermission, sessionSecondsLeft, WARNING_SECONDS } from '@/lib/gamingAlerts'
 import { maxRedeemablePoints, pointsEarned, pointsValue, useLoyaltyRules } from '@/lib/loyalty'
@@ -41,6 +42,10 @@ import type { CheckoutPayload } from '@/api/orders'
 import { PackageBillLines, PackagePicker } from '@/components/gaming/Packages'
 import { buildReceiptMessage, toAsciiDigits } from '@/lib/whatsapp'
 import { CALL_NAME_MAX, callNameFrom } from '@/lib/callName'
+import {
+  type CartModifier, grossDelta, groupSatisfied, initialPicks, lineDetail, modifierKey, modifierSummary,
+  pickedModifiers, productGroups, readLastModifiers, rememberLastModifiers,
+} from '@/lib/modifiers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,15 +64,18 @@ interface StartSessionForm {
 }
 
 interface CafeCartItem {
-  // Local id of the cart line: the same drink with different notes is a separate line.
+  // Local id of the cart line: the same drink with different notes or add-ons is a separate line.
   lineKey: string
   variantId: string
   productName: string
   variantName: string
+  // VAT included: the size price plus its add-ons.
   unitPrice: number
   costPrice: number
   quantity: number
   notes: string
+  // The add-ons picked for it (oat milk, an extra shot), VAT included; empty for a plain drink.
+  modifiers: CartModifier[]
 }
 
 interface KitchenTicketData {
@@ -116,28 +124,79 @@ const newLineKey = () => Math.random().toString(36).slice(2, 10)
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-// One line per drink and notes: equal items with equal notes fold together, keeping the first line's place.
+// One line per drink, notes and add-ons: equal items fold together, keeping the first line's place.
+// Add-ons compare as a set, so oat + shot and shot + oat are the same drink.
 function mergeCartLines(lines: CafeCartItem[]): CafeCartItem[] {
   const out: CafeCartItem[] = []
   for (const line of lines) {
     const notes = line.notes.trim()
-    const same = out.find((l) => l.variantId === line.variantId && l.notes === notes)
+    const key = modifierKey(line.modifiers)
+    const same = out.find((l) => l.variantId === line.variantId && l.notes === notes && modifierKey(l.modifiers) === key)
     if (same) same.quantity += line.quantity
     else out.push({ ...line, notes })
   }
   return out
 }
 
-// variantId → its menu price (VAT included). A line whose price differs from it takes the menu price;
-// shared by a sale refused for an old price and a cart read back after a reload.
-const catalogPrices = (list: ProductResponse[]) =>
-  new Map(list.flatMap((p) => p.variants.map((v) => [v.id, v.salePrice] as const)))
+// The menu's prices, VAT included: every size, and every add-on on sale. A line whose price differs from
+// its size plus its add-ons takes the menu price; shared by a sale refused for an old price and a cart read
+// back after a reload.
+interface MenuPrices {
+  sizes: Map<string, number>
+  addOns: Map<string, number>
+}
 
-const isStale = (line: CafeCartItem, prices: Map<string, number>) =>
-  prices.has(line.variantId) && prices.get(line.variantId) !== line.unitPrice
+const catalogPrices = (list: ProductResponse[]): MenuPrices => ({
+  sizes: new Map(list.flatMap((p) => p.variants.map((v) => [v.id, v.salePrice] as const))),
+  addOns: new Map(list.flatMap((p) => productGroups(p.modifierGroups).flatMap((g) => g.options.map((o) => [o.id, grossDelta(o.priceDelta)] as const)))),
+})
 
-const repriceLines = (lines: CafeCartItem[], prices: Map<string, number>) =>
-  lines.map((i) => (isStale(i, prices) ? { ...i, unitPrice: prices.get(i.variantId)! } : i))
+// Today's price of one unit of a line, or undefined when its size or one of its add-ons left the menu.
+function menuPrice(line: CafeCartItem, prices: MenuPrices): number | undefined {
+  const size = prices.sizes.get(line.variantId)
+  if (size === undefined) return undefined
+  let total = size
+  for (const m of line.modifiers) {
+    const delta = prices.addOns.get(m.optionId)
+    if (delta === undefined) return undefined
+    total += delta
+  }
+  return round2(total)
+}
+
+const isStale = (line: CafeCartItem, prices: MenuPrices) => {
+  const price = menuPrice(line, prices)
+  return price !== undefined && price !== line.unitPrice
+}
+
+const repriceLines = (lines: CafeCartItem[], prices: MenuPrices) =>
+  lines.map((i) => (isStale(i, prices)
+    ? { ...i, unitPrice: menuPrice(i, prices)!, modifiers: i.modifiers.map((m) => ({ ...m, priceDelta: prices.addOns.get(m.optionId)! })) }
+    : i))
+
+// A line's add-ons as they are on the menu today, or null when one of them is no longer on sale.
+function currentModifiers(product: ProductResponse, modifiers: readonly { optionId: string }[]): CartModifier[] | null {
+  const options = new Map(productGroups(product.modifierGroups).flatMap((g) => g.options.map((o) => [o.id, o] as const)))
+  const out: CartModifier[] = []
+  for (const m of modifiers) {
+    const option = options.get(m.optionId)
+    if (!option) return null
+    out.push({ optionId: option.id, name: option.name, priceDelta: grossDelta(option.priceDelta) })
+  }
+  return out
+}
+
+// One unit of a size with these add-ons, VAT included.
+const unitPriceWith = (salePrice: number, modifiers: CartModifier[]) =>
+  round2(modifiers.reduce((sum, m) => sum + m.priceDelta, salePrice))
+
+// The add-ons as a group's rule, the way the owner set it: "اختر 1", "اختر 1 إلى 2", "حتى 3".
+function groupRule(group: ProductModifierGroupResponse, p: { pickExactly: string; pickRange: string; pickUpTo: string }) {
+  const min = group.isRequired ? Math.max(group.minSelect, 1) : group.minSelect
+  if (min === group.maxSelect) return p.pickExactly.replace('{n}', String(min))
+  if (min === 0) return p.pickUpTo.replace('{n}', String(group.maxSelect))
+  return p.pickRange.replace('{min}', String(min)).replace('{max}', String(group.maxSelect))
+}
 
 // Search rank of a product, lower first, or null when it does not match. Every side is folded with
 // normalizeArabic, so "اسبريسو" finds "إسبريسو". An exact barcode or SKU comes first, then a name that
@@ -313,6 +372,9 @@ function KitchenTicketModal({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-fg">{lineDisplayName(item.productName, item.variantName)}</p>
+                    {item.modifiers.length > 0 && (
+                      <p className="mt-0.5 text-sm font-semibold text-fg">{modifierSummary(item.modifiers.map((m) => m.name))}</p>
+                    )}
                     {item.notes && (
                       <p className="mt-0.5 text-xs font-medium text-brand-ink">
                         📝 {item.notes}
@@ -391,7 +453,7 @@ function CustomerReceiptModal({
               name: lineDisplayName(item.productName, item.variantName),
               quantity: item.quantity,
               total: item.unitPrice * item.quantity,
-              detail: item.notes ? `ملاحظة: ${item.notes}` : undefined,
+              detail: lineDetail(item.modifiers.map((m) => m.name), item.notes),
             }))}
             subtotal={receipt.subtotal}
             tax={receipt.tax}
@@ -429,6 +491,7 @@ function CustomerReceiptModal({
               date: new Date(receipt.completedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: receipt.items.map((i) => ({
                 name: lineDisplayName(i.productName, i.variantName),
+                detail: lineDetail(i.modifiers.map((m) => m.name), i.notes),
                 quantity: i.quantity,
                 total: i.unitPrice * i.quantity,
               })),
@@ -511,8 +574,14 @@ export function CafePosPage() {
   const [confirmClearCart, setConfirmClearCart] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastLineRef = useRef<string | null>(null)
-  // A drink with several sizes opens this picker; fromSearch clears the search once a size is added.
-  const [sizePicker, setSizePicker] = useState<{ product: ProductResponse; selectedId: string; fromSearch: boolean } | null>(null)
+  // A drink with several sizes or with add-ons opens this picker; fromSearch clears the search once it is added.
+  // picks holds the chosen option ids per add-on group.
+  const [sizePicker, setSizePicker] = useState<{
+    product: ProductResponse
+    selectedId: string
+    picks: Record<string, string[]>
+    fromSearch: boolean
+  } | null>(null)
 
   // Cart
   const [cart, setCart] = useState<CafeCartItem[]>([])
@@ -695,46 +764,96 @@ export function CafePosPage() {
     variantName: string,
     unitPrice: number,
     costPrice: number,
+    modifiers: CartModifier[] = [],
   ): boolean => {
     if (!canAddMore(variantId)) {
       toast.error('المخزون غير كافٍ', `المتاح: ${stockMap[variantId] ?? 0} وحدة`)
       return false
     }
+    const key = modifierKey(modifiers)
     setCart((prev) => {
-      // A tap adds to the plain line; a line with notes is a different order and stays as it is.
-      const existing = prev.find((i) => i.variantId === variantId && !i.notes)
+      // A tap adds to the line without notes and with the same add-ons; any other line is a different order.
+      const existing = prev.find((i) => i.variantId === variantId && !i.notes && modifierKey(i.modifiers) === key)
       if (existing) {
         lastLineRef.current = existing.lineKey
         return prev.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + 1 } : i)
       }
       const lineKey = newLineKey()
       lastLineRef.current = lineKey
-      return [...prev, { lineKey, variantId, productName, variantName, unitPrice, costPrice, quantity: 1, notes: '' }]
+      return [...prev, {
+        lineKey, variantId, productName, variantName, unitPrice: unitPriceWith(unitPrice, modifiers), costPrice, quantity: 1, notes: '', modifiers,
+      }]
     })
     return true
   }
 
-  // A tile tap: a drink with one size goes straight in; with several, the size picker opens on the last one sold here.
+  // A tile tap: a drink with one size and no add-ons goes straight in; otherwise the picker opens on the
+  // last size and add-ons sold here.
   const openProduct = (product: ProductResponse, fromSearch = false) => {
     const sizes = product.variants.filter((v) => v.isActive)
     if (sizes.length === 0) return
-    if (sizes.length === 1) {
+    const groups = productGroups(product.modifierGroups)
+    if (sizes.length === 1 && groups.length === 0) {
       const [only] = sizes
       if (addToCart(only.id, product.name, only.name, only.salePrice, only.costPrice) && fromSearch) setProductSearch('')
       return
     }
     const last = readLastSize(product.id)
-    setSizePicker({ product, selectedId: sizes.some((v) => v.id === last) ? last! : sizes[0].id, fromSearch })
+    setSizePicker({
+      product,
+      selectedId: sizes.some((v) => v.id === last) ? last! : sizes[0].id,
+      picks: initialPicks(groups, readLastModifiers(product.id)),
+      fromSearch,
+    })
   }
 
+  // Without add-ons a size tap adds it; with add-ons it only picks the size, and 'أضف للطلب' adds the drink.
   const pickSize = (variantId: string) => {
     if (!sizePicker) return
     const { product, fromSearch } = sizePicker
     const variant = product.variants.find((v) => v.id === variantId)
     if (!variant) return
+    if (productGroups(product.modifierGroups).length > 0) {
+      setSizePicker({ ...sizePicker, selectedId: variant.id })
+      return
+    }
     // Out of stock keeps the picker open so another size can be chosen.
     if (!addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice)) return
     rememberLastSize(product.id, variant.id)
+    if (fromSearch) setProductSearch('')
+    setSizePicker(null)
+  }
+
+  // A chip tap: a pick-one group swaps its choice; otherwise the option toggles, up to the group's maximum.
+  const togglePick = (group: ProductModifierGroupResponse, optionId: string) => {
+    setSizePicker((p) => {
+      if (!p) return p
+      const current = p.picks[group.id] ?? []
+      const next = current.includes(optionId)
+        ? current.filter((id) => id !== optionId)
+        : group.maxSelect === 1
+          ? [optionId]
+          : current.length >= group.maxSelect ? current : [...current, optionId]
+      return { ...p, picks: { ...p.picks, [group.id]: next } }
+    })
+  }
+
+  // Adds the picked size with its add-ons once every group's rule is met; the server checks the same rules.
+  const addPicked = () => {
+    if (!sizePicker) return
+    const { product, selectedId, picks, fromSearch } = sizePicker
+    const variant = product.variants.find((v) => v.id === selectedId && v.isActive)
+    if (!variant) return
+    const groups = productGroups(product.modifierGroups)
+    const missing = groups.find((g) => !groupSatisfied(g, picks[g.id]?.length ?? 0))
+    if (missing) {
+      toast.error(t.pos.addOnMissing.replace('{group}', missing.name), groupRule(missing, t.products))
+      return
+    }
+    const modifiers = pickedModifiers(groups, picks)
+    if (!addToCart(variant.id, product.name, variant.name, variant.salePrice, variant.costPrice, modifiers)) return
+    rememberLastSize(product.id, variant.id)
+    rememberLastModifiers(product.id, modifiers.map((m) => m.optionId))
     if (fromSearch) setProductSearch('')
     setSizePicker(null)
   }
@@ -767,11 +886,12 @@ export function CafePosPage() {
     if (!product || !variant) return 'not_found'
     const note = (notes ?? '').trim()
     const current = aiCartRef.current
-    const existing = current.find((i) => i.variantId === variantId && i.notes === note)
+    // The AI adds the plain drink; a line with add-ons is the cashier's and stays as it is.
+    const existing = current.find((i) => i.variantId === variantId && i.notes === note && i.modifiers.length === 0)
     if (!aiStockAllows(variantId, product.trackInventory, aiQtyOf(variantId) + qty)) return 'out_of_stock'
     commitAiCart(existing
       ? current.map((i) => i.lineKey === existing.lineKey ? { ...i, quantity: i.quantity + qty } : i)
-      : [...current, { lineKey: newLineKey(), variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: note }])
+      : [...current, { lineKey: newLineKey(), variantId, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity: qty, notes: note, modifiers: [] }])
     return 'ok'
   }
 
@@ -795,7 +915,8 @@ export function CafePosPage() {
   const getAiCartSnapshot = (): AiCashierCartSnapshot => {
     const lines = aiCartRef.current.map((i) => ({
       variantId: i.variantId,
-      name: lineDisplayName(i.productName, i.variantName) + (i.notes ? ` (${i.notes})` : ''),
+      name: [lineDisplayName(i.productName, i.variantName), modifierSummary(i.modifiers.map((m) => m.name))].filter(Boolean).join(' · ')
+        + (i.notes ? ` (${i.notes})` : ''),
       quantity: i.quantity,
       lineTotal: Math.round(i.unitPrice * i.quantity * 100) / 100,
     }))
@@ -836,8 +957,8 @@ export function CafePosPage() {
     setCart((prev) => prev.map((i) => (i.lineKey === lineKey ? { ...i, quantity } : i)))
   }
 
-  // Rings the last sale again for a regular, at today's prices and with its notes. Stock applies as for a tap:
-  // a size that ran out, or is no longer on the menu, is left out and the cashier is told.
+  // Rings the last sale again for a regular, at today's prices and with its notes and add-ons. Stock applies as
+  // for a tap: a size that ran out, or a size or add-on no longer on the menu, is left out and the cashier is told.
   const repeatLastOrder = () => {
     const last = lastKitchenTicket?.items ?? []
     if (last.length === 0) {
@@ -849,7 +970,8 @@ export function CafePosPage() {
     let missed = 0
     for (const item of last) {
       const found = onSale.get(item.variantId)
-      if (!found) { missed += item.quantity; continue }
+      const modifiers = found ? currentModifiers(found.product, item.modifiers) : null
+      if (!found || !modifiers) { missed += item.quantity; continue }
       let quantity = item.quantity
       if (!canAddMore(item.variantId, quantity, next)) quantity = Math.max(0, stockRoom(item.variantId, next))
       missed += item.quantity - quantity
@@ -857,7 +979,10 @@ export function CafePosPage() {
       const { product, variant } = found
       const lineKey = newLineKey()
       lastLineRef.current = lineKey
-      next.push({ lineKey, variantId: variant.id, productName: product.name, variantName: variant.name, unitPrice: variant.salePrice, costPrice: variant.costPrice, quantity, notes: item.notes })
+      next.push({
+        lineKey, variantId: variant.id, productName: product.name, variantName: variant.name,
+        unitPrice: unitPriceWith(variant.salePrice, modifiers), costPrice: variant.costPrice, quantity, notes: item.notes, modifiers,
+      })
     }
     if (next.length === cart.length) {
       toast.error(t.pos.repeatNoneAdded, t.pos.repeatMissed.replace('{n}', String(missed)))
@@ -874,7 +999,7 @@ export function CafePosPage() {
     setCart((prev) => prev.map((i) => i.lineKey === lineKey ? { ...i, notes: note } : i))
   }
 
-  // Once a note is written, a line that now matches another one (same drink, same note) joins it.
+  // Once a note is written, a line that now matches another one (same drink, note and add-ons) joins it.
   const finishNote = () => {
     setEditingNoteId(null)
     setCart(mergeCartLines)
@@ -935,8 +1060,8 @@ export function CafePosPage() {
     writeDraft(branchId, { cart, orderType, tableNumber, discountMode, discountInput })
   }, [branchId, cart, orderType, tableNumber, discountMode, discountInput])
 
-  // Read back once the menu has loaded: lines whose size left the menu are dropped and the rest take
-  // today's prices, the same repricing a refused sale gets. A cart already started here is left alone.
+  // Read back once the menu has loaded: lines whose size or an add-on left the menu are dropped and the rest
+  // take today's prices, the same repricing a refused sale gets. A cart already started here is left alone.
   useEffect(() => {
     if (!branchId || !allProductsData || draftBranchRef.current === branchId) return
     draftBranchRef.current = branchId
@@ -947,6 +1072,10 @@ export function CafePosPage() {
     for (const i of draft.cart) {
       const found = typeof i?.variantId === 'string' ? onSale.get(i.variantId) : undefined
       if (!found || !Number.isInteger(i.quantity) || i.quantity <= 0) continue
+      // A draft from before add-ons has none; a stored add-on is kept only while it is still on the menu.
+      const stored = Array.isArray(i.modifiers) ? i.modifiers.filter((m) => typeof m?.optionId === 'string') : []
+      const modifiers = currentModifiers(found.product, stored)
+      if (!modifiers) continue
       kept.push({
         lineKey: typeof i.lineKey === 'string' ? i.lineKey : newLineKey(),
         variantId: found.variant.id,
@@ -956,6 +1085,7 @@ export function CafePosPage() {
         costPrice: found.variant.costPrice,
         quantity: Math.min(i.quantity, 999),
         notes: typeof i.notes === 'string' ? i.notes.slice(0, 200) : '',
+        modifiers,
       })
     }
     const dropped = draft.cart.length - kept.length
@@ -998,6 +1128,8 @@ export function CafePosPage() {
           costPrice: item.costPrice,
           quantity: item.quantity,
           notes: item.notes.trim() || undefined,
+          // The server prices and checks these again; an offline sale keeps them in its queued payload as they are.
+          ...(item.modifiers.length > 0 && { modifierOptionIds: item.modifiers.map((m) => m.optionId) }),
         })),
         ...(discountGross > 0 && (discountMode === 'Percentage'
           ? { discountType: 'Percentage' as const, discountValue: Math.min(discountRaw, 100) }
@@ -1293,6 +1425,13 @@ export function CafePosPage() {
     { keys: ['?', '؟', 'F1'], label: 'help', allowInInputs: false, run: () => setShowShortcuts(true) },
   ])
 
+  // The open picker: its add-on groups and sizes, the drink so far, and whether every group's rule is met.
+  const pickerGroups = productGroups(sizePicker?.product.modifierGroups)
+  const pickerSizes = sizePicker?.product.variants.filter((v) => v.isActive) ?? []
+  const pickerVariant = pickerSizes.find((v) => v.id === sizePicker?.selectedId)
+  const pickerModifiers = sizePicker ? pickedModifiers(pickerGroups, sizePicker.picks) : []
+  const pickerReady = !!pickerVariant && pickerGroups.every((g) => groupSatisfied(g, sizePicker?.picks[g.id]?.length ?? 0))
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1522,6 +1661,9 @@ export function CafePosPage() {
                         </p>
                         {!isPlainVariant(item.variantName, item.productName) && (
                           <p className="text-xs text-muted">{item.variantName}</p>
+                        )}
+                        {item.modifiers.length > 0 && (
+                          <p className="text-xs font-medium text-brand-ink">{modifierSummary(item.modifiers.map((m) => m.name))}</p>
                         )}
                       </div>
                       <p className="shrink-0 text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
@@ -2148,55 +2290,119 @@ export function CafePosPage() {
         </div>
       </ShiftGate>
 
-      {/* ── Size Picker Modal: the last size sold here is focused, so Enter or one tap adds it ── */}
+      {/* ── Size and add-on picker: the last size and add-ons sold here are preselected. Without add-ons the last
+          size is focused, so Enter or one tap adds it; with add-ons the chips are picked and 'أضف للطلب' adds the drink. ── */}
       <Modal
         open={!!sizePicker}
         onClose={() => setSizePicker(null)}
-        title={sizePicker ? `${t.pos.pickSize} · ${sizePicker.product.name}` : t.pos.pickSize}
+        title={sizePicker
+          ? pickerGroups.length > 0 ? sizePicker.product.name : `${t.pos.pickSize} · ${sizePicker.product.name}`
+          : t.pos.pickSize}
         size="md"
+        footer={sizePicker && pickerGroups.length > 0 && pickerVariant ? (
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={addPicked}
+            disabled={!pickerReady}
+            data-autofocus={pickerReady || undefined}
+          >
+            {t.pos.addToOrder} · {formatCurrency(unitPriceWith(pickerVariant.salePrice, pickerModifiers))}
+          </Button>
+        ) : undefined}
       >
         {sizePicker && (
-          <div
-            className="grid grid-cols-2 gap-3 sm:grid-cols-3"
-            onKeyDown={(e) => {
-              // Arrow keys walk the sizes; Enter presses the focused one.
-              if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
-              const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button'))
-              const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
-              if (at === -1 || buttons.length === 0) return
-              e.preventDefault()
-              const rtl = getComputedStyle(e.currentTarget).direction === 'rtl'
-              const forward = e.key === 'ArrowDown' || e.key === (rtl ? 'ArrowLeft' : 'ArrowRight')
-              buttons[(at + (forward ? 1 : buttons.length - 1)) % buttons.length].focus()
-            }}
-          >
-            {sizePicker.product.variants
-              .filter((v) => v.isActive)
-              .map((v) => {
-                const selected = v.id === sizePicker.selectedId
-                const out = !canAddMore(v.id)
-                return (
-                  <button
-                    key={v.id}
-                    type="button"
-                    data-autofocus={selected || undefined}
-                    onClick={() => pickSize(v.id)}
-                    className={cn(
-                      'flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-4 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
-                      selected ? 'border-brand bg-brand-soft' : 'border-border bg-surface hover:border-brand',
-                      out && 'opacity-50',
-                    )}
-                  >
-                    <span className="text-lg font-bold leading-snug text-fg">
-                      {isPlainVariant(v.name, sizePicker.product.name) ? sizePicker.product.name : v.name}
+          <div className="space-y-5">
+            {(pickerGroups.length === 0 || pickerSizes.length > 1) && (
+              <section aria-label={t.pos.pickSize}>
+                {pickerGroups.length > 0 && <h3 className="mb-2 text-sm font-semibold text-muted">{t.pos.pickSize}</h3>}
+                <div
+                  className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+                  onKeyDown={(e) => {
+                    // Arrow keys walk the sizes; Enter presses the focused one.
+                    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+                    const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button'))
+                    const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
+                    if (at === -1 || buttons.length === 0) return
+                    e.preventDefault()
+                    const rtl = getComputedStyle(e.currentTarget).direction === 'rtl'
+                    const forward = e.key === 'ArrowDown' || e.key === (rtl ? 'ArrowLeft' : 'ArrowRight')
+                    buttons[(at + (forward ? 1 : buttons.length - 1)) % buttons.length].focus()
+                  }}
+                >
+                  {pickerSizes.map((v) => {
+                    const selected = v.id === sizePicker.selectedId
+                    const out = !canAddMore(v.id)
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        data-autofocus={(selected && (pickerGroups.length === 0 || !pickerReady)) || undefined}
+                        aria-pressed={pickerGroups.length > 0 ? selected : undefined}
+                        onClick={() => pickSize(v.id)}
+                        className={cn(
+                          'flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-4 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+                          selected ? 'border-brand bg-brand-soft' : 'border-border bg-surface hover:border-brand',
+                          out && 'opacity-50',
+                        )}
+                      >
+                        <span className="text-lg font-bold leading-snug text-fg">
+                          {isPlainVariant(v.name, sizePicker.product.name) ? sizePicker.product.name : v.name}
+                        </span>
+                        <span className="font-display text-base font-semibold tabular-nums text-brand-ink">
+                          {formatCurrency(v.salePrice)}
+                        </span>
+                        {out && <span className="text-xs font-medium text-danger">{t.pos.sizeOutOfStock}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* One row of chips per add-on group, in the order the owner set; prices include VAT. */}
+            {pickerGroups.map((group) => {
+              const picked = sizePicker.picks[group.id] ?? []
+              const met = groupSatisfied(group, picked.length)
+              const full = group.maxSelect > 1 && picked.length >= group.maxSelect
+              return (
+                <section key={group.id} aria-labelledby={`addon-group-${group.id}`}>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 id={`addon-group-${group.id}`} className="text-base font-bold text-fg">{group.name}</h3>
+                    <span className={cn(
+                      'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                      group.isRequired && !met ? 'bg-warning/15 text-warning' : 'bg-surface-2 text-muted',
+                    )}>
+                      {group.isRequired ? `${t.pos.addOnRequired} · ` : ''}{groupRule(group, t.products)}
                     </span>
-                    <span className="font-display text-base font-semibold tabular-nums text-brand-ink">
-                      {formatCurrency(v.salePrice)}
-                    </span>
-                    {out && <span className="text-xs font-medium text-danger">{t.pos.sizeOutOfStock}</span>}
-                  </button>
-                )
-              })}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {group.options.map((o) => {
+                      const on = picked.includes(o.id)
+                      const delta = grossDelta(o.priceDelta)
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          aria-pressed={on}
+                          disabled={!on && full}
+                          onClick={() => togglePick(group, o.id)}
+                          className={cn(
+                            'flex min-h-11 items-center gap-2 rounded-full border-2 px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50',
+                            on ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border bg-surface text-fg hover:border-brand',
+                          )}
+                        >
+                          <span>{o.name}</span>
+                          <span className={cn('text-xs tabular-nums', on ? 'text-brand-ink' : 'text-muted')}>
+                            {delta > 0 ? `+${formatCurrency(delta)}` : t.products.free}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )}
       </Modal>

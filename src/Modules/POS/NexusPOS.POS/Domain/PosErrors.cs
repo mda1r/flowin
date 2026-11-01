@@ -84,4 +84,18 @@ public static class PosErrors
 
     public static Error PriceBelowCatalog(string name) =>
         Error.Validation("POS.PriceBelowCatalog", $"سعر «{name}» أقل من سعر الكتالوج. احذفه وأعد إضافته، أو استخدم الخصم.");
+
+    public static Error ModifierUnavailable(string product) =>
+        Error.Validation("POS.ModifierUnavailable", $"إحدى إضافات «{product}» لم تعد متاحة. احذفه وأعد إضافته.");
+
+    public static Error ModifierNotForProduct(string product, string option) =>
+        Error.Validation("POS.ModifierNotForProduct", $"الإضافة «{option}» لا تخص «{product}».");
+
+    public static Error ModifierRequired(string product, string group) =>
+        Error.Validation("POS.ModifierRequired", $"اختر «{group}» لـ«{product}».");
+
+    public static Error ModifierSelection(string product, string group, int min, int max) =>
+        Error.Validation(
+            "POS.ModifierSelection",
+            $"«{group}» في «{product}»: {(min == max ? $"اختر {max}" : min == 0 ? $"حتى {max}" : $"اختر من {min} إلى {max}")}.");
 }

@@ -25,7 +25,8 @@ export interface ReceiptMessage {
   kind?: 'invoice' | 'credit'
   reference?: string
   date: string
-  items: { name: string; quantity: number; total: number }[]
+  // detail is the small line under an item: its add-ons and the customer's note.
+  items: { name: string; quantity: number; total: number; detail?: string }[]
   discount?: number
   vat: number
   vatIncluded?: boolean
@@ -45,7 +46,10 @@ export function buildReceiptMessage(r: ReceiptMessage): string {
     ...(r.reference ? [`مرجع الفاتورة ${r.reference}`] : []),
     r.date,
     '',
-    ...r.items.slice(0, MAX_ITEMS).map((i) => `• ${i.name} × ${i.quantity}: ${sar(i.total)}`),
+    ...r.items.slice(0, MAX_ITEMS).flatMap((i) => [
+      `• ${i.name} × ${i.quantity}: ${sar(i.total)}`,
+      ...(i.detail ? [`   ${i.detail}`] : []),
+    ]),
     ...(r.items.length > MAX_ITEMS ? [`• و${r.items.length - MAX_ITEMS} أصناف أخرى`] : []),
     '',
   ]

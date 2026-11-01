@@ -40,4 +40,21 @@ internal sealed class VariantPriceDirectory(CatalogDbContext db) : IVariantPrice
             .ToListAsync(cancellationToken);
         return costs.ToDictionary(c => c.Id.Value, c => c.Amount);
     }
+
+    public async Task<IReadOnlyDictionary<Guid, Guid>> GetProductIdsAsync(
+        IReadOnlyCollection<Guid> variantIds, CancellationToken cancellationToken = default)
+    {
+        if (variantIds.Count == 0)
+        {
+            return new Dictionary<Guid, Guid>();
+        }
+
+        List<VariantId> ids = [.. variantIds.Distinct().Select(id => new VariantId(id))];
+        var products = await db.ProductVariants
+            .AsNoTracking()
+            .Where(v => ids.Contains(v.Id))
+            .Select(v => new { v.Id, v.ProductId })
+            .ToListAsync(cancellationToken);
+        return products.ToDictionary(p => p.Id.Value, p => p.ProductId.Value);
+    }
 }

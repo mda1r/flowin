@@ -11,7 +11,14 @@ import { invoiceNo, matchesInvoiceNo } from '@/lib/invoiceNumber'
 import { paymentLabel, refundState, type RefundState } from '@/lib/orderReceipt'
 import { localDaysToUtcRange, localYmd } from '@/lib/dates'
 import { downloadCsv } from '@/lib/csv'
-import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
+import { modifierSummary } from '@/lib/modifiers'
+import type { OrderLineResponse, OrderResponse, ReturnOrderResponse } from '@/types/api'
+
+// "لاتيه (شوفان · شوت إضافي) ×2": a sold line with its add-ons, for the list, its tooltip and the CSV.
+function lineSummary(l: OrderLineResponse) {
+  const addOns = modifierSummary(l.modifiers?.map((m) => m.name))
+  return `${l.productName}${addOns ? ` (${addOns})` : ''} ×${l.quantity}`
+}
 
 type Period = 'today' | 'yesterday' | '7d' | '30d' | 'custom'
 type MethodFilter = 'all' | 'Cash' | 'Card' | 'Split'
@@ -104,7 +111,7 @@ export function InvoicesPage() {
       if (!q) return true
       return (
         matchesInvoiceNo(o, q) ||
-        o.lines.some((l) => l.productName.toLowerCase().includes(q)) ||
+        o.lines.some((l) => l.productName.toLowerCase().includes(q) || !!l.modifiers?.some((m) => m.name.toLowerCase().includes(q))) ||
         o.totalAmount.toFixed(2).includes(q)
       )
     })
@@ -147,7 +154,7 @@ export function InvoicesPage() {
       orders.map((o) => [
         invoiceNo(o),
         new Date(o.completedAt ?? o.createdAt).toLocaleString('en-CA', { hour12: false }),
-        o.lines.map((l) => `${l.productName} ×${l.quantity}`).join(' | '),
+        o.lines.map(lineSummary).join(' | '),
         paymentLabel(o.paymentMethod),
         (o.totalAmount - o.taxAmount).toFixed(2),
         o.taxAmount.toFixed(2),
@@ -306,8 +313,8 @@ export function InvoicesPage() {
                         {new Date(o.completedAt ?? o.createdAt).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="max-w-[16rem] px-4 py-3 text-muted">
-                        <span className="block truncate" title={o.lines.map((l) => `${l.productName} ×${l.quantity}`).join('، ')}>
-                          {o.lines.map((l) => `${l.productName} ×${l.quantity}`).join('، ')}
+                        <span className="block truncate" title={o.lines.map(lineSummary).join('، ')}>
+                          {o.lines.map(lineSummary).join('، ')}
                         </span>
                       </td>
                       <td className="px-4 py-3">

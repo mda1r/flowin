@@ -5,6 +5,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 
 // Sales rung up while the connection is down, kept on this device until the server confirms them.
 // Each carries the till's clientReference, so resending one that already reached the server is harmless.
+// The payload is replayed exactly as the till built it, add-on option ids included.
 export interface QueuedSale {
   clientReference: string
   // Synced only while a user of this same tenant is signed in, so a shared device never posts one store's sales into another.

@@ -304,4 +304,20 @@ public sealed class ModifierGroupHandlerTests
         lookup.Options.Should().BeEmpty();
         lookup.Groups.Should().ContainKey(milk.Id);
     }
+
+    [Fact]
+    public async Task VariantDirectory_MapsEachSizeToItsProduct()
+    {
+        Guid latte = await SeedProductAsync();
+        Guid size;
+        await using (CatalogDbContext read = NewDb())
+        {
+            size = (await read.ProductVariants.SingleAsync()).Id.Value;
+        }
+
+        await using CatalogDbContext db = NewDb();
+        IReadOnlyDictionary<Guid, Guid> products = await new VariantPriceDirectory(db).GetProductIdsAsync([size, Guid.NewGuid()]);
+
+        products.Should().Equal(new Dictionary<Guid, Guid> { [size] = latte });
+    }
 }
