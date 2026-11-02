@@ -175,4 +175,41 @@ public sealed class UserTests
 
         user.IsEmailVerified.Should().BeTrue();
     }
+
+    [Fact]
+    public void Create_HasNoPageLimit()
+    {
+        User.Create(ValidEmail, "John", "Doe").AllowedPages.Should().BeNull();
+    }
+
+    [Fact]
+    public void SetAllowedPages_TrimsDropsBlanksAndDuplicates()
+    {
+        User user = User.Create(ValidEmail, "John", "Doe");
+
+        user.SetAllowedPages([" /pos", "/invoices", "/pos", "", "/discount-codes"]);
+
+        user.AllowedPages.Should().Equal("/discount-codes", "/invoices", "/pos");
+    }
+
+    [Fact]
+    public void SetAllowedPages_Null_GivesBackEveryPage()
+    {
+        User user = User.Create(ValidEmail, "John", "Doe");
+        user.SetAllowedPages(["/pos"]);
+
+        user.SetAllowedPages(null);
+
+        user.AllowedPages.Should().BeNull();
+    }
+
+    [Fact]
+    public void SetAllowedPages_EmptyList_KeepsAnEmptyLimit()
+    {
+        User user = User.Create(ValidEmail, "John", "Doe");
+
+        user.SetAllowedPages([]);
+
+        user.AllowedPages.Should().NotBeNull().And.BeEmpty();
+    }
 }

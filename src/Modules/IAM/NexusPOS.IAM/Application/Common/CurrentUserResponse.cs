@@ -8,4 +8,5 @@ public sealed record CurrentUserResponse(
     string Role,
     string? TenantId,
     string? BranchId,
-    string? BusinessType);
+    string? BusinessType,
+    List<string>? AllowedPages = null);

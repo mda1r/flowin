@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Menu } from 'lucide-react'
-import { Sidebar, FlowinWordmark } from './Sidebar'
+import { Sidebar, FlowinWordmark, ALL_NAV_ITEMS } from './Sidebar'
 import { authApi } from '@/api/auth'
 import { cn } from '@/lib/utils'
 import { useBelowLg } from '@/lib/useBelowLg'
 import { useAuthStore } from '@/stores/authStore'
+import { canOpenPath, pageLimit } from '@/lib/pageAccess'
 import { useI18n } from '@/i18n'
 
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const { setUser } = useAuthStore()
+  const user = useAuthStore((s) => s.user)
   const accessToken = useAuthStore((s) => s.accessToken)
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
@@ -32,6 +34,15 @@ export function AppLayout() {
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
+
+  // A page the owner did not give this user (typed or bookmarked): go to the first page they may open.
+  const limit = useMemo(() => pageLimit(user), [user])
+  const pageAllowed = canOpenPath(pathname, limit)
+  useEffect(() => {
+    if (pageAllowed) return
+    const first = ALL_NAV_ITEMS.find((item) => canOpenPath(item.to, limit))?.to ?? '/settings'
+    void navigate({ to: first, replace: true })
+  }, [pageAllowed, limit, navigate])
 
   // the drawer only exists below lg: rotating or widening past it must not leave the page inert
   useEffect(() => {
@@ -81,7 +92,7 @@ export function AppLayout() {
           <FlowinWordmark />
         </header>
         <main className={cn('min-w-0 flex-1 overflow-y-auto print:overflow-visible', mobileOpen && 'max-lg:overflow-hidden')}>
-          <Outlet />
+          {pageAllowed && <Outlet />}
         </main>
       </div>
     </div>

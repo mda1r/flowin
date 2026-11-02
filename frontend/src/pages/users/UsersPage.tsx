@@ -5,15 +5,15 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { UserPlus, Trash2, Users, ShieldCheck, Pencil, KeyRound, UserX, UserCheck } from 'lucide-react'
 import { usersApi } from '@/api/users'
-import type { UserSummaryResponse } from '@/types/api'
+import type { BusinessType, UserSummaryResponse } from '@/types/api'
 import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/authStore'
-import { saveUserPermissions, getUserPermissions } from '@/lib/userPermissions'
-import { logActivity } from '@/lib/activityLog'
+import { readLegacyPermissions, forgetLegacyPermission } from '@/lib/userPermissions'
+import { ALL_NAV_ITEMS } from '@/components/layout/Sidebar'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
 import { useI18n } from '@/i18n'
 import { intlLocale } from '@/lib/locale'
@@ -25,28 +25,6 @@ const ROLE_COLORS: Record<string, string> = {
   Accountant: 'bg-warning/10 text-warning',
   Staff:      'bg-surface-2 text-muted',
 }
-
-// All possible pages with Arabic labels
-const ALL_PAGES: { route: string; label: string }[] = [
-  { route: '/',                label: 'لوحة التحكم' },
-  { route: '/pos',             label: 'نقطة البيع' },
-  { route: '/products',        label: 'المنتجات' },
-  { route: '/inventory',       label: 'المخزون' },
-  { route: '/stock-counts',    label: 'الجرد' },
-  { route: '/customers',       label: 'العملاء' },
-  { route: '/sales',           label: 'المبيعات' },
-  { route: '/purchasing',      label: 'المشتريات' },
-  { route: '/finance',         label: 'المالية' },
-  { route: '/reports',         label: 'التقارير' },
-  { route: '/restaurant',      label: 'المطعم' },
-  { route: '/hotel',           label: 'الفندق' },
-  { route: '/hotel/contracts', label: 'عقود الفندق' },
-  { route: '/gaming',          label: 'الألعاب' },
-  { route: '/settings/zatca',  label: 'زاتكا' },
-  { route: '/users',           label: 'المستخدمون' },
-  { route: '/branches',        label: 'الفروع' },
-  { route: '/activity-logs',   label: 'سجل النشاطات' },
-]
 
 const createSchema = z.object({
   firstName: z.string().min(1, 'الاسم الأول مطلوب'),
@@ -79,23 +57,29 @@ function RoleBadge({ roles }: { roles: string[] }) {
 // ── Permission Chip ────────────────────────────────────────────────────────────
 
 function PermissionChip({ user: u, onClick }: { user: UserSummaryResponse; onClick: () => void }) {
-  const { tenantId } = useAuthStore()
   const { t } = useI18n()
-  const perms = getUserPermissions(tenantId ?? '', u.id)
-  const hasCustom = perms !== null
+  const pages = u.allowedPages
   return (
     <button
       onClick={onClick}
-      title="تعديل الصفحات المسموح بها"
+      title={t.users.editPages}
       className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted hover:bg-surface-2 hover:text-fg transition-colors"
     >
-      <ShieldCheck className={`h-3.5 w-3.5 ${hasCustom ? 'text-success' : 'text-muted/50'}`} />
-      {hasCustom ? t.users.xPages.replace('{n}', String(perms!.length)) : t.users.allPages}
+      <ShieldCheck className={`h-3.5 w-3.5 ${pages ? 'text-success' : 'text-muted/50'}`} />
+      {pages ? t.users.xPages.replace('{n}', String(pages.length)) : t.users.allPages}
     </button>
   )
 }
 
 // ── Page Permission Modal ──────────────────────────────────────────────────────
+
+// The menu pages this user's role can reach in this kind of business: the same list the sidebar draws.
+function pagesFor(target: UserSummaryResponse, businessType: BusinessType | undefined) {
+  const forBusiness = businessType ? new Set(BUSINESS_TYPE_ROUTES[businessType] ?? []) : null
+  const role = topRole(target.roles)
+  return ALL_NAV_ITEMS.filter((item) =>
+    (!forBusiness || forBusiness.has(item.to)) && (!item.roles || item.roles.includes(role)))
+}
 
 function PagePermModal({
   target,
@@ -104,20 +88,14 @@ function PagePermModal({
   target: UserSummaryResponse
   onClose: () => void
 }) {
-  const { user: currentUser, tenantId } = useAuthStore()
+  const { user: currentUser } = useAuthStore()
   const { t } = useI18n()
+  const qc = useQueryClient()
 
-  // Filter available pages to only those relevant to this business type
-  const allowedRoutes = currentUser?.businessType
-    ? new Set(BUSINESS_TYPE_ROUTES[currentUser.businessType] ?? [])
-    : new Set(ALL_PAGES.map((p) => p.route))
-  const availablePages = ALL_PAGES.filter((p) => allowedRoutes.has(p.route))
-
-  const existing = getUserPermissions(tenantId ?? '', target.id)
-  const defaultSelected = existing
-    ? existing.filter((r) => allowedRoutes.has(r))
-    : availablePages.map((p) => p.route)
-  const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected))
+  const availablePages = pagesFor(target, currentUser?.businessType)
+  const available = new Set(availablePages.map((p) => p.to))
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(
+    target.allowedPages ? target.allowedPages.filter((r) => available.has(r)) : [...available]))
 
   const toggle = (route: string) => {
     setSelected((prev) => {
@@ -128,23 +106,20 @@ function PagePermModal({
     })
   }
 
-  const selectAll = () => setSelected(new Set(availablePages.map((p) => p.route)))
-  const clearAll = () => setSelected(new Set(['/']))
-
-  const handleSave = () => {
-    const routes = Array.from(selected)
-    saveUserPermissions(tenantId ?? '', target.id, routes)
-    logActivity(tenantId ?? '', {
-      userId: currentUser?.id ?? '',
-      userName: `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim(),
-      userEmail: currentUser?.email,
-      category: 'user',
-      action: 'تعديل صلاحيات الصفحات',
-      details: `${target.fullName} — ${routes.length} صفحة`,
-    })
-    toast.success(t.settings.saved)
-    onClose()
-  }
+  const saveMut = useMutation({
+    // Every page ticked means no limit, so pages added to flowin later open for this user too.
+    mutationFn: () => usersApi.setPages(
+      target.id,
+      availablePages.every((p) => selected.has(p.to))
+        ? null
+        : availablePages.filter((p) => selected.has(p.to)).map((p) => p.to)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      toast.success(t.settings.saved)
+      onClose()
+    },
+    onError: (err) => toast.error(t.users.failed, apiErrorMessage(err)),
+  })
 
   return (
     <Modal
@@ -154,33 +129,41 @@ function PagePermModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
-          <Button onClick={handleSave}>{t.common.save}</Button>
+          <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending} disabled={selected.size === 0}>
+            {t.common.save}
+          </Button>
         </>
       }
     >
       <div className="space-y-3">
         <p className="text-xs text-muted">{t.users.selectPages}</p>
         <div className="flex gap-2 text-xs">
-          <button onClick={selectAll} className="text-brand-ink hover:underline">{t.users.selectAll}</button>
+          <button type="button" onClick={() => setSelected(new Set(available))} className="text-brand-ink hover:underline">
+            {t.users.selectAll}
+          </button>
           <span className="text-muted/50">·</span>
-          <button onClick={clearAll} className="text-muted hover:underline">إلغاء الكل</button>
+          <button type="button" onClick={() => setSelected(new Set())} className="text-muted hover:underline">
+            {t.users.clearAll}
+          </button>
         </div>
-        <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pe-1 sm:grid-cols-2">
           {availablePages.map((p) => (
             <label
-              key={p.route}
+              key={p.to}
               className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface-2 transition-colors"
             >
               <input
                 type="checkbox"
-                checked={selected.has(p.route)}
-                onChange={() => toggle(p.route)}
+                checked={selected.has(p.to)}
+                onChange={() => toggle(p.to)}
                 className="accent-[rgb(var(--brand-ink))]"
               />
-              <span className="text-fg">{p.label}</span>
+              <span className="text-muted [&>svg]:h-4 [&>svg]:w-4">{p.icon}</span>
+              <span className="text-fg">{t.nav[p.labelKey as keyof typeof t.nav]}</span>
             </label>
           ))}
         </div>
+        {selected.size === 0 && <p className="text-xs text-danger">{t.users.pickOnePage}</p>}
       </div>
     </Modal>
   )
@@ -349,6 +332,22 @@ export function UsersPage() {
     queryKey: ['users'],
     queryFn: () => usersApi.list().then((r) => r.data),
   })
+
+  // Limits an owner set before they were saved on the server lived only in this browser: move them over once.
+  const tenantId = currentUser?.tenantId
+  useEffect(() => {
+    if (!canManage || !tenantId || users.length === 0) return
+    const legacy = readLegacyPermissions(tenantId)
+    users
+      .filter((u) => legacy[u.id] && (u.allowedPages || !canActOn(u)))
+      .forEach((u) => forgetLegacyPermission(tenantId, u.id))
+    const moves = users.filter((u) => legacy[u.id] && !u.allowedPages && canActOn(u))
+    if (moves.length === 0) return
+    void Promise.allSettled(moves.map((u) =>
+      usersApi.setPages(u.id, legacy[u.id]).then(() => forgetLegacyPermission(tenantId, u.id)),
+    )).then(() => qc.invalidateQueries({ queryKey: ['users'] }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, tenantId, canManage])
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateForm>({
     resolver: zodResolver(createSchema),

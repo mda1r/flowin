@@ -17,6 +17,7 @@ import { ContractsPage } from '@/pages/hotel/ContractsPage'
 import { GamingPage } from '@/pages/gaming/GamingPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { useAuthStore } from '@/stores/authStore'
+import { canOpenPath, pageLimit } from '@/lib/pageAccess'
 import { AdminLayout } from '@/pages/admin/AdminLayout'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { TenantsPage } from '@/pages/admin/TenantsPage'
@@ -249,9 +250,13 @@ const kitchenShellRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'kitchen-shell',
   component: () => <Outlet />,
-  beforeLoad: () => {
+  beforeLoad: ({ location }) => {
     if (!useAuthStore.getState().isAuthenticated()) {
       throw redirect({ to: '/login' })
+    }
+    // Full-screen pages sit outside the app layout's page check, so the owner's page list is applied here.
+    if (!canOpenPath(location.pathname, pageLimit(useAuthStore.getState().user))) {
+      throw redirect({ to: '/' })
     }
   },
 })

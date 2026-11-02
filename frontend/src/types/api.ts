@@ -38,6 +38,8 @@ export interface UserProfile {
   tenantId?: string
   branchId?: string
   businessType?: BusinessType
+  // The pages this user may open; null/absent means every page their role allows.
+  allowedPages?: string[] | null
 }
 
 // ── Tenant / Organization ────────────────────────────────────────────────────
@@ -748,6 +750,7 @@ export interface UserSummaryResponse {
   isActive: boolean
   createdAt: string
   lastLoginAt?: string
+  allowedPages?: string[] | null
 }
 
 export interface CreateUserRequest {

@@ -21,6 +21,7 @@ internal static class StaffAudit
     public const string Reactivated = "إعادة تفعيل مستخدم";
     public const string PasswordReset = "إعادة تعيين كلمة المرور";
     public const string Deleted = "حذف مستخدم";
+    public const string PagesChanged = "تغيير صفحات مستخدم";
 
     public static string RoleLabel(UserRole role) => role switch
     {

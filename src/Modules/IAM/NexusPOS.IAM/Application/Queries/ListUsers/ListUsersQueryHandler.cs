@@ -26,7 +26,8 @@ internal sealed class ListUsersQueryHandler(IamDbContext db)
                 u.Roles.Select(r => r.ToString()).ToList(),
                 u.IsActive,
                 u.CreatedAt,
-                u.LastLoginAt))
+                u.LastLoginAt,
+                u.AllowedPages))
             .ToListAsync(cancellationToken);
 
         return users;

@@ -47,9 +47,9 @@ import { useAuthStore } from '@/stores/authStore'
 import { useSignOut } from '@/lib/session'
 import { useThemeStore } from '@/stores/themeStore'
 import { useI18n } from '@/i18n'
-import { getUserPermissions } from '@/lib/userPermissions'
+import { canOpenPath, pageLimit } from '@/lib/pageAccess'
 import { BUSINESS_TYPE_ROUTES } from '@/lib/businessRoutes'
-import type { BusinessType } from '@/types/api'
+import type { BusinessType, UserProfile } from '@/types/api'
 
 /* themed identity chip shown under the brand name */
 const BUSINESS_META: Record<BusinessType, { emoji: string; ar: string; en: string }> = {
@@ -99,7 +99,7 @@ function groupNav(items: NavItem[]) {
     .filter((g) => g.items.length > 0)
 }
 
-const ALL_NAV_ITEMS: NavItem[] = [
+export const ALL_NAV_ITEMS: NavItem[] = [
   { labelKey: 'dashboard', to: '/', icon: <LayoutDashboard className="h-[18px] w-[18px]" /> },
   { labelKey: 'pos', to: '/pos', icon: <ShoppingCart className="h-[18px] w-[18px]" /> },
   { labelKey: 'products', to: '/products', icon: <Package className="h-[18px] w-[18px]" /> },
@@ -130,12 +130,9 @@ const ALL_NAV_ITEMS: NavItem[] = [
 ]
 
 
-function getNavItems(
-  businessType: BusinessType | undefined,
-  role: string | undefined,
-  userId: string | undefined,
-  tenantId: string | undefined,
-): NavItem[] {
+function getNavItems(user: UserProfile | null): NavItem[] {
+  const businessType = user?.businessType
+  const role = user?.role
   const baseItems = businessType
     ? (() => {
         const allowed = new Set(BUSINESS_TYPE_ROUTES[businessType] ?? [])
@@ -145,16 +142,9 @@ function getNavItems(
 
   const roleFiltered = baseItems.filter((item) => !item.roles || (role && item.roles.includes(role)))
 
-  // Apply per-user page permissions (Owner/Manager always get everything)
-  if (userId && tenantId && role !== 'Owner' && role !== 'Manager') {
-    const perms = getUserPermissions(tenantId, userId)
-    if (perms) {
-      const allowed = new Set(perms)
-      return roleFiltered.filter((item) => allowed.has(item.to))
-    }
-  }
-
-  return roleFiltered
+  // The pages the owner gave this user (saved on the server, so it holds on every device).
+  const limit = pageLimit(user)
+  return limit ? roleFiltered.filter((item) => canOpenPath(item.to, limit)) : roleFiltered
 }
 
 interface SidebarProps {
@@ -176,7 +166,7 @@ const THEME_LABEL = {
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const { pathname } = useRouterState({ select: (s) => s.location })
-  const { user, tenantId, branchId } = useAuthStore()
+  const { user, branchId } = useAuthStore()
   const { mode, cycle } = useThemeStore()
   const { t, lang, setLang } = useI18n()
   const signOut = useSignOut()
@@ -207,7 +197,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   })
   const aiAvailable = canUseAssistant && (aiFeature?.assistant ?? false)
 
-  const navItems = getNavItems(user?.businessType, user?.role, user?.id, tenantId ?? undefined)
+  const navItems = getNavItems(user)
 
   const initials = user ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim() || '؟' : '؟'
 

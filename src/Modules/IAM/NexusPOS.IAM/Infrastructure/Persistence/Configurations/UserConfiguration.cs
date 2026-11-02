@@ -77,6 +77,9 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("roles")
             .ElementType(b => b.HasConversion<int>());
 
+        builder.PrimitiveCollection(u => u.AllowedPages)
+            .HasColumnName("allowed_pages");
+
         builder.HasMany(u => u.RefreshTokens)
             .WithOne()
             .HasForeignKey(rt => rt.UserId)

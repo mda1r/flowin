@@ -23,6 +23,10 @@ public sealed class User : AggregateRoot<UserId>
     public DateTime? LockedUntil { get; private set; }
     public TOTPSecret? TotpSecret { get; private set; }
 
+    /// <summary>The app pages this user may open, as route paths ("/pos", "/invoices"); null means every page
+    /// their role allows. Owners and managers always see everything.</summary>
+    public List<string>? AllowedPages { get; private set; }
+
     public List<UserRole> Roles { get; private set; } = [];
     public List<RefreshToken> RefreshTokens { get; private set; } = [];
     public List<PasskeyCredential> PasskeyCredentials { get; private set; } = [];
@@ -155,6 +159,14 @@ public sealed class User : AggregateRoot<UserId>
     {
         Roles.Clear();
         Roles.Add(role);
+    }
+
+    /// <summary>Limits the pages this user may open; null (or no list) gives back every page.</summary>
+    public void SetAllowedPages(IEnumerable<string>? pages)
+    {
+        AllowedPages = pages is null
+            ? null
+            : [.. pages.Select(p => p.Trim()).Where(p => p.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
     }
 
     /// <summary>Admin-initiated reset: clears lockout and signs the user out everywhere.</summary>

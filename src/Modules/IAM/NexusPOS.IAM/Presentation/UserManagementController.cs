@@ -8,6 +8,7 @@ using NexusPOS.IAM.Application.Commands.CreateUser;
 using NexusPOS.IAM.Application.Commands.DeleteUser;
 using NexusPOS.IAM.Application.Commands.ResetUserPassword;
 using NexusPOS.IAM.Application.Commands.SetUserActive;
+using NexusPOS.IAM.Application.Commands.SetUserPages;
 using NexusPOS.IAM.Application.Commands.UpdateUser;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Application.Queries.ListUsers;
@@ -86,6 +87,21 @@ public sealed class UserManagementController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrors);
     }
 
+    /// <summary>تحديد الصفحات التي يفتحها المستخدم (null = كل الصفحات المسموحة لدوره)</summary>
+    [HttpPut("{id:guid}/pages")]
+    [ProducesResponseType(typeof(UserSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetUserPages(
+        Guid id,
+        [FromBody] SetUserPagesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new SetUserPagesCommand(TenantId, id, CurrentUserId, CallerRoles, request.Pages);
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrors);
+    }
+
     /// <summary>تعيين كلمة مرور جديدة لمستخدم (يسجّل خروجه من كل الأجهزة)</summary>
     [HttpPost("{id:guid}/reset-password")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -127,3 +143,5 @@ public sealed record CreateUserRequest(string Email, string FirstName, string La
 public sealed record UpdateUserRequest(string FirstName, string LastName, string Role);
 
 public sealed record ResetUserPasswordRequest(string NewPassword);
+
+public sealed record SetUserPagesRequest(List<string>? Pages);

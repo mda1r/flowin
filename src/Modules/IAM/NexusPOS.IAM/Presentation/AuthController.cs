@@ -13,6 +13,7 @@ using NexusPOS.IAM.Application.Commands.Refresh;
 using NexusPOS.IAM.Application.Commands.Register;
 using NexusPOS.IAM.Application.Commands.UpdateProfile;
 using NexusPOS.IAM.Application.Common;
+using NexusPOS.IAM.Application.Queries.GetAllowedPages;
 using NexusPOS.IAM.Presentation.Requests;
 using NexusPOS.SharedKernel.Presentation;
 
@@ -80,7 +81,7 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     [Authorize]
     [ProducesResponseType(typeof(CurrentUserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public IActionResult Me()
+    public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
         string? id = User.FindFirstValue(ClaimTypes.NameIdentifier);
         string? email = User.FindFirstValue(JwtRegisteredClaimNames.Email)
@@ -100,7 +101,16 @@ public sealed class AuthController(ISender mediator) : ControllerBase
             return Unauthorized();
         }
 
-        return Ok(new CurrentUserResponse(id, email, firstName ?? string.Empty, lastName ?? string.Empty, role ?? "Staff", tenantId, branchId, businessType));
+        // Owners and managers always see every page; anyone else gets the list their owner set, read fresh.
+        List<string>? allowedPages = null;
+        if (role is not ("SuperAdmin" or "Owner" or "Manager")
+            && Guid.TryParse(id, out Guid userId) && Guid.TryParse(tenantId, out Guid tenant))
+        {
+            ErrorOr<List<string>?> pages = await mediator.Send(new GetAllowedPagesQuery(userId, tenant), cancellationToken);
+            allowedPages = pages.IsError ? null : pages.Value;
+        }
+
+        return Ok(new CurrentUserResponse(id, email, firstName ?? string.Empty, lastName ?? string.Empty, role ?? "Staff", tenantId, branchId, businessType, allowedPages));
     }
 
     /// <summary>Revoke this session (or every session of its user). The refresh token in the body is the

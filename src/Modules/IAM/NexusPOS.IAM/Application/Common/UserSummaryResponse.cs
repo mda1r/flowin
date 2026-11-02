@@ -9,4 +9,5 @@ public sealed record UserSummaryResponse(
     List<string> Roles,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime? LastLoginAt);
+    DateTime? LastLoginAt,
+    List<string>? AllowedPages);

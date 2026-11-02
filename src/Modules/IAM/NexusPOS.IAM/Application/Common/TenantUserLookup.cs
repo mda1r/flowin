@@ -39,5 +39,6 @@ internal static class TenantUserLookup
         user.Roles.Select(r => r.ToString()).ToList(),
         user.IsActive,
         user.CreatedAt,
-        user.LastLoginAt);
+        user.LastLoginAt,
+        user.AllowedPages);
 }
