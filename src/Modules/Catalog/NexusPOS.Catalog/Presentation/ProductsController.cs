@@ -75,7 +75,8 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
             request.Name, request.Description, request.CategoryId,
             request.Type, request.TaxClass, request.TrackInventory,
             request.Sku, request.VariantName,
-            request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.ExpiryDate, request.UnitType);
+            request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.ExpiryDate, request.UnitType,
+            request.NameEn, request.VariantNameEn);
 
         ErrorOr<ProductResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -97,7 +98,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
     {
         UpdateProductCommand command = new(
             id, request.Name, request.Description, request.CategoryId,
-            request.TaxClass, request.TrackInventory, request.ImageUrl, request.UnitType);
+            request.TaxClass, request.TrackInventory, request.ImageUrl, request.UnitType, request.NameEn);
 
         ErrorOr<ProductResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -117,7 +118,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken)
     {
         UpdateVariantCommand command = new(
-            id, variantId, request.Name, request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.Sku);
+            id, variantId, request.Name, request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.Sku, request.NameEn);
 
         ErrorOr<ProductVariantResponse> result = await mediator.Send(command, cancellationToken);
 
@@ -156,7 +157,7 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
     {
         AddProductVariantCommand command = new(
             id, request.Sku, request.Name,
-            request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.ExpiryDate);
+            request.CostPrice, request.SalePrice, request.Currency, request.Barcode, request.ExpiryDate, request.NameEn);
 
         ErrorOr<ProductVariantResponse> result = await mediator.Send(command, cancellationToken);
 

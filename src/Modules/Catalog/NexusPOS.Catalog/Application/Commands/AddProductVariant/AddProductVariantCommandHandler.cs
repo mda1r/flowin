@@ -71,13 +71,10 @@ internal sealed class AddProductVariantCommandHandler(
             return variantResult.Errors;
         }
 
+        product.SetVariantNameEn(variantResult.Value.Id, request.NameEn);
         productRepository.Update(product);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        ProductVariant v = variantResult.Value;
-        return new ProductVariantResponse(
-            v.Id.Value, v.Sku.Value, v.Name,
-            v.CostPrice.Amount, v.SalePrice.Amount, v.SalePrice.Currency,
-            v.Barcode, v.IsActive, v.ExpiryDate);
+        return ProductMapper.ToResponse(variantResult.Value);
     }
 }

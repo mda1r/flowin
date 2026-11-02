@@ -40,13 +40,11 @@ internal sealed class CreateCategoryCommandHandler(
 
         Category category = Category.Create(
             request.Name, request.Description, parentId, request.SortOrder);
+        category.SetNameEn(request.NameEn);
 
         categoryRepository.Add(category);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return MapToResponse(category);
+        return CategoryMapper.ToResponse(category);
     }
-
-    private static CategoryResponse MapToResponse(Category c) => new(
-        c.Id.Value, c.Name, c.Description, c.ParentId?.Value, c.IsActive, c.SortOrder, c.CreatedAt);
 }

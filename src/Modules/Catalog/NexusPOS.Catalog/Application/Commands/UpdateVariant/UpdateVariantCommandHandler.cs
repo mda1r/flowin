@@ -78,6 +78,10 @@ internal sealed class UpdateVariantCommandHandler(
 
         variant.UpdatePricing(costResult.Value, saleResult.Value);
         variant.UpdateDetails(request.Name, request.Barcode);
+        if (request.NameEn is not null)
+        {
+            product.SetVariantNameEn(variant.Id, request.NameEn);
+        }
         if (newSku is not null)
         {
             variant.ChangeSku(newSku);
@@ -86,9 +90,6 @@ internal sealed class UpdateVariantCommandHandler(
         productRepository.Update(product);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new ProductVariantResponse(
-            variant.Id.Value, variant.Sku.Value, variant.Name,
-            variant.CostPrice.Amount, variant.SalePrice.Amount, variant.SalePrice.Currency,
-            variant.Barcode, variant.IsActive, variant.ExpiryDate);
+        return ProductMapper.ToResponse(variant);
     }
 }

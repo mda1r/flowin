@@ -42,7 +42,7 @@ public sealed class ModifierGroupsController(ISender mediator) : ControllerBase
     {
         CreateModifierGroupCommand command = new(
             request.Name ?? string.Empty, request.IsRequired, request.MinSelect, request.MaxSelect, request.SortOrder,
-            Drafts(request.Options));
+            Drafts(request.Options), request.NameEn);
 
         ErrorOr<ModifierGroupResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(group => StatusCode(StatusCodes.Status201Created, group), MapErrors);
@@ -58,7 +58,7 @@ public sealed class ModifierGroupsController(ISender mediator) : ControllerBase
     {
         UpdateModifierGroupCommand command = new(
             id, request.Name ?? string.Empty, request.IsRequired, request.MinSelect, request.MaxSelect, request.SortOrder,
-            Drafts(request.Options));
+            Drafts(request.Options), request.NameEn);
 
         ErrorOr<ModifierGroupResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(Ok, MapErrors);
@@ -90,7 +90,7 @@ public sealed class ModifierGroupsController(ISender mediator) : ControllerBase
     }
 
     private static List<ModifierOptionDraft> Drafts(IReadOnlyList<ModifierOptionRequest>? options) =>
-        [.. (options ?? []).Select(o => new ModifierOptionDraft(o.Id, o.Name ?? string.Empty, o.PriceDelta, o.IsActive, o.SortOrder))];
+        [.. (options ?? []).Select(o => new ModifierOptionDraft(o.Id, o.Name ?? string.Empty, o.PriceDelta, o.IsActive, o.SortOrder, o.NameEn))];
 
     private IActionResult MapErrors(List<Error> errors) => this.ToProblem(errors);
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NexusPOS.Catalog.Domain;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.ValueObjects;
 
@@ -32,6 +33,10 @@ internal sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Pro
                 .IsUnique()
                 .HasDatabaseName("ix_product_variants_sku");
         });
+
+        builder.Property(v => v.NameEn)
+            .HasColumnName("name_en")
+            .HasMaxLength(EnglishName.MaxLength);
 
         builder.Property(v => v.Name)
             .HasColumnName("name")

@@ -8,6 +8,7 @@ public sealed class ModifierOption : Entity<ModifierOptionId>
 {
     public ModifierGroupId GroupId { get; private set; } = null!;
     public string Name { get; private set; } = null!;
+    public string? NameEn { get; private set; }
     public decimal PriceDelta { get; private set; }
     public bool IsActive { get; private set; }
     public int SortOrder { get; private set; }
@@ -19,6 +20,7 @@ public sealed class ModifierOption : Entity<ModifierOptionId>
         Id = new ModifierOptionId(Guid.NewGuid()),
         GroupId = groupId,
         Name = draft.Name.Trim(),
+        NameEn = EnglishName.Normalize(draft.NameEn),
         PriceDelta = draft.PriceDelta,
         IsActive = draft.IsActive,
         SortOrder = draft.SortOrder,
@@ -27,6 +29,7 @@ public sealed class ModifierOption : Entity<ModifierOptionId>
     internal void Update(ModifierOptionDraft draft)
     {
         Name = draft.Name.Trim();
+        NameEn = EnglishName.Normalize(draft.NameEn);
         PriceDelta = draft.PriceDelta;
         IsActive = draft.IsActive;
         SortOrder = draft.SortOrder;
@@ -34,4 +37,5 @@ public sealed class ModifierOption : Entity<ModifierOptionId>
 }
 
 // An option as the editor sends it; Id is the existing option to keep, or null for a new one.
-public sealed record ModifierOptionDraft(Guid? Id, string Name, decimal PriceDelta, bool IsActive = true, int SortOrder = 0);
+public sealed record ModifierOptionDraft(
+    Guid? Id, string Name, decimal PriceDelta, bool IsActive = true, int SortOrder = 0, string? NameEn = null);

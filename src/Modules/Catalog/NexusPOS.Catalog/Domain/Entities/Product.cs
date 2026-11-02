@@ -9,6 +9,7 @@ namespace NexusPOS.Catalog.Domain.Entities;
 public sealed class Product : AggregateRoot<ProductId>
 {
     public string Name { get; private set; } = null!;
+    public string? NameEn { get; private set; }
     public string? Description { get; private set; }
     public CategoryId? CategoryId { get; private set; }
     public ProductType Type { get; private set; }
@@ -111,6 +112,20 @@ public sealed class Product : AggregateRoot<ProductId>
         }
 
         UnitType = unitType;
+    }
+
+    public void SetNameEn(string? nameEn) => NameEn = EnglishName.Normalize(nameEn);
+
+    public ErrorOr<Success> SetVariantNameEn(VariantId variantId, string? nameEn)
+    {
+        ProductVariant? variant = Variants.FirstOrDefault(v => v.Id == variantId);
+        if (variant is null)
+        {
+            return CatalogErrors.VariantNotFound;
+        }
+
+        variant.SetNameEn(nameEn);
+        return Result.Success;
     }
 
     // Switches one variant on or off; the last active variant can't be switched off (deactivate the product instead).

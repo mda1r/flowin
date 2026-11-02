@@ -9,6 +9,7 @@ public sealed class ProductVariant : Entity<VariantId>
     public ProductId ProductId { get; private set; } = null!;
     public Sku Sku { get; private set; } = null!;
     public string Name { get; private set; } = null!;
+    public string? NameEn { get; private set; }
     public Money CostPrice { get; private set; } = null!;
     public Money SalePrice { get; private set; } = null!;
     public string? Barcode { get; private set; }
@@ -44,6 +45,8 @@ public sealed class ProductVariant : Entity<VariantId>
             CreatedAt = DateTime.UtcNow,
         };
     }
+
+    internal void SetNameEn(string? nameEn) => NameEn = EnglishName.Normalize(nameEn);
 
     internal void UpdatePricing(Money costPrice, Money salePrice)
     {

@@ -13,6 +13,7 @@ import { toAsciiDigits } from '@/lib/whatsapp'
 import { SAUDI_VAT_RATE } from '@/lib/zatca'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
+import { localName } from '@/lib/localName'
 import type { ModifierGroupResponse } from '@/types/api'
 
 // The server keeps option prices net of VAT; the owner types and reads them VAT included, like shelf prices.
@@ -30,6 +31,7 @@ type OptionRow = {
   key: string
   id?: string
   name: string
+  nameEn: string
   gross: string
   // The stored net price and how it was shown, so an untouched price is sent back exactly as it was.
   net?: number
@@ -40,6 +42,7 @@ type OptionRow = {
 type Draft = {
   id?: string
   name: string
+  nameEn: string
   isRequired: boolean
   minSelect: number
   maxSelect: number
@@ -48,11 +51,12 @@ type Draft = {
 }
 
 let rowSeq = 0
-const newRow = (): OptionRow => ({ key: `new-${++rowSeq}`, name: '', gross: '', isActive: true })
+const newRow = (): OptionRow => ({ key: `new-${++rowSeq}`, name: '', nameEn: '', gross: '', isActive: true })
 
 const toDraft = (g: ModifierGroupResponse): Draft => ({
   id: g.id,
   name: g.name,
+  nameEn: g.nameEn ?? '',
   isRequired: g.isRequired,
   minSelect: g.minSelect,
   maxSelect: g.maxSelect,
@@ -61,7 +65,7 @@ const toDraft = (g: ModifierGroupResponse): Draft => ({
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((o) => {
       const shown = String(grossOf(o.priceDelta))
-      return { key: o.id, id: o.id, name: o.name, gross: shown, net: o.priceDelta, shownGross: shown, isActive: o.isActive }
+      return { key: o.id, id: o.id, name: o.name, nameEn: o.nameEn ?? '', gross: shown, net: o.priceDelta, shownGross: shown, isActive: o.isActive }
     }),
 })
 
@@ -77,7 +81,7 @@ export function ruleLabel(
 }
 
 export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const p = t.products
   const qc = useQueryClient()
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -120,7 +124,7 @@ export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose:
 
   const startNew = () => {
     setTried(false)
-    setDraft({ name: '', isRequired: false, minSelect: 0, maxSelect: 1, sortOrder: groups.length, options: [newRow()] })
+    setDraft({ name: '', nameEn: '', isRequired: false, minSelect: 0, maxSelect: 1, sortOrder: groups.length, options: [newRow()] })
   }
 
   const startEdit = (g: ModifierGroupResponse) => {
@@ -162,6 +166,7 @@ export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose:
       id: draft.id,
       body: {
         name: draft.name.trim(),
+        nameEn: draft.nameEn.trim(),
         isRequired: draft.isRequired,
         minSelect: draft.isRequired ? draft.minSelect : 0,
         maxSelect: draft.maxSelect,
@@ -169,6 +174,7 @@ export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose:
         options: draft.options.map((o, i) => ({
           id: o.id,
           name: o.name.trim(),
+          nameEn: o.nameEn.trim(),
           priceDelta: o.net !== undefined && o.gross === o.shownGross ? o.net : netOf(parsePrice(o.gross)),
           isActive: o.isActive,
           sortOrder: i,
@@ -216,6 +222,15 @@ export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose:
               maxLength={100}
               value={draft.name}
               onChange={(e) => patch({ name: e.target.value })}
+            />
+            <Input
+              label={p.groupNameEn}
+              placeholder={p.groupNameEnPlaceholder}
+              hint={p.nameEnHint}
+              dir="ltr"
+              maxLength={100}
+              value={draft.nameEn}
+              onChange={(e) => patch({ nameEn: e.target.value })}
             />
 
             <div className="flex flex-wrap items-end gap-4">
@@ -283,6 +298,15 @@ export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose:
                     maxLength={100}
                     value={o.name}
                     onChange={(e) => patchRow(o.key, { name: e.target.value })}
+                  />
+                  <input
+                    className="input h-9 min-w-0 flex-1 basis-32"
+                    dir="ltr"
+                    placeholder={p.optionNameEn}
+                    aria-label={`${p.optionName} — ${p.optionNameEn}`}
+                    maxLength={100}
+                    value={o.nameEn}
+                    onChange={(e) => patchRow(o.key, { nameEn: e.target.value })}
                   />
                   <input
                     className="input h-9 w-24 tabular-nums"
@@ -358,13 +382,13 @@ export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose:
                 <div key={g.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-fg">{g.name}</p>
+                      <p className="font-medium text-fg">{localName(g, lang)}</p>
                       <Badge variant={g.isRequired ? 'yellow' : 'gray'}>{g.isRequired ? p.groupRequired : p.groupOptional}</Badge>
                       <span className="text-xs text-muted">{ruleLabel(g, p)}</span>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted">
                       {active
-                        .map((o) => `${o.name} ${o.priceDelta > 0 ? `+${formatCurrency(grossOf(o.priceDelta))}` : `(${p.free})`}`)
+                        .map((o) => `${localName(o, lang)} ${o.priceDelta > 0 ? `+${formatCurrency(grossOf(o.priceDelta))}` : `(${p.free})`}`)
                         .join(' · ')}
                     </p>
                   </div>

@@ -7,4 +7,5 @@ public sealed record CategoryResponse(
     Guid? ParentId,
     bool IsActive,
     int SortOrder,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string? NameEn = null);

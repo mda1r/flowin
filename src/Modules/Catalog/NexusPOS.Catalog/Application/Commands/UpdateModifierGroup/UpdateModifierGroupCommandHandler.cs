@@ -38,7 +38,7 @@ internal sealed class UpdateModifierGroupCommandHandler(CatalogDbContext db, ITe
         }
 
         ErrorOr<Success> updated = group.Update(
-            name, request.IsRequired, request.MinSelect, request.MaxSelect, request.SortOrder, request.Options ?? []);
+            name, request.IsRequired, request.MinSelect, request.MaxSelect, request.SortOrder, request.Options ?? [], request.NameEn);
         if (updated.IsError)
         {
             return updated.Errors;

@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency, cn, normalizeArabic } from '@/lib/utils'
 import { isPlainVariant, lineDisplayName } from '@/lib/variantName'
+import { localName } from '@/lib/localName'
 import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { aiCashierApi, type AiCashierCartSnapshot } from '@/api/aiCashier'
@@ -209,18 +210,19 @@ function searchRank(product: ProductResponse, term: string): number | null {
   const sizes = product.variants.filter((v) => v.isActive)
   if (sizes.length === 0) return null
   if (exactCodeVariant(product, term)) return 0
-  const name = normalizeArabic(product.name)
-  if (name.startsWith(term)) return 1
-  if (name.split(/\s+/).some((w) => w.startsWith(term))) return 2
-  if (name.includes(term)) return 3
-  if (sizes.some((v) => normalizeArabic(v.name).includes(term) || normalizeArabic(v.sku ?? '').includes(term))) return 4
+  const names = [product.name, product.nameEn].filter((n): n is string => !!n).map((n) => normalizeArabic(n.toLowerCase()))
+  if (names.some((n) => n.startsWith(term))) return 1
+  if (names.some((n) => n.split(/\s+/).some((w) => w.startsWith(term)))) return 2
+  if (names.some((n) => n.includes(term))) return 3
+  if (sizes.some((v) =>
+    [v.name, v.nameEn, v.sku].some((x) => !!x && normalizeArabic(x.toLowerCase()).includes(term)))) return 4
   return null
 }
 
 // The active variant whose barcode or SKU is exactly the (normalised) term, if any.
 const exactCodeVariant = (product: ProductResponse, term: string) =>
   product.variants.find((v) =>
-    v.isActive && ((!!v.barcode && normalizeArabic(v.barcode) === term) || (!!v.sku && normalizeArabic(v.sku) === term)))
+    v.isActive && [v.barcode, v.sku].some((code) => !!code && normalizeArabic(code.toLowerCase()) === term.toLowerCase()))
 
 // The size this device sold last for each drink, so the size picker opens on it. Per device, best effort.
 const LAST_SIZE_KEY = 'cafe-last-size'
@@ -558,7 +560,7 @@ export function CafePosPage() {
   const posSettings = posSettingsRes?.data ?? DEFAULT_POS_SETTINGS
   const canManage = isManager
   const [gamingAlertCounts, setGamingAlertCounts] = useState({ expired: 0, warning: 0 })
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const { shift } = useShift()
 
   // Order type & table
@@ -719,7 +721,7 @@ export function CafePosPage() {
   const allProducts: ProductResponse[] = Array.isArray(_rawAll) ? _rawAll : ((_rawAll as any)?.items ?? [])
   // A search looks across every category, best match first; otherwise the grid shows the selected category.
   // Either way the grid has one tile per drink that has a size on sale.
-  const searchTerm = normalizeArabic(productSearch)
+  const searchTerm = normalizeArabic(productSearch.toLowerCase())
   const products: ProductResponse[] = searchTerm
     ? allProducts
         .map((p, i) => ({ p, i, rank: searchRank(p, searchTerm) }))
@@ -727,6 +729,21 @@ export function CafePosPage() {
         .sort((a, b) => a.rank - b.rank || a.i - b.i)
         .map((x) => x.p)
     : categoryProducts.filter((p) => p.variants.some((v) => v.isActive))
+
+  // Cart lines carry the Arabic names that go on the receipt and the kitchen ticket; on screen each line is
+  // named from the catalogue in the UI language, falling back to the stored name for an item no longer listed.
+  const catalogByVariant = new Map(allProducts.flatMap((p) => p.variants.map((v) => [v.id, { product: p, variant: v }] as const)))
+  const catalogOptions = new Map(allProducts.flatMap((p) => (p.modifierGroups ?? []).flatMap((g) => g.options.map((o) => [o.id, o] as const))))
+  const shownProduct = (item: { variantId: string; productName: string }) => {
+    const found = catalogByVariant.get(item.variantId)
+    return found ? localName(found.product, lang) : item.productName
+  }
+  const shownSize = (item: { variantId: string; variantName: string }) => {
+    const found = catalogByVariant.get(item.variantId)
+    return found ? localName(found.variant, lang) : item.variantName
+  }
+  const shownModifiers = (mods: { optionId: string; name: string }[]) =>
+    mods.map((m) => localName(catalogOptions.get(m.optionId) ?? m, lang))
 
   // Stock map: variantId → quantity on hand
   const stockMap = (() => {
@@ -865,7 +882,7 @@ export function CafePosPage() {
     const groups = productGroups(product.modifierGroups)
     const missing = groups.find((g) => !groupSatisfied(g, picks[g.id]?.length ?? 0))
     if (missing) {
-      toast.error(t.pos.addOnMissing.replace('{group}', missing.name), groupRule(missing, t.products))
+      toast.error(t.pos.addOnMissing.replace('{group}', localName(missing, lang)), groupRule(missing, t.products))
       return
     }
     const modifiers = pickedModifiers(groups, picks)
@@ -1456,21 +1473,21 @@ export function CafePosPage() {
       openProduct(top, true)
       return
     }
-    if (searchTerm) toast.error('لا يوجد منتج مطابق', productSearch)
+    if (searchTerm) toast.error(t.pos.noMatchingProduct, productSearch)
   }
 
   const lastCartLine = () =>
     cart.some((i) => i.lineKey === lastLineRef.current) ? lastLineRef.current : cart[cart.length - 1]?.lineKey
 
   const shortcutHints = [
-    { keys: ['F2', '/'], label: 'البحث عن منتج' },
-    { keys: ['Enter'], label: 'إضافة أول نتيجة (داخل البحث)' },
-    { keys: ['+', '-'], label: 'زيادة / إنقاص آخر صنف' },
-    { keys: ['F5', 'F6', 'F7'], label: 'الدفع: نقداً / بطاقة / تقسيم' },
-    { keys: ['F9', 'Ctrl+Enter'], label: 'إتمام الدفع' },
+    { keys: ['F2', '/'], label: t.pos.keySearch },
+    { keys: ['Enter'], label: t.pos.keyAddFirst },
+    { keys: ['+', '-'], label: t.pos.keyQty },
+    { keys: ['F5', 'F6', 'F7'], label: t.pos.keyPayMode },
+    { keys: ['F9', 'Ctrl+Enter'], label: t.pos.keyPay },
     { keys: ['F4'], label: t.pos.repeatLast },
-    { keys: ['F8'], label: 'تفريغ السلة' },
-    { keys: ['?'], label: 'عرض الاختصارات' },
+    { keys: ['F8'], label: t.pos.keyClear },
+    { keys: ['?'], label: t.pos.keyHelp },
   ]
 
   useShortcuts([
@@ -1604,7 +1621,7 @@ export function CafePosPage() {
               onClick={() => setShowOpenShift(true)}
               className="min-h-9 rounded-xl bg-brand px-4 py-1.5 text-sm font-semibold text-brand-fg"
             >
-              فتح شفت
+              {t.shiftGate.openShift}
             </button>
           )}
         </div>
@@ -1685,7 +1702,7 @@ export function CafePosPage() {
                       : 'border-dashed border-brand/40 bg-brand-soft/60 text-brand-ink hover:border-brand',
                   )}
                 >
-                  {tableNumber ? `${t.pos.tableNumber} ${tableNumber} ✏️` : '+ اختر طاولة'}
+                  {tableNumber ? `${t.pos.tableNumber} ${tableNumber} ✏️` : `+ ${t.pos.pickTable}`}
                 </button>
               )}
 
@@ -1744,13 +1761,13 @@ export function CafePosPage() {
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-fg">
-                          {item.productName}
+                          {shownProduct(item)}
                         </p>
                         {!isPlainVariant(item.variantName, item.productName) && (
-                          <p className="text-xs text-muted">{item.variantName}</p>
+                          <p className="text-xs text-muted">{shownSize(item)}</p>
                         )}
                         {item.modifiers.length > 0 && (
-                          <p className="text-xs font-medium text-brand-ink">{modifierSummary(item.modifiers.map((m) => m.name))}</p>
+                          <p className="text-xs font-medium text-brand-ink">{modifierSummary(shownModifiers(item.modifiers))}</p>
                         )}
                       </div>
                       <p className="shrink-0 text-sm font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
@@ -1824,7 +1841,7 @@ export function CafePosPage() {
                         onBlur={finishNote}
                         onKeyDown={(e) => e.key === 'Enter' && finishNote()}
                         autoFocus
-                        placeholder="ملاحظة للمطبخ..."
+                        placeholder={t.pos.kitchenNotePlaceholder}
                         className="mt-1.5 w-full rounded-lg border border-brand/40 bg-brand-soft px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-brand/40"
                       />
                     ) : (
@@ -1835,7 +1852,7 @@ export function CafePosPage() {
                         <MessageSquare className="h-3 w-3" />
                         {item.notes ? (
                           <span className="font-medium text-brand-ink">{item.notes}</span>
-                        ) : 'إضافة ملاحظة'}
+                        ) : t.pos.addNoteShort}
                       </button>
                     )}
                   </div>
@@ -1997,7 +2014,7 @@ export function CafePosPage() {
                         className="flex min-h-8 items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-brand-ink"
                       >
                         <Percent className="h-3 w-3" />
-                        إضافة خصم
+                        {t.pos.addDiscountShort}
                       </button>
                     )}
                     <button
@@ -2155,7 +2172,7 @@ export function CafePosPage() {
                     : 'text-muted hover:text-fg hover:bg-surface-2',
                 )}
               >
-                الكل
+                {t.pos.allCategories}
               </button>
               {categories.map((c) => (
                 <button
@@ -2168,7 +2185,7 @@ export function CafePosPage() {
                       : 'text-muted hover:text-fg hover:bg-surface-2',
                   )}
                 >
-                  {c.name}
+                  {localName(c, lang)}
                 </button>
               ))}
               {isGamingLounge && (
@@ -2349,7 +2366,7 @@ export function CafePosPage() {
                   <input
                     ref={searchInputRef}
                     className="input ps-9 text-sm"
-                    placeholder="ابحث عن منتج واضغط Enter للإضافة (F2)"
+                    placeholder={t.pos.searchAndEnter}
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     onKeyDown={(e) => {
@@ -2361,7 +2378,7 @@ export function CafePosPage() {
                         setProductSearch('')
                       }
                     }}
-                    aria-label="بحث عن منتج"
+                    aria-label={t.pos.searchProductLabel}
                   />
                 </div>
                 <ShortcutsHelpButton onClick={() => setShowShortcuts(true)} />
@@ -2397,7 +2414,7 @@ export function CafePosPage() {
                         key={product.id}
                         onClick={() => openProduct(product)}
                         disabled={soldOut}
-                        aria-label={soldOut ? `${product.name} · ${t.pos.soldOut}` : undefined}
+                        aria-label={soldOut ? `${localName(product, lang)} · ${t.pos.soldOut}` : undefined}
                         className={cn(
                           'group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-2.5 text-start transition-all duration-200',
                           soldOut
@@ -2418,15 +2435,15 @@ export function CafePosPage() {
                           {product.imageUrl ? (
                             <img src={product.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
                           ) : (
-                            product.name.trim().charAt(0)
+                            localName(product, lang).trim().charAt(0)
                           )}
                         </span>
                         <p className={cn('px-0.5 text-sm font-semibold leading-snug', soldOut ? 'text-muted' : 'text-fg')}>
-                          {product.name}
+                          {localName(product, lang)}
                         </p>
                         {only ? (
                           !isPlainVariant(only.name, product.name) && (
-                            <p className="px-0.5 text-xs text-muted">{only.name}</p>
+                            <p className="px-0.5 text-xs text-muted">{localName(only, lang)}</p>
                           )
                         ) : (
                           <p className="px-0.5 text-xs text-muted">{t.pos.sizesCount.replace('{n}', String(sizes.length))}</p>
@@ -2471,7 +2488,7 @@ export function CafePosPage() {
         open={!!sizePicker}
         onClose={() => setSizePicker(null)}
         title={sizePicker
-          ? pickerGroups.length > 0 ? sizePicker.product.name : `${t.pos.pickSize} · ${sizePicker.product.name}`
+          ? pickerGroups.length > 0 ? localName(sizePicker.product, lang) : `${t.pos.pickSize} · ${localName(sizePicker.product, lang)}`
           : t.pos.pickSize}
         size="md"
         footer={sizePicker && pickerGroups.length > 0 && pickerVariant ? (
@@ -2522,7 +2539,7 @@ export function CafePosPage() {
                         )}
                       >
                         <span className="text-lg font-bold leading-snug text-fg">
-                          {isPlainVariant(v.name, sizePicker.product.name) ? sizePicker.product.name : v.name}
+                          {isPlainVariant(v.name, sizePicker.product.name) ? localName(sizePicker.product, lang) : localName(v, lang)}
                         </span>
                         <span className="font-display text-base font-semibold tabular-nums text-brand-ink">
                           {formatCurrency(v.salePrice)}
@@ -2543,7 +2560,7 @@ export function CafePosPage() {
               return (
                 <section key={group.id} aria-labelledby={`addon-group-${group.id}`}>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <h3 id={`addon-group-${group.id}`} className="text-base font-bold text-fg">{group.name}</h3>
+                    <h3 id={`addon-group-${group.id}`} className="text-base font-bold text-fg">{localName(group, lang)}</h3>
                     <span className={cn(
                       'rounded-full px-2.5 py-0.5 text-xs font-semibold',
                       group.isRequired && !met ? 'bg-warning/15 text-warning' : 'bg-surface-2 text-muted',
@@ -2567,7 +2584,7 @@ export function CafePosPage() {
                             on ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border bg-surface text-fg hover:border-brand',
                           )}
                         >
-                          <span>{o.name}</span>
+                          <span>{localName(o, lang)}</span>
                           <span className={cn('text-xs tabular-nums', on ? 'text-brand-ink' : 'text-muted')}>
                             {delta > 0 ? `+${formatCurrency(delta)}` : t.products.free}
                           </span>
@@ -2591,7 +2608,7 @@ export function CafePosPage() {
           panelClassName="w-72 rounded-2xl bg-surface shadow-2xl"
         >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h3 id="cafe-table-picker-title" className="font-bold text-fg">اختر طاولة</h3>
+              <h3 id="cafe-table-picker-title" className="font-bold text-fg">{t.pos.pickTable}</h3>
               <button onClick={() => setShowTablePicker(false)} className="text-muted hover:text-fg">
                 <X className="h-4 w-4" />
               </button>

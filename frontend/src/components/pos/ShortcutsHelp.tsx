@@ -1,5 +1,6 @@
 import { Keyboard } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
+import { useI18n } from '@/i18n'
 
 export interface ShortcutHint {
   keys: string[]
@@ -14,23 +15,25 @@ const KEY_LABELS: Record<string, string> = {
 }
 
 export function ShortcutsHelpButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n()
   return (
     <button
       type="button"
       onClick={onClick}
       className="hidden items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition-colors hover:bg-surface-2 hover:text-fg md:inline-flex"
-      title="اختصارات لوحة المفاتيح (?)"
+      title={`${t.pos.shortcutsTitle} (?)`}
     >
       <Keyboard className="h-3.5 w-3.5" />
-      اختصارات
+      {t.pos.shortcuts}
       <kbd className="rounded border border-border bg-surface-2 px-1 font-mono text-[10px]">?</kbd>
     </button>
   )
 }
 
 export function ShortcutsHelp({ open, onClose, hints }: { open: boolean; onClose: () => void; hints: ShortcutHint[] }) {
+  const { t } = useI18n()
   return (
-    <Modal open={open} onClose={onClose} title="اختصارات لوحة المفاتيح" size="md">
+    <Modal open={open} onClose={onClose} title={t.pos.shortcutsTitle} size="md">
       <ul className="divide-y divide-border">
         {hints.map((h) => (
           <li key={h.label} className="flex items-center justify-between gap-4 py-2.5 text-sm">
@@ -49,7 +52,7 @@ export function ShortcutsHelp({ open, onClose, hints }: { open: boolean; onClose
         ))}
       </ul>
       <p className="mt-4 text-xs text-muted">
-        مفاتيح F تعمل حتى أثناء الكتابة. الرموز مثل / و + لا تعمل داخل حقول الإدخال.
+        {t.pos.shortcutsNote}
       </p>
     </Modal>
   )

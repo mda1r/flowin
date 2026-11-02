@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NexusPOS.Catalog.Domain;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.ValueObjects;
 
@@ -21,6 +22,10 @@ internal sealed class ModifierGroupConfiguration : IEntityTypeConfiguration<Modi
         builder.Property(g => g.TenantId)
             .HasColumnName("tenant_id")
             .IsRequired();
+
+        builder.Property(g => g.NameEn)
+            .HasColumnName("name_en")
+            .HasMaxLength(EnglishName.MaxLength);
 
         builder.Property(g => g.Name)
             .HasColumnName("name")

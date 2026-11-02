@@ -16,9 +16,7 @@ internal sealed class ListCategoriesQueryHandler(ICategoryRepository categoryRep
         IReadOnlyList<Category> categories = await categoryRepository.FindAllAsync(cancellationToken);
 
         IReadOnlyList<CategoryResponse> responses = categories
-            .Select(c => new CategoryResponse(
-                c.Id.Value, c.Name, c.Description, c.ParentId?.Value,
-                c.IsActive, c.SortOrder, c.CreatedAt))
+            .Select(CategoryMapper.ToResponse)
             .ToList();
 
         return ErrorOrFactory.From(responses);

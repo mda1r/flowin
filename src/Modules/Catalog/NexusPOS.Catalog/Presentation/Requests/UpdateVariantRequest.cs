@@ -6,4 +6,5 @@ public sealed record UpdateVariantRequest(
     decimal SalePrice,
     string Currency,
     string? Barcode = null,
-    string? Sku = null);
+    string? Sku = null,
+    string? NameEn = null);

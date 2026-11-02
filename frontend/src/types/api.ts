@@ -78,6 +78,8 @@ export interface BranchResponse {
 
 export interface CategoryResponse {
   id: string
+  // Optional English name for English-language screens; receipts and tickets keep the Arabic name.
+  nameEn?: string | null
   name: string
   description?: string
   isActive: boolean
@@ -85,6 +87,7 @@ export interface CategoryResponse {
 
 export interface ProductVariantResponse {
   id: string
+  nameEn?: string | null
   sku: string
   name: string
   costPrice: number
@@ -99,6 +102,7 @@ export type UnitType = 'Piece' | 'Kilogram' | 'Gram' | 'Liter' | 'Milliliter' | 
 
 export interface ProductResponse {
   id: string
+  nameEn?: string | null
   name: string
   description?: string
   categoryId?: string
@@ -119,6 +123,7 @@ export interface ProductResponse {
 // priceDelta is net of VAT, like order line prices; screens add VAT before showing it.
 export interface ModifierOptionResponse {
   id: string
+  nameEn?: string | null
   name: string
   priceDelta: number
   isActive: boolean
@@ -127,6 +132,7 @@ export interface ModifierOptionResponse {
 
 export interface ModifierGroupResponse {
   id: string
+  nameEn?: string | null
   name: string
   isRequired: boolean
   minSelect: number
@@ -139,6 +145,7 @@ export interface ModifierGroupResponse {
 
 export interface ProductModifierGroupResponse {
   id: string
+  nameEn?: string | null
   name: string
   isRequired: boolean
   minSelect: number

@@ -230,7 +230,7 @@ export function LoyaltyPanel({
         <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         <input
           className="input ps-9 text-sm"
-          placeholder="عميل الولاء: ابحث بالاسم أو الجوال"
+          placeholder={t.pos.loyaltySearch}
           value={query}
           onChange={(e) => {
             pendingEnter.current = null
@@ -249,16 +249,16 @@ export function LoyaltyPanel({
               setDebounced(term)
             }
           }}
-          aria-label="بحث عن عميل"
+          aria-label={t.pos.loyaltySearchLabel}
           title={t.customers.enterToPick}
         />
         {debounced.length >= 2 && (
           <ul className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-surface shadow-md">
             {isFetching && results.length === 0 ? (
-              <li className="px-3 py-2 text-xs text-muted">جاري البحث…</li>
+              <li className="px-3 py-2 text-xs text-muted">{t.pos.searching}</li>
             ) : results.length === 0 ? (
               <li className="space-y-1.5 px-3 py-2">
-                <p className="text-xs text-muted">لا يوجد عميل بهذا الاسم أو الرقم</p>
+                <p className="text-xs text-muted">{t.pos.noCustomerMatch}</p>
                 {quickAddButton}
               </li>
             ) : (
@@ -274,7 +274,7 @@ export function LoyaltyPanel({
                         <span className="block truncate font-medium text-fg">{c.name}</span>
                         {c.phone && <span className="block text-xs text-muted" dir="ltr">{c.phone}</span>}
                       </span>
-                      <span className="shrink-0 text-xs tabular-nums text-brand-ink">{c.loyaltyPoints.toLocaleString(intlLocale())} نقطة</span>
+                      <span className="shrink-0 text-xs tabular-nums text-brand-ink">{t.pos.pointsN.replace('{n}', c.loyaltyPoints.toLocaleString(intlLocale()))}</span>
                     </button>
                   </li>
                 ))}
@@ -296,7 +296,7 @@ export function LoyaltyPanel({
         <UserRound className="h-4 w-4 shrink-0 text-muted" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{customer.name}</span>
         {rules.enabled && (
-          <span className="shrink-0 text-xs tabular-nums text-brand-ink">{customer.loyaltyPoints.toLocaleString(intlLocale())} نقطة</span>
+          <span className="shrink-0 text-xs tabular-nums text-brand-ink">{t.pos.pointsN.replace('{n}', customer.loyaltyPoints.toLocaleString(intlLocale()))}</span>
         )}
         <button
           type="button"
@@ -305,7 +305,7 @@ export function LoyaltyPanel({
             onRedeemPointsChange(0)
           }}
           className="rounded-md p-1 text-muted hover:bg-surface hover:text-fg"
-          aria-label="إزالة العميل"
+          aria-label={t.pos.removeCustomer}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -323,7 +323,7 @@ export function LoyaltyPanel({
         >
           <span className="flex items-center gap-2">
             <Gift className="h-4 w-4" />
-            {using ? `استبدال ${redeemPoints.toLocaleString(intlLocale())} نقطة` : 'استبدال النقاط'}
+            {using ? t.pos.redeemN.replace('{n}', redeemPoints.toLocaleString(intlLocale())) : t.pos.redeemPoints}
           </span>
           <span className="tabular-nums">−{formatCurrency(pointsValue(using ? redeemPoints : maxRedeemable, rules))}</span>
         </button>

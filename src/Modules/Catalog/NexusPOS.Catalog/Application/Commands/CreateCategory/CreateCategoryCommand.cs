@@ -7,4 +7,5 @@ public sealed record CreateCategoryCommand(
     string Name,
     string? Description = null,
     Guid? ParentId = null,
-    int SortOrder = 0) : ICommand<CategoryResponse>;
+    int SortOrder = 0,
+    string? NameEn = null) : ICommand<CategoryResponse>;

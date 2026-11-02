@@ -27,7 +27,7 @@ internal sealed class CreateModifierGroupCommandHandler(CatalogDbContext db, ITe
         }
 
         ErrorOr<ModifierGroup> group = ModifierGroup.Create(
-            tenantId, name, request.IsRequired, request.MinSelect, request.MaxSelect, request.SortOrder, request.Options ?? []);
+            tenantId, name, request.IsRequired, request.MinSelect, request.MaxSelect, request.SortOrder, request.Options ?? [], request.NameEn);
         if (group.IsError)
         {
             return group.Errors;

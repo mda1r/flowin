@@ -31,27 +31,14 @@ internal sealed class UpdateProductCommandHandler(
             : null;
 
         product.Update(request.Name, request.Description, categoryId, request.TaxClass, request.TrackInventory, request.ImageUrl, request.UnitType);
+        if (request.NameEn is not null)
+        {
+            product.SetNameEn(request.NameEn);
+        }
 
         productRepository.Update(product);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return MapToResponse(product);
+        return ProductMapper.ToResponse(product);
     }
-
-    private static ProductResponse MapToResponse(Product p) => new(
-        p.Id.Value,
-        p.Name,
-        p.Description,
-        p.CategoryId?.Value,
-        p.Type,
-        p.TaxClass,
-        p.IsActive,
-        p.TrackInventory,
-        p.UnitType,
-        p.ImageUrl,
-        p.CreatedAt,
-        p.Variants.Select(v => new ProductVariantResponse(
-            v.Id.Value, v.Sku.Value, v.Name,
-            v.CostPrice.Amount, v.SalePrice.Amount, v.SalePrice.Currency,
-            v.Barcode, v.IsActive, v.ExpiryDate)).ToList());
 }

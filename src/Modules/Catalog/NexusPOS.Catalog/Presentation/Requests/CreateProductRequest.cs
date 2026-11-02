@@ -16,4 +16,6 @@ public sealed record CreateProductRequest(
     string Currency,
     string? Barcode = null,
     DateTime? ExpiryDate = null,
-    UnitType UnitType = UnitType.Piece);
+    UnitType UnitType = UnitType.Piece,
+    string? NameEn = null,
+    string? VariantNameEn = null);

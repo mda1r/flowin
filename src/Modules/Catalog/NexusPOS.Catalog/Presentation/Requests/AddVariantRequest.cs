@@ -7,4 +7,5 @@ public sealed record AddVariantRequest(
     decimal SalePrice,
     string Currency,
     string? Barcode = null,
-    DateTime? ExpiryDate = null);
+    DateTime? ExpiryDate = null,
+    string? NameEn = null);

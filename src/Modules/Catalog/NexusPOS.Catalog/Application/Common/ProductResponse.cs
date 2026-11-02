@@ -16,4 +16,5 @@ public sealed record ProductResponse(
     string? ImageUrl,
     DateTime CreatedAt,
     IReadOnlyList<ProductVariantResponse> Variants,
-    IReadOnlyList<ProductModifierGroupResponse>? ModifierGroups = null);
+    IReadOnlyList<ProductModifierGroupResponse>? ModifierGroups = null,
+    string? NameEn = null);

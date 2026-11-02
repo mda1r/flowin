@@ -57,9 +57,6 @@ internal sealed class SetVariantActiveCommandHandler(
         productRepository.Update(product);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new ProductVariantResponse(
-            variant.Id.Value, variant.Sku.Value, variant.Name,
-            variant.CostPrice.Amount, variant.SalePrice.Amount, variant.SalePrice.Currency,
-            variant.Barcode, variant.IsActive, variant.ExpiryDate);
+        return ProductMapper.ToResponse(variant);
     }
 }

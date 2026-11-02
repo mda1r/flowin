@@ -12,4 +12,5 @@ public sealed record UpdateProductCommand(
     TaxClass? TaxClass,
     bool TrackInventory,
     string? ImageUrl = null,
-    UnitType UnitType = UnitType.Piece) : ICommand<ProductResponse>;
+    UnitType UnitType = UnitType.Piece,
+    string? NameEn = null) : ICommand<ProductResponse>;

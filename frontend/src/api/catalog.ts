@@ -8,8 +8,12 @@ export const catalogApi = {
       params: { page: 1, pageSize: 50, ...params },
     }),
 
-  createCategory: (data: { name: string; description?: string }) =>
+  createCategory: (data: { name: string; nameEn?: string; description?: string }) =>
     apiClient.post<CategoryResponse>('/api/v1/categories', data),
+
+  // An empty English name clears it.
+  updateCategory: (id: string, data: { name: string; nameEn: string }) =>
+    apiClient.put<CategoryResponse>(`/api/v1/categories/${id}`, data),
 
   // Products — tenant determined from auth token (no tenantId in URL)
   listProducts: (_tenantId: string, params?: {
@@ -41,6 +45,8 @@ export const catalogApi = {
     unitType?: string
     sku: string
     variantName: string
+    nameEn?: string
+    variantNameEn?: string
     costPrice: number
     salePrice: number
     currency: string
@@ -55,6 +61,8 @@ export const catalogApi = {
     trackInventory?: boolean
     unitType?: string
     imageUrl?: string
+    // Omitted keeps the stored English name; empty clears it.
+    nameEn?: string
   }) => apiClient.put<ProductResponse>(`/api/v1/products/${productId}`, data),
 
   // Omitted sku/barcode keep the stored values; an empty barcode clears it.
@@ -65,6 +73,7 @@ export const catalogApi = {
     currency: string
     barcode?: string
     sku?: string
+    nameEn?: string
   }) => apiClient.patch<ProductVariantResponse>(`/api/v1/products/${productId}/variants/${variantId}`, data),
 
   addVariant: (productId: string, data: {
@@ -74,6 +83,7 @@ export const catalogApi = {
     salePrice: number
     currency: string
     barcode?: string
+    nameEn?: string
   }) => apiClient.post<ProductVariantResponse>(`/api/v1/products/${productId}/variants`, data),
 
   setVariantStatus: (productId: string, variantId: string, isActive: boolean) =>
@@ -103,9 +113,10 @@ export const catalogApi = {
 
 export interface ModifierGroupPayload {
   name: string
+  nameEn?: string
   isRequired: boolean
   minSelect: number
   maxSelect: number
   sortOrder: number
-  options: { id?: string; name: string; priceDelta: number; isActive: boolean; sortOrder: number }[]
+  options: { id?: string; name: string; nameEn?: string; priceDelta: number; isActive: boolean; sortOrder: number }[]
 }

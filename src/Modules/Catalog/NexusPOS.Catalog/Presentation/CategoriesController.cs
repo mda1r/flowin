@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Catalog.Application.Commands.CreateCategory;
+using NexusPOS.Catalog.Application.Commands.UpdateCategory;
 using NexusPOS.Catalog.Application.Common;
 using NexusPOS.Catalog.Application.Queries.ListCategories;
 using NexusPOS.Catalog.Presentation.Requests;
@@ -39,13 +40,30 @@ public sealed class CategoriesController(ISender mediator) : ControllerBase
         CancellationToken cancellationToken)
     {
         CreateCategoryCommand command = new(
-            request.Name, request.Description, request.ParentId, request.SortOrder);
+            request.Name, request.Description, request.ParentId, request.SortOrder, request.NameEn);
 
         ErrorOr<CategoryResponse> result = await mediator.Send(command, cancellationToken);
 
         return result.Match(
             category => CreatedAtAction(nameof(ListCategories), new { id = category.Id }, category),
             MapErrorsToResult);
+    }
+
+    /// <summary>Rename a category, in Arabic and (optionally) English.</summary>
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(CategoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateCategory(
+        Guid id,
+        [FromBody] UpdateCategoryRequest request,
+        CancellationToken cancellationToken)
+    {
+        ErrorOr<CategoryResponse> result = await mediator.Send(
+            new UpdateCategoryCommand(id, request.Name ?? string.Empty, request.NameEn), cancellationToken);
+
+        return result.Match(Ok, MapErrorsToResult);
     }
 
     private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);

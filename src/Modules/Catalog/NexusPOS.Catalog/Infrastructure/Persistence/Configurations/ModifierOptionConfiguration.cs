@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NexusPOS.Catalog.Domain;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.ValueObjects;
 
@@ -21,6 +22,10 @@ internal sealed class ModifierOptionConfiguration : IEntityTypeConfiguration<Mod
         builder.Property(o => o.GroupId)
             .HasColumnName("group_id")
             .HasConversion(id => id.Value, value => new ModifierGroupId(value));
+
+        builder.Property(o => o.NameEn)
+            .HasColumnName("name_en")
+            .HasMaxLength(EnglishName.MaxLength);
 
         builder.Property(o => o.Name)
             .HasColumnName("name")

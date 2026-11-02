@@ -18,4 +18,6 @@ public sealed record CreateProductCommand(
     string Currency,
     string? Barcode = null,
     DateTime? ExpiryDate = null,
-    UnitType UnitType = UnitType.Piece) : ICommand<ProductResponse>;
+    UnitType UnitType = UnitType.Piece,
+    string? NameEn = null,
+    string? VariantNameEn = null) : ICommand<ProductResponse>;

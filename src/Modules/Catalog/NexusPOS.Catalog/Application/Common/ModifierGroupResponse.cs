@@ -10,7 +10,8 @@ public sealed record ModifierGroupResponse(
     int SortOrder,
     bool IsActive,
     IReadOnlyList<ModifierOptionResponse> Options,
-    IReadOnlyList<Guid> ProductIds);
+    IReadOnlyList<Guid> ProductIds,
+    string? NameEn = null);
 
 // PriceDelta is net of VAT; screens add VAT before showing it.
 public sealed record ModifierOptionResponse(
@@ -18,7 +19,8 @@ public sealed record ModifierOptionResponse(
     string Name,
     decimal PriceDelta,
     bool IsActive,
-    int SortOrder);
+    int SortOrder,
+    string? NameEn = null);
 
 // A group as the till sees it on a product: in the product's order, active options only.
 public sealed record ProductModifierGroupResponse(
@@ -27,4 +29,5 @@ public sealed record ProductModifierGroupResponse(
     bool IsRequired,
     int MinSelect,
     int MaxSelect,
-    IReadOnlyList<ModifierOptionResponse> Options);
+    IReadOnlyList<ModifierOptionResponse> Options,
+    string? NameEn = null);

@@ -11,4 +11,5 @@ public sealed record CreateModifierGroupCommand(
     int MinSelect,
     int MaxSelect,
     int SortOrder,
-    IReadOnlyList<ModifierOptionDraft> Options) : ICommand<ModifierGroupResponse>, IModifierGroupInput;
+    IReadOnlyList<ModifierOptionDraft> Options,
+    string? NameEn = null) : ICommand<ModifierGroupResponse>, IModifierGroupInput;

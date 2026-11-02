@@ -7,6 +7,7 @@ namespace NexusPOS.Catalog.Domain.Entities;
 public sealed class Category : AggregateRoot<CategoryId>
 {
     public string Name { get; private set; } = null!;
+    public string? NameEn { get; private set; }
     public string? Description { get; private set; }
     public CategoryId? ParentId { get; private set; }
     public bool IsActive { get; private set; }
@@ -39,6 +40,8 @@ public sealed class Category : AggregateRoot<CategoryId>
         Description = description?.Trim();
         SortOrder = sortOrder;
     }
+
+    public void SetNameEn(string? nameEn) => NameEn = EnglishName.Normalize(nameEn);
 
     public void Deactivate() => IsActive = false;
 

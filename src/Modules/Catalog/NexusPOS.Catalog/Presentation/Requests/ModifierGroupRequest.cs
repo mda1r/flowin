@@ -7,13 +7,15 @@ public sealed record ModifierGroupRequest(
     int MinSelect,
     int MaxSelect,
     int SortOrder,
-    IReadOnlyList<ModifierOptionRequest>? Options);
+    IReadOnlyList<ModifierOptionRequest>? Options,
+    string? NameEn = null);
 
 public sealed record ModifierOptionRequest(
     Guid? Id,
     string Name,
     decimal PriceDelta,
     bool IsActive = true,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    string? NameEn = null);
 
 public sealed record SetProductModifierGroupsRequest(IReadOnlyList<Guid>? GroupIds);

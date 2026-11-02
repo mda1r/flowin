@@ -21,14 +21,18 @@ import { marginPercent, marginTone } from '@/lib/pricing'
 import { apiErrorMessage } from '@/lib/apiError'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
+import { localName } from '@/lib/localName'
+import { CategoryNamesEditor } from './CategoryNamesEditor'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
 
-type CategoryFormData = { name: string; description?: string }
+type CategoryFormData = { name: string; nameEn?: string; description?: string }
 type CreateFormData = {
   name: string
   sku: string
   barcode?: string
   variantName: string
+  nameEn?: string
+  variantNameEn?: string
   description?: string
   costPrice: number
   salePrice: number
@@ -39,8 +43,8 @@ type CreateFormData = {
   initialQuantity: number
   expiryDate?: string
 }
-type EditProductFormData = { name: string; description?: string; categoryId?: string; trackInventory: boolean; unitType: string }
-type EditVariantFormData = { name: string; sku: string; barcode?: string; costPrice: number; salePrice: number; currency: string }
+type EditProductFormData = { name: string; nameEn?: string; description?: string; categoryId?: string; trackInventory: boolean; unitType: string }
+type EditVariantFormData = { name: string; nameEn?: string; sku: string; barcode?: string; costPrice: number; salePrice: number; currency: string }
 type AddVariantFormData = EditVariantFormData & { initialQuantity: number; expiryDate?: string }
 
 const randomSku = () => Math.random().toString(36).slice(2, 8).toUpperCase()
@@ -68,7 +72,7 @@ export function ProductsPage() {
   // refuse every sale of that product, so the editor stays hidden.
   const canEditAddOns = canManage && (user?.businessType === 'Cafe' || user?.businessType === 'Gaming')
   const qc = useQueryClient()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [recipeVariant, setRecipeVariant] = useState<
     { id: string; name: string; salePrice: number; currency: string; copySources: RecipeCopySource[] } | null
   >(null)
@@ -79,8 +83,11 @@ export function ProductsPage() {
   })
   const recipeByVariant = new Map((recipeSummaries?.data ?? []).map((r) => [r.variantId, r]))
 
+  const englishName = z.string().trim().max(256).optional()
+
   const categorySchema = z.object({
     name: z.string().min(1, t.products.nameRequired),
+    nameEn: englishName,
     description: z.string().optional(),
   })
 
@@ -89,6 +96,8 @@ export function ProductsPage() {
     sku: z.string().trim().min(1, 'الرمز مطلوب').max(64),
     barcode: z.string().trim().max(64).optional(),
     variantName: z.string().min(1, t.products.variantNameRequired),
+    nameEn: englishName,
+    variantNameEn: englishName,
     description: z.string().optional(),
     costPrice: z.coerce.number().nonnegative(),
     salePrice: z.coerce.number().positive(t.products.pricePositive),
@@ -102,6 +111,7 @@ export function ProductsPage() {
 
   const editProductSchema = z.object({
     name: z.string().min(1, t.products.nameRequired),
+    nameEn: englishName,
     description: z.string().optional(),
     categoryId: z.string().optional(),
     trackInventory: z.boolean().default(true),
@@ -110,6 +120,7 @@ export function ProductsPage() {
 
   const editVariantSchema = z.object({
     name: z.string().min(1, t.products.variantNameRequired),
+    nameEn: englishName,
     sku: z.string().trim().min(1, 'الرمز مطلوب').max(64),
     barcode: z.string().trim().max(64).optional(),
     costPrice: z.coerce.number().nonnegative(),
@@ -194,6 +205,8 @@ export function ProductsPage() {
         sku: data.sku,
         barcode: data.barcode || undefined,
         variantName: data.variantName,
+        nameEn: data.nameEn || undefined,
+        variantNameEn: data.variantNameEn || undefined,
         costPrice: data.costPrice,
         salePrice: data.salePrice,
         currency: data.currency,
@@ -222,6 +235,8 @@ export function ProductsPage() {
       const product = editingProduct!
       const result = await catalogApi.updateProduct(product.id, {
         name: data.name,
+        // Always sent, so clearing the field removes the English name.
+        nameEn: data.nameEn ?? '',
         description: data.description,
         categoryId: data.categoryId || undefined,
         // Not editable here: send the stored values back so an edit never resets them.
@@ -252,6 +267,7 @@ export function ProductsPage() {
     mutationFn: (data: EditVariantFormData) =>
       catalogApi.updateVariant(editingVariant!.productId, editingVariant!.variant.id, {
         name: data.name,
+        nameEn: data.nameEn ?? '',
         sku: data.sku,
         // An empty string clears the barcode on the server; omitting it would keep the old one.
         barcode: data.barcode ?? '',
@@ -272,6 +288,7 @@ export function ProductsPage() {
       const product = addingVariantTo!
       const result = await catalogApi.addVariant(product.id, {
         name: data.name,
+        nameEn: data.nameEn || undefined,
         sku: data.sku,
         barcode: data.barcode || undefined,
         costPrice: data.costPrice,
@@ -304,7 +321,7 @@ export function ProductsPage() {
   })
 
   const createCategory = useMutation({
-    mutationFn: (data: CategoryFormData) => catalogApi.createCategory(data),
+    mutationFn: (data: CategoryFormData) => catalogApi.createCategory({ ...data, nameEn: data.nameEn || undefined }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] })
       setShowCategoryModal(false)
@@ -327,6 +344,7 @@ export function ProductsPage() {
   const openEdit = (product: ProductResponse) => {
     editProductForm.reset({
       name: product.name,
+      nameEn: product.nameEn ?? '',
       description: product.description ?? '',
       categoryId: product.categoryId ?? '',
       trackInventory: product.trackInventory,
@@ -339,6 +357,7 @@ export function ProductsPage() {
   const openEditVariant = (productId: string, variant: ProductVariantResponse) => {
     editVariantForm.reset({
       name: variant.name,
+      nameEn: variant.nameEn ?? '',
       sku: variant.sku,
       barcode: variant.barcode ?? '',
       costPrice: variant.costPrice,
@@ -352,6 +371,7 @@ export function ProductsPage() {
     const base = product.variants[0]
     addVariantForm.reset({
       name: '',
+      nameEn: '',
       sku: randomSku(),
       barcode: '',
       costPrice: base?.costPrice ?? 0,
@@ -441,7 +461,12 @@ export function ProductsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-fg">{product.name}</p>
+                            <p className="font-medium text-fg">{localName(product, lang)}</p>
+                            {product.nameEn && (
+                              <span className="truncate text-xs text-muted" dir={lang === 'en' ? 'rtl' : 'ltr'}>
+                                {lang === 'en' ? product.name : product.nameEn}
+                              </span>
+                            )}
                             {product.unitType && product.unitType !== 'Piece' && (
                               <span className="shrink-0 rounded-md bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
                                 {({'Kilogram':'كيلو','Gram':'جرام','Liter':'لتر','Milliliter':'مللي','Meter':'متر','Box':'صندوق'} as Record<string, string>)[product.unitType] ?? product.unitType}
@@ -518,7 +543,7 @@ export function ProductsPage() {
                             >
                               <div className="flex flex-wrap items-center gap-x-2">
                                 <span className="font-medium text-fg">
-                                  {v.name}
+                                  {localName(v, lang)}
                                 </span>
                                 <span className="text-xs text-muted" dir="ltr">{v.sku}</span>
                                 {v.barcode && (
@@ -638,10 +663,20 @@ export function ProductsPage() {
         <form className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label={t.products.name} error={createForm.formState.errors.name?.message} {...createForm.register('name')} />
+            <Input
+              label={t.products.nameEn}
+              placeholder={t.products.nameEnPlaceholder}
+              dir="ltr"
+              error={createForm.formState.errors.nameEn?.message}
+              {...createForm.register('nameEn')}
+            />
+          </div>
+          <p className="-mt-2 text-xs text-muted">{t.products.nameEnHint}</p>
+          <div>
             <Select label={t.products.category} {...createForm.register('categoryId')}>
               <option value="">{t.products.noCategory}</option>
               {categories?.data?.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{localName(c, lang)}</option>
               ))}
             </Select>
           </div>
@@ -650,6 +685,12 @@ export function ProductsPage() {
             <Input label={t.products.sku} dir="ltr" error={createForm.formState.errors.sku?.message} {...createForm.register('sku')} />
             <Input label={t.products.variantName} error={createForm.formState.errors.variantName?.message} {...createForm.register('variantName')} />
           </div>
+          <Input
+            label={t.products.variantNameEn}
+            placeholder={t.products.variantNameEnPlaceholder}
+            dir="ltr"
+            {...createForm.register('variantNameEn')}
+          />
           <Input
             label={t.products.barcode}
             dir="ltr"
@@ -717,10 +758,20 @@ export function ProductsPage() {
         <form className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label={t.products.name} error={editProductForm.formState.errors.name?.message} {...editProductForm.register('name')} />
+            <Input
+              label={t.products.nameEn}
+              placeholder={t.products.nameEnPlaceholder}
+              dir="ltr"
+              error={editProductForm.formState.errors.nameEn?.message}
+              {...editProductForm.register('nameEn')}
+            />
+          </div>
+          <p className="-mt-2 text-xs text-muted">{t.products.nameEnHint}</p>
+          <div>
             <Select label={t.products.category} {...editProductForm.register('categoryId')}>
               <option value="">{t.products.noCategory}</option>
               {categories?.data?.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{localName(c, lang)}</option>
               ))}
             </Select>
           </div>
@@ -795,7 +846,15 @@ export function ProductsPage() {
         }
       >
         <form className="space-y-4">
-          <Input label={t.products.variantName} error={editVariantForm.formState.errors.name?.message} {...editVariantForm.register('name')} />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label={t.products.variantName} error={editVariantForm.formState.errors.name?.message} {...editVariantForm.register('name')} />
+            <Input
+              label={t.products.variantNameEn}
+              placeholder={t.products.variantNameEnPlaceholder}
+              dir="ltr"
+              {...editVariantForm.register('nameEn')}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label={t.products.sku} dir="ltr" error={editVariantForm.formState.errors.sku?.message} {...editVariantForm.register('sku')} />
             <Input
@@ -837,6 +896,12 @@ export function ProductsPage() {
             placeholder="مثال: كبير، 500 مل، أحمر"
             error={addVariantForm.formState.errors.name?.message}
             {...addVariantForm.register('name')}
+          />
+          <Input
+            label={t.products.variantNameEn}
+            placeholder={t.products.variantNameEnPlaceholder}
+            dir="ltr"
+            {...addVariantForm.register('nameEn')}
           />
           <div className="grid grid-cols-2 gap-4">
             <Input label={t.products.sku} dir="ltr" error={addVariantForm.formState.errors.sku?.message} {...addVariantForm.register('sku')} />
@@ -894,8 +959,15 @@ export function ProductsPage() {
       >
         <form className="space-y-4">
           <Input label={t.products.categoryName} error={categoryForm.formState.errors.name?.message} {...categoryForm.register('name')} />
+          <Input
+            label={t.products.categoryNameEn}
+            placeholder={t.products.categoryNameEnPlaceholder}
+            dir="ltr"
+            {...categoryForm.register('nameEn')}
+          />
           <Input label={t.products.description} {...categoryForm.register('description')} />
         </form>
+        {canManage && <CategoryNamesEditor categories={categories?.data ?? []} />}
       </Modal>
 
       {/* Deactivate confirm */}

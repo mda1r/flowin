@@ -12,6 +12,7 @@ public sealed class ModifierGroup : AggregateRoot<ModifierGroupId>
 
     public Guid TenantId { get; private set; }
     public string Name { get; private set; } = null!;
+    public string? NameEn { get; private set; }
     public bool IsRequired { get; private set; }
     public int MinSelect { get; private set; }
     public int MaxSelect { get; private set; }
@@ -30,7 +31,8 @@ public sealed class ModifierGroup : AggregateRoot<ModifierGroupId>
         int minSelect,
         int maxSelect,
         int sortOrder,
-        IReadOnlyList<ModifierOptionDraft> options)
+        IReadOnlyList<ModifierOptionDraft> options,
+        string? nameEn = null)
     {
         ErrorOr<Success> valid = Validate(name, isRequired, minSelect, maxSelect, options);
         if (valid.IsError)
@@ -43,6 +45,7 @@ public sealed class ModifierGroup : AggregateRoot<ModifierGroupId>
             Id = new ModifierGroupId(Guid.NewGuid()),
             TenantId = tenantId,
             Name = name.Trim(),
+            NameEn = EnglishName.Normalize(nameEn),
             IsRequired = isRequired,
             MinSelect = minSelect,
             MaxSelect = maxSelect,
@@ -67,7 +70,8 @@ public sealed class ModifierGroup : AggregateRoot<ModifierGroupId>
         int minSelect,
         int maxSelect,
         int sortOrder,
-        IReadOnlyList<ModifierOptionDraft> options)
+        IReadOnlyList<ModifierOptionDraft> options,
+        string? nameEn = null)
     {
         ErrorOr<Success> valid = Validate(name, isRequired, minSelect, maxSelect, options);
         if (valid.IsError)
@@ -76,6 +80,7 @@ public sealed class ModifierGroup : AggregateRoot<ModifierGroupId>
         }
 
         Name = name.Trim();
+        NameEn = EnglishName.Normalize(nameEn);
         IsRequired = isRequired;
         MinSelect = minSelect;
         MaxSelect = maxSelect;

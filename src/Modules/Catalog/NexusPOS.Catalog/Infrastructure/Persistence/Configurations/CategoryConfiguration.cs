@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NexusPOS.Catalog.Domain;
 using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Domain.ValueObjects;
 
@@ -16,6 +17,10 @@ internal sealed class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(c => c.Id)
             .HasColumnName("id")
             .HasConversion(id => id.Value, value => new CategoryId(value));
+
+        builder.Property(c => c.NameEn)
+            .HasColumnName("name_en")
+            .HasMaxLength(EnglishName.MaxLength);
 
         builder.Property(c => c.Name)
             .HasColumnName("name")

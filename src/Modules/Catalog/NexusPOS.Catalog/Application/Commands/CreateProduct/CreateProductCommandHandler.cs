@@ -62,6 +62,7 @@ internal sealed class CreateProductCommandHandler(
             request.TaxClass,
             request.TrackInventory,
             request.UnitType);
+        product.SetNameEn(request.NameEn);
 
         ErrorOr<ProductVariant> variantResult = product.AddVariant(
             skuResult.Value,
@@ -76,26 +77,11 @@ internal sealed class CreateProductCommandHandler(
             return variantResult.Errors;
         }
 
+        product.SetVariantNameEn(variantResult.Value.Id, request.VariantNameEn);
+
         productRepository.Add(product);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return MapToResponse(product);
+        return ProductMapper.ToResponse(product);
     }
-
-    private static ProductResponse MapToResponse(Product p) => new(
-        p.Id.Value,
-        p.Name,
-        p.Description,
-        p.CategoryId?.Value,
-        p.Type,
-        p.TaxClass,
-        p.IsActive,
-        p.TrackInventory,
-        p.UnitType,
-        p.ImageUrl,
-        p.CreatedAt,
-        p.Variants.Select(v => new ProductVariantResponse(
-            v.Id.Value, v.Sku.Value, v.Name,
-            v.CostPrice.Amount, v.SalePrice.Amount, v.SalePrice.Currency,
-            v.Barcode, v.IsActive, v.ExpiryDate)).ToList());
 }

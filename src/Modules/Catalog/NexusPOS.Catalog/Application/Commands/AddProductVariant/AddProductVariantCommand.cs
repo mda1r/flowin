@@ -11,4 +11,5 @@ public sealed record AddProductVariantCommand(
     decimal SalePrice,
     string Currency,
     string? Barcode = null,
-    DateTime? ExpiryDate = null) : ICommand<ProductVariantResponse>;
+    DateTime? ExpiryDate = null,
+    string? NameEn = null) : ICommand<ProductVariantResponse>;

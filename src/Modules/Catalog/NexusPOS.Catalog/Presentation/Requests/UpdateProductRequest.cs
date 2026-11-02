@@ -9,4 +9,5 @@ public sealed record UpdateProductRequest(
     TaxClass? TaxClass,
     bool TrackInventory,
     string? ImageUrl = null,
-    UnitType UnitType = UnitType.Piece);
+    UnitType UnitType = UnitType.Piece,
+    string? NameEn = null);

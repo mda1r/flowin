@@ -30,21 +30,6 @@ internal sealed class ListProductsQueryHandler(IProductRepository productReposit
     }
 
     internal static ProductResponse MapToResponse(
-        Product p, IReadOnlyList<ProductModifierGroupResponse>? modifierGroups = null) => new(
-        p.Id.Value,
-        p.Name,
-        p.Description,
-        p.CategoryId?.Value,
-        p.Type,
-        p.TaxClass,
-        p.IsActive,
-        p.TrackInventory,
-        p.UnitType,
-        p.ImageUrl,
-        p.CreatedAt,
-        p.Variants.Select(v => new ProductVariantResponse(
-            v.Id.Value, v.Sku.Value, v.Name,
-            v.CostPrice.Amount, v.SalePrice.Amount, v.SalePrice.Currency,
-            v.Barcode, v.IsActive, v.ExpiryDate)).ToList(),
-        modifierGroups);
+        Product p, IReadOnlyList<ProductModifierGroupResponse>? modifierGroups = null) =>
+        ProductMapper.ToResponse(p, modifierGroups);
 }

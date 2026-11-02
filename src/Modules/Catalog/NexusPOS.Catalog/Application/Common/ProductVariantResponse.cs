@@ -9,4 +9,5 @@ public sealed record ProductVariantResponse(
     string Currency,
     string? Barcode,
     bool IsActive,
-    DateTime? ExpiryDate = null);
+    DateTime? ExpiryDate = null,
+    string? NameEn = null);

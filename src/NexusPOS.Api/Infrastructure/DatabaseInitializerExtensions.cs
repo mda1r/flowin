@@ -591,6 +591,12 @@ internal static class DatabaseInitializerExtensions
         [
             "ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_type INT NOT NULL DEFAULT 1",
             "ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS cost_updated_at TIMESTAMP WITHOUT TIME ZONE",
+            // Optional English names shown when the app is in English (the Arabic name stays the one printed).
+            "ALTER TABLE products ADD COLUMN IF NOT EXISTS name_en VARCHAR(256)",
+            "ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS name_en VARCHAR(256)",
+            "ALTER TABLE categories ADD COLUMN IF NOT EXISTS name_en VARCHAR(256)",
+            "ALTER TABLE modifier_groups ADD COLUMN IF NOT EXISTS name_en VARCHAR(256)",
+            "ALTER TABLE modifier_options ADD COLUMN IF NOT EXISTS name_en VARCHAR(256)",
         ];
 
         foreach (string sql in patches)

@@ -4,4 +4,5 @@ public sealed record CreateCategoryRequest(
     string Name,
     string? Description = null,
     Guid? ParentId = null,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    string? NameEn = null);

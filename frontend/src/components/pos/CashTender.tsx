@@ -1,4 +1,5 @@
 import { cn, formatCurrency } from '@/lib/utils'
+import { useI18n } from '@/i18n'
 
 const NOTES = [50, 100, 200, 500]
 
@@ -19,6 +20,7 @@ interface CashTenderProps {
 }
 
 export function CashTender({ total, value, onChange, autoFocus, compact }: CashTenderProps) {
+  const { t } = useI18n()
   const tendered = parseFloat(value)
   const hasValue = value !== '' && !Number.isNaN(tendered)
   const change = hasValue ? Math.round((tendered - total) * 100) / 100 : 0
@@ -27,7 +29,7 @@ export function CashTender({ total, value, onChange, autoFocus, compact }: CashT
   return (
     <div className="space-y-2">
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-fg">المبلغ المستلم</span>
+        <span className="mb-1 block text-sm font-medium text-fg">{t.pos.amountReceived}</span>
         <input
           type="number"
           inputMode="decimal"
@@ -50,7 +52,7 @@ export function CashTender({ total, value, onChange, autoFocus, compact }: CashT
             value === exact ? 'border-brand bg-brand-soft text-brand-ink' : 'border-border bg-surface text-fg hover:bg-surface-2',
           )}
         >
-          بالضبط
+          {t.pos.exactAmount}
         </button>
         {suggestedCashAmounts(total).map((amount) => (
           <button
@@ -70,12 +72,12 @@ export function CashTender({ total, value, onChange, autoFocus, compact }: CashT
       {hasValue && (
         change >= 0 ? (
           <div className="flex items-baseline justify-between rounded-xl bg-success/10 px-4 py-2.5" aria-live="polite">
-            <span className="text-sm font-medium text-success">الباقي للعميل</span>
+            <span className="text-sm font-medium text-success">{t.pos.changeForCustomer}</span>
             <span className="text-2xl font-bold tabular-nums text-success">{formatCurrency(change)}</span>
           </div>
         ) : (
           <div role="alert" className="flex items-baseline justify-between rounded-xl bg-danger/10 px-4 py-2.5">
-            <span className="text-sm font-medium text-danger">المبلغ ناقص</span>
+            <span className="text-sm font-medium text-danger">{t.pos.amountShort}</span>
             <span className="text-xl font-bold tabular-nums text-danger">{formatCurrency(-change)}</span>
           </div>
         )
