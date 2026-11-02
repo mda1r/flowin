@@ -108,7 +108,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
             <select
               value={planId}
               onChange={(e) => setPlanId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-brand-ink focus:outline-none"
             >
               <option value="">-- اختر خطة --</option>
               {plans
@@ -152,7 +152,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
                 type="date"
                 value={startDate}
                 onChange={(e) => changeStart(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-brand-ink focus:outline-none"
               />
             </div>
             <div>
@@ -164,7 +164,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
                 value={expiryDate}
                 min={startDate}
                 onChange={(e) => { setExpiryDate(e.target.value); setMonths(null) }}
-                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-info focus:outline-none"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg focus:border-brand-ink focus:outline-none"
               />
             </div>
           </div>
@@ -194,7 +194,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="أي ملاحظات خاصة بهذا الاشتراك..."
-              className="w-full resize-none rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
+              className="w-full resize-none rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-fg placeholder-muted focus:border-brand-ink focus:outline-none"
             />
           </div>
         </div>
@@ -210,7 +210,7 @@ export function NewSubscriptionModal({ tenantId, tenantName, tenantBusinessType,
           <button
             onClick={() => mutation.mutate()}
             disabled={!planId || !validDates || mutation.isPending}
-            className="flex-1 rounded-lg bg-info px-4 py-2.5 text-sm font-semibold text-white hover:bg-info disabled:opacity-50 transition-colors"
+            className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-fg hover:bg-brand/90 disabled:opacity-50 transition-colors"
           >
             {mutation.isPending ? t.common.loading : t.admin.subscription.create}
           </button>

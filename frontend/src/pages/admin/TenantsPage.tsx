@@ -1,111 +1,53 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import {
-  Search,
-  Eye,
-  PauseCircle,
-  PlayCircle,
-  Plus,
-  UserPlus,
-  Trash2,
-  RefreshCw,
-} from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Building2, PauseCircle, PlayCircle, Plus, Repeat, Search, Trash2, UserPlus } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
-import type { TenantWithSubscriptionResponse, SubscriptionStatus, BusinessType } from '@/types/api'
+import type { BusinessType, TenantWithSubscriptionResponse } from '@/types/api'
 import { toast } from '@/components/ui/Toast'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { apiErrorMessage } from '@/lib/apiError'
+import { cn, formatCurrency, normalizeArabic } from '@/lib/utils'
+import { fmtDate, fmtNum } from '@/lib/locale'
+import { useI18n } from '@/i18n'
 import { NewSubscriptionModal } from './NewSubscriptionModal'
 import { CreateTenantModal } from './CreateTenantModal'
 import { RenewSubscriptionModal } from './RenewSubscriptionModal'
 import { SuspendTenantModal } from './SuspendTenantModal'
-import { useI18n } from '@/i18n'
-import type { Translations } from '@/i18n/en'
-import { intlLocale } from '@/lib/locale'
+import {
+  BUSINESS_TYPES,
+  BusinessChip,
+  STATE_FILL,
+  STATE_ORDER,
+  StateBadge,
+  businessLabel,
+  fill,
+  stateDetail,
+  tenantState,
+  type TenantState,
+} from './adminShared'
 
-type T = Translations
-
-function statusBadge(status: SubscriptionStatus | undefined, isActive: boolean, t: T) {
-  if (!isActive) {
-    return (
-      <span className="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-semibold text-danger">
-        {t.admin.tenants.statuses.suspended}
-      </span>
-    )
-  }
-  if (!status) {
-    return (
-      <span className="rounded-full bg-border px-2.5 py-0.5 text-xs font-semibold text-muted">
-        بدون اشتراك
-      </span>
-    )
-  }
-  const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
-    Active:    { bg: 'bg-success/15 text-success', label: t.admin.tenants.statuses.active },
-    Trial:     { bg: 'bg-info/15 text-info',       label: 'يبدأ لاحقاً' },
-    Expired:   { bg: 'bg-danger/15 text-danger',       label: t.admin.tenants.statuses.expired },
-    Suspended: { bg: 'bg-warning/15 text-warning',     label: t.admin.tenants.statuses.suspended },
-    Cancelled: { bg: 'bg-border text-muted',           label: 'ملغى' },
-  }
-  const { bg, label } = map[status]
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${bg}`}>
-      {label}
-    </span>
-  )
-}
-
-function businessTypeBadge(bt: BusinessType | undefined, labels: Record<BusinessType, string>) {
-  if (!bt) return null
-  const colors: Record<BusinessType, string> = {
-    Retail:       'bg-border text-muted',
-    Supermarket:  'bg-success/15 text-success',
-    Restaurant:   'bg-warning/15 text-warning',
-    Hotel:        'bg-info/15 text-info',
-    Gaming:       'bg-brand/20 text-brand-ink',
-    Cafe:         'bg-warning/15 text-warning',
-  }
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${colors[bt]}`}>
-      {labels[bt]}
-    </span>
-  )
-}
-
-function daysChip(days: number | undefined, t: T) {
-  if (days === undefined) return null
-  if (days < 0) return <span className="text-xs text-danger">{t.admin.tenants.statuses.expired}</span>
-  if (days <= 7)
-    return (
-      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
-        {days} أيام
-      </span>
-    )
-  return <span className="text-xs text-muted">{days} يوم</span>
-}
+const iconBtn = 'rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg'
 
 export function TenantsPage() {
   const qc = useQueryClient()
-  const { t, lang } = useI18n()
-  const locale = intlLocale(lang)
+  const navigate = useNavigate()
+  const { t } = useI18n()
+  const ui = t.admin.ui
   const [search, setSearch] = useState('')
+  const [stateFilter, setStateFilter] = useState<TenantState | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<BusinessType | 'all'>('all')
   const [showCreateTenant, setShowCreateTenant] = useState(false)
   const [subscribeTarget, setSubscribeTarget] = useState<TenantWithSubscriptionResponse | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TenantWithSubscriptionResponse | null>(null)
   const [renewTarget, setRenewTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  const [suspendTarget, setSuspendTarget] = useState<TenantWithSubscriptionResponse | null>(null)
   // Renewal extends the end of the chain, which can be a pre-paid period after the live one.
   const renewSub = renewTarget?.renewableSubscription ?? renewTarget?.activeSubscription
-  const [suspendTarget, setSuspendTarget] = useState<TenantWithSubscriptionResponse | null>(null)
-
-  const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
-    Retail:      t.admin.dashboard.business.retail,
-    Supermarket: 'سوبرماركت',
-    Restaurant:  t.admin.dashboard.business.restaurant,
-    Hotel:       t.admin.dashboard.business.hotel,
-    Gaming:      t.admin.dashboard.business.gaming,
-    Cafe:        t.admin.dashboard.business.cafe,
-  }
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ['admin', 'tenants'],
@@ -113,187 +55,264 @@ export function TenantsPage() {
   })
 
   const activateMut = useMutation({
-    mutationFn: (ten: TenantWithSubscriptionResponse) =>
-      superAdminApi.activateTenant(ten.id),
+    mutationFn: (ten: TenantWithSubscriptionResponse) => superAdminApi.activateTenant(ten.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
-      toast.success('تم تفعيل الحساب', '')
+      toast.success(ui.activated)
     },
-    onError: () => toast.error('فشلت العملية', ''),
+    onError: (err) => toast.error(ui.actionFailed, apiErrorMessage(err)),
   })
 
   const deleteMut = useMutation({
-    mutationFn: (ten: TenantWithSubscriptionResponse) =>
-      superAdminApi.deleteTenant(ten.id),
+    mutationFn: (ten: TenantWithSubscriptionResponse) => superAdminApi.deleteTenant(ten.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
-      toast.success('تم حذف المستأجر', '')
+      toast.success(ui.deleted)
       setDeleteTarget(null)
     },
-    onError: () => { toast.error('فشلت العملية', ''); setDeleteTarget(null) },
+    onError: (err) => toast.error(ui.actionFailed, apiErrorMessage(err)),
   })
 
-  const filtered = tenants.filter(
-    (ten) =>
-      ten.name.includes(search) ||
-      ten.adminEmail.toLowerCase().includes(search.toLowerCase()) ||
-      ten.subdomain.includes(search),
-  )
+  const rows = tenants.map((tenant) => ({ tenant, state: tenantState(tenant) }))
+  const ofType = rows.filter((r) => typeFilter === 'all' || r.tenant.businessType === typeFilter)
+  const term = normalizeArabic(search.trim().toLowerCase())
+  const filtered = ofType
+    .filter((r) => stateFilter === 'all' || r.state === stateFilter)
+    .filter(({ tenant }) =>
+      !term
+      || normalizeArabic(tenant.name.toLowerCase()).includes(term)
+      || tenant.adminEmail.toLowerCase().includes(term)
+      || tenant.subdomain.toLowerCase().includes(term))
+    .sort((a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || a.tenant.name.localeCompare(b.tenant.name))
+  const countOf = (s: TenantState) => ofType.filter((r) => r.state === s).length
+  const filtering = stateFilter !== 'all' || typeFilter !== 'all' || term.length > 0
+
+  const primaryAction = (tenant: TenantWithSubscriptionResponse, state: TenantState) => {
+    if (state === 'suspended') {
+      return (
+        <Button size="sm" variant="secondary" loading={activateMut.isPending && activateMut.variables?.id === tenant.id} onClick={() => activateMut.mutate(tenant)}>
+          <PlayCircle className="h-3.5 w-3.5" />
+          {ui.activate}
+        </Button>
+      )
+    }
+    if (state === 'noPlan') {
+      return (
+        <Button size="sm" variant="secondary" onClick={() => setSubscribeTarget(tenant)}>
+          <Plus className="h-3.5 w-3.5" />
+          {ui.subscribe}
+        </Button>
+      )
+    }
+    return (
+      <Button size="sm" variant="secondary" onClick={() => setRenewTarget(tenant)}>
+        <Repeat className="h-3.5 w-3.5" />
+        {ui.renew}
+      </Button>
+    )
+  }
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">{t.admin.tenants.title}</h1>
-          <p className="mt-1 text-muted">
-            {tenants.length} مستأجر مسجل
-          </p>
+    <div>
+      <PageHeader
+        icon={<Building2 className="h-5 w-5" />}
+        title={t.admin.tenants.title}
+        description={fill(ui.registered, { n: tenants.length })}
+        action={
+          <Button onClick={() => setShowCreateTenant(true)}>
+            <UserPlus className="h-4 w-4" />
+            {ui.addTenant}
+          </Button>
+        }
+      />
+
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t.admin.tenants.searchPlaceholder}
+              aria-label={t.admin.tenants.searchPlaceholder}
+              className="input ps-10"
+            />
+          </div>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as BusinessType | 'all')}
+            aria-label={t.admin.tenants.businessType}
+            className="input lg:w-48"
+          >
+            <option value="all">{ui.allTypes}</option>
+            {BUSINESS_TYPES.map((type) => (
+              <option key={type} value={type}>{businessLabel(type, t)}</option>
+            ))}
+          </select>
         </div>
-        <button
-          onClick={() => setShowCreateTenant(true)}
-          className="flex items-center gap-2 rounded-xl bg-info px-4 py-2 text-sm font-semibold text-white hover:bg-info transition-colors"
-        >
-          <UserPlus className="h-4 w-4" />
-          إضافة مستأجر
-        </button>
-      </div>
 
-      {/* Search */}
-      <div className="mb-5 relative">
-        <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t.admin.tenants.searchPlaceholder}
-          className="w-full rounded-xl border border-border bg-surface py-2.5 ps-10 pe-4 text-sm text-fg placeholder-muted focus:border-info focus:outline-none"
-        />
-      </div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t.admin.tenants.status}>
+          {(['all', ...STATE_ORDER] as const).map((s) => {
+            const n = s === 'all' ? ofType.length : countOf(s)
+            if (s !== 'all' && n === 0) return null
+            const on = stateFilter === s
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStateFilter(s)}
+                aria-pressed={on}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                  on ? 'border-brand bg-brand-soft font-medium text-brand-ink' : 'border-border bg-surface text-muted hover:text-fg',
+                )}
+              >
+                {s !== 'all' && <span className={`h-2 w-2 rounded-full ${STATE_FILL[s]}`} aria-hidden="true" />}
+                {s === 'all' ? ui.all : ui.states[s]}
+                <span className="tabular-nums text-xs opacity-80">{fmtNum(n)}</span>
+              </button>
+            )
+          })}
+        </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border bg-surface">
-            <tr>
-              {[
-                t.admin.tenants.name,
-                'النطاق',
-                t.admin.tenants.businessType,
-                t.admin.tenants.plan,
-                t.admin.tenants.status,
-                t.admin.tenants.expires,
-                'المتبقي',
-                'الإجراءات',
-                '',
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="px-4 py-3 text-start text-xs font-semibold text-muted uppercase tracking-wider"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border bg-surface/60">
-            {isLoading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i}>
-                    {Array.from({ length: 9 }).map((_, j) => (
-                      <td key={j} className="px-4 py-4">
-                        <div className="h-4 rounded bg-surface-2 animate-pulse" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              : filtered.map((ten) => {
-                  const sub = ten.activeSubscription
-                  const rowBg = !ten.isActive
-                    ? 'opacity-60'
-                    : sub?.daysRemaining !== undefined && sub.daysRemaining <= 7 && sub.daysRemaining >= 0
-                    ? 'bg-warning/15'
-                    : ''
-                  return (
-                    <tr key={ten.id} className={`hover:bg-surface-2/50 transition-colors ${rowBg}`}>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-fg">{ten.name}</p>
-                        <p className="text-xs text-muted">{ten.adminEmail}</p>
-                      </td>
-                      <td className="px-4 py-3 text-muted">{ten.subdomain}</td>
-                      <td className="px-4 py-3">{businessTypeBadge(ten.businessType, BUSINESS_TYPE_LABELS)}</td>
-                      <td className="px-4 py-3 text-muted">{sub?.planName ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        {statusBadge(sub?.status, ten.isActive, t)}
-                      </td>
-                      <td className="px-4 py-3 text-muted">
-                        {sub?.expiryDate
-                          ? new Date(sub.expiryDate).toLocaleDateString(locale)
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3">{daysChip(sub?.daysRemaining, t)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <Link
-                            to="/admin/tenants/$id"
-                            params={{ id: ten.id }}
-                            className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-fg transition-colors"
-                            title={t.admin.tenants.viewDetails}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                          {sub && (
-                            <button
-                              onClick={() => setRenewTarget(ten)}
-                              className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-brand-ink transition-colors"
-                              title="تجديد"
-                              aria-label={`تجديد اشتراك ${ten.name}`}
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => setSubscribeTarget(ten)}
-                            className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-info transition-colors"
-                            title={t.admin.subscription.newSubscription}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
-                          {ten.isActive ? (
-                            <button
-                              onClick={() => setSuspendTarget(ten)}
-                              className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-warning transition-colors"
-                              title={t.admin.tenants.suspend}
-                            >
-                              <PauseCircle className="h-4 w-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => activateMut.mutate(ten)}
-                              className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-success transition-colors"
-                              title={t.admin.tenants.activate}
-                            >
-                              <PlayCircle className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => setDeleteTarget(ten)}
-                          className="rounded-lg p-1.5 text-muted hover:bg-border hover:text-danger transition-colors"
-                          title={t.admin.tenants.delete}
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm tabular-nums">
+              <thead>
+                <tr className="border-b border-border bg-surface-2/60">
+                  {[t.admin.tenants.name, t.admin.tenants.businessType, t.admin.tenants.plan, t.admin.tenants.status, t.admin.tenants.expires, ''].map((h, i) => (
+                    <th key={i} className="whitespace-nowrap px-4 py-3 text-start text-xs font-semibold text-muted">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {isLoading
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i}>
+                        {Array.from({ length: 6 }).map((__, j) => (
+                          <td key={j} className="px-4 py-4">
+                            <div className="h-4 animate-pulse rounded bg-surface-2" />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  : filtered.map(({ tenant, state }) => {
+                      const sub = tenant.activeSubscription
+                      return (
+                        <tr
+                          key={tenant.id}
+                          onClick={() => navigate({ to: '/admin/tenants/$id', params: { id: tenant.id } })}
+                          className={cn('cursor-pointer transition-colors hover:bg-surface-2/50', state === 'suspended' && 'text-muted')}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-          </tbody>
-        </table>
-        {!isLoading && filtered.length === 0 && (
-          <div className="py-16 text-center text-muted">{t.common.noData}</div>
-        )}
+                          <td className="max-w-[18rem] px-4 py-3">
+                            <Link
+                              to="/admin/tenants/$id"
+                              params={{ id: tenant.id }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="block truncate font-medium text-fg hover:underline"
+                            >
+                              {tenant.name}
+                            </Link>
+                            <p className="truncate text-xs text-muted" dir="ltr">
+                              {tenant.adminEmail} · {tenant.subdomain}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <BusinessChip type={tenant.businessType} t={t} />
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3">
+                            {sub ? (
+                              <>
+                                <p className="text-fg">{sub.planName}</p>
+                                <p className="text-xs text-muted">
+                                  {formatCurrency(sub.planPrice)}
+                                  {ui.perMonth}
+                                </p>
+                              </>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <StateBadge state={state} t={t} />
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3">
+                            {sub ? (
+                              <>
+                                <p className="text-fg">{fmtDate(sub.expiryDate)}</p>
+                                <p className={cn('text-xs', state === 'expiring' ? 'text-warning' : state === 'expired' ? 'text-danger' : 'text-muted')}>
+                                  {stateDetail(tenant, state, t)}
+                                </p>
+                              </>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
+                              {primaryAction(tenant, state)}
+                              {state !== 'noPlan' && state !== 'suspended' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSubscribeTarget(tenant)}
+                                  className={iconBtn}
+                                  title={t.admin.subscription.newSubscription}
+                                  aria-label={`${t.admin.subscription.newSubscription}: ${tenant.name}`}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              )}
+                              {state !== 'suspended' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSuspendTarget(tenant)}
+                                  className={cn(iconBtn, 'hover:text-warning')}
+                                  title={t.admin.tenants.suspend}
+                                  aria-label={`${t.admin.tenants.suspend}: ${tenant.name}`}
+                                >
+                                  <PauseCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setDeleteTarget(tenant)}
+                                className={cn(iconBtn, 'hover:text-danger')}
+                                title={t.admin.tenants.delete}
+                                aria-label={`${t.admin.tenants.delete}: ${tenant.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+              </tbody>
+            </table>
+          </div>
+          {!isLoading && filtered.length === 0 && (
+            <EmptyState
+              icon={<Search />}
+              title={tenants.length === 0 ? t.common.noData : ui.noMatch}
+              action={
+                filtering ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setSearch('')
+                      setStateFilter('all')
+                      setTypeFilter('all')
+                    }}
+                  >
+                    {ui.clearFilters}
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
+        </Card>
       </div>
 
       {subscribeTarget && (
@@ -316,43 +335,28 @@ export function TenantsPage() {
       )}
 
       {suspendTarget && (
-        <SuspendTenantModal
-          tenantId={suspendTarget.id}
-          tenantName={suspendTarget.name}
-          onClose={() => setSuspendTarget(null)}
-        />
+        <SuspendTenantModal tenantId={suspendTarget.id} tenantName={suspendTarget.name} onClose={() => setSuspendTarget(null)} />
       )}
 
-      {showCreateTenant && (
-        <CreateTenantModal onClose={() => setShowCreateTenant(false)} />
-      )}
+      {showCreateTenant && <CreateTenantModal onClose={() => setShowCreateTenant(false)} />}
 
       {deleteTarget && (
         <Modal
           open
           onClose={() => setDeleteTarget(null)}
-          title="تأكيد حذف المستأجر"
+          title={ui.deleteTitle}
           footer={
             <>
               <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t.common.cancel}</Button>
-              <Button
-                loading={deleteMut.isPending}
-                className="bg-danger hover:bg-danger"
-                onClick={() => deleteMut.mutate(deleteTarget)}
-              >
+              <Button variant="danger" loading={deleteMut.isPending} onClick={() => deleteMut.mutate(deleteTarget)}>
                 {t.common.delete}
               </Button>
             </>
           }
         >
-          <div dir="rtl" className="space-y-2 text-sm">
-            <p className="text-muted">
-              هل أنت متأكد من حذف المستأجر <span className="font-bold text-fg">{deleteTarget.name}</span>؟
-            </p>
-            <p className="text-muted">{deleteTarget.adminEmail}</p>
-            <p className="rounded-lg bg-danger/15 border border-danger/40 px-3 py-2 text-danger text-xs">
-              سيتم حذف المستأجر وجميع فروعه واشتراكاته بشكل نهائي لا يمكن التراجع عنه.
-            </p>
+          <div className="space-y-3 text-sm">
+            <p className="text-fg">{fill(ui.deleteConfirm, { name: deleteTarget.name })}</p>
+            <p className="text-muted" dir="ltr">{deleteTarget.adminEmail}</p>
           </div>
         </Modal>
       )}

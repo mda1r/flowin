@@ -2,26 +2,25 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Search, Plus, Eye, Layers } from 'lucide-react'
-import { isAxiosError } from 'axios'
 import { brandsApi } from '@/api/brands'
 import type { BrandResponse, CreateBrandRequest } from '@/api/brands'
 import { useI18n } from '@/i18n'
 import { toast } from '@/components/ui/Toast'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { intlLocale } from '@/lib/locale'
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { apiErrorMessage } from '@/lib/apiError'
+import { fmtDate } from '@/lib/locale'
+import { fill } from './adminShared'
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    active: 'bg-success/15 text-success',
-    suspended: 'bg-warning/15 text-warning',
-    archived: 'bg-border text-muted',
-  }
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${colors[status.toLowerCase()] ?? 'bg-border text-muted'}`}>
-      {status}
-    </span>
-  )
+export function BrandStatusBadge({ status }: { status: string }) {
+  const { t } = useI18n()
+  const key = status.toLowerCase() as keyof typeof t.admin.brands.statuses
+  const variant = key === 'active' ? 'green' : key === 'suspended' ? 'yellow' : 'gray'
+  return <Badge variant={variant}>{t.admin.brands.statuses[key] ?? status}</Badge>
 }
 
 interface CreateBrandModalProps {
@@ -42,15 +41,12 @@ function CreateBrandModal({ open, onClose }: CreateBrandModalProps) {
   const mutation = useMutation({
     mutationFn: () => brandsApi.create(form),
     onSuccess: () => {
-      toast.success('Brand created')
+      toast.success(t.admin.ui.brandCreated)
       qc.invalidateQueries({ queryKey: ['brands'] })
       onClose()
       setForm({ nameAr: '', nameEn: '', code: '', notes: '' })
     },
-    onError: (error) => {
-      const msg = isAxiosError(error) ? (error.response?.data?.detail ?? 'Failed to create brand') : 'Failed to create brand'
-      toast.error(msg)
-    },
+    onError: (error) => toast.error(t.admin.ui.brandCreateFailed, apiErrorMessage(error)),
   })
 
   return (
@@ -87,7 +83,7 @@ function CreateBrandModal({ open, onClose }: CreateBrandModalProps) {
             onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
             className="w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg font-mono uppercase outline-none ring-1 ring-border focus:ring-info/40"
             dir="ltr"
-            placeholder="e.g. ACME"
+            placeholder={t.admin.ui.codePlaceholder}
           />
         </div>
         <div>
@@ -140,134 +136,129 @@ export function BrandsPage() {
   const totalPages = Math.max(1, Math.ceil(total / 20))
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/20">
-            <Layers className="h-5 w-5 text-info" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-fg">{t.admin.brands.title}</h1>
-            <p className="text-xs text-muted">{total} brand{total !== 1 ? 's' : ''}</p>
-          </div>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" />
-          {t.admin.brands.new}
-        </Button>
-      </div>
+    <div>
+      <PageHeader
+        icon={<Layers className="h-5 w-5" />}
+        title={t.admin.brands.title}
+        description={fill(t.admin.ui.brandsCount, { n: total })}
+        action={
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" />
+            {t.admin.brands.new}
+          </Button>
+        }
+      />
 
-      {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder={t.admin.brands.search}
-            className="w-full rounded-lg bg-surface-2 ps-9 pe-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
-            dir="ltr"
-          />
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              placeholder={t.admin.brands.search}
+              aria-label={t.admin.brands.search}
+              className="input ps-10"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+            aria-label={t.admin.brands.status}
+            className="input sm:w-48"
+          >
+            <option value="">{t.admin.ui.allStatuses}</option>
+            <option value="active">{t.admin.brands.statuses.active}</option>
+            <option value="suspended">{t.admin.brands.statuses.suspended}</option>
+            <option value="archived">{t.admin.brands.statuses.archived}</option>
+          </select>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-          className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg outline-none ring-1 ring-border focus:ring-info/40"
-        >
-          <option value="">All statuses</option>
-          <option value="active">{t.admin.brands.statuses.active}</option>
-          <option value="suspended">{t.admin.brands.statuses.suspended}</option>
-          <option value="archived">{t.admin.brands.statuses.archived}</option>
-        </select>
-      </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border bg-surface overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-xs font-medium text-muted">
-              <th className="px-4 py-3 text-start">{t.admin.brands.nameAr} / {t.admin.brands.nameEn}</th>
-              <th className="px-4 py-3 text-start">{t.admin.brands.code}</th>
-              <th className="px-4 py-3 text-start">{t.admin.brands.memberCount}</th>
-              <th className="px-4 py-3 text-start">{t.admin.brands.status}</th>
-              <th className="px-4 py-3 text-start">{t.admin.brands.createdAt}</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    {Array.from({ length: 6 }).map((__, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-4 rounded bg-surface-2 animate-pulse" />
-                      </td>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm tabular-nums">
+              <thead>
+                <tr className="border-b border-border bg-surface-2/60 text-xs font-semibold text-muted">
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{t.admin.brands.title}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{t.admin.brands.code}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{t.admin.brands.memberCount}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{t.admin.brands.status}</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-start">{t.admin.brands.createdAt}</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {isLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <tr key={i}>
+                        {Array.from({ length: 6 }).map((__, j) => (
+                          <td key={j} className="px-4 py-4">
+                            <div className="h-4 animate-pulse rounded bg-surface-2" />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  : items.map((brand: BrandResponse) => (
+                      <tr key={brand.id} className="transition-colors hover:bg-surface-2/50">
+                        <td className="px-4 py-3">
+                          <Link to="/admin/brands/$id" params={{ id: brand.id }} className="font-medium text-fg hover:underline">
+                            {brand.nameAr}
+                          </Link>
+                          <p className="text-xs text-muted" dir="ltr">{brand.nameEn}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="rounded-md bg-surface-2 px-2 py-0.5 font-mono text-xs text-fg" dir="ltr">{brand.code}</span>
+                        </td>
+                        <td className="px-4 py-3 text-fg">{brand.memberCount}</td>
+                        <td className="px-4 py-3">
+                          <BrandStatusBadge status={brand.status} />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-muted">{fmtDate(brand.createdAt)}</td>
+                        <td className="px-4 py-3 text-end">
+                          <Link
+                            to="/admin/brands/$id"
+                            params={{ id: brand.id }}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-soft"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            {t.admin.brands.overview}
+                          </Link>
+                        </td>
+                      </tr>
                     ))}
-                  </tr>
-                ))
-              : items.map((brand: BrandResponse) => (
-                  <tr key={brand.id} className="hover:bg-surface-2/40 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-fg">{brand.nameAr}</p>
-                      <p className="text-xs text-muted" dir="ltr">{brand.nameEn}</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted">{brand.code}</td>
-                    <td className="px-4 py-3 text-muted tabular-nums">{brand.memberCount}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={brand.status} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted">
-                      {new Date(brand.createdAt).toLocaleDateString(intlLocale())}
-                    </td>
-                    <td className="px-4 py-3 text-end">
-                      <Link
-                        to="/admin/brands/$id"
-                        params={{ id: brand.id }}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:bg-border hover:text-fg transition-colors"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        {t.admin.brands.overview}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-            {!isLoading && items.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted">
-                  No brands found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-muted">
-          <span>{total} total</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-lg px-3 py-1.5 hover:bg-surface-2 disabled:opacity-40"
-            >
-              ‹
-            </button>
-            <span>
-              {page} / {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-lg px-3 py-1.5 hover:bg-surface-2 disabled:opacity-40"
-            >
-              ›
-            </button>
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
+          {!isLoading && items.length === 0 && (
+            <EmptyState
+              icon={<Layers />}
+              title={t.admin.ui.noBrands}
+              description={t.admin.ui.noBrandsHint}
+              action={
+                <Button size="sm" onClick={() => setShowCreate(true)}>
+                  <Plus className="h-4 w-4" />
+                  {t.admin.brands.new}
+                </Button>
+              }
+            />
+          )}
+        </Card>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-sm text-muted">
+            <span>{fill(t.admin.ui.pageOf, { page, total: totalPages })}</span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+                {t.admin.ui.previous}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+                {t.admin.ui.next}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <CreateBrandModal open={showCreate} onClose={() => setShowCreate(false)} />
     </div>

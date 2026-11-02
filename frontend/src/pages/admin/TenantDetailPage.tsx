@@ -35,38 +35,14 @@ import {
   subscriptionMonths,
 } from '@/lib/subscriptionBilling'
 import { useI18n } from '@/i18n'
-
-function StatusBadge({ status, isActive }: { status?: SubscriptionStatus; isActive: boolean }) {
-  const { t } = useI18n()
-
-  if (!isActive)
-    return (
-      <span className="rounded-full bg-danger/15 px-3 py-1 text-sm font-semibold text-danger">
-        {t.admin.tenantDetail.statuses.suspended}
-      </span>
-    )
-  const map: Record<SubscriptionStatus, { bg: string; label: string }> = {
-    Active:    { bg: 'bg-success/15 text-success', label: t.admin.tenantDetail.statuses.active },
-    Trial:     { bg: 'bg-info/15 text-info',       label: 'يبدأ لاحقاً' },
-    Expired:   { bg: 'bg-danger/15 text-danger',       label: t.admin.tenantDetail.statuses.expired },
-    Suspended: { bg: 'bg-warning/15 text-warning',     label: t.admin.tenantDetail.statuses.suspended },
-    Cancelled: { bg: 'bg-border text-muted',           label: 'ملغى' },
-  }
-  if (!status)
-    return (
-      <span className="rounded-full bg-border px-3 py-1 text-sm font-semibold text-muted">
-        بدون اشتراك
-      </span>
-    )
-  const { bg, label } = map[status]
-  return <span className={`rounded-full px-3 py-1 text-sm font-semibold ${bg}`}>{label}</span>
-}
+import { intlLocale } from '@/lib/locale'
+import { StateBadge, stateDetail, tenantState } from './adminShared'
 
 export function TenantDetailPage() {
   const { id } = useParams({ from: '/admin/admin/tenants/$id' })
   const qc = useQueryClient()
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const [showSubscribeModal, setShowSubscribeModal] = useState(false)
   const [showRenewModal, setShowRenewModal] = useState(false)
   const [showSuspendModal, setShowSuspendModal] = useState(false)
@@ -100,7 +76,7 @@ export function TenantDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-info border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
       </div>
     )
   }
@@ -119,7 +95,7 @@ export function TenantDetailPage() {
   const sub = tenant.activeSubscription
 
   return (
-    <div className="p-8" dir="rtl">
+    <div className="p-4 sm:p-6">
       {/* Back */}
       <Link
         to="/admin/tenants"
@@ -134,8 +110,9 @@ export function TenantDetailPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-fg">{tenant.name}</h1>
-            <StatusBadge status={sub?.status} isActive={tenant.isActive} />
+            <StateBadge state={tenantState(tenant)} t={t} />
           </div>
+          <p className="mt-1 text-sm text-muted">{stateDetail(tenant, tenantState(tenant), t)}</p>
           <p className="mt-1 text-muted">
             {tenant.subdomain} · {tenant.adminEmail}
           </p>
@@ -161,7 +138,7 @@ export function TenantDetailPage() {
           )}
           <button
             onClick={() => setShowSubscribeModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-info px-4 py-2 text-sm font-semibold text-white hover:bg-info transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-fg hover:bg-brand/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
             {t.admin.subscription.newSubscription}

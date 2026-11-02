@@ -9,6 +9,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency, cn } from '@/lib/utils'
 import { RENEW_MONTHS, monthsLabel, periodTotalWithVat } from '@/lib/subscriptionBilling'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 interface Props {
   tenantId: string
@@ -21,7 +22,7 @@ interface Props {
 export function RenewSubscriptionModal({ tenantId, tenantName, subscription, onClose }: Props) {
   const qc = useQueryClient()
   const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
   const [months, setMonths] = useState<number>(1)
 
   // Mirrors the server: a running subscription is extended from its expiry, an ended one from today.
@@ -58,7 +59,7 @@ export function RenewSubscriptionModal({ tenantId, tenantName, subscription, onC
         </>
       }
     >
-      <div dir="rtl" className="space-y-4 text-sm">
+      <div className="space-y-4 text-sm">
         <div className="rounded-lg bg-surface-2 px-4 py-3">
           <div className="flex items-center justify-between">
             <span className="text-muted">{subscription.planName}</span>

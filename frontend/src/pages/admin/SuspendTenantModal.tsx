@@ -52,7 +52,7 @@ export function SuspendTenantModal({ tenantId, tenantName, onClose }: Props) {
         </>
       }
     >
-      <div dir="rtl" className="space-y-3 text-sm">
+      <div className="space-y-3 text-sm">
         <p className="text-muted">
           لن يتمكن موظفو هذا الحساب من الدخول، وتخرج الأجهزة المفتوحة خلال دقائق.
         </p>

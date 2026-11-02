@@ -65,12 +65,12 @@ function LinkTenantModal({ brandId, open, onClose }: LinkTenantModalProps) {
   const mutation = useMutation({
     mutationFn: () => brandsApi.linkTenant(brandId, form),
     onSuccess: () => {
-      toast.success('Tenant linked')
+      toast.success(t.admin.ui.tenantLinked)
       qc.invalidateQueries({ queryKey: ['brand', brandId] })
       onClose()
       setForm({ tenantId: '', branchDisplayName: '', branchCode: '' })
     },
-    onError: () => toast.error('Failed to link tenant'),
+    onError: () => toast.error(t.admin.ui.tenantLinkFailed),
   })
 
   return (
@@ -148,12 +148,12 @@ function CreateTaxScopeModal({ brandId, open, onClose }: CreateTaxScopeModalProp
   const mutation = useMutation({
     mutationFn: () => brandsApi.createTaxScope(brandId, form),
     onSuccess: () => {
-      toast.success('Tax scope created')
+      toast.success(t.admin.ui.scopeCreated)
       qc.invalidateQueries({ queryKey: ['brand', brandId] })
       onClose()
       setForm({ name: '', vatRegistrationNumber: '', legalEntityName: '' })
     },
-    onError: () => toast.error('Failed to create tax scope'),
+    onError: () => toast.error(t.admin.ui.scopeCreateFailed),
   })
 
   return (
@@ -238,12 +238,12 @@ function AddToScopeModal({ scopeId, brandId, open, onClose }: AddToScopeModalPro
   const mutation = useMutation({
     mutationFn: () => brandsApi.addTenantToTaxScope(scopeId, form),
     onSuccess: () => {
-      toast.success('Tenant added to scope')
+      toast.success(t.admin.ui.scopeAdded)
       qc.invalidateQueries({ queryKey: ['brand', brandId] })
       onClose()
       setForm({ tenantId: '', effectiveFrom: new Date().toISOString().split('T')[0] })
     },
-    onError: () => toast.error('Failed to add tenant'),
+    onError: () => toast.error(t.admin.ui.scopeAddFailed),
   })
 
   return (
@@ -307,10 +307,10 @@ function MembersTab({ brandId, members }: MembersTabProps) {
   const unlinkMutation = useMutation({
     mutationFn: (membershipId: string) => brandsApi.unlinkTenant(membershipId),
     onSuccess: () => {
-      toast.success('Tenant unlinked')
+      toast.success(t.admin.ui.tenantUnlinked)
       qc.invalidateQueries({ queryKey: ['brand', brandId] })
     },
-    onError: () => toast.error('Failed to unlink tenant'),
+    onError: () => toast.error(t.admin.ui.tenantUnlinkFailed),
   })
 
   return (
@@ -408,10 +408,10 @@ function TaxTab({ brandId, scopes }: TaxTabProps) {
   const removeMutation = useMutation({
     mutationFn: (membershipId: string) => brandsApi.removeTenantFromTaxScope(membershipId),
     onSuccess: () => {
-      toast.success('Tenant removed from scope')
+      toast.success(t.admin.ui.scopeRemoved)
       qc.invalidateQueries({ queryKey: ['brand', brandId] })
     },
-    onError: () => toast.error('Failed to remove tenant from scope'),
+    onError: () => toast.error(t.admin.ui.scopeRemoveFailed),
   })
 
   return (
@@ -550,7 +550,7 @@ export function BrandDetailPage() {
 
   if (!brand) {
     return (
-      <div className="p-6 text-center text-muted">Brand not found</div>
+      <div className="p-6 text-center text-muted">{t.admin.ui.brandNotFound}</div>
     )
   }
 
@@ -569,8 +569,8 @@ export function BrandDetailPage() {
       <div className="rounded-xl border border-border bg-surface p-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/20">
-              <Layers className="h-6 w-6 text-info" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft">
+              <Layers className="h-6 w-6 text-brand-ink" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -616,7 +616,7 @@ export function BrandDetailPage() {
             onClick={() => setTab(key)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === key
-                ? 'border-info text-fg'
+                ? 'border-brand text-fg'
                 : 'border-transparent text-muted hover:text-fg'
             }`}
           >

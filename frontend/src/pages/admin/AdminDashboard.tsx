@@ -1,247 +1,267 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Building2,
-  CheckCircle,
-  XCircle,
-  TrendingUp,
-  TrendingDown,
-  PauseCircle,
-  BarChart3,
-  RefreshCw,
-} from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { AlertTriangle, ArrowLeft, Building2, CalendarClock, CheckCircle2, LayoutDashboard, Repeat, UserPlus, Wallet } from 'lucide-react'
 import { superAdminApi } from '@/api/superadmin'
-import type { TenantWithSubscriptionResponse, BusinessType } from '@/types/api'
+import type { BusinessType, TenantWithSubscriptionResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { StatCard } from '@/components/ui/StatCard'
+import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { formatCurrency } from '@/lib/utils'
+import { fmtDate, fmtNum } from '@/lib/locale'
 import { RenewSubscriptionModal } from './RenewSubscriptionModal'
+import { NewSubscriptionModal } from './NewSubscriptionModal'
+import { CreateTenantModal } from './CreateTenantModal'
+import {
+  BUSINESS_TYPES,
+  BusinessChip,
+  STATE_FILL,
+  STATE_ORDER,
+  StateBadge,
+  businessLabel,
+  fill,
+  isPaying,
+  stateDetail,
+  tenantState,
+  type TenantState,
+} from './adminShared'
 
-const BIZ_COLOR: Record<BusinessType, string> = {
-  Retail:      'bg-muted/30',
-  Supermarket: 'bg-success',
-  Restaurant:  'bg-warning',
-  Hotel:       'bg-info',
-  Gaming:      'bg-brand',
-  Cafe:        'bg-warning',
-}
-
-function computeStats(tenants: TenantWithSubscriptionResponse[]) {
-  const total     = tenants.length
-  const active    = tenants.filter((t) => t.isActive && t.activeSubscription?.status === 'Active').length
-  const suspended = tenants.filter((t) => !t.isActive).length
-  const trial     = tenants.filter((t) => t.activeSubscription?.status === 'Trial').length
-  const expired   = tenants.filter((t) => t.activeSubscription?.status === 'Expired' || (!t.isActive && !t.activeSubscription)).length
-
-  const mrr = tenants
-    .filter((t) => t.isActive && t.activeSubscription?.status === 'Active')
-    .reduce((sum, t) => sum + (t.activeSubscription?.planPrice ?? 0), 0)
-
-  const arr = mrr * 12
-
-  const byType = tenants.reduce<Partial<Record<BusinessType, number>>>((acc, t) => {
-    if (!t.businessType) return acc
-    acc[t.businessType] = (acc[t.businessType] ?? 0) + 1
-    return acc
-  }, {})
-
-  return { total, active, suspended, trial, expired, mrr, arr, byType }
-}
+const ATTENTION: TenantState[] = ['expired', 'expiring', 'noPlan', 'suspended']
 
 export function AdminDashboard() {
-  const { t, lang } = useI18n()
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const { t } = useI18n()
+  const ui = t.admin.ui
+  const navigate = useNavigate()
   const [renewTarget, setRenewTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  const [subscribeTarget, setSubscribeTarget] = useState<TenantWithSubscriptionResponse | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
   // Renewal extends the end of the chain, which can be a pre-paid period after the live one.
   const renewSub = renewTarget?.renewableSubscription ?? renewTarget?.activeSubscription
-
-  const BIZ_LABEL: Record<BusinessType, string> = {
-    Retail:      t.admin.dashboard.business.retail,
-    Supermarket: 'سوبرماركت',
-    Restaurant:  t.admin.dashboard.business.restaurant,
-    Hotel:       t.admin.dashboard.business.hotel,
-    Gaming:      t.admin.dashboard.business.gaming,
-    Cafe:        t.admin.dashboard.business.cafe,
-  }
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ['admin', 'tenants'],
     queryFn: () => superAdminApi.listTenants().then((r) => r.data),
   })
 
-  const stats = computeStats(tenants)
+  const rows = tenants.map((tenant) => ({ tenant, state: tenantState(tenant) }))
+  const counts = STATE_ORDER.reduce<Record<TenantState, number>>(
+    (acc, s) => ({ ...acc, [s]: rows.filter((r) => r.state === s).length }),
+    {} as Record<TenantState, number>,
+  )
+  const paying = rows.filter((r) => isPaying(r.state))
+  const mrr = paying.reduce((sum, r) => sum + (r.tenant.activeSubscription?.planPrice ?? 0), 0)
+  const attention = rows
+    .filter((r) => ATTENTION.includes(r.state))
+    .sort((a, b) =>
+      ATTENTION.indexOf(a.state) - ATTENTION.indexOf(b.state)
+      || (a.tenant.activeSubscription?.daysRemaining ?? 0) - (b.tenant.activeSubscription?.daysRemaining ?? 0))
 
-  const expiringTenants = tenants
-    .filter(
-      (t) =>
-        t.activeSubscription &&
-        t.activeSubscription.daysRemaining >= 0 &&
-        t.activeSubscription.daysRemaining <= 7,
-    )
-    .sort((a, b) => (a.activeSubscription?.daysRemaining ?? 0) - (b.activeSubscription?.daysRemaining ?? 0))
-    .slice(0, 5)
+  const byType = BUSINESS_TYPES
+    .map((type) => {
+      const ofType = rows.filter((r) => r.tenant.businessType === type)
+      const payingOfType = ofType.filter((r) => isPaying(r.state))
+      return {
+        type,
+        total: ofType.length,
+        paying: payingOfType.length,
+        mrr: payingOfType.reduce((s, r) => s + (r.tenant.activeSubscription?.planPrice ?? 0), 0),
+      }
+    })
+    .filter((x) => x.total > 0)
+    .sort((a, b) => b.mrr - a.mrr || b.total - a.total)
 
-  if (isLoading) {
+  const recent = [...tenants].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
+
+  const action = (tenant: TenantWithSubscriptionResponse, state: TenantState) => {
+    if (state === 'suspended') {
+      return (
+        <Link to="/admin/tenants/$id" params={{ id: tenant.id }} className="text-xs font-medium text-brand-ink hover:underline">
+          {ui.view}
+        </Link>
+      )
+    }
+    if (state === 'noPlan') {
+      return <Button size="sm" variant="secondary" onClick={() => setSubscribeTarget(tenant)}>{ui.subscribe}</Button>
+    }
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-info border-t-transparent" />
-      </div>
+      <Button size="sm" variant="secondary" onClick={() => setRenewTarget(tenant)}>
+        <Repeat className="h-3.5 w-3.5" />
+        {ui.renew}
+      </Button>
     )
   }
 
   return (
-    <div className="space-y-8 p-8" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">{t.admin.dashboard.title}</h1>
-        <p className="mt-1 text-muted">نظرة شاملة على الإيرادات والمستأجرين</p>
-      </div>
+    <div>
+      <PageHeader
+        icon={<LayoutDashboard className="h-5 w-5" />}
+        title={t.admin.dashboard.title}
+        description={ui.dashboardHint}
+        action={
+          <Button onClick={() => setShowCreate(true)}>
+            <UserPlus className="h-4 w-4" />
+            {ui.addTenant}
+          </Button>
+        }
+      />
 
-      {/* Revenue KPIs */}
-      <div>
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted">
-          <TrendingUp className="h-4 w-4" />
-          {t.admin.dashboard.revenue}
-        </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-success/60 bg-success/15 p-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-success">MRR — {t.admin.dashboard.mrr}</p>
-            <p className="mt-3 text-4xl font-black tabular-nums text-fg">
-              {stats.mrr.toLocaleString(locale)}
-              <span className="mr-1 text-lg font-medium text-muted">ر.س</span>
-            </p>
-            <p className="mt-1 text-xs text-muted">من {stats.active} {t.admin.dashboard.activeTenants}</p>
-          </div>
-          <div className="rounded-2xl border border-info/60 bg-info/15 p-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-info">ARR — {t.admin.dashboard.arr}</p>
-            <p className="mt-3 text-4xl font-black tabular-nums text-fg">
-              {stats.arr.toLocaleString(locale)}
-              <span className="mr-1 text-lg font-medium text-muted">ر.س</span>
-            </p>
-            <p className="mt-1 text-xs text-muted">تقدير سنوي بناءً على MRR × 12</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Tenant KPIs */}
-      <div>
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted">
-          <Building2 className="h-4 w-4" />
-          {t.admin.dashboard.tenants}
-        </h2>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="space-y-6 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            label="إجمالي المستأجرين"
-            value={stats.total}
-            icon={<Building2 className="h-5 w-5 text-muted" />}
-            color="slate"
+            label={`MRR · ${t.admin.dashboard.mrr}`}
+            value={isLoading ? '—' : formatCurrency(mrr)}
+            hint={fill(ui.mrrHint, { n: paying.length })}
+            icon={<Wallet />}
           />
           <StatCard
-            label={t.admin.dashboard.activeTenants}
-            value={stats.active}
-            icon={<CheckCircle className="h-5 w-5 text-success" />}
-            color="emerald"
+            label={`ARR · ${t.admin.dashboard.arr}`}
+            value={isLoading ? '—' : formatCurrency(mrr * 12)}
+            hint={ui.arrHint}
+            icon={<CalendarClock />}
+            tone="info"
           />
           <StatCard
-            label="تبدأ لاحقاً"
-            value={stats.trial}
-            icon={<BarChart3 className="h-5 w-5 text-warning" />}
-            color="amber"
+            label={ui.payingTenants}
+            value={isLoading ? '—' : fmtNum(paying.length)}
+            hint={fill(ui.payingHint, { n: paying.length, total: tenants.length })}
+            icon={<Building2 />}
+            tone="success"
           />
           <StatCard
-            label="معلّق / منتهي"
-            value={stats.suspended + stats.expired}
-            icon={<PauseCircle className="h-5 w-5 text-danger" />}
-            color="rose"
+            label={ui.needsAttention}
+            value={isLoading ? '—' : fmtNum(attention.length)}
+            hint={ui.needsAttentionHint}
+            icon={<AlertTriangle />}
+            tone={attention.length > 0 ? 'warning' : 'neutral'}
           />
         </div>
-      </div>
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Business type breakdown */}
-        <div className="rounded-2xl border border-border bg-surface p-6">
-          <h2 className="mb-5 text-base font-semibold text-fg">توزيع أنواع الأعمال</h2>
-          {Object.keys(stats.byType).length === 0 ? (
-            <p className="text-sm text-muted">{t.common.noData}</p>
-          ) : (
-            <div className="space-y-3">
-              {(Object.entries(stats.byType) as [BusinessType, number][])
-                .sort((a, b) => b[1] - a[1])
-                .map(([type, count]) => {
-                  const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0
-                  return (
-                    <div key={type}>
-                      <div className="mb-1 flex items-center justify-between text-sm">
-                        <span className="font-medium text-muted">{BIZ_LABEL[type]}</span>
-                        <span className="tabular-nums text-muted">
-                          {count} ({pct}%)
-                        </span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className={`h-full rounded-full ${BIZ_COLOR[type]}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
+        <Card>
+          <CardHeader>
+            <h2 className="text-base font-semibold text-fg">{ui.tenantStatus}</h2>
+            <span className="text-sm text-muted tabular-nums">{fill(ui.tenantsCount, { n: tenants.length })}</span>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            <div className="flex h-3 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={ui.tenantStatus}>
+              {tenants.length > 0 &&
+                STATE_ORDER.slice().reverse().map((s) =>
+                  counts[s] > 0 ? (
+                    <div key={s} className={STATE_FILL[s]} style={{ width: `${(counts[s] / tenants.length) * 100}%` }} />
+                  ) : null,
+                )}
             </div>
-          )}
-        </div>
+            <ul className="flex flex-wrap gap-x-8 gap-y-2">
+              {STATE_ORDER.slice().reverse().map((s) => (
+                <li key={s} className={`flex items-center gap-2 text-sm ${counts[s] ? '' : 'opacity-50'}`}>
+                  <span className={`h-2.5 w-2.5 rounded-sm ${STATE_FILL[s]}`} aria-hidden="true" />
+                  <span className="text-muted">{ui.states[s]}</span>
+                  <span className="font-semibold tabular-nums text-fg">{fmtNum(counts[s] ?? 0)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
 
-        {/* Expiring soon */}
-        <div className="rounded-2xl border border-border bg-surface p-6">
-          <h2 className="mb-5 text-base font-semibold text-fg">اشتراكات تنتهي قريباً</h2>
-          {expiringTenants.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-8 text-muted">
-              <CheckCircle className="h-8 w-8 text-success" />
-              <p className="text-sm">لا توجد اشتراكات تنتهي خلال 7 أيام</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {expiringTenants.map((ten) => (
-                <div
-                  key={ten.id}
-                  className="flex items-center justify-between rounded-xl bg-surface-2 px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-fg">{ten.name}</p>
-                    <p className="text-xs text-muted">{ten.adminEmail}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        (ten.activeSubscription?.daysRemaining ?? 0) <= 3
-                          ? 'bg-danger/15 text-danger'
-                          : 'bg-warning/15 text-warning'
-                      }`}
-                    >
-                      {ten.activeSubscription?.daysRemaining} يوم
-                    </span>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+          <Card className="xl:col-span-3">
+            <CardHeader>
+              <div>
+                <h2 className="text-base font-semibold text-fg">{ui.needsAttention}</h2>
+                <p className="mt-0.5 text-xs text-muted">{ui.needsAttentionHint}</p>
+              </div>
+              {attention.length > 0 && (
+                <Link to="/admin/tenants" className="inline-flex items-center gap-1 text-sm font-medium text-brand-ink hover:underline">
+                  {ui.viewAll}
+                  <ArrowLeft className="h-4 w-4 ltr:rotate-180" />
+                </Link>
+              )}
+            </CardHeader>
+            {attention.length === 0 ? (
+              <EmptyState icon={<CheckCircle2 />} title={ui.allGood} description={ui.allGoodHint} />
+            ) : (
+              <ul className="divide-y divide-border">
+                {attention.slice(0, 8).map(({ tenant, state }) => (
+                  <li key={tenant.id} className="flex flex-wrap items-center gap-3 px-6 py-3">
                     <button
-                      onClick={() => setRenewTarget(ten)}
-                      className="flex items-center gap-1 rounded-lg border border-brand px-2.5 py-1 text-xs font-semibold text-brand-ink hover:bg-brand/15 transition-colors"
+                      type="button"
+                      onClick={() => navigate({ to: '/admin/tenants/$id', params: { id: tenant.id } })}
+                      className="min-w-0 flex-1 text-start"
                     >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      تجديد
+                      <p className="truncate text-sm font-medium text-fg hover:underline">{tenant.name}</p>
+                      <p className="truncate text-xs text-muted">
+                        {stateDetail(tenant, state, t)}
+                        {tenant.activeSubscription && ` · ${tenant.activeSubscription.planName}`}
+                      </p>
                     </button>
+                    <StateBadge state={state} t={t} />
+                    {action(tenant, state)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          <Card className="xl:col-span-2">
+            <CardHeader>
+              <h2 className="text-base font-semibold text-fg">{ui.byType}</h2>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              {byType.length === 0 && <p className="text-sm text-muted">{t.common.noData}</p>}
+              {byType.map((x) => (
+                <div key={x.type} className="space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="font-medium text-fg">{businessLabel(x.type as BusinessType, t)}</span>
+                    <span className="tabular-nums text-fg">
+                      {formatCurrency(x.mrr)}
+                      <span className="text-xs text-muted">{ui.perMonth}</span>
+                    </span>
                   </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full bg-brand" style={{ width: `${(x.total / Math.max(1, tenants.length)) * 100}%` }} />
+                  </div>
+                  <p className="text-xs text-muted tabular-nums">
+                    {fill(ui.tenantsCount, { n: x.total })} · {fill(ui.payingCount, { n: x.paying })}
+                  </p>
                 </div>
               ))}
-            </div>
-          )}
+            </CardBody>
+          </Card>
         </div>
-      </div>
 
-      {/* No-sub tenants */}
-      {stats.expired > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-danger/60 bg-danger/15 px-4 py-3">
-          <XCircle className="h-4 w-4 flex-shrink-0 text-danger" />
-          <p className="text-sm text-danger">
-            {stats.expired} مستأجر بدون اشتراك نشط — يحتاج متابعة
-          </p>
-          <TrendingDown className="mr-auto h-4 w-4 flex-shrink-0 text-danger" />
-        </div>
-      )}
+        <Card>
+          <CardHeader>
+            <h2 className="text-base font-semibold text-fg">{ui.recent}</h2>
+            <Link to="/admin/tenants" className="inline-flex items-center gap-1 text-sm font-medium text-brand-ink hover:underline">
+              {ui.allTenants}
+              <ArrowLeft className="h-4 w-4 ltr:rotate-180" />
+            </Link>
+          </CardHeader>
+          <ul className="divide-y divide-border">
+            {recent.map((tenant) => {
+              const state = tenantState(tenant)
+              return (
+                <li key={tenant.id}>
+                  <Link
+                    to="/admin/tenants/$id"
+                    params={{ id: tenant.id }}
+                    className="flex flex-wrap items-center gap-3 px-6 py-3 transition-colors hover:bg-surface-2/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-fg">{tenant.name}</p>
+                      <p className="truncate text-xs text-muted">{fill(ui.joined, { date: fmtDate(tenant.createdAt) })}</p>
+                    </div>
+                    <BusinessChip type={tenant.businessType} t={t} />
+                    <StateBadge state={state} t={t} />
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </Card>
+      </div>
 
       {renewTarget && renewSub && (
         <RenewSubscriptionModal
@@ -251,33 +271,16 @@ export function AdminDashboard() {
           onClose={() => setRenewTarget(null)}
         />
       )}
-    </div>
-  )
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string
-  value: number | string
-  icon: React.ReactNode
-  color: 'slate' | 'emerald' | 'rose' | 'amber'
-}) {
-  const styles = {
-    slate:   'bg-surface-2/60 border-border/40',
-    emerald: 'bg-success/15 border-success/60',
-    rose:    'bg-danger/15 border-danger/60',
-    amber:   'bg-warning/15 border-warning/60',
-  }[color]
-
-  return (
-    <div className={`rounded-xl border p-5 ${styles}`}>
-      <div className="mb-3">{icon}</div>
-      <p className="text-2xl font-bold tabular-nums text-fg">{value}</p>
-      <p className="mt-1 text-xs text-muted">{label}</p>
+      {subscribeTarget && (
+        <NewSubscriptionModal
+          tenantId={subscribeTarget.id}
+          tenantName={subscribeTarget.name}
+          tenantBusinessType={subscribeTarget.businessType}
+          currentSubscription={subscribeTarget.activeSubscription}
+          onClose={() => setSubscribeTarget(null)}
+        />
+      )}
+      {showCreate && <CreateTenantModal onClose={() => setShowCreate(false)} />}
     </div>
   )
 }
