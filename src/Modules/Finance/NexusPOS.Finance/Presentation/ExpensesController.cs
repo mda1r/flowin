@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Finance.Application.Commands.ApproveExpense;
 using NexusPOS.Finance.Application.Commands.CreateExpense;
+using NexusPOS.Finance.Application.Commands.UpdateExpense;
 using NexusPOS.Finance.Application.Commands.VoidExpense;
 using NexusPOS.Finance.Application.Common;
 using NexusPOS.Finance.Application.Queries.GetExpense;
@@ -20,8 +21,11 @@ namespace NexusPOS.Finance.Presentation;
 [Route("api/v1/branches/{branchId:guid}/expenses")]
 [Produces("application/json")]
 [Authorize]
-public sealed class ExpensesController(ISender mediator) : ControllerBase
+public sealed class ExpensesController(ISender mediator, IAuthorizationService authorization) : ControllerBase
 {
+    // Who may approve, void and edit expenses. Approve-on-create uses the same rule, so it grants nothing new.
+    internal const string ApproverPolicy = "OwnerManagerOrAccountant";
+
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ExpenseResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListExpenses(
@@ -72,17 +76,41 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
         [FromBody] CreateExpenseRequest request,
         CancellationToken cancellationToken)
     {
+        // A cashier's "approve now" is ignored: the expense still waits for a manager.
+        bool approveNow = request.ApproveNow
+            && (await authorization.AuthorizeAsync(User, ApproverPolicy)).Succeeded;
+
         CreateExpenseCommand command = new(
             branchId, request.Category, request.Amount,
-            request.Currency, request.Description, request.ExpenseDate, request.Notes);
+            request.Description, request.ExpenseDate, request.Notes, approveNow);
         ErrorOr<ExpenseResponse> result = await mediator.Send(command, cancellationToken);
         return result.Match(
             expense => CreatedAtAction(nameof(GetExpense), new { branchId, expenseId = expense.Id }, expense),
             MapErrorsToResult);
     }
 
+    /// <summary>Corrects an expense that is still pending; approved or voided ones are refused with 409.</summary>
+    [HttpPut("{expenseId:guid}")]
+    [Authorize(Policy = ApproverPolicy)]
+    [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateExpense(
+        Guid branchId,
+        Guid expenseId,
+        [FromBody] UpdateExpenseRequest request,
+        CancellationToken cancellationToken)
+    {
+        UpdateExpenseCommand command = new(
+            expenseId, branchId, request.Category, request.Amount,
+            request.Description, request.ExpenseDate, request.Notes);
+        ErrorOr<ExpenseResponse> result = await mediator.Send(command, cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
     [HttpPost("{expenseId:guid}/approve")]
-    [Authorize(Policy = "OwnerManagerOrAccountant")]
+    [Authorize(Policy = ApproverPolicy)]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -97,7 +125,7 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
     }
 
     [HttpPost("{expenseId:guid}/void")]
-    [Authorize(Policy = "OwnerManagerOrAccountant")]
+    [Authorize(Policy = ApproverPolicy)]
     [ProducesResponseType(typeof(ExpenseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -115,10 +143,18 @@ public sealed class ExpensesController(ISender mediator) : ControllerBase
     private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
 
+// No currency field: expenses are always in the shop's currency.
 public sealed record CreateExpenseRequest(
     ExpenseCategory Category,
     decimal Amount,
-    string Currency,
+    string Description,
+    DateOnly ExpenseDate,
+    string? Notes = null,
+    bool ApproveNow = false);
+
+public sealed record UpdateExpenseRequest(
+    ExpenseCategory Category,
+    decimal Amount,
     string Description,
     DateOnly ExpenseDate,
     string? Notes = null);
