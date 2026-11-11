@@ -1,4 +1,5 @@
 using MediatR;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.POS.Domain.Events;
 using NexusPOS.Zatca.Application.Services;
 using NexusPOS.Zatca.Domain.Entities;
@@ -10,7 +11,8 @@ namespace NexusPOS.Zatca.Application.EventHandlers;
 internal sealed class OrderCompletedZatcaHandler(
     IZatcaSettingsRepository settingsRepository,
     IZatcaInvoiceRepository invoiceRepository,
-    ZatcaDbContext dbContext)
+    ZatcaDbContext dbContext,
+    ITenantVatPolicy vatPolicy)
     : INotificationHandler<OrderCompletedDomainEvent>
 {
     public async Task Handle(OrderCompletedDomainEvent notification, CancellationToken cancellationToken)
@@ -18,6 +20,12 @@ internal sealed class OrderCompletedZatcaHandler(
         ZatcaSettings? settings = await settingsRepository.FindByTenantAsync(notification.TenantId, cancellationToken);
 
         if (settings is null || string.IsNullOrWhiteSpace(settings.VatRegistrationNumber))
+        {
+            return;
+        }
+
+        // A shop that is not VAT-registered issues plain receipts: no tax invoice, no QR.
+        if (!await vatPolicy.IsVatEnabledAsync(notification.TenantId, cancellationToken))
         {
             return;
         }

@@ -15,6 +15,7 @@ using NexusPOS.IAM.Application.Commands.UpdateProfile;
 using NexusPOS.IAM.Application.Common;
 using NexusPOS.IAM.Application.Queries.GetAllowedPages;
 using NexusPOS.IAM.Presentation.Requests;
+using NexusPOS.SharedKernel.Application.Services;
 using NexusPOS.SharedKernel.Presentation;
 
 namespace NexusPOS.IAM.Presentation;
@@ -22,7 +23,7 @@ namespace NexusPOS.IAM.Presentation;
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
-public sealed class AuthController(ISender mediator) : ControllerBase
+public sealed class AuthController(ISender mediator, ITenantVatPolicy vatPolicy) : ControllerBase
 {
     /// <summary>Register a new user account.</summary>
     [HttpPost("register")]
@@ -110,7 +111,10 @@ public sealed class AuthController(ISender mediator) : ControllerBase
             allowedPages = pages.IsError ? null : pages.Value;
         }
 
-        return Ok(new CurrentUserResponse(id, email, firstName ?? string.Empty, lastName ?? string.Empty, role ?? "Staff", tenantId, branchId, businessType, allowedPages));
+        bool vatEnabled = !Guid.TryParse(tenantId, out Guid shop) || await vatPolicy.IsVatEnabledAsync(shop, cancellationToken);
+
+        return Ok(new CurrentUserResponse(
+            id, email, firstName ?? string.Empty, lastName ?? string.Empty, role ?? "Staff", tenantId, branchId, businessType, allowedPages, vatEnabled));
     }
 
     /// <summary>Revoke this session (or every session of its user). The refresh token in the body is the

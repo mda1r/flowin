@@ -21,7 +21,8 @@ internal sealed class CheckoutOrderCommandHandler(
     IRecipeCostDirectory recipeCosts,
     IModifierOptionDirectory modifierOptions,
     IDiscountCodeDirectory discountCodes,
-    IPublisher publisher)
+    IPublisher publisher,
+    ITenantVatPolicy vatPolicy)
     : ICommandHandler<CheckoutOrderCommand, OrderResponse>
 {
     public async Task<ErrorOr<OrderResponse>> Handle(CheckoutOrderCommand request, CancellationToken cancellationToken)
@@ -44,6 +45,19 @@ internal sealed class CheckoutOrderCommandHandler(
         DateTime now = DateTime.UtcNow;
         bool offline = OfflineSale.IsOffline(request.OfflineCreatedAt, now);
         List<string> review = [];
+
+        // VAT is the shop's setting, not the till's: a shop that is not VAT-registered sells with none. An online
+        // sale priced under the other setting is sent back to be redone; an offline one keeps what the customer paid.
+        decimal vatRate = Vat.RateFor(await vatPolicy.IsVatEnabledAsync(request.TenantId, cancellationToken));
+        if (request.TaxRate != vatRate)
+        {
+            if (!offline)
+            {
+                return PosErrors.TaxSettingChanged;
+            }
+
+            review.Add($"بيع دون اتصال بضريبة {request.TaxRate:P0} بينما إعداد المتجر الآن {vatRate:P0}");
+        }
 
         // A sale that synced after its shift closed is dated into the shift open now, so its cash is still counted.
         DateTime? shiftBoundary = request.OfflineCreatedAt is null

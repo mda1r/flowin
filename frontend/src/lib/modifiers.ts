@@ -1,5 +1,5 @@
 import type { ProductModifierGroupResponse } from '@/types/api'
-import { SAUDI_VAT_RATE } from '@/lib/zatca'
+import { vatRate } from '@/lib/vat'
 
 // A drink's add-ons on the till ("شوفان", "شوت إضافي"). The catalogue keeps each option's price net of VAT;
 // the till shows and adds it with VAT, like the size price. The server prices the same options again at checkout.
@@ -12,7 +12,7 @@ export interface CartModifier {
 }
 
 /** An add-on price as the till shows it: the catalogue's net price with VAT, to a halala. */
-export const grossDelta = (net: number) => Math.round(net * (1 + SAUDI_VAT_RATE) * 100) / 100
+export const grossDelta = (net: number) => Math.round(net * (1 + vatRate()) * 100) / 100
 
 /** The same add-ons in any order are the same drink, so lines compare by the sorted option ids. */
 export const modifierKey = (modifiers: readonly { optionId: string }[] | undefined) =>

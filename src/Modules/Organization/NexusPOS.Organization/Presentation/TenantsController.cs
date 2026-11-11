@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Organization.Application.Commands.CreateTenant;
+using NexusPOS.Organization.Application.Commands.SetTenantVat;
 using NexusPOS.Organization.Application.Commands.UpdateTenantProfile;
 using NexusPOS.Organization.Application.Common;
 using NexusPOS.Organization.Application.Queries.GetTenantById;
@@ -81,5 +82,19 @@ public sealed class TenantsController(ISender mediator) : ControllerBase
         return result.Match(Ok, MapErrorsToResult);
     }
 
+    /// <summary>Switch VAT on or off for the shop. Off: sales, invoices and reports carry no VAT at all.
+    /// The {tenantId} route value is checked against the caller's tenant claim.</summary>
+    [HttpPut("{tenantId:guid}/vat")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(TenantVatResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetVat(Guid tenantId, [FromBody] SetTenantVatRequest request, CancellationToken cancellationToken)
+    {
+        ErrorOr<TenantVatResponse> result = await mediator.Send(new SetTenantVatCommand(tenantId, request.Enabled), cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
     private IActionResult MapErrorsToResult(List<Error> errors) => this.ToProblem(errors);
 }
+
+public sealed record SetTenantVatRequest(bool Enabled);

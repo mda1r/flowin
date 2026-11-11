@@ -11,6 +11,11 @@ internal sealed class RestaurantOrderConfiguration : IEntityTypeConfiguration<Re
     {
         builder.ToTable("restaurant_orders");
 
+        builder.Property(o => o.TaxRate)
+            .HasColumnName("tax_rate")
+            .HasPrecision(5, 4)
+            .HasDefaultValue(RestaurantOrder.VatRate);
+
         builder.HasKey(o => o.Id);
         builder.Property(o => o.Id)
             .HasColumnName("id")

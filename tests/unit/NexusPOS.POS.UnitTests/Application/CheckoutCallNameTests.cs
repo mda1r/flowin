@@ -83,7 +83,7 @@ public sealed class CheckoutCallNameTests
         recipes.Setup(r => r.GetCostsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal>());
         CheckoutOrderCommandHandler handler = new(
-            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), CheckoutDirectories.NoCodes(), publisher.Object);
+            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), CheckoutDirectories.NoCodes(), publisher.Object, CheckoutDirectories.VatOn());
 
         Guid tenantId = Guid.NewGuid();
         ErrorOr<OrderResponse> result = await handler.Handle(Sale(tenantId, new(null, true, typed)), CancellationToken.None);

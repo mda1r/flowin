@@ -47,6 +47,9 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
 
     public const decimal VatRate = 0.15m;
 
+    /// <summary>The VAT rate the order is priced with: 0.15, or 0 for a shop that is not VAT-registered.</summary>
+    public decimal TaxRate { get; private set; } = VatRate;
+
     // Table number kept by takeaway orders, as at the restaurant till; 0 on a kitchen ticket means no table.
     public const int TakeawayTable = 99;
 
@@ -60,7 +63,8 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         string? notes,
         string? discountCode,
         decimal discountAmount,
-        Guid? id = null)
+        Guid? id = null,
+        decimal taxRate = VatRate)
     {
         var items = itemsData.ToList();
         if (items.Count == 0)
@@ -75,6 +79,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
 
         RestaurantOrder order = new RestaurantOrder
         {
+            TaxRate = taxRate,
             Id = new RestaurantOrderId(id ?? Guid.NewGuid()),
             TenantId = tenantId,
             BranchId = branchId,
@@ -153,7 +158,7 @@ public sealed class RestaurantOrder : AggregateRoot<RestaurantOrderId>
         SubTotal = Math.Round(Items.Sum(i => i.UnitPrice * i.Quantity), 4);
         DiscountAmount = Math.Min(DiscountAmount, SubTotal);
         Total = Math.Round(SubTotal - DiscountAmount, 4);
-        TaxAmount = Math.Round(Total * VatRate / (1 + VatRate), 4);
+        TaxAmount = Math.Round(Total * TaxRate / (1 + TaxRate), 4);
     }
 
     // A further round for a table that already has an open order. Once the order has reached the kitchen,

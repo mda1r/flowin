@@ -18,11 +18,10 @@ internal sealed class PaySessionCommandHandler(
     IGameStationRepository stations,
     GamingDbContext db,
     IPublisher publisher,
-    IExternalSaleInvoices invoices)
+    IExternalSaleInvoices invoices,
+    ITenantVatPolicy vatPolicy)
     : ICommandHandler<PaySessionCommand, GameSessionBillResponse>
 {
-    // Session prices include VAT, like the cafe menu they are sold alongside.
-    private const decimal VatRate = 0.15m;
 
     public async Task<ErrorOr<GameSessionBillResponse>> Handle(PaySessionCommand request, CancellationToken cancellationToken)
     {
@@ -48,6 +47,8 @@ internal sealed class PaySessionCommandHandler(
         // Record the sale first; only then mark the session paid, so a failure here can simply be retried.
         if (session.TotalAmount > 0)
         {
+            // Session prices include VAT, like the cafe menu they are sold alongside; none for a shop without VAT.
+            decimal vatRate = Vat.RateFor(await vatPolicy.IsVatEnabledAsync(session.TenantId, cancellationToken));
             await publisher.Publish(new ExternalSaleCompletedDomainEvent(
                 session.TenantId,
                 session.BranchId,
@@ -56,10 +57,10 @@ internal sealed class PaySessionCommandHandler(
                 [new ExternalSaleCompletedDomainEvent.Line(
                     session.Id,
                     $"جلسة لعب - {station?.Name ?? "محطة"} ({minutes} د)",
-                    Math.Round(session.TotalAmount / (1 + VatRate), 4),
+                    Math.Round(session.TotalAmount / (1 + vatRate), 4),
                     1m)],
                 0m,
-                VatRate,
+                vatRate,
                 request.PaymentMethod,
                 session.TotalAmount), cancellationToken);
         }

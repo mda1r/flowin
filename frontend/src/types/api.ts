@@ -40,6 +40,8 @@ export interface UserProfile {
   businessType?: BusinessType
   // The pages this user may open; null/absent means every page their role allows.
   allowedPages?: string[] | null
+  // False for a shop that is not VAT-registered: no VAT anywhere until the owner switches it back on.
+  vatEnabled?: boolean
 }
 
 // ── Tenant / Organization ────────────────────────────────────────────────────

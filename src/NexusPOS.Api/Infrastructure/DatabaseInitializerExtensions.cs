@@ -219,6 +219,8 @@ internal static class DatabaseInitializerExtensions
             (orgDb2,        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS business_type INTEGER NOT NULL DEFAULT 0"),
             (orgDb2,        $"UPDATE tenants SET business_type = 1 WHERE id = '10000000-0000-0000-0000-000000000001' AND business_type = 0"),
             (orgDb2,        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspension_reason VARCHAR(512)"),
+            // Shops that are not VAT-registered switch this off; every existing shop keeps charging VAT.
+            (orgDb2,        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS vat_enabled BOOLEAN NOT NULL DEFAULT TRUE"),
             (iamDb2,        "ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID"),
             (iamDb2,        "ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_pages TEXT[]"),
             (iamDb2,        $"UPDATE users SET tenant_id = '10000000-0000-0000-0000-000000000001' WHERE email = 'admin@nexuspos.com' AND tenant_id IS NULL"),
@@ -300,6 +302,8 @@ internal static class DatabaseInitializerExtensions
         RestaurantDbContext restaurantDb = sp.GetRequiredService<RestaurantDbContext>();
         string[] patches =
         [
+            // The VAT rate each order was opened with (0 for a shop that is not VAT-registered).
+            "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,4) NOT NULL DEFAULT 0.15",
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS kitchen_only BOOLEAN NOT NULL DEFAULT FALSE",
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS source_order_id UUID",
             "ALTER TABLE restaurant_orders ADD COLUMN IF NOT EXISTS ticket_number BIGINT",

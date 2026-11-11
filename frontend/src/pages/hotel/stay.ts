@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios'
 import { apiErrorMessage } from '@/lib/apiError'
-import { SAUDI_VAT_RATE } from '@/lib/zatca'
+import { vatRate } from '@/lib/vat'
 import type { ReservationResponse } from '@/types/api'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -11,7 +11,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
  */
 export function stayTotals(netAmount: number) {
   const subtotal = round2(netAmount)
-  const vat = round2(subtotal * SAUDI_VAT_RATE)
+  const vat = round2(subtotal * vatRate())
   return { subtotal, vat, total: round2(subtotal + vat) }
 }
 

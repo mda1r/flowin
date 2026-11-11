@@ -61,7 +61,7 @@ public sealed class CheckoutDiscountCodeTests
         Mock<IPublisher> publisher = new();
         CheckoutOrderCommandHandler handler = new(
             db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(),
-            directory.Object, publisher.Object);
+            directory.Object, publisher.Object, CheckoutDirectories.VatOn());
         return (handler, directory, publisher);
     }
 

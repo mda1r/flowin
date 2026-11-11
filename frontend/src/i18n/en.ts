@@ -1216,6 +1216,20 @@ export const en = {
   },
 
   zatca: {
+    vat: {
+      title: 'Value added tax (VAT)',
+      onHint: 'On: prices include 15% VAT and the invoice is a tax invoice with a ZATCA QR. Switch it off if your shop is not VAT-registered.',
+      offHint: 'Off: you sell at the listed price with no tax, the invoice is a plain receipt with no VAT number or ZATCA QR, and nothing about VAT shows in the app.',
+      turnOn: 'Turn VAT on',
+      turnOff: 'Turn VAT off',
+      confirmOffTitle: 'Turn VAT off?',
+      confirmOff: 'From now on products sell at their listed price with no VAT, receipts carry no VAT number or ZATCA QR, and VAT disappears from reports and screens. Only do this if your shop is not VAT-registered.',
+      confirmOnTitle: 'Turn VAT on?',
+      confirmOn: 'From now on prices include 15% VAT and tax invoices are issued. Make sure your legal name and VAT number are set in the ZATCA settings.',
+      turnedOn: 'VAT turned on',
+      turnedOff: 'VAT turned off',
+      failed: 'Could not change the VAT setting',
+    },
     title: 'ZATCA Settings',
     description: 'Configure ZATCA e-invoicing compliance',
     phase: 'Phase',

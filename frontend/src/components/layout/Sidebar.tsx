@@ -142,9 +142,12 @@ function getNavItems(user: UserProfile | null): NavItem[] {
 
   const roleFiltered = baseItems.filter((item) => !item.roles || (role && item.roles.includes(role)))
 
+  // A shop without VAT has no tax pages at all.
+  const vatFiltered = user?.vatEnabled === false ? roleFiltered.filter((item) => item.to !== '/taxes') : roleFiltered
+
   // The pages the owner gave this user (saved on the server, so it holds on every device).
   const limit = pageLimit(user)
-  return limit ? roleFiltered.filter((item) => canOpenPath(item.to, limit)) : roleFiltered
+  return limit ? vatFiltered.filter((item) => canOpenPath(item.to, limit)) : vatFiltered
 }
 
 interface SidebarProps {

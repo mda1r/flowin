@@ -41,7 +41,7 @@ public sealed class CheckoutPaymentReviewTests
         recipes.Setup(r => r.GetCostsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, decimal>());
         return new CheckoutOrderCommandHandler(
-            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), CheckoutDirectories.NoCodes(), new Mock<IPublisher>().Object);
+            db, loyalty.Object, numbers.Object, prices.Object, recipes.Object, CheckoutDirectories.NoModifiers(), CheckoutDirectories.NoCodes(), new Mock<IPublisher>().Object, CheckoutDirectories.VatOn());
     }
 
     // A latte at 20 before VAT: total 23. The manager role skips the catalog price lookup.

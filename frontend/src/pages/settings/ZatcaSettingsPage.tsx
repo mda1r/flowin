@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Shield, Save, CheckCircle, AlertCircle, FileText } from 'lucide-react'
+import { Shield, Save, CheckCircle, AlertCircle, FileText, Percent } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -9,6 +9,10 @@ import { toast } from '@/components/ui/Toast'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/authStore'
 import { apiErrorMessage } from '@/lib/apiError'
+import { apiClient } from '@/api/client'
+import { ConfirmModal } from '@/components/ui/Modal'
+import { useVat } from '@/lib/vat'
+import { cn } from '@/lib/utils'
 
 // ZATCA VAT registration numbers: 15 digits that start and end with 3.
 const VAT_PATTERN = /^3\d{13}3$/
@@ -19,6 +23,7 @@ export function ZatcaSettingsPage() {
   const role = useAuthStore((s) => s.user?.role)
   // The legal name and VAT number print on every invoice and in its QR code, so only the owner or a manager edits them.
   const canManage = role === 'Owner' || role === 'Manager'
+  const { enabled: vatOn } = useVat()
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['zatca-settings'],
@@ -65,6 +70,9 @@ export function ZatcaSettingsPage() {
         description={t.zatca.description}
       />
 
+      <VatSwitch canManage={canManage} />
+
+      {vatOn && (<>
       {/* Status banner */}
       <div className={`flex items-center gap-3 rounded-xl border p-4 ${
         isConfigured
@@ -192,6 +200,71 @@ export function ZatcaSettingsPage() {
           active={isConfigured && settings?.isPhase2Enabled}
         />
       </div>
+      </>)}
+    </div>
+  )
+}
+
+// Charge VAT or not. A shop that is not VAT-registered switches it off: sales, invoices, reports and every screen
+// then leave VAT out entirely (the server enforces it on every sale) until it is switched back on.
+function VatSwitch({ canManage }: { canManage: boolean }) {
+  const { t } = useI18n()
+  const v = t.zatca.vat
+  const qc = useQueryClient()
+  const { enabled } = useVat()
+  const tenantId = useAuthStore((s) => s.tenantId)
+  const [confirming, setConfirming] = useState<boolean | null>(null)
+
+  const save = useMutation({
+    mutationFn: (next: boolean) =>
+      apiClient.put<{ vatEnabled: boolean }>(`/api/v1/tenants/${tenantId}/vat`, { enabled: next }).then((r) => r.data.vatEnabled),
+    onSuccess: (next) => {
+      const { user, setUser } = useAuthStore.getState()
+      if (user) setUser({ ...user, vatEnabled: next })
+      // Every figure on every screen depends on it.
+      qc.invalidateQueries()
+      setConfirming(null)
+      toast.success(next ? v.turnedOn : v.turnedOff)
+    },
+    onError: (err) => {
+      setConfirming(null)
+      toast.error(apiErrorMessage(err, v.failed))
+    },
+  })
+
+  return (
+    <div className={cn('flex flex-wrap items-start gap-4 rounded-xl border p-5', enabled ? 'border-border bg-surface' : 'border-warning/40 bg-warning/10')}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-ink">
+        <Percent className="h-5 w-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-base font-semibold text-fg">{v.title}</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted">{enabled ? v.onHint : v.offHint}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label={v.title}
+        disabled={!canManage || save.isPending}
+        onClick={() => setConfirming(!enabled)}
+        className={cn(
+          'relative h-7 w-12 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50',
+          enabled ? 'bg-brand' : 'bg-border',
+        )}
+      >
+        <span className={cn('absolute top-1 h-5 w-5 rounded-full bg-surface shadow transition-all', enabled ? 'start-6' : 'start-1')} />
+      </button>
+      <ConfirmModal
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => confirming !== null && save.mutate(confirming)}
+        title={confirming ? v.confirmOnTitle : v.confirmOffTitle}
+        message={confirming ? v.confirmOn : v.confirmOff}
+        confirmLabel={confirming ? v.turnOn : v.turnOff}
+        confirmVariant={confirming ? 'primary' : 'danger'}
+        loading={save.isPending}
+      />
     </div>
   )
 }

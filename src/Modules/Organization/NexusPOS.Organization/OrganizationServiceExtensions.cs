@@ -25,6 +25,7 @@ public static class OrganizationServiceExtensions
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<ITenantContextResolver, TenantContextResolver>();
+        services.AddScoped<ITenantVatPolicy, TenantVatPolicy>();
 
         return services;
     }

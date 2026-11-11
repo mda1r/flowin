@@ -48,6 +48,9 @@ public static class PosErrors
     public static readonly Error DuplicateVariant =
         Error.Conflict("POS.DuplicateVariant", "هذا الصنف مضاف للطلب مسبقاً");
 
+    public static readonly Error TaxSettingChanged =
+        Error.Conflict("POS.TaxSettingChanged", "تغيّر إعداد الضريبة للمتجر، حدّث الصفحة ثم أعد البيع.");
+
     public static readonly Error ClientReferenceInUse =
         Error.Conflict("POS.ClientReferenceInUse", "رقم العملية مسجّل لفرع آخر.");
 

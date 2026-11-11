@@ -6,6 +6,16 @@ namespace NexusPOS.POS.UnitTests.Application;
 // Catalogue stand-ins shared by the checkout handler tests.
 internal static class CheckoutDirectories
 {
+    // A VAT-registered shop, like every shop until its owner switches VAT off.
+    public static ITenantVatPolicy VatOn() => VatPolicy(true);
+
+    public static ITenantVatPolicy VatPolicy(bool enabled)
+    {
+        Mock<ITenantVatPolicy> policy = new();
+        policy.Setup(p => p.IsVatEnabledAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(enabled);
+        return policy.Object;
+    }
+
     // A catalogue without add-ons.
     public static IModifierOptionDirectory NoModifiers()
     {

@@ -1,7 +1,7 @@
-import { SAUDI_VAT_RATE } from '@/lib/zatca'
+import { vatRate } from '@/lib/vat'
 
 // Shelf and menu prices include VAT; the business keeps only the net amount.
-export const netOfVat = (grossPrice: number) => grossPrice / (1 + SAUDI_VAT_RATE)
+export const netOfVat = (grossPrice: number) => grossPrice / (1 + vatRate())
 
 // Profit margin as a percentage of the net (pre-VAT) price; null when there is no price to compare against.
 export function marginPercent(grossPrice: number, cost: number): number | null {

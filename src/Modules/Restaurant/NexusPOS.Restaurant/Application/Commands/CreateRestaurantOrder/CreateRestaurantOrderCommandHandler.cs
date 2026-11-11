@@ -1,3 +1,4 @@
+using NexusPOS.SharedKernel.Application.Services;
 using ErrorOr;
 using MediatR;
 using NexusPOS.Restaurant.Application.Common;
@@ -18,7 +19,8 @@ internal sealed class CreateRestaurantOrderCommandHandler(
     IDiscountCodeRepository discountCodeRepository,
     RestaurantDbContext dbContext,
     ITenantContext tenantContext,
-    IPublisher publisher)
+    IPublisher publisher,
+    ITenantVatPolicy vatPolicy)
     : ICommandHandler<CreateRestaurantOrderCommand, RestaurantOrderResponse>
 {
     public async Task<ErrorOr<RestaurantOrderResponse>> Handle(
@@ -80,7 +82,8 @@ internal sealed class CreateRestaurantOrderCommandHandler(
             request.Notes,
             discountCode?.Code,
             discountAmount,
-            id: request.OrderId);
+            id: request.OrderId,
+            taxRate: Vat.RateFor(await vatPolicy.IsVatEnabledAsync(tenantId, cancellationToken)));
 
         if (orderResult.IsError)
         {

@@ -56,7 +56,7 @@ internal static class RestaurantPayment
         // The sale is recorded with prices before VAT. Orders opened before menu prices became
         // VAT-inclusive added VAT on top; their own totals tell which rule they were priced with.
         bool vatInclusive = Math.Abs(order.Total - (order.SubTotal - order.DiscountAmount)) < 0.01m;
-        decimal toNet = vatInclusive ? 1 + RestaurantOrder.VatRate : 1m;
+        decimal toNet = vatInclusive ? 1 + order.TaxRate : 1m;
         sales.Add(new ExternalSaleCompletedDomainEvent(
             order.TenantId,
             order.BranchId,
@@ -65,7 +65,7 @@ internal static class RestaurantPayment
             [.. order.Items.Select(i => new ExternalSaleCompletedDomainEvent.Line(
                 i.MenuItemId, i.ItemName, Math.Round(i.UnitPrice / toNet, 4), i.Quantity))],
             Math.Round(order.DiscountAmount / toNet, 4),
-            RestaurantOrder.VatRate,
+            order.TaxRate,
             paymentMethod,
             amountTendered));
         return sales;

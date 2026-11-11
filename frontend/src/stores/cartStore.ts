@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { safeLocalStorage } from '@/lib/safeStorage'
+import { vatRate } from '@/lib/vat'
 
 // A cashier discount: a percentage, or a fixed amount in riyals with VAT included (as the shelf prices are).
 export interface CartDiscount {
@@ -46,7 +47,6 @@ interface CartState {
   total: (rate?: number) => number
 }
 
-const TAX_RATE = 0.15
 
 // Applies a change to the active cart and mirrors it into the saved draft of its scope.
 // An empty cart drops its discount, so one customer's discount never carries over to the next.
@@ -122,12 +122,12 @@ export const useCartStore = create<CartState>()(
         return Math.round(raw * 100) / 100
       },
 
-      taxAmount: (rate = TAX_RATE) => {
+      taxAmount: (rate = vatRate()) => {
         const subtotal = get().subtotal()
         return Math.round(subtotal * rate * 100) / 100
       },
 
-      total: (rate = TAX_RATE) => {
+      total: (rate = vatRate()) => {
         const subtotal = get().subtotal()
         const tax = get().taxAmount(rate)
         return Math.round((subtotal + tax) * 100) / 100

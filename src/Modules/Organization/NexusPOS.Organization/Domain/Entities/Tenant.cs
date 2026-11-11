@@ -23,6 +23,9 @@ public sealed class Tenant : AggregateRoot<TenantId>
     public string TimeZone { get; private set; } = null!;
     public BusinessType BusinessType { get; private set; }
 
+    /// <summary>False for a shop that is not VAT-registered: its sales carry no VAT anywhere.</summary>
+    public bool VatEnabled { get; private set; } = true;
+
     private Tenant() { }
 
     public static Tenant Create(
@@ -80,6 +83,8 @@ public sealed class Tenant : AggregateRoot<TenantId>
         SuspensionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         RaiseDomainEvent(new TenantSuspendedDomainEvent(Id.Value, Name));
     }
+
+    public void SetVatEnabled(bool enabled) => VatEnabled = enabled;
 
     public void Reinstate()
     {

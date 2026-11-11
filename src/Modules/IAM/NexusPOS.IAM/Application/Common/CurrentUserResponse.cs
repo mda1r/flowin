@@ -9,4 +9,5 @@ public sealed record CurrentUserResponse(
     string? TenantId,
     string? BranchId,
     string? BusinessType,
-    List<string>? AllowedPages = null);
+    List<string>? AllowedPages = null,
+    bool VatEnabled = true);

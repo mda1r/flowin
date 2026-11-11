@@ -85,6 +85,10 @@ internal sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .HasConversion<int>()
             .HasDefaultValue(NexusPOS.Organization.Domain.Enums.BusinessType.Retail);
 
+        builder.Property(t => t.VatEnabled)
+            .HasColumnName("vat_enabled")
+            .HasDefaultValue(true);
+
         builder.OwnsOne(t => t.Address, nav =>
         {
             nav.Property(a => a.Street).HasColumnName("address_street").HasMaxLength(256);

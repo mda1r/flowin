@@ -10,14 +10,14 @@ import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { netOfVat } from '@/lib/pricing'
 import { toAsciiDigits } from '@/lib/whatsapp'
-import { SAUDI_VAT_RATE } from '@/lib/zatca'
+import { vatRate } from '@/lib/vat'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import { localName } from '@/lib/localName'
 import type { ModifierGroupResponse } from '@/types/api'
 
 // The server keeps option prices net of VAT; the owner types and reads them VAT included, like shelf prices.
-const grossOf = (net: number) => Math.round(net * (1 + SAUDI_VAT_RATE) * 100) / 100
+const grossOf = (net: number) => Math.round(net * (1 + vatRate()) * 100) / 100
 const netOf = (gross: number) => Math.round(netOfVat(gross) * 10000) / 10000
 // Accepts Arabic-Indic digits and the Arabic decimal mark; blank means free.
 const parsePrice = (text: string) => {
