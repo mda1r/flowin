@@ -331,6 +331,7 @@ export const en = {
     imageSaved: 'Photo saved',
     imageRemoved: 'Photo removed',
     imageFailed: 'Could not save the photo',
+    imageAddLater: 'The product was added without its photo; upload it from Edit.',
     imageUnreadable: 'Could not read that image; try a JPG or PNG',
     nameEn: 'English name (optional)',
     nameEnHint: 'Shown instead of the Arabic name when the app is in English. Receipts stay in Arabic.',

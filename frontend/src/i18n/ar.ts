@@ -333,6 +333,7 @@ export const ar: Translations = {
     imageSaved: 'تم حفظ الصورة',
     imageRemoved: 'تمت إزالة الصورة',
     imageFailed: 'تعذّر حفظ الصورة',
+    imageAddLater: 'أُضيف المنتج بدون صورة، تقدر ترفعها من «تعديل».',
     imageUnreadable: 'ما قدرنا نقرأ الصورة، جرّب صورة JPG أو PNG',
     nameEn: 'الاسم بالإنجليزي (اختياري)',
     nameEnHint: 'يظهر بدل الاسم العربي عند تشغيل البرنامج بالإنجليزي. الفاتورة تبقى بالعربي.',

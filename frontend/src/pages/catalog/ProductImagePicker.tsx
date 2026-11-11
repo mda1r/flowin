@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, Trash2 } from 'lucide-react'
 import { catalogApi } from '@/api/catalog'
@@ -84,6 +84,64 @@ export function ProductImagePicker({ product, onChange }: { product: ProductResp
           const file = e.target.files?.[0]
           e.target.value = ''
           if (file) void upload(file)
+        }}
+      />
+    </div>
+  )
+}
+
+/** The photo in the new-product form: kept here until the product is created, then uploaded with it. */
+export function PendingImagePicker({ file, onChange }: { file: File | null; onChange: (file: File | null) => void }) {
+  const { t } = useI18n()
+  const p = t.products
+  const input = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!file) {
+      setPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  return (
+    <div className="flex items-center gap-4">
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-surface-2 text-muted transition-colors hover:border-brand hover:text-brand-ink"
+        aria-label={file ? p.changeImage : p.addImage}
+      >
+        {preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-7 w-7" />}
+      </button>
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-fg">{p.image}</p>
+        <p className="text-xs text-muted">{p.imageHint}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="secondary" onClick={() => input.current?.click()}>
+            <ImagePlus className="h-3.5 w-3.5" />
+            {file ? p.changeImage : p.addImage}
+          </Button>
+          {file && (
+            <Button type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>
+              <Trash2 className="h-3.5 w-3.5 text-danger" />
+              {p.removeImage}
+            </Button>
+          )}
+        </div>
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const picked = e.target.files?.[0]
+          e.target.value = ''
+          if (picked) onChange(picked)
         }}
       />
     </div>

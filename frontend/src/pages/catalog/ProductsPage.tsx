@@ -24,7 +24,8 @@ import { useI18n } from '@/i18n'
 import { localName } from '@/lib/localName'
 import { useVat } from '@/lib/vat'
 import { CategoryNamesEditor } from './CategoryNamesEditor'
-import { ProductImagePicker } from './ProductImagePicker'
+import { shrinkImage } from '@/lib/imageResize'
+import { PendingImagePicker, ProductImagePicker } from './ProductImagePicker'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
 
 type CategoryFormData = { name: string; nameEn?: string; description?: string }
@@ -57,6 +58,8 @@ const swallowEnter = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key =
 export function ProductsPage() {
   const [search, setSearch] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  // The photo picked in the new-product form, uploaded once the product exists.
+  const [newImage, setNewImage] = useState<File | null>(null)
   const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null)
   const [editingVariant, setEditingVariant] = useState<{ productId: string; variant: ProductVariantResponse } | null>(null)
   const [addingVariantTo, setAddingVariantTo] = useState<ProductResponse | null>(null)
@@ -220,12 +223,21 @@ export function ProductsPage() {
           await initStock(variant.id, data.initialQuantity, data.expiryDate)
         }
       }
+      // The product is saved either way; a photo that fails can be added again from its edit form.
+      if (newImage) {
+        try {
+          await catalogApi.setProductImage(result.data.id, await shrinkImage(newImage))
+        } catch (err) {
+          toast.warning(t.products.imageFailed, `${t.products.imageAddLater} ${apiErrorMessage(err, '')}`.trim())
+        }
+      }
       return result
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['stock', branchId] })
       setShowCreateModal(false)
+      setNewImage(null)
       createForm.reset()
       toast.success(t.products.created)
     },
@@ -414,6 +426,7 @@ export function ProductsPage() {
                 trackInventory: true,
                 sku: randomSku(),
               })
+              setNewImage(null)
               setShowCreateModal(true)
             }}>
               <Plus className="h-4 w-4" />
@@ -669,6 +682,7 @@ export function ProductsPage() {
         }
       >
         <form className="space-y-4">
+          <PendingImagePicker file={newImage} onChange={setNewImage} />
           <div className="grid grid-cols-2 gap-4">
             <Input label={t.products.name} error={createForm.formState.errors.name?.message} {...createForm.register('name')} />
             <Input
