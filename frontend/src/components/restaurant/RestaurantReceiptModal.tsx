@@ -3,6 +3,7 @@ import { ReceiptDocument, type ReceiptLine } from '@/components/pos/ReceiptDocum
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { paymentLabel } from '@/lib/orderReceipt'
+import { useVat } from '@/lib/vat'
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { generateZatcaQr } from '@/lib/zatca'
 import { buildReceiptMessage } from '@/lib/whatsapp'
@@ -36,13 +37,19 @@ export function RestaurantReceiptModal({
   const tendered = method === 'Cash' ? r2(orders.reduce((s, o) => s + (o.amountTendered ?? o.total), 0)) : undefined
   const issuedAt = orders.map((o) => o.paidAt ?? o.createdAt).sort().pop() ?? new Date().toISOString()
   const number = orders.map((o) => invoiceNo(o)).join(' · ')
-  const qr = generateZatcaQr({
-    sellerName: sellerName || 'flowin',
-    vatNumber,
-    timestamp: issuedAt,
-    totalWithVat: total,
-    vatAmount: tax,
-  })
+  // Paid orders decide by their own tax, not today's setting: VAT stays on a reprint of an order that had it,
+  // and an order opened with VAT off prints a plain invoice. Only a bill of nothing follows the shop's setting.
+  const shopVat = useVat().enabled
+  const hasVat = tax > 0 || (total <= 0 && shopVat)
+  const qr = hasVat
+    ? generateZatcaQr({
+        sellerName: sellerName || 'flowin',
+        vatNumber,
+        timestamp: issuedAt,
+        totalWithVat: total,
+        vatAmount: tax,
+      })
+    : undefined
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl" role="dialog" aria-modal="true" aria-label={`فاتورة ${label}`}>
@@ -66,6 +73,7 @@ export function RestaurantReceiptModal({
             lines={lines}
             subtotal={r2(total - tax)}
             tax={tax}
+            vat={hasVat}
             total={total}
             discount={discount || undefined}
             paymentLabel={paymentLabel(method)}
@@ -82,7 +90,7 @@ export function RestaurantReceiptModal({
               date: new Date(issuedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total })),
               discount: discount || undefined,
-              vat: tax,
+              vat: hasVat ? tax : undefined,
               vatIncluded: true,
               total,
               payment: paymentLabel(method),

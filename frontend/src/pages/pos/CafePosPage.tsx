@@ -14,7 +14,9 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { formatCurrency, cn, normalizeArabic } from '@/lib/utils'
 import { isPlainVariant, lineDisplayName } from '@/lib/variantName'
 import { localName } from '@/lib/localName'
-import { SAUDI_VAT_RATE, generateZatcaQr } from '@/lib/zatca'
+import { generateZatcaQr } from '@/lib/zatca'
+import { refreshVatAfter, useVat, vatRate } from '@/lib/vat'
+import { documentHasVat } from '@/lib/orderReceipt'
 import { useShift, ShiftGate, ShiftBadge, OpenShiftModal, CloseShiftModal } from './ShiftGate'
 import { aiCashierApi, type AiCashierCartSnapshot } from '@/api/aiCashier'
 import { AiCashierAgent, type AiCartResult } from '@/components/cafe/AiCashierAgent'
@@ -100,6 +102,8 @@ interface CustomerReceiptData {
   grandTotal: number
   tax: number
   subtotal: number
+  // Whether the sale was made with VAT; a sale made with VAT off prints a plain invoice.
+  vat: boolean
   payMode: PayMode
   splitCash?: number
   splitCard?: number
@@ -433,13 +437,16 @@ function CustomerReceiptModal({
   const { sellerName, vatNumber } = useSellerIdentity()
   const receiptSettings = useReceiptSettings()
 
-  const qrCode = generateZatcaQr({
-    sellerName: sellerName || 'كافيه',
-    vatNumber,
-    timestamp: receipt.completedAt,
-    totalWithVat: receipt.grandTotal,
-    vatAmount: receipt.tax,
-  })
+  // The sale's own rate decides, not today's setting: no VAT rows, number or QR on a sale made with VAT off.
+  const qrCode = receipt.vat
+    ? generateZatcaQr({
+        sellerName: sellerName || 'كافيه',
+        vatNumber,
+        timestamp: receipt.completedAt,
+        totalWithVat: receipt.grandTotal,
+        vatAmount: receipt.tax,
+      })
+    : undefined
 
   const payLabel =
     receipt.payMode === 'Cash' ? 'نقداً' :
@@ -465,6 +472,7 @@ function CustomerReceiptModal({
             }))}
             subtotal={receipt.subtotal}
             tax={receipt.tax}
+            vat={receipt.vat}
             total={receipt.grandTotal}
             discount={receipt.discount}
             discountLabel={receipt.discountLabel}
@@ -506,7 +514,7 @@ function CustomerReceiptModal({
               })),
               discount: (receipt.discount ?? 0) + (receipt.loyaltyDiscount ?? 0) || undefined,
               discountLabel: receipt.loyaltyDiscount ? undefined : receipt.discountLabel,
-              vat: receipt.tax,
+              vat: receipt.vat ? receipt.tax : undefined,
               vatIncluded: true,
               total: receipt.grandTotal,
               payment: payLabel,
@@ -549,6 +557,7 @@ function CustomerReceiptModal({
 
 export function CafePosPage() {
   const { branchId, tenantId, user } = useAuthStore()
+  const vat = useVat()
   const isGamingLounge = user?.businessType === 'Gaming'
   const isManager = user?.role === 'Owner' || user?.role === 'Manager'
   const { data: posSettingsRes } = useQuery({
@@ -1067,7 +1076,8 @@ export function CafePosPage() {
   const loyaltyDiscount = pointsValue(appliedPoints, loyaltyRules)
   // grandTotal is what the customer pays, after the order discount and any loyalty discount.
   const grandTotal = Math.round((afterDiscount - loyaltyDiscount) * 100) / 100
-  const vatOf = (gross: number) => Math.round((gross * SAUDI_VAT_RATE / (1 + SAUDI_VAT_RATE)) * 100) / 100
+  // The VAT share inside a price at the shop's rate; nothing for a shop without VAT.
+  const vatOf = (gross: number) => Math.round((gross * vat.rate / (1 + vat.rate)) * 100) / 100
   const tax = vatOf(grandTotal)
   const subtotal = Math.round((grandTotal - tax) * 100) / 100
 
@@ -1194,14 +1204,16 @@ export function CafePosPage() {
       if (cart.length === 0) throw new Error('empty')
       if (discountOverCap) throw new Error('discount-cap')
 
-      // Prices include VAT; the server receives the pre-VAT price and adds the tax back.
-      const preTaxRate = 1 + SAUDI_VAT_RATE
+      // Prices include VAT; the server receives the pre-VAT price and adds the tax back. The rate is the shop's
+      // (0 without VAT, when the listed price is the price); the server refuses any other.
+      const taxRate = vatRate()
+      const preTaxRate = 1 + taxRate
       const handed = mode === 'Cash' && !viaAi ? parseFloat(cashTendered) || 0 : 0
       const clientReference = newClientReference()
       const payload: CheckoutPayload = {
         clientReference,
         currency: 'SAR',
-        taxRate: SAUDI_VAT_RATE,
+        taxRate,
         customerId: loyaltyCustomer?.id,
         lines: cart.map((item) => ({
           variantId: item.variantId,
@@ -1249,7 +1261,7 @@ export function CafePosPage() {
           total: grandTotal,
           itemCount: cart.reduce((s, i) => s + i.quantity, 0),
         })
-        return { orderId: clientReference, number: null as number | null, offline: true }
+        return { orderId: clientReference, number: null as number | null, offline: true, vat: taxRate > 0 }
       }
 
       if (!navigator.onLine) {
@@ -1258,19 +1270,20 @@ export function CafePosPage() {
       }
       try {
         const { data } = await ordersApi.checkout(branchId, payload)
-        return { orderId: data.id, number: data.number ?? null, offline: false }
+        return { orderId: data.id, number: data.number ?? null, offline: false, vat: documentHasVat(data) }
       } catch (err) {
         if (isTransientError(err)) return saveOffline()
         throw err
       }
     },
-    onSuccess: ({ orderId, number, offline }, { mode, viaAi }) => {
+    onSuccess: ({ orderId, number, offline, vat: saleVat }, { mode, viaAi }) => {
       const completedAt = new Date().toISOString()
       const snapshot = {
         items: [...cart],
         grandTotal,
         tax,
         subtotal,
+        vat: saleVat,
         payMode: mode,
         splitCash: mode === 'Split' ? splitCashDue || undefined : undefined,
         splitCard: mode === 'Split' ? splitCardNum || undefined : undefined,
@@ -1354,6 +1367,7 @@ export function CafePosPage() {
         // An item that left the catalog is refused too; reload the menu so it can be picked again.
         void queryClient.invalidateQueries({ queryKey: ['products', tenantId] })
         void queryClient.invalidateQueries({ queryKey: ['cafe-products', tenantId] })
+        refreshVatAfter(e)
         toast.error(t.pos.paymentFailed, apiErrorMessage(e))
       }
     },
@@ -2030,6 +2044,13 @@ export function CafePosPage() {
                 )}
                 {/* Discounts come off the listed prices first; net and VAT below are of what is left, as on the receipt. */}
                 <div className="space-y-1 text-sm">
+                  {/* Without VAT there is no net or VAT row: the listed prices, the discounts and the total. */}
+                  {!vat.enabled && (discountGross > 0 || appliedPoints > 0) && (
+                    <div className="flex justify-between text-muted">
+                      <span>{t.pos.subtotal}</span>
+                      <span className="tabular-nums">{formatCurrency(cartTotal)}</span>
+                    </div>
+                  )}
                   {discountGross > 0 && (
                     <div className="flex justify-between text-success">
                       <span>
@@ -2046,14 +2067,18 @@ export function CafePosPage() {
                       <span className="tabular-nums">−{formatCurrency(loyaltyDiscount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-muted">
-                    <span>{t.pos.subtotal}</span>
-                    <span className="tabular-nums">{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-muted">
-                    <span>{t.pos.tax}</span>
-                    <span className="tabular-nums">{formatCurrency(tax)}</span>
-                  </div>
+                  {vat.enabled && (
+                    <>
+                      <div className="flex justify-between text-muted">
+                        <span>{t.pos.subtotal}</span>
+                        <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted">
+                        <span>{t.pos.tax}</span>
+                        <span className="tabular-nums">{formatCurrency(tax)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between text-base font-bold text-fg">
                     <span>{t.pos.total}</span>
                     <span className="tabular-nums">{formatCurrency(grandTotal)}</span>

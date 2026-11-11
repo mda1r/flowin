@@ -4,6 +4,7 @@ import { ZatcaQr } from '@/components/pos/ZatcaQr'
 import { FlowinLogo } from '@/components/brand/Brand'
 import { formatCurrency } from '@/lib/utils'
 import { intlLocale } from '@/lib/locale'
+import { useVat } from '@/lib/vat'
 
 export interface ReceiptLine {
   key: string
@@ -37,7 +38,11 @@ export interface ReceiptDocumentProps {
   badge?: ReactNode
   /** The name the barista calls out at pickup, printed large so the customer can match the cup. */
   callName?: string
-  qr: string
+  /** The ZATCA QR; only printed on a document with VAT. */
+  qr?: string
+  /** Whether this is a tax invoice (documentHasVat for a saved sale). Left out, the shop's VAT setting decides.
+   *  Without VAT it is a plain "فاتورة": no VAT number, pre-tax or VAT rows, and no ZATCA QR. */
+  vat?: boolean
   /** 'credit' prints a credit note for a return: lines, VAT and total are what went back to the customer. */
   kind?: 'invoice' | 'credit'
   /** The original invoice number a credit note refers to. */
@@ -53,6 +58,8 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
   const { settings: s } = p
   const change = p.tendered != null && p.tendered > p.total ? p.tendered - p.total : 0
   const credit = p.kind === 'credit'
+  const shopVat = useVat().enabled
+  const vat = p.vat ?? shopVat
   return (
     <div id={p.id} className="receipt-paper scheme-light bg-surface text-fg" data-paper={s.paperWidthMm} dir="rtl">
       <header className="receipt-center">
@@ -60,14 +67,14 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
         {p.sellerName && <p className="receipt-store">{p.sellerName}</p>}
         {s.address && <p className="receipt-small">{s.address}</p>}
         {s.phone && <p className="receipt-small" dir="ltr">{s.phone}</p>}
-        {p.vatNumber && <p className="receipt-small">الرقم الضريبي: <span className="tabular-nums">{p.vatNumber}</span></p>}
+        {vat && p.vatNumber && <p className="receipt-small">الرقم الضريبي: <span className="tabular-nums">{p.vatNumber}</span></p>}
         {s.headerNote && <p className="receipt-note">{s.headerNote}</p>}
       </header>
 
       <hr className="receipt-rule" />
 
       <div className="receipt-center">
-        <p className="receipt-title">{credit ? 'إشعار دائن' : 'فاتورة ضريبية مبسطة'}</p>
+        <p className="receipt-title">{credit ? 'إشعار دائن' : vat ? 'فاتورة ضريبية مبسطة' : 'فاتورة'}</p>
         <p className="receipt-small tabular-nums" dir="ltr">#{p.invoiceNo}</p>
         {p.reference && <p className="receipt-small">مرجع الفاتورة <bdi dir="ltr" className="tabular-nums">#{p.reference}</bdi></p>}
         <p className="receipt-small">
@@ -96,7 +103,7 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
 
       <hr className="receipt-rule" />
 
-      {/* Line prices include VAT; discounts come off them, then the total is split into net + VAT. */}
+      {/* Line prices include VAT; discounts come off them, then the total is split into net + VAT (with VAT only). */}
       <div className="receipt-totals">
         {!!p.discount && (
           <div className="receipt-row">
@@ -107,8 +114,12 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
         {p.loyalty && p.loyalty.amount > 0 && (
           <div className="receipt-row"><span>نقاط الولاء ({n(p.loyalty.points)} نقطة)</span><span className="tabular-nums">−{formatCurrency(p.loyalty.amount)}</span></div>
         )}
-        <div className="receipt-row"><span>المجموع قبل الضريبة</span><span className="tabular-nums">{formatCurrency(p.subtotal)}</span></div>
-        <div className="receipt-row"><span>ضريبة القيمة المضافة 15%</span><span className="tabular-nums">{formatCurrency(p.tax)}</span></div>
+        {vat && (
+          <>
+            <div className="receipt-row"><span>المجموع قبل الضريبة</span><span className="tabular-nums">{formatCurrency(p.subtotal)}</span></div>
+            <div className="receipt-row"><span>ضريبة القيمة المضافة 15%</span><span className="tabular-nums">{formatCurrency(p.tax)}</span></div>
+          </>
+        )}
         <div className="receipt-row receipt-total"><span>{credit ? 'المبلغ المسترد' : 'الإجمالي'}</span><span className="tabular-nums">{formatCurrency(p.total)}</span></div>
       </div>
 
@@ -136,10 +147,12 @@ export function ReceiptDocument(p: ReceiptDocumentProps) {
         )}
       </div>
 
-      <div className="receipt-qr">
-        <ZatcaQr value={p.qr} size={132} label={credit ? 'رمز الإشعار الدائن (زاتكا)' : 'رمز الفاتورة الضريبية (زاتكا)'} />
-        <p className="receipt-small">{credit ? 'امسح الرمز للتحقق من الإشعار' : 'امسح الرمز للتحقق من الفاتورة'}</p>
-      </div>
+      {vat && p.qr && (
+        <div className="receipt-qr">
+          <ZatcaQr value={p.qr} size={132} label={credit ? 'رمز الإشعار الدائن (زاتكا)' : 'رمز الفاتورة الضريبية (زاتكا)'} />
+          <p className="receipt-small">{credit ? 'امسح الرمز للتحقق من الإشعار' : 'امسح الرمز للتحقق من الفاتورة'}</p>
+        </div>
+      )}
 
       {s.footerNote && <p className="receipt-note receipt-center">{s.footerNote}</p>}
 

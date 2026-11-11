@@ -10,7 +10,7 @@ import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { netOfVat } from '@/lib/pricing'
 import { toAsciiDigits } from '@/lib/whatsapp'
-import { vatRate } from '@/lib/vat'
+import { useVat, vatRate } from '@/lib/vat'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import { localName } from '@/lib/localName'
@@ -83,6 +83,7 @@ export function ruleLabel(
 export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, lang } = useI18n()
   const p = t.products
+  const vatOn = useVat().enabled
   const qc = useQueryClient()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [tried, setTried] = useState(false)
@@ -287,7 +288,7 @@ export function ModifierGroupsModal({ open, onClose }: { open: boolean; onClose:
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-fg">{p.groupOptions}</p>
-                <p className="text-xs text-muted">{p.optionPriceHint}</p>
+                <p className="text-xs text-muted">{vatOn ? p.optionPriceHint : t.noVat.optionPriceHint}</p>
               </div>
               {draft.options.map((o, i) => (
                 <div key={o.key} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2 p-2">

@@ -16,9 +16,9 @@ import { useShortcuts } from '@/lib/useShortcuts'
 import { restaurantErrorMessage } from '@/lib/restaurantErrors'
 import { RestaurantReceiptModal } from '@/components/restaurant/RestaurantReceiptModal'
 import { newClientReference } from '@/lib/offlineSales'
+import { useVat } from '@/lib/vat'
 
 // The page's accent (var(--accent)) is the brand ink from the design tokens, as on every till.
-const VAT = 0.15
 
 const CATEGORIES: { key: MenuCategory | 'All'; label: string }[] = [
   { key: 'All', label: 'الكل' },
@@ -39,6 +39,7 @@ interface OrderLine {
 
 export function RestaurantPosPage() {
   const { branchId } = useAuthStore()
+  const { enabled: vatEnabled, rate: vatRate } = useVat()
   const qc = useQueryClient()
   const { t } = useI18n()
   const [category, setCategory] = useState<MenuCategory | 'All'>('All')
@@ -74,9 +75,10 @@ export function RestaurantPosPage() {
       : setLines(prev => prev.map(l => l.menuItemId === id ? { ...l, quantity: qty } : l))
 
   // Menu prices include VAT, as on the cafe menu; the VAT shown is the share already inside the total.
+  // A shop without VAT sells at the menu price and shows no VAT row (the server opens the order at its rate).
   const total = Math.round(lines.reduce((s, l) => s + l.price * l.quantity, 0) * 100) / 100
   const subtotal = total
-  const vat = Math.round((total * VAT / (1 + VAT)) * 100) / 100
+  const vat = Math.round((total * vatRate / (1 + vatRate)) * 100) / 100
 
   // The till's id for this sale, kept across retries so a resent payment returns the same order instead of
   // charging twice. A different order (other dishes or table) gets a new one.
@@ -335,14 +337,16 @@ export function RestaurantPosPage() {
 
           {/* Totals */}
           <div className="border-t p-4" style={{ borderColor: 'var(--card-border)' }}>
-            <div className="mb-2 space-y-1 text-sm">
-              <div className="flex justify-between text-muted">
-                <span>{t.restaurant.subtotal}</span><span className="tabular-nums">{formatCurrency(subtotal)}</span>
+            {vatEnabled && (
+              <div className="mb-2 space-y-1 text-sm">
+                <div className="flex justify-between text-muted">
+                  <span>{t.restaurant.subtotal}</span><span className="tabular-nums">{formatCurrency(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-muted">
+                  <span>{t.restaurant.tax}</span><span className="tabular-nums">{formatCurrency(vat)}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-muted">
-                <span>{t.restaurant.tax}</span><span className="tabular-nums">{formatCurrency(vat)}</span>
-              </div>
-            </div>
+            )}
             <div className="mb-4 flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--card-border)' }}>
               <span className="font-medium text-fg">{t.restaurant.total}</span>
               <span className="text-emboss text-xl font-bold text-fg">{formatCurrency(total)}</span>

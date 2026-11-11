@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { ReservationResponse, RoomResponse, RoomType } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import { billableNights, hotelErrorMessage, stayTotals } from '@/pages/hotel/stay'
 import { ExtendStayModal } from '@/pages/hotel/ExtendStayModal'
 
@@ -25,6 +26,9 @@ export function HotelPosPage() {
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const qc = useQueryClient()
   const { t } = useI18n()
+  // Without VAT the stay is the nightly rate times the nights: no VAT row, and the total says nothing about tax.
+  const vatOn = useVat().enabled
+  const totalLabel = vatOn ? t.hotel.totalWithVat : t.common.total
   const roomTypeLabel = (type: RoomType): string => ({
     Standard: t.hotel.roomTypes.standard,
     Deluxe: t.hotel.roomTypes.deluxe,
@@ -391,12 +395,14 @@ export function HotelPosPage() {
                     <span>{nights} {t.hotel.nights} × {formatCurrency(selectedRoom.nightlyRate)}</span>
                     <span className="tabular-nums">{formatCurrency(checkInTotals.subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-muted">
-                    <span>{t.hotel.vat}</span>
-                    <span className="tabular-nums">{formatCurrency(checkInTotals.vat)}</span>
-                  </div>
+                  {vatOn && (
+                    <div className="flex justify-between text-muted">
+                      <span>{t.hotel.vat}</span>
+                      <span className="tabular-nums">{formatCurrency(checkInTotals.vat)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold">
-                    <span>{t.hotel.totalWithVat}</span>
+                    <span>{totalLabel}</span>
                     <span className="tabular-nums" style={{ color: 'var(--accent)' }}>
                       {formatCurrency(checkInTotals.total)}
                     </span>
@@ -479,17 +485,19 @@ export function HotelPosPage() {
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.12), 0 0 18px var(--glow)',
               }}
             >
-              <div className="mb-2 space-y-1 text-xs text-muted">
-                <div className="flex justify-between">
-                  <span>{t.hotel.subtotal}</span>
-                  <span className="tabular-nums">{formatCurrency(checkOutTotals.subtotal)}</span>
+              {vatOn && (
+                <div className="mb-2 space-y-1 text-xs text-muted">
+                  <div className="flex justify-between">
+                    <span>{t.hotel.subtotal}</span>
+                    <span className="tabular-nums">{formatCurrency(checkOutTotals.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t.hotel.vat}</span>
+                    <span className="tabular-nums">{formatCurrency(checkOutTotals.vat)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>{t.hotel.vat}</span>
-                  <span className="tabular-nums">{formatCurrency(checkOutTotals.vat)}</span>
-                </div>
-              </div>
-              <p className="text-xs text-muted">{t.hotel.totalWithVat}</p>
+              )}
+              <p className="text-xs text-muted">{totalLabel}</p>
               <p className="text-emboss text-3xl font-bold" style={{ color: 'var(--accent)' }}>
                 {formatCurrency(checkOutTotals.total)}
               </p>

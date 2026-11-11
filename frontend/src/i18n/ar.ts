@@ -193,6 +193,12 @@ export const ar: Translations = {
     goToShifts: 'الشفتات',
   },
 
+  // A shop that is not VAT-registered: the wording that replaces anything about tax while VAT is off.
+  noVat: {
+    invoice: 'فاتورة',
+    optionPriceHint: '0 للمجاني',
+  },
+
   pos: {
     addNoteShort: 'إضافة ملاحظة',
     kitchenNotePlaceholder: 'ملاحظة للمطبخ...',

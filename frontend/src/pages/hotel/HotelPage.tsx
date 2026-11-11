@@ -18,6 +18,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { generateZatcaQr } from '@/lib/zatca'
+import { useVat } from '@/lib/vat'
 import type { RoomResponse, ReservationResponse, RoomStatus } from '@/types/api'
 import { useI18n } from '@/i18n'
 import { ZatcaQr } from '@/components/pos/ZatcaQr'
@@ -554,6 +555,7 @@ function CashierTab({
   onDataChange: () => void
 }) {
   const { t, lang } = useI18n()
+  const vatOn = useVat().enabled
   const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<CheckInFormData>({
     resolver: zodResolver(checkInSchema),
@@ -720,10 +722,12 @@ function CashierTab({
                   <span>{nights} ليلة × {formatCurrency(watchedRate)}</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-muted">
-                  <span>ضريبة القيمة المضافة 15%</span>
-                  <span>{formatCurrency(vat)}</span>
-                </div>
+                {vatOn && (
+                  <div className="flex justify-between text-muted">
+                    <span>ضريبة القيمة المضافة 15%</span>
+                    <span>{formatCurrency(vat)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-info/30 pt-1 font-bold text-fg">
                   <span>الإجمالي</span>
                   <span>{formatCurrency(total)}</span>
@@ -785,7 +789,7 @@ function CashierTab({
                         <span>{res.nights} {t.hotel.nights}</span>
                       </div>
                       <p className="mt-1 text-xs font-semibold text-success">
-                        {formatCurrency(stayTotals(res.totalAmount).total)} ({t.hotel.totalWithVat})
+                        {formatCurrency(stayTotals(res.totalAmount).total)}{vatOn && ` (${t.hotel.totalWithVat})`}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
@@ -1065,22 +1069,27 @@ function HotelReceiptModal({
   const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
 
   // totalAmount is the net stay amount; VAT is added on top (same rule as the check-in quote).
+  // A stay keeps no tax of its own, so the shop's setting decides: without VAT it is a plain invoice with
+  // no VAT number, pre-tax or VAT rows, and no ZATCA QR.
+  const vatOn = useVat().enabled
   const { subtotal, vat, total } = stayTotals(reservation.totalAmount)
 
-  const qrCode = generateZatcaQr({
-    sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
-    vatNumber,
-    timestamp: reservation.updatedAt,
-    totalWithVat: total,
-    vatAmount: vat,
-  })
+  const qrCode = vatOn
+    ? generateZatcaQr({
+        sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
+        vatNumber,
+        timestamp: reservation.updatedAt,
+        totalWithVat: total,
+        vatAmount: vat,
+      })
+    : ''
 
   return (
     <OverlayDialog onClose={onClose} labelledBy="hotel-invoice-title" backdropClassName="bg-black/50" panelClassName="rounded-2xl bg-surface p-6 shadow-2xl" printArea>
         <div className="mb-4 text-center">
-          <h2 id="hotel-invoice-title" className="text-lg font-bold text-fg">{t.hotel.taxInvoice}</h2>
+          <h2 id="hotel-invoice-title" className="text-lg font-bold text-fg">{vatOn ? t.hotel.taxInvoice : t.noVat.invoice}</h2>
           <p className="text-xs text-muted">flowin</p>
-          {vatNumber && <p className="text-xs text-muted">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
+          {vatOn && vatNumber && <p className="text-xs text-muted">رقم ضريبة القيمة المضافة: {vatNumber}</p>}
         </div>
 
         <div className="mb-4 rounded-xl bg-surface-2 p-3 text-sm">
@@ -1117,26 +1126,32 @@ function HotelReceiptModal({
         </div>
 
         <div className="mb-4 space-y-1 border-t border-border pt-3 text-sm">
-          <div className="flex justify-between text-muted">
-            <span>المجموع قبل الضريبة</span>
-            <span className="tabular-nums">{formatCurrency(subtotal)}</span>
-          </div>
-          <div className="flex justify-between text-muted">
-            <span>ضريبة القيمة المضافة 15%</span>
-            <span className="tabular-nums">{formatCurrency(vat)}</span>
-          </div>
+          {vatOn && (
+            <>
+              <div className="flex justify-between text-muted">
+                <span>المجموع قبل الضريبة</span>
+                <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-muted">
+                <span>ضريبة القيمة المضافة 15%</span>
+                <span className="tabular-nums">{formatCurrency(vat)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between font-bold text-fg">
             <span>الإجمالي</span>
             <span className="tabular-nums">{formatCurrency(total)}</span>
           </div>
         </div>
 
-        {/* ZATCA QR */}
-        <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-surface-2 p-3">
-          <QrCode className="h-4 w-4 text-muted" />
-          <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
-          <ZatcaQr value={qrCode} size={100} />
-        </div>
+        {/* ZATCA QR, on a tax invoice only */}
+        {vatOn && (
+          <div className="mb-4 flex flex-col items-center gap-2 rounded-xl bg-surface-2 p-3">
+            <QrCode className="h-4 w-4 text-muted" />
+            <p className="text-xs text-muted">رمز ZATCA للتحقق</p>
+            <ZatcaQr value={qrCode} size={100} />
+          </div>
+        )}
 
         <div data-no-print className="flex gap-3">
           <Button variant="secondary" onClick={onClose} className="flex-1">{t.common.cancel}</Button>

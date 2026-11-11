@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/Toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/apiError'
 import { printElement } from '@/lib/print'
+import { useVat } from '@/lib/vat'
 import type {
   GameStationResponse,
   GameSessionBillResponse,
@@ -50,6 +51,7 @@ interface StartForm {
 
 export function GamingPage() {
   const { t, lang } = useI18n()
+  const vatOn = useVat().enabled
 
   const TYPE_LABEL: Record<StationType, string> = {
     Console: t.gaming.types.ps5,
@@ -705,7 +707,7 @@ export function GamingPage() {
                   {formatCurrency(billModal.totalAmount, billModal.currency)}
                 </span>
               </div>
-              <p className="text-xs text-muted">شامل ضريبة القيمة المضافة 15%</p>
+              {vatOn && <p className="text-xs text-muted">شامل ضريبة القيمة المضافة 15%</p>}
             </div>
 
           </div>
