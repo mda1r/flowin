@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Banknote, CalendarSearch, CreditCard, Download, Receipt, RotateCcw, Search, Shuffle } from 'lucide-react'
 import { ordersApi, RETURNS_MAX_LIMIT } from '@/api/orders'
+import { salesApi } from '@/api/sales'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useI18n } from '@/i18n'
@@ -24,17 +25,21 @@ function lineSummary(l: OrderLineResponse) {
   return `${lineDisplayName(l.productName, l.variantName)}${addOns ? ` (${addOns})` : ''} ×${l.quantity}`
 }
 
-type Period = 'today' | 'yesterday' | '7d' | '30d' | 'custom'
+type Period = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'quarter' | 'year' | 'custom'
 type MethodFilter = 'all' | 'Cash' | 'Card' | 'Split'
 type StatusFilter = 'all' | 'completed' | 'partial' | 'refunded'
 
-const PAGE_CAP = 500
+// The table draws this many rows at a time; the totals always cover every invoice in the period.
+const ROWS_STEP = 300
 
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'today', label: 'اليوم' },
   { key: 'yesterday', label: 'أمس' },
   { key: '7d', label: '7 أيام' },
   { key: '30d', label: '30 يوم' },
+  { key: 'month', label: 'هذا الشهر' },
+  { key: 'quarter', label: 'هذا الربع' },
+  { key: 'year', label: 'هذا العام' },
   { key: 'custom', label: 'مخصص' },
 ]
 
@@ -50,6 +55,13 @@ function periodRange(period: Period, from: string, to: string) {
     case 'yesterday': return localDaysToUtcRange(daysAgo(1), daysAgo(1))
     case '7d': return localDaysToUtcRange(daysAgo(6), localYmd())
     case '30d': return localDaysToUtcRange(daysAgo(29), localYmd())
+    // Calendar periods start on the same days as the reports page, so the two agree.
+    case 'month': return localDaysToUtcRange(localYmd().slice(0, 8) + '01', localYmd())
+    case 'quarter': {
+      const now = new Date()
+      return localDaysToUtcRange(localYmd(new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)), localYmd())
+    }
+    case 'year': return localDaysToUtcRange(`${localYmd().slice(0, 4)}-01-01`, localYmd())
     default: return localDaysToUtcRange(from, to)
   }
 }
@@ -71,14 +83,15 @@ export function InvoicesPage() {
 
   const range = periodRange(period, from, to)
 
-  const { data: ordersRaw = [], isLoading } = useQuery({
+  // Every invoice of the period, page by page: the totals must never stop at the first page.
+  const { data: loaded, isLoading } = useQuery({
     queryKey: ['invoices', branchId, range.from, range.to],
-    queryFn: async () => {
-      const { data } = await ordersApi.listOrders(branchId!, { status: 'Completed', from: range.from, to: range.to, pageSize: PAGE_CAP })
-      return (Array.isArray(data) ? data : []) as OrderResponse[]
-    },
+    queryFn: () => salesApi.listAllCompletedOrdersBetween(branchId!, range.from, range.to),
     enabled: !!branchId,
   })
+  const ordersRaw = loaded?.orders ?? []
+  const [rowsShown, setRowsShown] = useState(ROWS_STEP)
+  useEffect(() => setRowsShown(ROWS_STEP), [range.from, range.to])
 
   const { data: returns = [] } = useQuery({
     // A refund always comes after its sale, so the range start bounds the refunds these invoices can have.
@@ -248,8 +261,8 @@ export function InvoicesPage() {
           />
           <Stat label="الصافي بعد الاسترداد" value={formatCurrency(summary.net)} strong />
         </div>
-        {ordersRaw.length >= PAGE_CAP && (
-          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">يظهر أول {PAGE_CAP.toLocaleString(intlLocale())} فاتورة في هذه الفترة؛ اختر فترة أقصر لرؤية الكل.</p>
+        {loaded?.truncated && (
+          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">الفترة فيها أكثر من {ordersRaw.length.toLocaleString(intlLocale())} فاتورة؛ اختر فترة أقصر لرؤية الكل.</p>
         )}
 
         {elsewhere && (
@@ -302,7 +315,7 @@ export function InvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {orders.map((o) => {
+                {orders.slice(0, rowsShown).map((o) => {
                   const refund = refunds.get(o.id)
                   const Icon = METHOD_ICON[o.paymentMethod as keyof typeof METHOD_ICON] ?? Banknote
                   return (
@@ -357,6 +370,17 @@ export function InvoicesPage() {
                 })}
               </tbody>
             </table>
+            {orders.length > rowsShown && (
+              <div className="border-t border-border px-4 py-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => setRowsShown((n) => n + ROWS_STEP)}
+                  className="text-sm font-medium text-brand-ink hover:underline"
+                >
+                  عرض المزيد ({(orders.length - rowsShown).toLocaleString(intlLocale())} فاتورة أخرى)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
