@@ -38,6 +38,7 @@ import { ordersApi } from '@/api/orders'
 import { useI18n } from '@/i18n'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 import { ReportsCharts } from './ReportsCharts'
+import { ItemInsights } from './ItemInsights'
 import { orderNet, returnNet, returnVat, summarize, type ReportSummary } from './reportMath'
 
 // Reports show cost and profit, which most owners keep from cashiers.
@@ -544,6 +545,14 @@ function ReportsContent() {
             </div>
 
             {/* ── Charts ── */}
+            <ItemInsights
+              orders={orders}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              netSales={summary.netSales}
+              returnsNet={summary.returns.net}
+            />
+
             <ReportsCharts orders={orders} summary={summary} />
 
             {/* ── VAT Report (shown for quarter and year) ── */}
