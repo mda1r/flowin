@@ -52,6 +52,7 @@ import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { salesApi } from '@/api/sales'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import { shiftOpenHours, staleShiftReason } from '@/lib/shifts'
 import { expiryText } from '@/lib/expiry'
 
@@ -904,6 +905,8 @@ export function DashboardPage() {
   const { user, branchId, tenantId } = useAuthStore()
   const businessType = user?.businessType as BusinessType | undefined
   const canSeeProfit = user?.role === 'Owner' || user?.role === 'Manager'
+  // No VAT card or VAT wording for a shop without VAT, even when today still holds older taxed sales.
+  const { enabled: vatOn } = useVat()
 
   const today = localToday()
   const ordersQuery = useQuery({
@@ -1137,7 +1140,7 @@ export function DashboardPage() {
               <p className="mt-1.5 text-sm text-muted">{todayLabel}</p>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm" title={t.dashboard.salesHint}>
+                <div className="rounded-xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-sm" title={vatOn ? t.dashboard.salesHint : t.vatOff.salesHint}>
                   <p className="text-xs font-medium text-muted">{t.dashboard.salesToday}</p>
                   {ordersLoading ? (
                     <span className="mt-1.5 inline-block h-5 w-20 animate-pulse rounded-md bg-border" />
@@ -1204,12 +1207,12 @@ export function DashboardPage() {
         </section>
 
         {/* ── KPI grid ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2', vatOn ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
           {statsLoading ? (
             <>
               <StatCardSkeleton entrance="entrance-2" />
               <StatCardSkeleton entrance="entrance-3" />
-              <StatCardSkeleton entrance="entrance-4" />
+              {vatOn && <StatCardSkeleton entrance="entrance-4" />}
               <StatCardSkeleton entrance="entrance-5" />
             </>
           ) : (
@@ -1249,18 +1252,20 @@ export function DashboardPage() {
                 sparkId="spark-orders"
                 entrance="entrance-3"
               />
-              <StatCard
-                title={t.dashboard.vatCollected}
-                value={stats.totalTax}
-                format={(n) => formatCurrency(n)}
-                icon={<Receipt className="h-5 w-5 text-brand-strong" />}
-                iconWrap="bg-brand-soft"
-                sparkColor="text-brand-strong"
-                kpiColor="rgb(var(--brand))"
-                spark={taxSpark}
-                sparkId="spark-tax"
-                entrance="entrance-4"
-              />
+              {vatOn && (
+                <StatCard
+                  title={t.dashboard.vatCollected}
+                  value={stats.totalTax}
+                  format={(n) => formatCurrency(n)}
+                  icon={<Receipt className="h-5 w-5 text-brand-strong" />}
+                  iconWrap="bg-brand-soft"
+                  sparkColor="text-brand-strong"
+                  kpiColor="rgb(var(--brand))"
+                  spark={taxSpark}
+                  sparkId="spark-tax"
+                  entrance="entrance-4"
+                />
+              )}
               <StatCard
                 title={t.dashboard.avgOrderValue}
                 value={stats.avgOrder}

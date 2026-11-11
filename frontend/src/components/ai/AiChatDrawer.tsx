@@ -8,31 +8,37 @@ import { aiApi, type AiChatMessage } from '@/api/ai'
 import { useAuthStore } from '@/stores/authStore'
 import { apiErrorMessage } from '@/lib/apiError'
 import { cn } from '@/lib/utils'
+import { useVat } from '@/lib/vat'
+import { useI18n } from '@/i18n'
 
 // ── Quick prompts for each "agent" role ───────────────────────────────────────
 
-interface QuickPrompt { label: string; icon: React.ReactNode; prompt: string; color: string }
+interface QuickPrompt { key: string; label: string; icon: React.ReactNode; prompt: string; color: string }
 
 const QUICK_PROMPTS: QuickPrompt[] = [
   {
+    key: 'sales',
     label: 'تحليل المبيعات',
     icon: <TrendingUp className="h-4 w-4" />,
     prompt: 'حلّل مبيعات اليوم وأعطني ملخصاً عن الأداء مقارنة بالمعدل المعتاد.',
     color: 'bg-info/10 text-info dark:bg-info/15',
   },
   {
+    key: 'inventory',
     label: 'مراقبة المخزون',
     icon: <Package className="h-4 w-4" />,
     prompt: 'راجع حالة المخزون وأخبرني بالمنتجات التي تحتاج إعادة طلب أو قريبة من النفاد.',
     color: 'bg-success/10 text-success dark:bg-success/15',
   },
   {
+    key: 'profit',
     label: 'تقرير الأرباح',
     icon: <DollarSign className="h-4 w-4" />,
     prompt: 'اعمل لي تقريراً مالياً مختصراً عن إيرادات الشهر الحالي والضريبة المستحقة.',
     color: 'bg-warning/10 text-warning dark:bg-warning/15',
   },
   {
+    key: 'topProducts',
     label: 'أفضل المنتجات',
     icon: <BarChart2 className="h-4 w-4" />,
     prompt: 'أخبرني بالمنتجات الأكثر مبيعاً هذا الشهر ونصائح لزيادة الإيرادات.',
@@ -137,6 +143,12 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
     if (!next) onClose()
   }
   const branchId = useAuthStore(s => s.branchId ?? '')
+  const { t } = useI18n()
+  // A shop without VAT is never asked about the tax it owes.
+  const { enabled: vatOn } = useVat()
+  const quickPrompts = vatOn
+    ? QUICK_PROMPTS
+    : QUICK_PROMPTS.map((qp) => (qp.key === 'profit' ? { ...qp, prompt: t.vatOff.aiProfitPrompt } : qp))
   const [tab, setTab] = useState<Tab>('insights')
   const [messages, setMessages] = useState<ChatBubble[]>([
     {
@@ -264,9 +276,9 @@ export function AiChatDrawer({ open, onClose }: AiChatDrawerProps) {
                     <div className="border-b border-border p-3">
                       <p className="mb-2 text-xs font-medium text-muted">إجراء سريع</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {QUICK_PROMPTS.map((qp) => (
+                        {quickPrompts.map((qp) => (
                           <button
-                            key={qp.label}
+                            key={qp.key}
                             onClick={() => sendMessage(qp.prompt)}
                             disabled={chatMutation.isPending}
                             className={cn(

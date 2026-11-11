@@ -986,6 +986,29 @@ export const en = {
     nextPage: 'Next page',
   },
 
+  // Wording for a shop that switched VAT off: the same screens with no tax anywhere.
+  vatOff: {
+    netSalesHint: 'After discounts and returns',
+    sales: 'Sales',
+    returns: 'Returns',
+    collected: 'Collected',
+    net: 'Net',
+    revenue: 'Revenue',
+    salesHint: 'After returns',
+    waveSubtitle: 'Daily sales and profit after cost',
+    mixSubtitle: 'Profit and cost',
+    mixAria: 'Revenue mix: profit and cost',
+    statementNote: 'Only approved expenses are counted.',
+    trendNote: 'Net sales. Expenses are approved only.',
+    auditCount: 'Audit count',
+    receiptSellerFrom: 'The shop name comes from',
+    receiptSellerLink: 'ZATCA settings',
+    aiProfitPrompt: "Give me a short financial report on this month's revenue and profit.",
+    taxesTitle: 'VAT is switched off',
+    taxesBody: 'Your shop sells without VAT, so there is nothing to show here. If you register for VAT, switch it on in ZATCA settings.',
+    taxesAction: 'Open ZATCA settings',
+  },
+
   reports: {
     items: {
       title: 'Item sales by day',

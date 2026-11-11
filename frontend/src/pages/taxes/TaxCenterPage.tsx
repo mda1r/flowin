@@ -1,6 +1,7 @@
 import { useState, useEffect, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
+import { Link } from '@tanstack/react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
@@ -24,11 +25,13 @@ import {
   ScanLine,
   X,
   Sparkles,
+  Settings,
 } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { OverlayDialog } from '@/components/ui/Modal'
 import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import { useVat } from '@/lib/vat'
 import { apiErrorMessage } from '@/lib/apiError'
 import { toast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
@@ -1132,7 +1135,34 @@ const TABS: TabDef[] = [
 
 // ── TaxCenterPage ─────────────────────────────────────────────────────────────
 
+// A shop without VAT has no tax page (the menu hides it); opened by its address, it only says so,
+// with the way back to the switch, and asks the server for nothing.
 export function TaxCenterPage() {
+  const { enabled } = useVat()
+  return enabled ? <TaxCenterContent /> : <VatOffState />
+}
+
+function VatOffState() {
+  const { t } = useI18n()
+  return (
+    <EmptyState
+      icon={<Calculator className="h-7 w-7" />}
+      title={t.vatOff.taxesTitle}
+      description={t.vatOff.taxesBody}
+      action={
+        <Link
+          to="/settings/zatca"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-brand-fg shadow-sm transition-colors hover:bg-brand/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+        >
+          <Settings className="h-4 w-4" />
+          {t.vatOff.taxesAction}
+        </Link>
+      }
+    />
+  )
+}
+
+function TaxCenterContent() {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<TabKey>('overview')

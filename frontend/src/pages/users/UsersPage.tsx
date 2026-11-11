@@ -94,6 +94,9 @@ function PagePermModal({
 
   const availablePages = pagesFor(target, currentUser?.businessType)
   const available = new Set(availablePages.map((p) => p.to))
+  // A shop without VAT has no tax page to give; a user who already has it keeps it for when VAT is back on.
+  const vatOn = currentUser?.vatEnabled !== false
+  const shownPages = vatOn ? availablePages : availablePages.filter((p) => p.to !== '/taxes')
   const [selected, setSelected] = useState<Set<string>>(() => new Set(
     target.allowedPages ? target.allowedPages.filter((r) => available.has(r)) : [...available]))
 
@@ -106,11 +109,13 @@ function PagePermModal({
     })
   }
 
+  const noneShown = !shownPages.some((p) => selected.has(p.to))
+
   const saveMut = useMutation({
     // Every page ticked means no limit, so pages added to flowin later open for this user too.
     mutationFn: () => usersApi.setPages(
       target.id,
-      availablePages.every((p) => selected.has(p.to))
+      shownPages.every((p) => selected.has(p.to))
         ? null
         : availablePages.filter((p) => selected.has(p.to)).map((p) => p.to)),
     onSuccess: () => {
@@ -129,7 +134,7 @@ function PagePermModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>{t.common.cancel}</Button>
-          <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending} disabled={selected.size === 0}>
+          <Button onClick={() => saveMut.mutate()} loading={saveMut.isPending} disabled={noneShown}>
             {t.common.save}
           </Button>
         </>
@@ -147,7 +152,7 @@ function PagePermModal({
           </button>
         </div>
         <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pe-1 sm:grid-cols-2">
-          {availablePages.map((p) => (
+          {shownPages.map((p) => (
             <label
               key={p.to}
               className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface-2 transition-colors"
@@ -163,7 +168,7 @@ function PagePermModal({
             </label>
           ))}
         </div>
-        {selected.size === 0 && <p className="text-xs text-danger">{t.users.pickOnePage}</p>}
+        {noneShown && <p className="text-xs text-danger">{t.users.pickOnePage}</p>}
       </div>
     </Modal>
   )

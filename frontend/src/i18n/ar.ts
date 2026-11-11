@@ -988,6 +988,29 @@ export const ar: Translations = {
     nextPage: 'الصفحة التالية',
   },
 
+  // Wording for a shop that switched VAT off: the same screens with no tax anywhere.
+  vatOff: {
+    netSalesHint: 'بعد الخصومات والمرتجعات',
+    sales: 'المبيعات',
+    returns: 'المرتجعات',
+    collected: 'المحصّل',
+    net: 'الصافي',
+    revenue: 'الإيراد',
+    salesHint: 'بعد المرتجعات',
+    waveSubtitle: 'المبيعات اليومية والربح بعد التكلفة',
+    mixSubtitle: 'الربح والتكلفة',
+    mixAria: 'تركيبة الإيرادات: الربح والتكلفة',
+    statementNote: 'المصروفات المعتمدة فقط.',
+    trendNote: 'صافي المبيعات، والمصروفات المعتمدة فقط.',
+    auditCount: 'جرد تدقيق',
+    receiptSellerFrom: 'اسم المحل يُؤخذ من',
+    receiptSellerLink: 'إعدادات زاتكا',
+    aiProfitPrompt: 'اعمل لي تقريراً مالياً مختصراً عن إيرادات الشهر الحالي وأرباحه.',
+    taxesTitle: 'ضريبة القيمة المضافة موقوفة',
+    taxesBody: 'متجرك يبيع بدون ضريبة، فلا يوجد ما يُعرض هنا. إذا سجّلت في الضريبة فعّلها من إعدادات زاتكا.',
+    taxesAction: 'فتح إعدادات زاتكا',
+  },
+
   reports: {
     items: {
       title: 'مبيعات الأصناف يومياً',

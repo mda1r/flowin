@@ -3,6 +3,8 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode, RefOb
 import { Card } from '@/components/ui/Card'
 import { cn, formatCurrency } from '@/lib/utils'
 import { fmtDate } from '@/lib/locale'
+import { useVat } from '@/lib/vat'
+import { useI18n } from '@/i18n'
 import type { OrderResponse } from '@/types/api'
 import { orderCost, orderNet, type ReportSummary } from './reportMath'
 
@@ -844,8 +846,8 @@ const RING_RADII = [82, 62, 42] as const
 interface RingDatum { key: string; label: string; hint: string; color: string; value: number; frac: number }
 interface RingHover { i: number; px?: number; py?: number }
 
-function TripleRing({ rings, margin, gross, returnTotal, reduced }: {
-  rings: RingDatum[]; margin: number; gross: number; returnTotal: number; reduced: boolean
+function TripleRing({ rings, margin, gross, returnTotal, reduced, ariaLabel }: {
+  rings: RingDatum[]; margin: number; gross: number; returnTotal: number; reduced: boolean; ariaLabel: string
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const entered = useEntered(reduced)
@@ -866,7 +868,7 @@ function TripleRing({ rings, margin, gross, returnTotal, reduced }: {
           className="block w-full"
           style={{ direction: 'ltr', overflow: 'visible' }}
           role="img"
-          aria-label="تركيبة الإيرادات: الربح والتكلفة والضريبة"
+          aria-label={ariaLabel}
         >
           {rings.map((rg, i) => {
             const r = RING_RADII[i] ?? 30
@@ -1144,6 +1146,9 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v))
 
 export function ReportsCharts({ orders, summary }: Props) {
   const reduced = usePrefersReducedMotion()
+  const { t } = useI18n()
+  // A shop without VAT sees no tax ring or tax wording, even over older taxed sales; the figures are net either way.
+  const { enabled: vatOn } = useVat()
   const daily = useMemo(() => buildDailyData(orders), [orders])
   const hourly = useMemo(() => buildHourlyData(orders), [orders])
   const products = useMemo(() => buildProductData(orders), [orders])
@@ -1159,8 +1164,10 @@ export function ReportsCharts({ orders, summary }: Props) {
   const rings = useMemo<RingDatum[]>(() => [
     { key: 'net',  label: 'الربح',   hint: 'الربح الإجمالي بعد التكلفة والمرتجعات', color: TEAL,   value: profit, frac: clamp01(profit / gross) },
     { key: 'cogs', label: 'التكلفة', hint: 'تكلفة البضاعة المباعة بعد المرتجعات',  color: ORANGE, value: cogs,   frac: clamp01(cogs / gross) },
-    { key: 'tax',  label: 'الضريبة', hint: 'صافي ضريبة القيمة المضافة بعد المرتجعات', color: AMBER,  value: vat,    frac: clamp01(vat / gross) },
-  ], [profit, gross, cogs, vat])
+    ...(vatOn
+      ? [{ key: 'tax', label: 'الضريبة', hint: 'صافي ضريبة القيمة المضافة بعد المرتجعات', color: AMBER, value: vat, frac: clamp01(vat / gross) }]
+      : []),
+  ], [profit, gross, cogs, vat, vatOn])
 
   const activeDays = daily.filter(d => d.orders > 0).length
   const avgDaily = activeDays > 0 ? gross / activeDays : 0
@@ -1189,7 +1196,7 @@ export function ReportsCharts({ orders, summary }: Props) {
         <Card className="lg:col-span-2">
           <ChartHeader
             title="موجة الإيرادات"
-            subtitle="المبيعات اليومية قبل الضريبة والربح بعد التكلفة"
+            subtitle={vatOn ? 'المبيعات اليومية قبل الضريبة والربح بعد التكلفة' : t.vatOff.waveSubtitle}
             aside={<Chip label="متوسط اليوم" value={formatCurrency(avgDaily)} />}
           />
           <div className="p-4 pb-3">
@@ -1220,11 +1227,14 @@ export function ReportsCharts({ orders, summary }: Props) {
         <Card>
           <ChartHeader
             title="تركيبة الإيرادات"
-            subtitle="الربح والتكلفة والضريبة"
+            subtitle={vatOn ? 'الربح والتكلفة والضريبة' : t.vatOff.mixSubtitle}
             aside={<Chip label="الإجمالي" value={formatCurrency(gross)} />}
           />
           <div className="p-5 pt-4">
-            <TripleRing rings={rings} margin={margin} gross={gross} returnTotal={returnNet} reduced={reduced} />
+            <TripleRing
+              rings={rings} margin={margin} gross={gross} returnTotal={returnNet} reduced={reduced}
+              ariaLabel={vatOn ? 'تركيبة الإيرادات: الربح والتكلفة والضريبة' : t.vatOff.mixAria}
+            />
           </div>
         </Card>
 

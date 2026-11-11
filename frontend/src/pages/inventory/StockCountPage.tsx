@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { apiErrorMessage } from '@/lib/apiError'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import type { StockCountType } from '@/types/api'
 import { intlLocale } from '@/lib/locale'
 
@@ -30,12 +31,14 @@ export function StockCountPage() {
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const queryClient = useQueryClient()
   const { t, lang } = useI18n()
+  // A shop without VAT starts no tax audit, and older ones are listed as a plain audit count.
+  const { enabled: vatOn } = useVat()
 
   const TYPE_LABELS: Record<string, string> = {
     Daily: t.stockCount.daily,
     Monthly: t.stockCount.monthly,
     Quarterly: t.stockCount.quarterly,
-    TaxAudit: t.stockCount.taxAudit,
+    TaxAudit: vatOn ? t.stockCount.taxAudit : t.vatOff.auditCount,
   }
 
   const STATUS_LABELS: Record<string, string> = {
@@ -168,7 +171,7 @@ export function StockCountPage() {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg">{t.stockCount.type}</label>
             <div className="grid grid-cols-2 gap-2">
-              {(['Daily', 'Monthly', 'Quarterly', 'TaxAudit'] as const).map(typeKey => (
+              {(vatOn ? (['Daily', 'Monthly', 'Quarterly', 'TaxAudit'] as const) : (['Daily', 'Monthly', 'Quarterly'] as const)).map(typeKey => (
                 <button
                   key={typeKey}
                   type="button"

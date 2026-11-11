@@ -40,9 +40,11 @@ export function AppLayout() {
   const pageAllowed = canOpenPath(pathname, limit)
   useEffect(() => {
     if (pageAllowed) return
-    const first = ALL_NAV_ITEMS.find((item) => canOpenPath(item.to, limit))?.to ?? '/settings'
+    // Never the tax page for a shop without VAT: it has nothing to show there.
+    const first = ALL_NAV_ITEMS.find((item) =>
+      (item.to !== '/taxes' || user?.vatEnabled !== false) && canOpenPath(item.to, limit))?.to ?? '/settings'
     void navigate({ to: first, replace: true })
-  }, [pageAllowed, limit, navigate])
+  }, [pageAllowed, limit, navigate, user?.vatEnabled])
 
   // the drawer only exists below lg: rotating or widening past it must not leave the page inert
   useEffect(() => {

@@ -3,6 +3,7 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { fmtNum } from '@/lib/locale'
+import { useVat } from '@/lib/vat'
 import { useI18n } from '@/i18n'
 import type { ExpenseCategory } from '@/types/api'
 import { pctChange, type BreakEven, type IncomeStatement } from './financeMath'
@@ -74,10 +75,11 @@ export function IncomeStatementCard({ statement, byCategory, loading, error, cla
   className?: string
 }) {
   const { t } = useI18n()
+  const { enabled: vatOn } = useVat()
   const s = statement
   return (
     <Card className={className}>
-      <Title note={t.finance.statementNote}>{t.finance.statement}</Title>
+      <Title note={vatOn ? t.finance.statementNote : t.vatOff.statementNote}>{t.finance.statement}</Title>
       <CardBody className="px-4 py-3 sm:px-6">
         {!s ? (
           <CardState loading={loading} error={error} />
@@ -273,13 +275,14 @@ export interface TrendPoint {
 
 export function TrendCard({ points, loading, error }: { points: TrendPoint[]; loading: boolean; error: string | null }) {
   const { t } = useI18n()
+  const { enabled: vatOn } = useVat()
   const ready = points.length > 0 && points.every((p) => p.sales !== null && p.expenses !== null)
   const max = Math.max(1, ...points.flatMap((p) => [p.sales ?? 0, p.expenses ?? 0]))
   const height = (v: number | null) => `${Math.max(v ? 2 : 0, ((v ?? 0) / max) * 100)}%`
 
   return (
     <Card>
-      <Title note={t.finance.trendNote}>{t.finance.trend}</Title>
+      <Title note={vatOn ? t.finance.trendNote : t.vatOff.trendNote}>{t.finance.trend}</Title>
       <CardBody className="px-4 py-4 sm:px-6">
         {!ready ? (
           <CardState loading={loading} error={error} />

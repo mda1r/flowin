@@ -19,6 +19,7 @@ import { logActivity } from '@/lib/activityLog'
 import { CashCountField } from './CashCountGrid'
 import { ShiftReportDocument, n, reconcile, shiftDuration as duration, topProductsOf } from './ShiftReportDocument'
 import { staleShiftReason } from '@/lib/shifts'
+import { useVat } from '@/lib/vat'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 
 type Period = '7d' | '30d' | 'all'
@@ -182,6 +183,7 @@ function ShiftCard({ shift: stored, returns, isCurrent = false, isOwn = false, o
   onForceClose?: () => void
 }) {
   const { branchId } = useAuthStore()
+  const { enabled: vatOn } = useVat()
   const [expanded, setExpanded] = useState(false)
   const [wantPrint, setWantPrint] = useState(false)
   const [selected, setSelected] = useState<OrderResponse | null>(null)
@@ -265,11 +267,11 @@ function ShiftCard({ shift: stored, returns, isCurrent = false, isOwn = false, o
           </p>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className={cn('mt-4 grid grid-cols-2 gap-2', vatOn ? 'sm:grid-cols-4' : 'sm:grid-cols-3')}>
           <Cell label="المبيعات" value={formatCurrency(shift.totalSales)} strong />
           <Cell label="الفواتير" value={n(shift.totalOrders)} />
           <Cell label="متوسط الفاتورة" value={formatCurrency(avg)} />
-          <Cell label="الضريبة" value={formatCurrency(shift.totalTax)} />
+          {vatOn && <Cell label="الضريبة" value={formatCurrency(shift.totalTax)} />}
         </div>
 
         {shift.totalSales > 0 && (

@@ -1,6 +1,7 @@
 import { FlowinLogo } from '@/components/brand/Brand'
 import { formatCurrency } from '@/lib/utils'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
+import { useVat } from '@/lib/vat'
 import type { OrderResponse, ShiftResponse } from '@/types/api'
 
 export const n = (v: number) => v.toLocaleString('ar-SA')
@@ -54,6 +55,8 @@ export function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent
 }) {
   const settings = useReceiptSettings()
   const { sellerName, vatNumber } = useSellerIdentity()
+  // A shop without VAT prints no VAT number or VAT line, even for a shift that still holds older taxed sales.
+  const { enabled: vatOn } = useVat()
   const r = reconcile(shift)
   const row = (label: string, value: string) => (
     <div className="receipt-row"><span>{label}</span><span className="tabular-nums">{value}</span></div>
@@ -66,7 +69,7 @@ export function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent
       <header className="receipt-center">
         {settings.logoPath && <img src={settings.logoPath} alt="" className="receipt-logo" />}
         {sellerName && <p className="receipt-store">{sellerName}</p>}
-        {vatNumber && <p className="receipt-small">الرقم الضريبي: {vatNumber}</p>}
+        {vatOn && vatNumber && <p className="receipt-small">الرقم الضريبي: {vatNumber}</p>}
       </header>
       <hr className="receipt-rule" />
       <div className="receipt-center">
@@ -86,7 +89,7 @@ export function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent
         {row('مبيعات بطاقة', formatCurrency(shift.totalCardSales))}
         {digital > 0 && row('دفع رقمي وأخرى', formatCurrency(digital))}
         {refunds && refunds.count > 0 && row(`المرتجعات (${n(refunds.count)})`, `−${formatCurrency(refunds.amount)}`)}
-        {row('ضريبة القيمة المضافة', formatCurrency(shift.totalTax))}
+        {vatOn && row('ضريبة القيمة المضافة', formatCurrency(shift.totalTax))}
         <div className="receipt-row receipt-total"><span>إجمالي المبيعات</span><span className="tabular-nums">{formatCurrency(shift.totalSales)}</span></div>
       </div>
       <hr className="receipt-rule" />

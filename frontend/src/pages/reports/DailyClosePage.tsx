@@ -23,6 +23,7 @@ import type { CompletedSessionResponse } from '@/api/gaming'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
 import { intlLocale } from '@/lib/locale'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 
 // Payment and refund methods the server records; anything else falls back to its raw name.
 const PAYMENT_LABELS: Record<string, string> = {
@@ -96,6 +97,8 @@ function UnpaidSession({ session }: { session: CompletedSessionResponse }) {
 export function DailyClosePage() {
   const { branchId, user } = useAuthStore()
   const { t } = useI18n()
+  // A shop without VAT sees no tax line here, even on a day that still has older taxed sales.
+  const { enabled: vatOn } = useVat()
   const [day, setDay] = useState(localYmd())
   const today = localYmd()
   const routes = user?.businessType ? BUSINESS_TYPE_ROUTES[user.businessType] ?? [] : []
@@ -288,17 +291,19 @@ export function DailyClosePage() {
         )}
 
         {loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-28" />)}
+          <div className={cn('grid gap-4 sm:grid-cols-2', vatOn ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
+            {Array.from({ length: vatOn ? 4 : 3 }).map((_, i) => <div key={i} className="skeleton h-28" />)}
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard label="إجمالي الإيرادات" value={formatCurrency(report.revenue)} icon={<TrendingUp />} hint="شامل الضريبة" />
+            <div className={cn('grid gap-4 sm:grid-cols-2', vatOn ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
+              <StatCard label="إجمالي الإيرادات" value={formatCurrency(report.revenue)} icon={<TrendingUp />} hint={vatOn ? 'شامل الضريبة' : undefined} />
               <StatCard label="المرتجعات" value={formatCurrency(report.refunds.total)} icon={<RotateCcw />} tone="danger"
                 hint={`${report.refunds.count.toLocaleString(intlLocale())} عملية`} />
               <StatCard label="الصافي" value={formatCurrency(report.net)} icon={<Receipt />} tone="success" />
-              <StatCard label="ضريبة القيمة المضافة" value={formatCurrency(report.vat)} icon={<ClipboardCheck />} tone="info" hint="من الفواتير المسجّلة" />
+              {vatOn && (
+                <StatCard label="ضريبة القيمة المضافة" value={formatCurrency(report.vat)} icon={<ClipboardCheck />} tone="info" hint="من الفواتير المسجّلة" />
+              )}
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
@@ -320,7 +325,7 @@ export function DailyClosePage() {
                     ))}
                   </div>
                 )}
-                <Row label="الضريبة" value={formatCurrency(report.pos.vat)} />
+                {vatOn && <Row label="الضريبة" value={formatCurrency(report.pos.vat)} />}
                 <Row label="الإجمالي" value={formatCurrency(report.pos.gross)} strong />
                 <div className="mt-3 border-t border-border pt-3">
                   <p className="mb-1 text-xs font-medium text-muted">حسب طريقة الدفع</p>
@@ -351,7 +356,7 @@ export function DailyClosePage() {
                   {Object.entries(report.rest.byMethod).map(([k, v]) => (
                     <Row key={k} label={PAYMENT_LABELS[k] ?? k} value={formatCurrency(v)} />
                   ))}
-                  <Row label="الضريبة" value={formatCurrency(report.rest.vat)} />
+                  {vatOn && <Row label="الضريبة" value={formatCurrency(report.rest.vat)} />}
                   <Row label="الإجمالي" value={formatCurrency(report.rest.total)} strong />
                 </Section>
               )}
@@ -383,7 +388,7 @@ export function DailyClosePage() {
                         <tr className="border-b border-border text-xs text-muted">
                           <th className="py-2 text-start font-semibold">المنتج</th>
                           <th className="py-2 text-start font-semibold">الكمية</th>
-                          <th className="py-2 text-end font-semibold">الإيراد قبل الضريبة</th>
+                          <th className="py-2 text-end font-semibold">{vatOn ? 'الإيراد قبل الضريبة' : t.vatOff.revenue}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">

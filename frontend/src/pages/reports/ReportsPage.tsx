@@ -32,6 +32,7 @@ import { downloadCsv } from '@/lib/csv'
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { printElement } from '@/lib/print'
 import { useSellerIdentity } from '@/lib/receipt'
+import { useVat } from '@/lib/vat'
 import { useAuthStore } from '@/stores/authStore'
 import { salesApi } from '@/api/sales'
 import { ordersApi } from '@/api/orders'
@@ -296,6 +297,9 @@ export function ReportsPage() {
 function ReportsContent() {
   const { branchId } = useAuthStore()
   const { t } = useI18n()
+  // A shop without VAT sees no tax figure, column or wording here, older taxed sales included.
+  // Net sales already exclude VAT, so every other number stays the same.
+  const { enabled: vatOn } = useVat()
   const [vatOpen, setVatOpen] = useState(false)
   const [period, setPeriod] = useState<Period>('month')
   const [customFrom, setCustomFrom] = useState(localDateStr(new Date()))
@@ -381,7 +385,7 @@ function ReportsContent() {
         timeOf(atOf(o)),
         PAYMENT_LABELS[o.paymentMethod ?? '']?.label ?? o.paymentMethod ?? '',
         money(orderNet(o)),
-        money(o.taxAmount),
+        ...(vatOn ? [money(o.taxAmount)] : []),
         money(o.totalAmount),
       ])
     for (const r of [...returns].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
@@ -392,14 +396,16 @@ function ReportsContent() {
         timeOf(r.createdAt),
         r.refundMethod === 'StoreCredit' ? c.storeCredit : PAYMENT_LABELS[r.refundMethod]?.label ?? r.refundMethod,
         money(-returnNet(r)),
-        money(-returnVat(r)),
+        ...(vatOn ? [money(-returnVat(r))] : []),
         money(-r.refundAmount),
       ])
     }
 
     downloadCsv(
       `sales-${dateFrom}_${dateTo}.csv`,
-      [c.type, c.invoiceNo, c.date, c.time, c.payment, c.net, c.vat, c.total],
+      vatOn
+        ? [c.type, c.invoiceNo, c.date, c.time, c.payment, c.net, c.vat, c.total]
+        : [c.type, c.invoiceNo, c.date, c.time, c.payment, t.vatOff.net, c.total],
       rows,
     )
   }
@@ -423,10 +429,12 @@ function ReportsContent() {
                 <Download className="h-4 w-4" />
                 {t.reports.exportCsv}
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => setVatOpen(true)} disabled={isLoading || isError}>
-                <Printer className="h-4 w-4" />
-                {t.reports.printVat}
-              </Button>
+              {vatOn && (
+                <Button variant="secondary" size="sm" onClick={() => setVatOpen(true)} disabled={isLoading || isError}>
+                  <Printer className="h-4 w-4" />
+                  {t.reports.printVat}
+                </Button>
+              )}
             </>
           }
         />
@@ -496,7 +504,7 @@ function ReportsContent() {
               <KpiCard
                 title={t.reports.netSales}
                 value={formatCurrency(summary.netSales)}
-                sub={t.reports.netSalesHint}
+                sub={vatOn ? t.reports.netSalesHint : t.vatOff.netSalesHint}
                 icon={<ShoppingCart className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft text-brand-strong"
                 accent="rgb(var(--brand))"
@@ -518,15 +526,17 @@ function ReportsContent() {
                 accent="rgb(var(--brand))"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-              <KpiCard
-                title={t.reports.netVat}
-                value={formatCurrency(summary.netVat)}
-                sub={t.reports.netVatHint}
-                icon={<Receipt className="h-5 w-5 text-brand-strong" />}
-                iconWrap="bg-brand-soft text-brand-strong"
-                accent="rgb(var(--brand))"
-              />
+            <div className={cn('grid grid-cols-2 gap-4', vatOn && 'lg:grid-cols-3')}>
+              {vatOn && (
+                <KpiCard
+                  title={t.reports.netVat}
+                  value={formatCurrency(summary.netVat)}
+                  sub={t.reports.netVatHint}
+                  icon={<Receipt className="h-5 w-5 text-brand-strong" />}
+                  iconWrap="bg-brand-soft text-brand-strong"
+                  accent="rgb(var(--brand))"
+                />
+              )}
               <KpiCard
                 title={t.sales.returns}
                 value={String(summary.returns.count)}
@@ -536,7 +546,7 @@ function ReportsContent() {
                 accent="rgb(var(--danger))"
               />
               <KpiCard
-                title={t.reports.collected}
+                title={vatOn ? t.reports.collected : t.vatOff.collected}
                 value={formatCurrency(summary.collected)}
                 icon={<Wallet className="h-5 w-5 text-brand-strong" />}
                 iconWrap="bg-brand-soft text-brand-strong"
@@ -556,7 +566,7 @@ function ReportsContent() {
             <ReportsCharts orders={orders} summary={summary} />
 
             {/* ── VAT Report (shown for quarter and year) ── */}
-            {(period === 'quarter' || period === 'year') && (
+            {vatOn && (period === 'quarter' || period === 'year') && (
               <VatReportSection
                 dateFrom={dateFrom}
                 dateTo={dateTo}
@@ -672,12 +682,12 @@ function ReportsContent() {
                   </div>
                   <div className="divide-y divide-border p-0">
                     {[
-                      { label: t.reports.salesExVat,   value: formatCurrency(summary.sales) },
-                      { label: t.reports.returnsExVat, value: summary.returns.net > 0 ? `- ${formatCurrency(summary.returns.net)}` : formatCurrency(0), red: summary.returns.net > 0 },
+                      { label: vatOn ? t.reports.salesExVat : t.vatOff.sales,     value: formatCurrency(summary.sales) },
+                      { label: vatOn ? t.reports.returnsExVat : t.vatOff.returns, value: summary.returns.net > 0 ? `- ${formatCurrency(summary.returns.net)}` : formatCurrency(0), red: summary.returns.net > 0 },
                       { label: t.reports.netSales,     value: formatCurrency(summary.netSales), bold: true },
                       { label: t.reports.costOfGoods,  value: `- ${formatCurrency(summary.netCogs)}`, red: true },
                       { label: t.reports.grossProfit,  value: formatCurrency(summary.grossProfit), bold: true },
-                      { label: t.reports.netVat,       value: formatCurrency(summary.netVat) },
+                      ...(vatOn ? [{ label: t.reports.netVat, value: formatCurrency(summary.netVat) }] : []),
                     ].map((row) => (
                       <div key={row.label} className="flex items-center justify-between px-6 py-3">
                         <span className="text-sm text-muted">{row.label}</span>
@@ -697,23 +707,25 @@ function ReportsContent() {
         )}
       </div>
 
-      <Modal
-        open={vatOpen}
-        onClose={() => setVatOpen(false)}
-        title={t.reports.printVat}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setVatOpen(false)}>{t.common.close}</Button>
-            <Button onClick={() => printElement(document.getElementById('vat-summary-print'))}>
-              <Printer className="h-4 w-4" />
-              {t.common.print}
-            </Button>
-          </>
-        }
-      >
-        <VatSummarySlip id="vat-summary-print" dateFrom={dateFrom} dateTo={dateTo} summary={summary} />
-      </Modal>
+      {vatOn && (
+        <Modal
+          open={vatOpen}
+          onClose={() => setVatOpen(false)}
+          title={t.reports.printVat}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setVatOpen(false)}>{t.common.close}</Button>
+              <Button onClick={() => printElement(document.getElementById('vat-summary-print'))}>
+                <Printer className="h-4 w-4" />
+                {t.common.print}
+              </Button>
+            </>
+          }
+        >
+          <VatSummarySlip id="vat-summary-print" dateFrom={dateFrom} dateTo={dateTo} summary={summary} />
+        </Modal>
+      )}
     </div>
   )
 }

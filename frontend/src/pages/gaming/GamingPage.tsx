@@ -19,6 +19,7 @@ import type {
   GamingPackageResponse,
 } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import { playAlarmSequence, playBeep, requestNotificationPermission, sendGameNotification } from '@/lib/gamingAlerts'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { PackageBillLines, PackagePicker, PackagesManager } from '@/components/gaming/Packages'
@@ -50,6 +51,7 @@ interface StartForm {
 
 export function GamingPage() {
   const { t, lang } = useI18n()
+  const { enabled: vatOn } = useVat()
 
   const TYPE_LABEL: Record<StationType, string> = {
     Console: t.gaming.types.ps5,
@@ -705,7 +707,7 @@ export function GamingPage() {
                   {formatCurrency(billModal.totalAmount, billModal.currency)}
                 </span>
               </div>
-              <p className="text-xs text-muted">شامل ضريبة القيمة المضافة 15%</p>
+              {vatOn && <p className="text-xs text-muted">شامل ضريبة القيمة المضافة 15%</p>}
             </div>
 
           </div>

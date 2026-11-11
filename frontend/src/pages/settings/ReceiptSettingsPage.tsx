@@ -16,6 +16,8 @@ import { compressImage } from '@/lib/image'
 import { printElement } from '@/lib/print'
 import { apiErrorMessage } from '@/lib/apiError'
 import { cn } from '@/lib/utils'
+import { useVat } from '@/lib/vat'
+import { useI18n } from '@/i18n'
 
 // A sale that shows every part of the receipt, so the owner sees the whole design before printing a real one.
 const SAMPLE = {
@@ -34,6 +36,9 @@ export function ReceiptSettingsPage() {
   const qc = useQueryClient()
   const saved = useReceiptSettings()
   const { sellerName, vatNumber } = useSellerIdentity()
+  const { t } = useI18n()
+  // A shop without VAT previews the plain receipt it prints: no VAT number, no VAT line, no ZATCA code.
+  const { enabled: vatOn } = useVat()
   const [draft, setDraft] = useState<ReceiptSettings>(saved)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -73,7 +78,7 @@ export function ReceiptSettingsPage() {
   })
 
   const changed = JSON.stringify(draft) !== JSON.stringify(saved)
-  const qr = generateZatcaQr({
+  const qr = !vatOn ? '' : generateZatcaQr({
     sellerName: sellerName || 'المتجر',
     vatNumber,
     timestamp: issuedAt,
@@ -158,9 +163,15 @@ export function ReceiptSettingsPage() {
               <input type="checkbox" className="accent-[rgb(var(--brand-ink))]" checked={draft.showPoweredBy} onChange={(e) => set('showPoweredBy', e.target.checked)} />
               إظهار شعار flowin الصغير أسفل الفاتورة
             </label>
-            <p className="text-xs text-muted">
-              اسم المحل والرقم الضريبي يُؤخذان من <a href="/settings/zatca" className="text-brand-ink underline">إعدادات زاتكا</a> لأنهما يدخلان في رمز الفاتورة.
-            </p>
+            {vatOn ? (
+              <p className="text-xs text-muted">
+                اسم المحل والرقم الضريبي يُؤخذان من <a href="/settings/zatca" className="text-brand-ink underline">إعدادات زاتكا</a> لأنهما يدخلان في رمز الفاتورة.
+              </p>
+            ) : (
+              <p className="text-xs text-muted">
+                {t.vatOff.receiptSellerFrom} <a href="/settings/zatca" className="text-brand-ink underline">{t.vatOff.receiptSellerLink}</a>.
+              </p>
+            )}
           </Card>
         </div>
 
@@ -178,12 +189,12 @@ export function ReceiptSettingsPage() {
                 id="receipt-preview"
                 settings={draft}
                 sellerName={sellerName || 'اسم المحل'}
-                vatNumber={vatNumber || '300000000000003'}
+                vatNumber={vatOn ? vatNumber || '300000000000003' : undefined}
                 invoiceNo={SAMPLE.invoiceNo}
                 issuedAt={issuedAt}
                 lines={SAMPLE.lines}
-                subtotal={SAMPLE.subtotal}
-                tax={SAMPLE.tax}
+                subtotal={vatOn ? SAMPLE.subtotal : SAMPLE.total}
+                tax={vatOn ? SAMPLE.tax : 0}
                 total={SAMPLE.total}
                 paymentLabel="نقداً"
                 tendered={100}

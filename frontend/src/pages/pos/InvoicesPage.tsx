@@ -5,6 +5,7 @@ import { ordersApi, RETURNS_MAX_LIMIT } from '@/api/orders'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { InvoiceReceiptModal } from '@/components/pos/InvoiceReceiptModal'
 import { invoiceNo, matchesInvoiceNo } from '@/lib/invoiceNumber'
@@ -57,6 +58,8 @@ const METHOD_ICON = { Cash: Banknote, Card: CreditCard, Split: Shuffle } as cons
 export function InvoicesPage() {
   const { branchId } = useAuthStore()
   const { t } = useI18n()
+  // A shop without VAT sees no tax column or total, older taxed invoices included.
+  const { enabled: vatOn } = useVat()
   const [period, setPeriod] = useState<Period>('today')
   const [from, setFrom] = useState(daysAgo(6))
   const [to, setTo] = useState(localYmd())
@@ -153,14 +156,13 @@ export function InvoicesPage() {
   const exportCsv = () =>
     downloadCsv(
       `invoices-${localYmd()}.csv`,
-      ['رقم الفاتورة', 'التاريخ', 'المنتجات', 'طريقة الدفع', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'المسترد', t.invoices.discountCodeColumn],
+      ['رقم الفاتورة', 'التاريخ', 'المنتجات', 'طريقة الدفع', ...(vatOn ? ['قبل الضريبة', 'الضريبة'] : []), 'الإجمالي', 'المسترد', t.invoices.discountCodeColumn],
       orders.map((o) => [
         invoiceNo(o),
         new Date(o.completedAt ?? o.createdAt).toLocaleString('en-CA', { hour12: false }),
         o.lines.map(lineSummary).join(' | '),
         paymentLabel(o.paymentMethod),
-        (o.totalAmount - o.taxAmount).toFixed(2),
-        o.taxAmount.toFixed(2),
+        ...(vatOn ? [(o.totalAmount - o.taxAmount).toFixed(2), o.taxAmount.toFixed(2)] : []),
         o.totalAmount.toFixed(2),
         (refunds.get(o.id)?.amount ?? 0).toFixed(2),
         o.discountCode ?? '',
@@ -233,10 +235,10 @@ export function InvoicesPage() {
         </div>
 
         {/* summary */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <div className={cn('grid grid-cols-2 gap-3', vatOn ? 'lg:grid-cols-6' : 'lg:grid-cols-5')}>
           <Stat label="عدد الفواتير" value={summary.count.toLocaleString('ar-SA')} />
           <Stat label="إجمالي المبيعات" value={formatCurrency(summary.total)} strong />
-          <Stat label="ضريبة القيمة المضافة" value={formatCurrency(summary.vat)} />
+          {vatOn && <Stat label="ضريبة القيمة المضافة" value={formatCurrency(summary.vat)} />}
           <Stat label="متوسط الفاتورة" value={formatCurrency(summary.avg)} />
           <Stat
             label={`المسترد (${summary.refundedCount.toLocaleString('ar-SA')})`}

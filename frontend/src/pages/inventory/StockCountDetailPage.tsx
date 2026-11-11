@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/Toast'
 import { logActivity } from '@/lib/activityLog'
 import { apiErrorMessage } from '@/lib/apiError'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import { intlLocale } from '@/lib/locale'
 
 const STATUS_STYLES: Record<string, string> = {
@@ -30,11 +31,14 @@ export function StockCountDetailPage() {
   const canManage = user?.role === 'Owner' || user?.role === 'Manager'
   const sessionKey = ['stock-count', branchId, sessionId]
 
+  // A shop without VAT sees an older tax audit as a plain audit count, without its tax summary.
+  const { enabled: vatOn } = useVat()
+
   const TYPE_LABELS: Record<string, string> = {
     Daily: t.stockCount.daily,
     Monthly: t.stockCount.monthly,
     Quarterly: t.stockCount.quarterly,
-    TaxAudit: t.stockCount.taxAudit,
+    TaxAudit: vatOn ? t.stockCount.taxAudit : t.vatOff.auditCount,
   }
 
   const STATUS_LABELS: Record<string, string> = {
@@ -403,7 +407,7 @@ export function StockCountDetailPage() {
       </div>
 
       {/* Tax audit summary (visible when type = TaxAudit) */}
-      {session.type === 'TaxAudit' && session.status === 'Completed' && (
+      {vatOn && session.type === 'TaxAudit' && session.status === 'Completed' && (
         <div className="rounded-xl border border-warning/30 bg-warning/10 p-5">
           <h3 className="mb-3 font-semibold text-warning">ملخص التدقيق الضريبي</h3>
           <div className="grid grid-cols-3 gap-4 text-sm">
