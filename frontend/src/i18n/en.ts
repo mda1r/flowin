@@ -871,6 +871,7 @@ export const en = {
     amountRequired: 'Enter an amount above zero',
     descriptionRequired: 'Write what the expense is for',
     dateRequired: 'Pick a date',
+    dateFuture: 'The date is in the future; pick today or earlier',
     approveNow: 'Approve now',
     approveNowHint: 'Counts in profit straight away',
     savedApproved: 'Expense saved and approved',

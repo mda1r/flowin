@@ -873,6 +873,7 @@ export const ar: Translations = {
     amountRequired: 'أدخل مبلغاً أكبر من صفر',
     descriptionRequired: 'اكتب وصف المصروف',
     dateRequired: 'اختر التاريخ',
+    dateFuture: 'التاريخ في المستقبل، اختر اليوم أو قبله',
     approveNow: 'اعتماد مباشرة',
     approveNowHint: 'يُحسب في الربح فوراً',
     savedApproved: 'تم حفظ المصروف واعتماده',

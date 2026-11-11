@@ -23,7 +23,8 @@ const schema = z.object({
   category: z.enum(EXPENSE_CATEGORIES),
   amount: z.coerce.number().positive(),
   description: z.string().trim().min(1).max(512),
-  expenseDate: z.string().min(1),
+  // No future dates: the expense would land in a month that is not shown yet.
+  expenseDate: z.string().min(1).refine((d) => d <= localYmd(), 'future'),
   notes: z.string().max(1024).optional(),
   approveNow: z.boolean(),
 })
@@ -105,7 +106,13 @@ export function ExpenseFormModal({ open, onClose, branchId, expense, canApprove,
             error={errors.amount && t.finance.amountRequired}
             {...register('amount')}
           />
-          <Input label={t.finance.date} type="date" error={errors.expenseDate && t.finance.dateRequired} {...register('expenseDate')} />
+          <Input
+            label={t.finance.date}
+            type="date"
+            max={localYmd()}
+            error={errors.expenseDate && (errors.expenseDate.message === 'future' ? t.finance.dateFuture : t.finance.dateRequired)}
+            {...register('expenseDate')}
+          />
         </div>
         <Select label={t.finance.category} {...register('category')}>
           {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{t.finance.categoryNames[c]}</option>)}

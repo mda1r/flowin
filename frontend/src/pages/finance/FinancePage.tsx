@@ -316,7 +316,7 @@ export function FinancePage() {
             <ChevronRight className="h-4 w-4 ltr:rotate-180" />
           </Button>
           <span className="min-w-32 text-center text-sm font-semibold text-fg">{monthLabel(month)}</span>
-          <Button size="sm" variant="ghost" aria-label={t.finance.nextMonth} onClick={() => changeMonth(1)}>
+          <Button size="sm" variant="ghost" aria-label={t.finance.nextMonth} disabled={month >= today.slice(0, 7)} onClick={() => changeMonth(1)}>
             <ChevronLeft className="h-4 w-4 ltr:rotate-180" />
           </Button>
         </div>
