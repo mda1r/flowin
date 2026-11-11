@@ -78,4 +78,10 @@ public static class CatalogErrors
 
     public static readonly Error NoTenant =
         Error.Unauthorized("Catalog.NoTenant", "انتهت الجلسة، سجّل الدخول مرة أخرى");
+
+    public static readonly Error ImageTooLarge =
+        Error.Validation("Catalog.ImageTooLarge", "حجم الصورة كبير، الحد 1.5 ميجابايت");
+
+    public static readonly Error ImageNotSupported =
+        Error.Validation("Catalog.ImageNotSupported", "الصورة لازم تكون JPG أو PNG أو WebP");
 }

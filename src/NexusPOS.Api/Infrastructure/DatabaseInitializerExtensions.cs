@@ -73,6 +73,7 @@ internal static class DatabaseInitializerExtensions
             await EnsureCreatedAsync<GamingDbContext>(sp, logger);
             await EnsureCreatedAsync<SuperAdminDbContext>(sp, logger);
             await EnsureCreatedAsync<TaxConfigDbContext>(sp, logger);
+            await EnsureCreatedAsync<CatalogMediaDbContext>(sp, logger);
             await EnsureCreatedAsync<ZatcaDbContext>(sp, logger);
 
             await MigrateCatalogColumnsAsync(sp, logger);

@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using NexusPOS.Catalog.Application.Commands.AddProductVariant;
 using NexusPOS.Catalog.Application.Commands.CreateProduct;
 using NexusPOS.Catalog.Application.Commands.DeactivateProduct;
+using NexusPOS.Catalog.Application.Commands.ProductImages;
+using NexusPOS.Catalog.Domain.Entities;
 using NexusPOS.Catalog.Application.Commands.SetVariantActive;
 using NexusPOS.Catalog.Application.Commands.UpdateProduct;
 using NexusPOS.Catalog.Application.Commands.UpdateVariant;
@@ -164,6 +166,36 @@ public sealed class ProductsController(ISender mediator) : ControllerBase
         return result.Match(
             variant => CreatedAtAction(nameof(GetProduct), new { id }, variant),
             MapErrorsToResult);
+    }
+
+    /// <summary>Upload the product's photo (JPEG, PNG or WebP, up to 1.5 MB); it replaces any earlier one.</summary>
+    [HttpPut("{id:guid}/image")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [RequestSizeLimit(ProductImage.MaxBytes + 64_000)]
+    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetImage(Guid id, IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0 || file.Length > ProductImage.MaxBytes)
+        {
+            return MapErrorsToResult([NexusPOS.Catalog.Domain.CatalogErrors.ImageTooLarge]);
+        }
+
+        using MemoryStream buffer = new();
+        await file.CopyToAsync(buffer, cancellationToken);
+        ErrorOr<ProductResponse> result = await mediator.Send(new SetProductImageCommand(id, buffer.ToArray()), cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
+    }
+
+    /// <summary>Remove the product's photo.</summary>
+    [HttpDelete("{id:guid}/image")]
+    [Authorize(Policy = "OwnerOrManager")]
+    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveImage(Guid id, CancellationToken cancellationToken)
+    {
+        ErrorOr<ProductResponse> result = await mediator.Send(new RemoveProductImageCommand(id), cancellationToken);
+        return result.Match(Ok, MapErrorsToResult);
     }
 
     /// <summary>Deactivate a product and all its variants.</summary>

@@ -323,6 +323,15 @@ export const en = {
   },
 
   products: {
+    image: 'Product photo',
+    imageHint: 'Shown on the till. It is shrunk automatically before upload.',
+    addImage: 'Upload photo',
+    changeImage: 'Change photo',
+    removeImage: 'Remove photo',
+    imageSaved: 'Photo saved',
+    imageRemoved: 'Photo removed',
+    imageFailed: 'Could not save the photo',
+    imageUnreadable: 'Could not read that image; try a JPG or PNG',
     nameEn: 'English name (optional)',
     nameEnHint: 'Shown instead of the Arabic name when the app is in English. Receipts stay in Arabic.',
     nameEnPlaceholder: 'e.g. Latte',

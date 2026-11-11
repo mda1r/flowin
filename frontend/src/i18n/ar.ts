@@ -325,6 +325,15 @@ export const ar: Translations = {
   },
 
   products: {
+    image: 'صورة المنتج',
+    imageHint: 'تظهر في شاشة الكاشير. نصغّرها تلقائياً قبل الرفع.',
+    addImage: 'رفع صورة',
+    changeImage: 'تغيير الصورة',
+    removeImage: 'إزالة الصورة',
+    imageSaved: 'تم حفظ الصورة',
+    imageRemoved: 'تمت إزالة الصورة',
+    imageFailed: 'تعذّر حفظ الصورة',
+    imageUnreadable: 'ما قدرنا نقرأ الصورة، جرّب صورة JPG أو PNG',
     nameEn: 'الاسم بالإنجليزي (اختياري)',
     nameEnHint: 'يظهر بدل الاسم العربي عند تشغيل البرنامج بالإنجليزي. الفاتورة تبقى بالعربي.',
     nameEnPlaceholder: 'مثال: Latte',

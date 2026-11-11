@@ -24,6 +24,7 @@ import { useI18n } from '@/i18n'
 import { localName } from '@/lib/localName'
 import { useVat } from '@/lib/vat'
 import { CategoryNamesEditor } from './CategoryNamesEditor'
+import { ProductImagePicker } from './ProductImagePicker'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
 
 type CategoryFormData = { name: string; nameEn?: string; description?: string }
@@ -457,10 +458,14 @@ export function ProductsPage() {
                         className="flex flex-1 items-center gap-4 text-left"
                       >
                         <div
-                          className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg text-lg"
                           style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)' }}
                         >
-                          {product.name[0]}
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            localName(product, lang)[0]
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -759,6 +764,7 @@ export function ProductsPage() {
         }
       >
         <form className="space-y-4">
+          {editingProduct && canManage && <ProductImagePicker product={editingProduct} onChange={setEditingProduct} />}
           <div className="grid grid-cols-2 gap-4">
             <Input label={t.products.name} error={editProductForm.formState.errors.name?.message} {...editProductForm.register('name')} />
             <Input

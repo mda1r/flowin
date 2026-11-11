@@ -92,6 +92,17 @@ export const catalogApi = {
   deactivateProduct: (productId: string) =>
     apiClient.delete(`/api/v1/products/${productId}`),
 
+  // A product's photo (already shrunk in the browser); replaces any earlier one.
+  setProductImage: (productId: string, image: Blob) => {
+    const form = new FormData()
+    form.append('file', image, image.type === 'image/webp' ? 'product.webp' : 'product.jpg')
+    // The client defaults to JSON; multipart lets the browser add the boundary instead of turning the form into JSON.
+    return apiClient.put<ProductResponse>(`/api/v1/products/${productId}/image`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+
+  removeProductImage: (productId: string) =>
+    apiClient.delete<ProductResponse>(`/api/v1/products/${productId}/image`),
+
   // Modifier (add-on) groups — tenant from the token. Option prices are net of VAT.
   listModifierGroups: (params?: { includeInactive?: boolean }) =>
     apiClient.get<ModifierGroupResponse[]>('/api/v1/modifier-groups', { params }),

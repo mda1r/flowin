@@ -22,6 +22,10 @@ public static class CatalogServiceExtensions
             options.AddInterceptors(sp.GetRequiredService<TenantSchemaInterceptor>());
         });
 
+        // Product photos: one shared schema, no tenant search path (rows are filtered by tenant id instead).
+        services.AddDbContext<CatalogMediaDbContext>(options =>
+            options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
+
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IVariantPriceDirectory, VariantPriceDirectory>();

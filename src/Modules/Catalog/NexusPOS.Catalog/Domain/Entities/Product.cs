@@ -116,6 +116,8 @@ public sealed class Product : AggregateRoot<ProductId>
 
     public void SetNameEn(string? nameEn) => NameEn = EnglishName.Normalize(nameEn);
 
+    public void SetImageUrl(string? url) => ImageUrl = string.IsNullOrWhiteSpace(url) ? null : url;
+
     public ErrorOr<Success> SetVariantNameEn(VariantId variantId, string? nameEn)
     {
         ProductVariant? variant = Variants.FirstOrDefault(v => v.Id == variantId);
