@@ -22,6 +22,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
 import { localName } from '@/lib/localName'
+import { useVat } from '@/lib/vat'
 import { CategoryNamesEditor } from './CategoryNamesEditor'
 import type { ProductResponse, ProductVariantResponse } from '@/types/api'
 
@@ -73,6 +74,8 @@ export function ProductsPage() {
   const canEditAddOns = canManage && (user?.businessType === 'Cafe' || user?.businessType === 'Gaming')
   const qc = useQueryClient()
   const { t, lang } = useI18n()
+  // Shelf prices include VAT; a shop without VAT sells at the price as typed, so the field says nothing about tax.
+  const priceHint = useVat().enabled ? 'شامل الضريبة' : undefined
   const [recipeVariant, setRecipeVariant] = useState<
     { id: string; name: string; salePrice: number; currency: string; copySources: RecipeCopySource[] } | null
   >(null)
@@ -704,7 +707,7 @@ export function ProductsPage() {
           />
           <div className="grid grid-cols-3 gap-4">
             <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={createForm.formState.errors.costPrice?.message} {...createForm.register('costPrice')} />
-            <Input label={t.products.salePrice} hint="شامل الضريبة" type="number" step="0.01" min="0" error={createForm.formState.errors.salePrice?.message} {...createForm.register('salePrice')} />
+            <Input label={t.products.salePrice} hint={priceHint} type="number" step="0.01" min="0" error={createForm.formState.errors.salePrice?.message} {...createForm.register('salePrice')} />
             <Input label={t.products.currency} maxLength={3} placeholder="SAR" error={createForm.formState.errors.currency?.message} {...createForm.register('currency')} />
           </div>
           <Select label="وحدة القياس" {...createForm.register('unitType')}>
@@ -870,7 +873,7 @@ export function ProductsPage() {
           </div>
           <div className="grid grid-cols-3 gap-4">
             <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={editVariantForm.formState.errors.costPrice?.message} {...editVariantForm.register('costPrice')} />
-            <Input label={t.products.salePrice} hint="شامل الضريبة" type="number" step="0.01" min="0" error={editVariantForm.formState.errors.salePrice?.message} {...editVariantForm.register('salePrice')} />
+            <Input label={t.products.salePrice} hint={priceHint} type="number" step="0.01" min="0" error={editVariantForm.formState.errors.salePrice?.message} {...editVariantForm.register('salePrice')} />
             <Input label={t.products.currency} maxLength={3} error={editVariantForm.formState.errors.currency?.message} {...editVariantForm.register('currency')} />
           </div>
         </form>
@@ -918,7 +921,7 @@ export function ProductsPage() {
           </div>
           <div className="grid grid-cols-3 gap-4">
             <Input label={t.products.costPrice} type="number" step="0.01" min="0" error={addVariantForm.formState.errors.costPrice?.message} {...addVariantForm.register('costPrice')} />
-            <Input label={t.products.salePrice} hint="شامل الضريبة" type="number" step="0.01" min="0" error={addVariantForm.formState.errors.salePrice?.message} {...addVariantForm.register('salePrice')} />
+            <Input label={t.products.salePrice} hint={priceHint} type="number" step="0.01" min="0" error={addVariantForm.formState.errors.salePrice?.message} {...addVariantForm.register('salePrice')} />
             <Input label={t.products.currency} maxLength={3} error={addVariantForm.formState.errors.currency?.message} {...addVariantForm.register('currency')} />
           </div>
           {addingVariantTo?.trackInventory && (

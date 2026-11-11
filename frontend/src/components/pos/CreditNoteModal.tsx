@@ -10,7 +10,7 @@ import { printElement } from '@/lib/print'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
 
 /* The slip handed to a customer for a return: a credit note (إشعار دائن) that names the original invoice,
-   lists what came back, how it was refunded and the VAT on it, with its own ZATCA QR. */
+   lists what came back, how it was refunded and the VAT on it, with its own ZATCA QR (when the sale had VAT). */
 export function CreditNoteModal({
   ret,
   order,
@@ -28,13 +28,17 @@ export function CreditNoteModal({
   const figures = returnReceiptFigures(ret, order.taxRate)
   const number = returnNo(ret)
   const reference = invoiceNo(order)
-  const qr = generateZatcaQr({
-    sellerName: sellerName || 'flowin',
-    vatNumber,
-    timestamp: ret.createdAt,
-    totalWithVat: figures.total,
-    vatAmount: figures.tax,
-  })
+  // A credit note follows the invoice it reverses (documentHasVat on the original sale's rate): VAT rows,
+  // number and QR only when that sale had VAT, whatever the shop's setting is today.
+  const qr = figures.vat
+    ? generateZatcaQr({
+        sellerName: sellerName || 'flowin',
+        vatNumber,
+        timestamp: ret.createdAt,
+        totalWithVat: figures.total,
+        vatAmount: figures.tax,
+      })
+    : undefined
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl" role="dialog" aria-modal="true" aria-label={`إشعار دائن ${number}`}>
@@ -72,7 +76,7 @@ export function CreditNoteModal({
               reference: `#${reference}`,
               date: new Date(ret.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: figures.lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total })),
-              vat: figures.tax,
+              vat: figures.vat ? figures.tax : undefined,
               vatIncluded: true,
               total: figures.total,
               payment: refundLabel(ret.refundMethod),

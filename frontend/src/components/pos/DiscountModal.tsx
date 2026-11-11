@@ -8,6 +8,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/apiError'
 import { posSettingsApi, type PosBranchSettings } from '@/api/orders'
 import type { CartDiscount } from '@/stores/cartStore'
+import { useVat } from '@/lib/vat'
 
 const QUICK_PERCENTS = [5, 10, 15]
 
@@ -35,6 +36,7 @@ interface DiscountModalProps {
 export function DiscountModal({ open, onClose, title, base, current, onApply, roundDown, note, children }: DiscountModalProps) {
   const [type, setType] = useState<CartDiscount['type']>('Percentage')
   const [value, setValue] = useState('')
+  const vatOn = useVat().enabled
 
   useEffect(() => {
     if (!open) return
@@ -98,7 +100,7 @@ export function DiscountModal({ open, onClose, title, base, current, onApply, ro
 
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-fg">
-            {type === 'Percentage' ? 'نسبة الخصم' : 'مبلغ الخصم شامل الضريبة'}
+            {type === 'Percentage' ? 'نسبة الخصم' : vatOn ? 'مبلغ الخصم شامل الضريبة' : 'مبلغ الخصم'}
           </span>
           <div className="relative">
             <input

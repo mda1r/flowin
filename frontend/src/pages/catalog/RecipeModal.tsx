@@ -14,6 +14,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { marginPercent, marginTone, netOfVat } from '@/lib/pricing'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import type { StockMaterialResponse } from '@/types/stockMaterial'
 
 // Another size of the same product that already has a recipe, offered as a starting point.
@@ -42,6 +43,7 @@ let nextKey = 1
 export function RecipeModal({ variant, copySources = [], onClose }: RecipeModalProps) {
   const { tenantId } = useAuthStore()
   const { t } = useI18n()
+  const vatOn = useVat().enabled
   // Cashiers can look up a recipe and its cost; saving is Owner/Manager only on the server too.
   const canEdit = useCanManageMaterials()
   const qc = useQueryClient()
@@ -323,9 +325,10 @@ export function RecipeModal({ variant, copySources = [], onClose }: RecipeModalP
               <dd className="mt-1 font-semibold tabular-nums text-fg">{totalCost.toFixed(2)} ر.س</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">سعر البيع قبل الضريبة</dt>
+              {/* Without VAT the sale price is all the shop's: one figure, nothing about tax. */}
+              <dt className="text-xs text-muted">{vatOn ? 'سعر البيع قبل الضريبة' : 'سعر البيع'}</dt>
               <dd className="mt-1 font-semibold tabular-nums text-fg">{formatCurrency(netOfVat(variant.salePrice), variant.currency)}</dd>
-              <dd className="text-xs tabular-nums text-muted">{formatCurrency(variant.salePrice, variant.currency)} شامل الضريبة</dd>
+              {vatOn && <dd className="text-xs tabular-nums text-muted">{formatCurrency(variant.salePrice, variant.currency)} شامل الضريبة</dd>}
             </div>
             <div>
               <dt className="text-xs text-muted">هامش الربح</dt>

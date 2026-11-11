@@ -9,6 +9,7 @@ import { hotelApi } from '@/api/hotel'
 import { formatCurrency } from '@/lib/utils'
 import type { ReservationResponse } from '@/types/api'
 import { useI18n } from '@/i18n'
+import { useVat } from '@/lib/vat'
 import { hotelErrorMessage, nightsUntil, stayTotals } from './stay'
 
 // Day after the current check-out, as yyyy-mm-dd (UTC, like the server).
@@ -30,6 +31,7 @@ export function ExtendStayModal({
   onSuccess: (updated: ReservationResponse) => void
 }) {
   const { t } = useI18n()
+  const vatOn = useVat().enabled
   const minYmd = reservation ? nextDayYmd(reservation.checkOut) : ''
   const [newDate, setNewDate] = useState(minYmd)
 
@@ -80,12 +82,14 @@ export function ExtendStayModal({
               <span>{nights} {t.hotel.nights} × {formatCurrency(reservation.ratePerNight)}</span>
               <span className="tabular-nums">{formatCurrency(totals.subtotal)}</span>
             </div>
-            <div className="flex justify-between text-muted">
-              <span>{t.hotel.vat}</span>
-              <span className="tabular-nums">{formatCurrency(totals.vat)}</span>
-            </div>
+            {vatOn && (
+              <div className="flex justify-between text-muted">
+                <span>{t.hotel.vat}</span>
+                <span className="tabular-nums">{formatCurrency(totals.vat)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-border pt-1 font-bold text-fg">
-              <span>{t.hotel.totalWithVat}</span>
+              <span>{vatOn ? t.hotel.totalWithVat : t.common.total}</span>
               <span className="tabular-nums">{formatCurrency(totals.total)}</span>
             </div>
           </div>

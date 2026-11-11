@@ -13,7 +13,8 @@ import { zatcaApi } from '@/api/zatca'
 import { inventoryApi } from '@/api/inventory'
 import { toast } from '@/components/ui/Toast'
 import { cn, formatCurrency } from '@/lib/utils'
-import { generateZatcaQr, SAUDI_VAT_RATE } from '@/lib/zatca'
+import { generateZatcaQr } from '@/lib/zatca'
+import { refreshVatAfter, useVat, vatRate } from '@/lib/vat'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import type { ProductResponse, ProductVariantResponse, PaymentMethod, OrderResponse, CustomerResponse } from '@/types/api'
@@ -38,7 +39,7 @@ import { cartScope } from '@/lib/safeStorage'
 import { ReceiptDocument } from '@/components/pos/ReceiptDocument'
 import { invoiceNo } from '@/lib/invoiceNumber'
 import { useReceiptSettings } from '@/lib/receipt'
-import { orderReceiptFigures, paymentLabel } from '@/lib/orderReceipt'
+import { documentHasVat, orderReceiptFigures, paymentLabel } from '@/lib/orderReceipt'
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
@@ -107,6 +108,7 @@ function RetailPosPage() {
   } = useCartStore()
   const { hold, restore, dismiss, carts: allHeldCarts } = useHeldCartsStore()
   const { branchId, tenantId, user } = useAuthStore()
+  const vat = useVat()
   const { t, lang } = useI18n()
 
   // The cart and held carts are saved per store and branch, so a reload or re-login brings them back.
@@ -133,6 +135,8 @@ function RetailPosPage() {
   const grossTotal = totals.total
   const extractedTax = totals.tax
   const preTaxAmount = totals.preTax
+  // Without VAT the summary has no pre-tax or VAT rows: the bill before the discount, the discount and the total.
+  const grossSubtotal = Math.round((totals.beforeLoyalty + totals.discountGross) * 100) / 100
   // What the cart discount comes off: the bill after line discounts, VAT included.
   const cartBase = cartTotals(lines, null).beforeLoyalty
 
@@ -249,10 +253,12 @@ function RetailPosPage() {
     mutationFn: async () => {
       const tendered = payMode === 'Cash' ? Math.max(parseFloat(amountTendered) || grossTotal, grossTotal) : grossTotal
       const clientReference = newClientReference()
+      // The shop's rate, the same one cartTotals priced the lines with; the server refuses any other.
+      const taxRate = vatRate()
       const payload: CheckoutPayload = {
         clientReference,
         currency: 'SAR',
-        taxRate: SAUDI_VAT_RATE,
+        taxRate,
         customerId: loyaltyCustomer?.id,
         lines: lines.map((line) => ({
           variantId: line.variantId,
@@ -295,7 +301,7 @@ function RetailPosPage() {
           discountAmount: totals.orderDiscountNet,
           taxAmount: extractedTax,
           totalAmount: grossTotal,
-          taxRate: SAUDI_VAT_RATE,
+          taxRate,
           paymentMethod: payMode as PaymentMethod,
           amountTendered: tendered,
           splitCash: payload.cashAmount,
@@ -369,6 +375,7 @@ function RetailPosPage() {
       }
       const code = isAxiosError(err) ? (err.response?.data as { title?: string } | undefined)?.title : undefined
       if (code === 'POS.InvalidApprovalPin' || code === 'POS.ApprovalPinLocked') setApprovalPin('')
+      refreshVatAfter(err)
       toast.error(t.pos.paymentFailed, apiErrorMessage(err))
     },
   })
@@ -611,7 +618,7 @@ function RetailPosPage() {
               <ul className="space-y-2 p-3">
                 {lines.map((line, i) => {
                   const lineGross = line.unitPrice * line.quantity
-                  const lineOff = line.discount ? Math.round(totals.lineTotals[i].discount * (1 + SAUDI_VAT_RATE) * 100) / 100 : 0
+                  const lineOff = line.discount ? Math.round(totals.lineTotals[i].discount * (1 + vat.rate) * 100) / 100 : 0
                   return (
                   <li key={line.variantId} className="card-3d animate-float-up p-3">
                     <div className="flex items-start justify-between gap-2">
@@ -686,6 +693,12 @@ function RetailPosPage() {
           {/* Totals + Checkout */}
           <div className="border-t p-4" style={{ borderColor: 'var(--card-border)' }}>
             <div className="mb-2 space-y-1 text-sm">
+              {!vat.enabled && totals.discountGross > 0 && (
+                <div className="flex justify-between text-muted">
+                  <span>{t.pos.subtotal}</span>
+                  <span className="tabular-nums">{formatCurrency(grossSubtotal)}</span>
+                </div>
+              )}
               {totals.discountGross > 0 && (
                 <button
                   type="button"
@@ -699,14 +712,18 @@ function RetailPosPage() {
                   <span className="tabular-nums">−{formatCurrency(totals.discountGross)}</span>
                 </button>
               )}
-              <div className="flex justify-between text-muted">
-                <span>{t.pos.subtotal}</span>
-                <span className="tabular-nums">{formatCurrency(preTaxAmount)}</span>
-              </div>
-              <div className="flex justify-between text-muted">
-                <span>{t.pos.tax}</span>
-                <span className="tabular-nums">{formatCurrency(extractedTax)}</span>
-              </div>
+              {vat.enabled && (
+                <>
+                  <div className="flex justify-between text-muted">
+                    <span>{t.pos.subtotal}</span>
+                    <span className="tabular-nums">{formatCurrency(preTaxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted">
+                    <span>{t.pos.tax}</span>
+                    <span className="tabular-nums">{formatCurrency(extractedTax)}</span>
+                  </div>
+                </>
+              )}
             </div>
             <div className="mb-4 flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--card-border)' }}>
               <span className="font-medium text-fg">{t.pos.total}</span>
@@ -781,20 +798,30 @@ function RetailPosPage() {
           <div className="glass-panel relative mx-4 max-h-[calc(100dvh-2rem)] w-full max-w-sm animate-float-up overflow-y-auto p-6">
             <h2 className="mb-4 text-lg font-semibold">{t.pos.payment}</h2>
             <div className="mb-4 space-y-1 text-sm">
+              {!vat.enabled && totals.discountGross > 0 && (
+                <div className="flex justify-between text-muted">
+                  <span>{t.pos.subtotal}</span>
+                  <span>{formatCurrency(grossSubtotal)}</span>
+                </div>
+              )}
               {totals.discountGross > 0 && (
                 <div className="flex justify-between text-success">
                   <span>الخصم{cartDiscount && ` (${discountLabel(cartDiscount)})`}</span>
                   <span>−{formatCurrency(totals.discountGross)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-muted">
-                <span>{t.pos.subtotal}</span>
-                <span>{formatCurrency(preTaxAmount)}</span>
-              </div>
-              <div className="flex justify-between text-muted">
-                <span>{t.pos.tax}</span>
-                <span>{formatCurrency(extractedTax)}</span>
-              </div>
+              {vat.enabled && (
+                <>
+                  <div className="flex justify-between text-muted">
+                    <span>{t.pos.subtotal}</span>
+                    <span>{formatCurrency(preTaxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted">
+                    <span>{t.pos.tax}</span>
+                    <span>{formatCurrency(extractedTax)}</span>
+                  </div>
+                </>
+              )}
             </div>
             <div
               className="mb-6 rounded-xl p-4"
@@ -1174,13 +1201,17 @@ function ZatcaReceiptModal({
   const vatNumber = zatcaSettings?.data?.vatRegistrationNumber ?? ''
   const receiptSettings = useReceiptSettings()
 
-  const qrCode = generateZatcaQr({
-    sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
-    vatNumber,
-    timestamp: order.completedAt ?? order.createdAt,
-    totalWithVat: order.totalAmount,
-    vatAmount: order.taxAmount,
-  })
+  // The sale's own tax decides (documentHasVat): a sale made with VAT off prints no VAT rows, number or QR.
+  const hasVat = documentHasVat(order)
+  const qrCode = hasVat
+    ? generateZatcaQr({
+        sellerName: zatcaSettings?.data?.sellerName ?? 'flowin',
+        vatNumber,
+        timestamp: order.completedAt ?? order.createdAt,
+        totalWithVat: order.totalAmount,
+        vatAmount: order.taxAmount,
+      })
+    : undefined
 
   return (
     <div className="scene-3d fixed inset-0 z-50 flex items-center justify-center" style={RETAIL_ACCENT}>
@@ -1212,7 +1243,7 @@ function ZatcaReceiptModal({
               date: new Date(order.completedAt ?? order.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
               items: order.lines.map((l) => ({ name: l.productName, quantity: l.quantity, total: l.lineTotal })),
               discount: order.discountAmount || undefined,
-              vat: order.taxAmount,
+              vat: hasVat ? order.taxAmount : undefined,
               total: order.totalAmount,
               payment:
                 order.paymentMethod === 'Cash' ? 'نقداً' :

@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency } from '@/lib/utils'
 import { SAUDI_VAT_RATE } from '@/lib/zatca'
+import { useVat } from '@/lib/vat'
 import { marginPercent } from '@/lib/pricing'
 import { restaurantErrorMessage } from '@/lib/restaurantErrors'
 import { discountCodeState } from '@/lib/discountCodes'
@@ -37,7 +38,6 @@ import type {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TOTAL_TABLES = 20
-const VAT = SAUDI_VAT_RATE
 
 const CATEGORY_LABELS: Record<MenuCategory, string> = {
   Starters: 'المقبلات',
@@ -77,6 +77,10 @@ interface TableBill {
 const r2 = (v: number) => Math.round(v * 100) / 100
 // Order totals keep four decimals; a payment rounded up to the halala always covers them.
 const toHalala = (v: number) => Math.ceil(v * 100 - 1e-6) / 100
+
+// Open orders keep the VAT rate they were opened with, so a table's bill shows a VAT row by its own tax, not
+// today's setting; only a bill of nothing follows the shop's setting.
+const billHasVat = (bill: TableBill, shopVat: boolean) => bill.taxAmount > 0 || (bill.total <= 0 && shopVat)
 
 // Open restaurant orders of a table. Cafe kitchen copies were paid at the cafe till and are not a table's bill.
 function openTableOrders(tableNumber: number, orders: RestaurantOrderResponse[]) {
@@ -176,6 +180,7 @@ export function RestaurantPage() {
 function CashierView({ branchId, canManage }: { branchId: string; canManage: boolean }) {
   const qc = useQueryClient()
   const { t } = useI18n()
+  const { enabled: vatEnabled } = useVat()
 
   const [selectedTable, setSelectedTable] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null)
@@ -272,9 +277,12 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
   // A discount code is applied when the table's order is opened; later rounds join that order as they are.
   const canDiscount = !openOrder
   const discountAmount = canDiscount && discount?.isValid ? (discount.discountAmount ?? 0) : 0
-  // Menu prices include VAT: the customer pays the listed price less any discount.
+  // Menu prices include VAT: the customer pays the listed price less any discount. A shop without VAT has none;
+  // a round added to an open order is taxed at the rate that order was opened with.
   const total = Math.round((subTotal - discountAmount) * 100) / 100
-  const taxAmount = Math.round((total * VAT / (1 + VAT)) * 100) / 100
+  const cartVat = openOrder && bill ? billHasVat(bill, vatEnabled) : vatEnabled
+  const cartRate = cartVat ? SAUDI_VAT_RATE : 0
+  const taxAmount = Math.round((total * cartRate / (1 + cartRate)) * 100) / 100
 
   // ── Discount validation ───────────────────────────────────────────────────
 
@@ -676,10 +684,12 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
                   <span className="tabular-nums">- {formatCurrency(discountAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-muted">
-                <span>{t.restaurant.tax}</span>
-                <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
-              </div>
+              {cartVat && (
+                <div className="flex justify-between text-muted">
+                  <span>{t.restaurant.tax}</span>
+                  <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <span className="font-medium text-fg">{openOrder ? 'الجولة الجديدة' : t.restaurant.total}</span>
                 <span className="text-xl font-bold text-fg">
@@ -707,10 +717,12 @@ function CashierView({ branchId, canManage }: { branchId: string; canManage: boo
                   <span className="tabular-nums">- {formatCurrency(bill.discountAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-muted">
-                <span>{t.restaurant.tax}</span>
-                <span className="tabular-nums">{formatCurrency(bill.taxAmount)}</span>
-              </div>
+              {billHasVat(bill, vatEnabled) && (
+                <div className="flex justify-between text-muted">
+                  <span>{t.restaurant.tax}</span>
+                  <span className="tabular-nums">{formatCurrency(bill.taxAmount)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <span className="font-medium text-fg">{t.restaurant.total}</span>
                 <span className="text-xl font-bold text-fg">
@@ -829,6 +841,7 @@ function PaymentModal({
   isPending: boolean
 }) {
   const { t } = useI18n()
+  const shopVat = useVat().enabled
   const total = bill.total
   const tendered = parseFloat(amountTendered) || 0
 
@@ -851,10 +864,12 @@ function PaymentModal({
               <span>- {formatCurrency(bill.discountAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between text-muted">
-            <span>{t.restaurant.tax}</span>
-            <span>{formatCurrency(bill.taxAmount)}</span>
-          </div>
+          {billHasVat(bill, shopVat) && (
+            <div className="flex justify-between text-muted">
+              <span>{t.restaurant.tax}</span>
+              <span>{formatCurrency(bill.taxAmount)}</span>
+            </div>
+          )}
         </div>
         <div className="mb-6 rounded-xl bg-surface-2 p-4">
           <p className="text-sm text-muted">المبلغ المستحق</p>

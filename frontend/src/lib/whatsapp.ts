@@ -30,7 +30,8 @@ export interface ReceiptMessage {
   discount?: number
   // The discount code (or its label) that gave the discount, printed next to it.
   discountLabel?: string
-  vat: number
+  // Left out for a document without VAT (see documentHasVat): the message then says nothing about tax.
+  vat?: number
   vatIncluded?: boolean
   total: number
   payment: string
@@ -56,7 +57,8 @@ export function buildReceiptMessage(r: ReceiptMessage): string {
     '',
   ]
   if (r.discount) lines.push(`الخصم${r.discountLabel ? ` (${r.discountLabel})` : ''}: −${sar(r.discount)}`)
-  lines.push(`${r.vatIncluded ? 'منها ضريبة القيمة المضافة' : 'ضريبة القيمة المضافة'}: ${sar(r.vat)}`, r.kind === 'credit' ? `*المبلغ المسترد: ${sar(r.total)}*` : `*الإجمالي: ${sar(r.total)}*`, `${r.kind === 'credit' ? 'الاسترداد' : 'الدفع'}: ${r.payment}`, '', 'شكراً لزيارتكم')
+  if (r.vat != null) lines.push(`${r.vatIncluded ? 'منها ضريبة القيمة المضافة' : 'ضريبة القيمة المضافة'}: ${sar(r.vat)}`)
+  lines.push(r.kind === 'credit' ? `*المبلغ المسترد: ${sar(r.total)}*` : `*الإجمالي: ${sar(r.total)}*`, `${r.kind === 'credit' ? 'الاسترداد' : 'الدفع'}: ${r.payment}`, '', 'شكراً لزيارتكم')
   return lines.join('\n')
 }
 

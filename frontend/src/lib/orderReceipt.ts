@@ -33,6 +33,15 @@ const REASON_LABEL: Record<ReturnReason, string> = {
 
 const lineName = (l: { productName: string; variantName: string }) => lineDisplayName(l.productName, l.variantName)
 
+/* Whether a document prints as a tax invoice. A saved sale decides by its own tax, not by today's setting:
+   one recorded with VAT stays a tax invoice when reprinted after the shop switched VAT off (it is a legal tax
+   invoice), and one recorded with none (rate 0, or no rate and no tax) has no VAT rows, VAT number or QR.
+   Only a document with no tax of its own to go by (a new sale, a gaming session) follows the shop's setting. */
+export function documentHasVat(doc: { taxRate?: number | null; taxAmount?: number | null }): boolean {
+  if (doc.taxRate != null) return doc.taxRate > 0
+  return (doc.taxAmount ?? 0) > 0
+}
+
 /* A saved order shown as a customer receipt. The server keeps net prices; the receipt shows lines and the
    discounts with VAT included (what the customer saw), then the net subtotal, the VAT and the total.
    discountAmount already includes the loyalty redemption, so the two are printed apart. */
@@ -58,6 +67,7 @@ export function orderReceiptFigures(order: OrderResponse) {
     subtotal: r2(order.subtotalAmount - (order.discountAmount ?? 0)),
     tax: r2(order.taxAmount),
     total: r2(order.totalAmount),
+    vat: documentHasVat(order),
   }
 }
 
@@ -73,11 +83,14 @@ export function returnReceiptFigures(ret: ReturnOrderResponse, taxRate?: number)
     total: r2(l.lineTotal * gross),
     detail: REASON_LABEL[l.reason],
   }))
+  const tax = r2(ret.refundAmount - net)
   return {
     lines,
     subtotal: r2(net),
-    tax: r2(ret.refundAmount - net),
+    tax,
     total: r2(ret.refundAmount),
+    // A credit note follows the invoice it reverses.
+    vat: documentHasVat({ taxRate, taxAmount: ret.taxAmount ?? tax }),
   }
 }
 

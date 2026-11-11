@@ -35,13 +35,17 @@ export function InvoiceReceiptModal({
   const figures = orderReceiptFigures(order)
   const number = invoiceNo(order)
   const issuedAt = order.completedAt ?? order.createdAt
-  const qr = generateZatcaQr({
-    sellerName: sellerName || 'flowin',
-    vatNumber,
-    timestamp: issuedAt,
-    totalWithVat: order.totalAmount,
-    vatAmount: order.taxAmount,
-  })
+  // The sale's own tax decides (documentHasVat), not today's setting: a tax invoice reprinted after VAT was
+  // switched off keeps its VAT and QR; a sale made without VAT prints none.
+  const qr = figures.vat
+    ? generateZatcaQr({
+        sellerName: sellerName || 'flowin',
+        vatNumber,
+        timestamp: issuedAt,
+        totalWithVat: order.totalAmount,
+        vatAmount: order.taxAmount,
+      })
+    : undefined
 
   // The customer on the sale, so the reprint matches the original slip and WhatsApp is prefilled.
   // A cashier without access to customers still gets the receipt, just without the name.
@@ -124,7 +128,7 @@ export function InvoiceReceiptModal({
               discount: (figures.discount ?? 0) + (figures.loyalty?.amount ?? 0) || undefined,
               // The code names the discount only when no points are folded into the same line.
               discountLabel: figures.loyalty ? undefined : figures.discountLabel,
-              vat: figures.tax,
+              vat: figures.vat ? figures.tax : undefined,
               vatIncluded: true,
               total: figures.total,
               payment: paymentLabel(order.paymentMethod),

@@ -8,6 +8,7 @@ import { gamingApi } from '@/api/gaming'
 import { useAuthStore } from '@/stores/authStore'
 import { apiErrorMessage } from '@/lib/apiError'
 import { cn, formatCurrency } from '@/lib/utils'
+import { useVat } from '@/lib/vat'
 import type { GameSessionBillResponse, GamingPackageResponse, StationType } from '@/types/api'
 
 const TYPE_LABELS: Record<string, string> = { Console: 'بلايستيشن', PC: 'كمبيوتر', VR: 'واقع افتراضي', Arcade: 'أركيد', Board: 'ألعاب طاولة' }
@@ -85,6 +86,7 @@ export function PackageBillLines({ bill }: { bill: GameSessionBillResponse }) {
 
 export function PackagesManager({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { branchId } = useAuthStore()
+  const vatOn = useVat().enabled
   const qc = useQueryClient()
   const { data: packages = [], isLoading } = usePackages()
   const [name, setName] = useState('')
@@ -126,7 +128,7 @@ export function PackagesManager({ open, onClose }: { open: boolean; onClose: () 
       <Modal open={open && !deleting} onClose={onClose} title="باقات الألعاب" size="lg">
         <div className="space-y-5">
           <p className="text-sm text-muted">
-            سعر ثابت لمدة محددة، شامل الضريبة. إذا لعب العميل أكثر من مدة الباقة يُحسب الوقت الإضافي بسعر الساعة للجهاز،
+            {vatOn ? 'سعر ثابت لمدة محددة، شامل الضريبة.' : 'سعر ثابت لمدة محددة.'} إذا لعب العميل أكثر من مدة الباقة يُحسب الوقت الإضافي بسعر الساعة للجهاز،
             وإذا أنهى مبكراً يدفع سعر الباقة.
           </p>
 
@@ -174,7 +176,7 @@ export function PackagesManager({ open, onClose }: { open: boolean; onClose: () 
                 type="number"
                 min="0"
                 step="0.5"
-                placeholder="السعر شامل الضريبة"
+                placeholder={vatOn ? 'السعر شامل الضريبة' : 'السعر'}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 aria-label="سعر الباقة"

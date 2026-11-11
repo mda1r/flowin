@@ -191,6 +191,12 @@ export const en = {
     goToShifts: 'Shifts',
   },
 
+  // A shop that is not VAT-registered: the wording that replaces anything about tax while VAT is off.
+  noVat: {
+    invoice: 'Invoice',
+    optionPriceHint: '0 for free',
+  },
+
   pos: {
     addNoteShort: 'Add note',
     kitchenNotePlaceholder: 'Note for the kitchen…',

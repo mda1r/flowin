@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/Toast'
 import { formatCurrency, cn } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/apiError'
 import { printElement } from '@/lib/print'
+import { useVat } from '@/lib/vat'
 import type {
   GameStationResponse,
   GameSessionBillResponse,
@@ -19,7 +20,6 @@ import type {
   GamingPackageResponse,
 } from '@/types/api'
 import { useI18n } from '@/i18n'
-import { useVat } from '@/lib/vat'
 import { playAlarmSequence, playBeep, requestNotificationPermission, sendGameNotification } from '@/lib/gamingAlerts'
 import { SessionPayButtons } from '@/components/pos/SessionPayButtons'
 import { PackageBillLines, PackagePicker, PackagesManager } from '@/components/gaming/Packages'
