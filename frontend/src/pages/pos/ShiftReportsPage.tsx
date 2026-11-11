@@ -21,11 +21,12 @@ import { ShiftReportDocument, n, reconcile, shiftDuration as duration, topProduc
 import { staleShiftReason } from '@/lib/shifts'
 import { useVat } from '@/lib/vat'
 import type { OrderResponse, ReturnOrderResponse, ShiftResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 type Period = '7d' | '30d' | 'all'
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-const day = (iso: string) => new Date(iso).toLocaleDateString('ar-SA', { weekday: 'short', day: 'numeric', month: 'short' })
+const time = (iso: string) => new Date(iso).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })
+const day = (iso: string) => new Date(iso).toLocaleDateString(intlLocale(), { weekday: 'short', day: 'numeric', month: 'short' })
 
 
 export function ShiftReportsPage() {

@@ -106,7 +106,7 @@ export function InvoiceReceiptModal({
                   <span className="min-w-0 flex-1">
                     <bdi dir="ltr" className="font-semibold tabular-nums text-fg">{returnNo(r)}</bdi>
                     <span className="block text-xs text-muted">
-                      {new Date(r.createdAt).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · {refundLabel(r.refundMethod)}
+                      {new Date(r.createdAt).toLocaleString(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · {refundLabel(r.refundMethod)}
                     </span>
                   </span>
                   <span className="font-display font-semibold tabular-nums text-danger">{formatCurrency(r.refundAmount)}</span>

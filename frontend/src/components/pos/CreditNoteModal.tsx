@@ -8,6 +8,7 @@ import { generateZatcaQr } from '@/lib/zatca'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
 import type { OrderResponse, ReturnOrderResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 /* The slip handed to a customer for a return: a credit note (إشعار دائن) that names the original invoice,
    lists what came back, how it was refunded and the VAT on it, with its own ZATCA QR (when the sale had VAT). */
@@ -74,7 +75,7 @@ export function CreditNoteModal({
               storeName: sellerName || 'flowin',
               invoiceNo: number,
               reference: `#${reference}`,
-              date: new Date(ret.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(ret.createdAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' }),
               items: figures.lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total })),
               vat: figures.vat ? figures.tax : undefined,
               vatIncluded: true,

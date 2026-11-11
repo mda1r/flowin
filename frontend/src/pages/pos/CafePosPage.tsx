@@ -51,6 +51,7 @@ import {
   type CartModifier, grossDelta, groupSatisfied, initialPicks, lineDetail, modifierKey, modifierSummary,
   pickedModifiers, productGroups, readLastModifiers, rememberLastModifiers,
 } from '@/lib/modifiers'
+import { intlLocale } from '@/lib/locale'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -356,7 +357,7 @@ function KitchenTicketModal({
               طلب المطبخ
             </div>
             <p className="text-xs text-muted">
-              {new Date(ticket.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(ticket.createdAt).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
             </p>
             {ticket.callName && (
               <p className="mt-2 break-words text-3xl font-black leading-tight text-fg"><bdi>{ticket.callName}</bdi></p>
@@ -505,7 +506,7 @@ function CustomerReceiptModal({
             message={buildReceiptMessage({
               storeName: sellerName || 'كافيه',
               invoiceNo: invoiceNo({ id: receipt.orderId, number: receipt.number }),
-              date: new Date(receipt.completedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(receipt.completedAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' }),
               items: receipt.items.map((i) => ({
                 name: lineDisplayName(i.productName, i.variantName),
                 detail: lineDetail(i.modifiers.map((m) => m.name), i.notes),
@@ -1345,7 +1346,7 @@ export function CafePosPage() {
       } else {
         toast.success(
           viaAi ? 'تم إتمام الطلب عبر كاشير AI' : t.pos.orderProcessed,
-          snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString('ar-SA')} نقطة لـ${snapshot.customerName}` : undefined,
+          snapshot.pointsEarned ? `أضيفت ${snapshot.pointsEarned.toLocaleString(intlLocale())} نقطة لـ${snapshot.customerName}` : undefined,
         )
       }
     },
@@ -1895,7 +1896,7 @@ export function CafePosPage() {
                           <bdi>{appliedCodeName(appliedCode)}</bdi>
                           {' · '}
                           <span className="tabular-nums">
-                            {appliedCode.type === 'Percentage' ? `${appliedCode.value.toLocaleString('ar-SA')}٪` : formatCurrency(appliedCode.value)}
+                            {appliedCode.type === 'Percentage' ? `${appliedCode.value.toLocaleString(intlLocale())}٪` : formatCurrency(appliedCode.value)}
                           </span>
                         </p>
                         {appliedCode.label && (
@@ -2056,7 +2057,7 @@ export function CafePosPage() {
                       <span>
                         الخصم
                         {appliedCode && <> (<bdi>{appliedCodeName(appliedCode)}</bdi>)</>}
-                        {discountKind === 'Percentage' ? ` ${Math.min(discountRaw, 100).toLocaleString('ar-SA')}٪` : ''}
+                        {discountKind === 'Percentage' ? ` ${Math.min(discountRaw, 100).toLocaleString(intlLocale())}٪` : ''}
                       </span>
                       <span className="tabular-nums">−{formatCurrency(discountGross)}</span>
                     </div>
@@ -2810,13 +2811,13 @@ export function CafePosPage() {
                 <div className="flex justify-between">
                   <span className="text-muted">البداية</span>
                   <span className="tabular-nums text-fg">
-                    {new Date(gamingBill.startTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(gamingBill.startTime).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">النهاية</span>
                   <span className="tabular-nums text-fg">
-                    {new Date(gamingBill.endTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(gamingBill.endTime).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="flex justify-between">

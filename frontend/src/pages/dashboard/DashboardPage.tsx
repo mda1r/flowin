@@ -51,6 +51,7 @@ import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
 import { catalogApi } from '@/api/catalog'
 import { salesApi } from '@/api/sales'
+import { intlLocale } from '@/lib/locale'
 import { useI18n } from '@/i18n'
 import { useVat } from '@/lib/vat'
 import { shiftOpenHours, staleShiftReason } from '@/lib/shifts'
@@ -244,7 +245,7 @@ function formatOrderTime(iso?: string, lang?: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit' }).format(d)
+  return new Intl.DateTimeFormat(intlLocale(lang), { hour: 'numeric', minute: '2-digit' }).format(d)
 }
 
 function OrderRow({ order, index }: { order: OrderResponse; index: number }) {
@@ -654,7 +655,7 @@ function bucketByHour(orders: OrderResponse[], returns: ReturnOrderResponse[], n
 function formatHour(hour: number, lang: string): string {
   const d = new Date()
   d.setHours(hour, 0, 0, 0)
-  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric' }).format(d)
+  return new Intl.DateTimeFormat(intlLocale(lang), { hour: 'numeric' }).format(d)
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -786,7 +787,7 @@ function TodayMoneyCard({ orders, returns, loading }: { orders: OrderResponse[];
   const expectedCash = shift ? drawerQuery.data : undefined
 
   const openedTime = shift
-    ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(shift.openedAt))
+    ? new Intl.DateTimeFormat(intlLocale(lang), { hour: 'numeric', minute: '2-digit' }).format(new Date(shift.openedAt))
     : ''
 
   return (
@@ -895,7 +896,7 @@ function MoreLine({ count, href }: { count: number; href: string }) {
   if (count <= 0) return null
   return (
     <a href={href} className="row-hover block px-6 py-2.5 text-center text-xs font-medium text-info">
-      {t.dashboard.moreItems.replace('{n}', count.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US'))}
+      {t.dashboard.moreItems.replace('{n}', count.toLocaleString(intlLocale(lang)))}
     </a>
   )
 }
@@ -973,7 +974,7 @@ export function DashboardPage() {
   })
   const lowMaterials = lowMaterialsData?.data ?? []
   const canPurchase = !!businessType && (BUSINESS_TYPE_ROUTES[businessType] ?? []).includes('/purchasing')
-  const num = (v: number) => v.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-US')
+  const num = (v: number) => v.toLocaleString(intlLocale(lang))
 
   // The branch's open shift, flagged when it was left open from a previous day or for most of a day.
   const { shift: openShift } = useShift()

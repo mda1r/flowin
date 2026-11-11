@@ -3,8 +3,9 @@ import { formatCurrency } from '@/lib/utils'
 import { useReceiptSettings, useSellerIdentity } from '@/lib/receipt'
 import { useVat } from '@/lib/vat'
 import type { OrderResponse, ShiftResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
-export const n = (v: number) => v.toLocaleString('ar-SA')
+export const n = (v: number) => v.toLocaleString(intlLocale())
 
 // "3 س 20 د", or "2 يوم 4 س" for shifts left open past a day.
 export function shiftDuration(fromIso: string, toIso?: string | null) {
@@ -76,8 +77,8 @@ export function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent
         <p className="receipt-title">{isCurrent ? 'تقرير منتصف الشفت (X)' : 'تقرير إقفال الشفت (Z)'}</p>
         <p className="receipt-small">{shift.cashierName}</p>
         <p className="receipt-small">
-          {new Date(shift.openedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}
-          {shift.closedAt && ` — ${new Date(shift.closedAt).toLocaleString('ar-SA', { timeStyle: 'short' })}`}
+          {new Date(shift.openedAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' })}
+          {shift.closedAt && ` — ${new Date(shift.closedAt).toLocaleString(intlLocale(), { timeStyle: 'short' })}`}
         </p>
         <p className="receipt-small">المدة: {shiftDuration(shift.openedAt, shift.closedAt)}</p>
         {shift.closedByName && <p className="receipt-small">أغلقه: {shift.closedByName}</p>}
@@ -114,7 +115,7 @@ export function ShiftReportDocument({ id, shift, topProducts, refunds, isCurrent
       )}
       {shift.notes && <p className="receipt-note">ملاحظة: {shift.notes}</p>}
       <hr className="receipt-rule" />
-      <p className="receipt-small receipt-center">طُبع {new Date().toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+      <p className="receipt-small receipt-center">طُبع {new Date().toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' })}</p>
       <p className="receipt-small receipt-center" style={{ marginTop: '0.8rem' }}>توقيع الكاشير ____________</p>
       {settings.showPoweredBy && <div className="receipt-powered"><FlowinLogo tone="mono" className="h-3" /></div>}
     </div>

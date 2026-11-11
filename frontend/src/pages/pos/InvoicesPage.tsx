@@ -15,6 +15,7 @@ import { downloadCsv } from '@/lib/csv'
 import { modifierSummary } from '@/lib/modifiers'
 import { lineDisplayName } from '@/lib/variantName'
 import type { OrderLineResponse, OrderResponse, ReturnOrderResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 // "لاتيه - كبير (شوفان · شوت إضافي) ×2": a sold line with its size and add-ons, for the list, its tooltip
 // and the CSV.
@@ -236,19 +237,19 @@ export function InvoicesPage() {
 
         {/* summary */}
         <div className={cn('grid grid-cols-2 gap-3', vatOn ? 'lg:grid-cols-6' : 'lg:grid-cols-5')}>
-          <Stat label="عدد الفواتير" value={summary.count.toLocaleString('ar-SA')} />
+          <Stat label="عدد الفواتير" value={summary.count.toLocaleString(intlLocale())} />
           <Stat label="إجمالي المبيعات" value={formatCurrency(summary.total)} strong />
           {vatOn && <Stat label="ضريبة القيمة المضافة" value={formatCurrency(summary.vat)} />}
           <Stat label="متوسط الفاتورة" value={formatCurrency(summary.avg)} />
           <Stat
-            label={`المسترد (${summary.refundedCount.toLocaleString('ar-SA')})`}
+            label={`المسترد (${summary.refundedCount.toLocaleString(intlLocale())})`}
             value={formatCurrency(summary.refundedAmount)}
             tone={summary.refundedAmount > 0 ? 'danger' : undefined}
           />
           <Stat label="الصافي بعد الاسترداد" value={formatCurrency(summary.net)} strong />
         </div>
         {ordersRaw.length >= PAGE_CAP && (
-          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">يظهر أول {PAGE_CAP.toLocaleString('ar-SA')} فاتورة في هذه الفترة؛ اختر فترة أقصر لرؤية الكل.</p>
+          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">يظهر أول {PAGE_CAP.toLocaleString(intlLocale())} فاتورة في هذه الفترة؛ اختر فترة أقصر لرؤية الكل.</p>
         )}
 
         {elsewhere && (
@@ -257,7 +258,7 @@ export function InvoicesPage() {
             <p className="min-w-0 flex-1 text-fg">
               الفاتورة <bdi dir="ltr" className="font-semibold tabular-nums">#{invoiceNo(elsewhere)}</bdi> في تاريخ آخر:{' '}
               <span className="text-muted tabular-nums">
-                {new Date(elsewhere.completedAt ?? elsewhere.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })}
+                {new Date(elsewhere.completedAt ?? elsewhere.createdAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' })}
               </span>
             </p>
             <button type="button" onClick={() => setSelected(elsewhere)} className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-fg hover:opacity-90">
@@ -316,7 +317,7 @@ export function InvoicesPage() {
                         <bdi dir="ltr" className="font-display font-semibold tabular-nums text-fg">#{invoiceNo(o)}</bdi>
                       </td>
                       <td className="px-4 py-3 text-muted tabular-nums">
-                        {new Date(o.completedAt ?? o.createdAt).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(o.completedAt ?? o.createdAt).toLocaleString(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="max-w-[16rem] px-4 py-3 text-muted">
                         <span className="block truncate" title={o.lines.map(lineSummary).join('، ')}>

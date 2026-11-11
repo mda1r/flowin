@@ -19,6 +19,7 @@ import { useI18n } from '@/i18n'
 import { CashCountField } from './CashCountGrid'
 import { ShiftReportDocument, shiftDuration, topProductsOf, type TopProduct } from './ShiftReportDocument'
 import type { ShiftResponse, OrderResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 // ── Open Shift Modal ──────────────────────────────────────────────────────────
 
@@ -216,7 +217,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           <div className="flex flex-col items-center gap-2 text-center">
             <CheckCircle2 className="h-10 w-10 text-success" />
             <p className="text-sm text-muted">
-              {shiftDuration(s.openedAt, s.closedAt)} · {s.totalOrders.toLocaleString('ar-SA')} فاتورة · {formatCurrency(s.totalSales)}
+              {shiftDuration(s.openedAt, s.closedAt)} · {s.totalOrders.toLocaleString(intlLocale())} فاتورة · {formatCurrency(s.totalSales)}
             </p>
           </div>
           <VarianceBadge label={t.shiftGate.cashCount} variance={s.cashVariance ?? 0} />
@@ -251,7 +252,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
           )}
           {offlinePending.length > 0 && (
             <p className="text-xs text-warning">
-              {offlinePending.length.toLocaleString('ar-SA')} عملية محفوظة دون اتصال لم تُزامن بعد. انتظر عودة الإنترنت قبل إغلاق الشفت حتى تدخل في حسابه.
+              {offlinePending.length.toLocaleString(intlLocale())} عملية محفوظة دون اتصال لم تُزامن بعد. انتظر عودة الإنترنت قبل إغلاق الشفت حتى تدخل في حسابه.
             </p>
           )}
           <div className="flex gap-2">
@@ -278,7 +279,7 @@ export function CloseShiftModal({ shift, onClose }: { shift: ShiftResponse; onCl
 
         {/* summary cards: figures come from the server, not a capped page of orders */}
         <div className="grid grid-cols-2 gap-3">
-          <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={live ? live.totalOrders.toLocaleString('ar-SA') : '—'} loading={loadingLive} />
+          <SummaryCard icon={<ShoppingBag className="h-4 w-4" />} label="إجمالي الطلبات" value={live ? live.totalOrders.toLocaleString(intlLocale()) : '—'} loading={loadingLive} />
           <SummaryCard icon={<TrendingUp className="h-4 w-4" />} label={t.shiftGate.totalSales} value={money(live?.totalSales)} loading={loadingLive} />
           <SummaryCard icon={<Banknote className="h-4 w-4" />} label={t.shiftGate.cashSales} value={money(live?.totalCashSales)} loading={loadingLive} />
           <SummaryCard icon={<CreditCard className="h-4 w-4" />} label={t.shiftGate.cardSales} value={money(live?.totalCardSales)} loading={loadingLive} />

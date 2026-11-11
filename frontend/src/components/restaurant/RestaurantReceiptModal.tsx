@@ -9,6 +9,7 @@ import { generateZatcaQr } from '@/lib/zatca'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
 import type { RestaurantOrderResponse } from '@/types/api'
+import { intlLocale } from '@/lib/locale'
 
 const r2 = (v: number) => Math.round(v * 100) / 100
 
@@ -87,7 +88,7 @@ export function RestaurantReceiptModal({
             message={buildReceiptMessage({
               storeName: sellerName || 'flowin',
               invoiceNo: number,
-              date: new Date(issuedAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(issuedAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' }),
               items: lines.map((l) => ({ name: l.name, quantity: l.quantity, total: l.total })),
               discount: discount || undefined,
               vat: hasVat ? tax : undefined,

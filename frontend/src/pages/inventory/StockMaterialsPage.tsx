@@ -227,7 +227,7 @@ function MaterialModal({ categories, initial, onSave, onClose, saving, error }: 
             {initial ? (
               <Field label="الكمية الحالية" hint="لتغييرها استخدم زر «جرد الكمية»">
                 <p className="input flex items-center bg-surface-2 tabular-nums text-muted">
-                  {initial.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {initial.storageUnit}
+                  {initial.currentQuantityInStorageUnits.toLocaleString(intlLocale())} {initial.storageUnit}
                 </p>
               </Field>
             ) : (
@@ -486,7 +486,7 @@ function AdjustModal({ material, onClose }: { material: StockMaterialResponse; o
           <div>
             <dt className="text-xs text-muted">الكمية في النظام</dt>
             <dd className="mt-1 font-semibold tabular-nums text-fg">
-              {material.currentQuantityInStorageUnits.toLocaleString('ar-SA')} {material.storageUnit}
+              {material.currentQuantityInStorageUnits.toLocaleString(intlLocale())} {material.storageUnit}
             </dd>
           </div>
           <div>
@@ -496,7 +496,7 @@ function AdjustModal({ material, onClose }: { material: StockMaterialResponse; o
               dir="ltr"
             >
               {change > 0 ? '+' : ''}
-              {change.toLocaleString('ar-SA', { maximumFractionDigits: 4 })} {material.storageUnit}
+              {change.toLocaleString(intlLocale(), { maximumFractionDigits: 4 })} {material.storageUnit}
             </dd>
           </div>
         </dl>

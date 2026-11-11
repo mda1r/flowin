@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Input } from '@/components/ui/Input'
 import { cn, formatCurrency } from '@/lib/utils'
+import { intlLocale } from '@/lib/locale'
 
 // Saudi riyal notes and coins a cashier counts by; halalas go in one amount.
 const DENOMINATIONS = [500, 200, 100, 50, 10, 5, 1] as const
@@ -27,7 +28,7 @@ export function CashCountGrid({ value, onChange }: { value: CashCount; onChange:
           return (
             <label key={d} className="rounded-lg bg-surface-2 px-2.5 py-2">
               <span className="flex items-baseline justify-between gap-1 text-xs text-muted">
-                <span className="font-semibold text-fg tabular-nums">{d.toLocaleString('ar-SA')} ر.س</span>
+                <span className="font-semibold text-fg tabular-nums">{d.toLocaleString(intlLocale())} ر.س</span>
                 {count > 0 && <span className="tabular-nums">{formatCurrency(d * count)}</span>}
               </span>
               <input

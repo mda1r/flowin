@@ -10,6 +10,7 @@ import { apiErrorMessage } from '@/lib/apiError'
 import { cn } from '@/lib/utils'
 import { useVat } from '@/lib/vat'
 import { useI18n } from '@/i18n'
+import { intlLocale } from '@/lib/locale'
 
 // ── Quick prompts for each "agent" role ───────────────────────────────────────
 
@@ -123,7 +124,7 @@ function InsightsPanel({ branchId }: { branchId: string }) {
       ))}
       {data.generatedAt && (
         <p className="text-center text-xs text-muted/50">
-          آخر تحديث: {new Date(data.generatedAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+          آخر تحديث: {new Date(data.generatedAt).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })}
         </p>
       )}
     </div>

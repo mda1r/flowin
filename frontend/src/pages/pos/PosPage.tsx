@@ -43,6 +43,7 @@ import { documentHasVat, orderReceiptFigures, paymentLabel } from '@/lib/orderRe
 import { WhatsAppShare } from '@/components/pos/WhatsAppShare'
 import { buildReceiptMessage } from '@/lib/whatsapp'
 import { printElement } from '@/lib/print'
+import { intlLocale } from '@/lib/locale'
 
 export function POSPage() {
   const { user } = useAuthStore()
@@ -1240,7 +1241,7 @@ function ZatcaReceiptModal({
             message={buildReceiptMessage({
               storeName: zatcaSettings?.data?.sellerName ?? 'flowin',
               invoiceNo: invoiceNo(order),
-              date: new Date(order.completedAt ?? order.createdAt).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }),
+              date: new Date(order.completedAt ?? order.createdAt).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' }),
               items: order.lines.map((l) => ({ name: l.productName, quantity: l.quantity, total: l.lineTotal })),
               discount: order.discountAmount || undefined,
               vat: hasVat ? order.taxAmount : undefined,

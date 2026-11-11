@@ -5,6 +5,7 @@ import { customersApi, type LoyaltyTransaction, type LoyaltyTransactionKind } fr
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toast'
 import { useAuthStore } from '@/stores/authStore'
+import { intlLocale } from '@/lib/locale'
 import { useI18n } from '@/i18n'
 import { apiErrorMessage } from '@/lib/apiError'
 import { cn, formatDateTime } from '@/lib/utils'
@@ -64,7 +65,7 @@ export function CustomerLoyaltyCard({ customer, canManage, onChanged }: Customer
     Adjust: t.customers.kindAdjust,
     Reverse: t.customers.kindReverse,
   }
-  const locale = lang === 'ar' ? 'ar-SA' : 'en-US'
+  const locale = intlLocale(lang)
 
   return (
     <div className="space-y-3 rounded-xl border border-border bg-surface-2/60 p-3">
