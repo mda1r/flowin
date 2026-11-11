@@ -466,6 +466,12 @@ export type ExpenseCategory =
   | 'Equipment'
   | 'Marketing'
   | 'Maintenance'
+  | 'GovernmentFees'
+  | 'Subscriptions'
+  | 'DeliveryCommissions'
+  | 'BankFees'
+  | 'Insurance'
+  | 'Transport'
   | 'Other'
 
 export interface ExpenseResponse {

@@ -8,6 +8,14 @@ export type ExpenseFilters = {
   dateTo?: string
 }
 
+export type ExpenseInput = {
+  category: ExpenseCategory
+  amount: number
+  description: string
+  expenseDate: string
+  notes?: string
+}
+
 export const financeApi = {
   listExpenses: (
     branchId: string,
@@ -41,24 +49,22 @@ export const financeApi = {
       `/api/v1/branches/${branchId}/expenses/${expenseId}`,
     ),
 
-  // Tenant comes from the token on the server.
-  createExpense: (
-    branchId: string,
-    data: {
-      category: ExpenseCategory
-      amount: number
-      currency: string
-      description: string
-      expenseDate: string
-      notes?: string
-    },
-  ) =>
+  // Tenant and currency come from the server. approveNow is only honoured for users who may approve;
+  // anyone else's expense still waits for approval.
+  createExpense: (branchId: string, data: ExpenseInput & { approveNow?: boolean }) =>
     apiClient.post<ExpenseResponse>(
       `/api/v1/branches/${branchId}/expenses`,
       data,
     ),
 
-  // Owner/Manager only; the approver is the signed-in user.
+  // Owner/Manager/Accountant only, and only while the expense is pending.
+  updateExpense: (branchId: string, expenseId: string, data: ExpenseInput) =>
+    apiClient.put<ExpenseResponse>(
+      `/api/v1/branches/${branchId}/expenses/${expenseId}`,
+      data,
+    ),
+
+  // Owner/Manager/Accountant only; the approver is the signed-in user.
   approve: (branchId: string, expenseId: string) =>
     apiClient.post<ExpenseResponse>(
       `/api/v1/branches/${branchId}/expenses/${expenseId}/approve`,
